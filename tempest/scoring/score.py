@@ -7,6 +7,9 @@ For each held-out row (the last `val_years` years, as in training) it draws m sa
 - climatology: real training-year rows from the same grid point, calendar month and 2-hour solar-time bin
 - gauss: monthly mean + correlated bell-curve spread per grid point, the way NASA Earth-GRAM / Range Reference
   Atmospheres build dispersions (the tool aerospace uses today; the bar to clear)
+  (per grid point x month x 2-hour bin; month only where a bin has < 600 training rows)
+- recent climatology (headline only): as climatology but from the 15 years before the test, so warming is in the bar
+The HEADLINE table gives skill, best-guess error (median) and 99 % coverage with 95 % day-block bootstrap intervals.
 - generator, drivers known: ONI, WWV, QBO as observed (upper bound, like a perfect seasonal forecast)
 - generator, drivers unknown: drivers copied from random training rows of the same group (what a query
   years ahead gets: the model's spread then also covers ENSO/QBO uncertainty)
@@ -26,6 +29,7 @@ from tempest.calibrate import spread
 from tempest.generator.features import FEATURES
 from tempest.generator.sample import SURFACE, Sampler, clip_ranges, to_physical
 from tempest.generator.train import load_npz
+from tempest.scoring import diag
 from tempest.scoring.report import report
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -78,6 +82,23 @@ def group_keys(cond):
     return point.ravel().astype(np.int64) * 144 + month * 12 + hbin
 
 
+def band_masks():
+    """(var, band label, boolean mask over the physical columns) for every variable x height band and surface field."""
+    n, names = len(HEIGHTS), physical_names()
+    out = []
+    for i, v in enumerate(PROFILE):
+        for b0, b1 in BANDS:
+            sel = np.zeros(len(names), bool)
+            sel[i * n:(i + 1) * n] = (HEIGHTS >= b0) & (HEIGHTS < b1)
+            out.append((v, f"{b0 / 1000:g}-{min(b1, 18000) / 1000:g} km", sel))
+    return out + [(s, "surface", np.array([c == s for c in names])) for s in SURFACE]
+
+
+def var_slices():
+    n = len(HEIGHTS)
+    return [(v, slice(i * n, (i + 1) * n)) for i, v in enumerate(PROFILE)] + [(s, slice(len(PROFILE) * n + j, len(PROFILE) * n + j + 1)) for j, s in enumerate(SURFACE)]
+
+
 def physical_names():
     return [f"{v}_{int(h)}" for v in PROFILE for h in HEIGHTS] + SURFACE
 
@@ -87,11 +108,12 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--data", required=True)
     ap.add_argument("--rows", type=int, default=5000)
-    ap.add_argument("--m", type=int, default=50)
+    ap.add_argument("--m", type=int, help="samples per row (default: the calibration's m, else 50)")
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
+    ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
 
@@ -101,11 +123,12 @@ def main():
     ckpt = ckpt.get("members", [ckpt])[0]
     d = load_npz(a.data)
     cond, year = d["cond"], d["year"]
-    held = (year > year.max() - ckpt["cfg"]["val_years"]) & (year >= (a.first_test_year or 0))
+    held = (year > year.max() - ckpt["cfg"]["val_years"]) & (year >= (a.first_test_year or 0)) & (year <= (a.last_test_year or 9999))
     cal = spread.load(a.calib)
+    a.m = a.m or (int(cal["m"]) if cal else 50)
     keys = group_keys(cond)
 
-    tr = np.flatnonzero(~held)
+    tr = np.flatnonzero(~held & (year <= (a.last_test_year or 9999)))
     tr = tr[np.argsort(keys[tr], kind="stable")]
     trk = keys[tr]
     va = rng.choice(np.flatnonzero(held), min(a.rows, int(held.sum())), replace=False)
@@ -118,12 +141,22 @@ def main():
     target = d["target"]
     truth = to_physical(target[va])
     clim = to_physical(target[draws.ravel()].reshape(*draws.shape, -1))
+    # fair baseline with warming: same groups, only the last 15 years before the test (all years if a group is empty)
+    first = a.first_test_year or int(year[va].min())
+    rec = tr[year[tr] >= first - 15]  # tr is sorted by key, so the subset is too
+    lo2, hi2 = np.searchsorted(keys[rec], keys[va], "left"), np.searchsorted(keys[rec], keys[va], "right")
+    d2 = rec[np.minimum(lo2[:, None] + (rng.random((len(va), a.m)) * (hi2 - lo2)[:, None]).astype(np.int64), len(rec) - 1)]
+    d2 = np.where((hi2 > lo2)[:, None], d2, draws)
+    clim15 = to_physical(target[d2.ravel()].reshape(*d2.shape, -1))
+    print(f"recent climatology {first - 15}-{first - 1}: {int((hi2 > lo2).mean() * 100)} % of rows have a group", flush=True)
 
-    gk = keys // 12  # grid point x month, no hour: monthly statistics like a reference atmosphere
+    # grid point x month x 2-hour bin: a reference atmosphere also knows the hour; month only if the bin is thin
+    gk = np.where(np.bincount(keys[tr], minlength=keys.max() + 1)[keys] >= 600, keys, -1 - keys // 12)
     trg = tr[np.argsort(gk[tr], kind="stable")]
     gauss = np.empty_like(clim)
     for g in np.unique(gk[va]):
-        rows = trg[np.searchsorted(gk[trg], g, "left"):np.searchsorted(gk[trg], g, "right")]
+        rows = (trg[np.searchsorted(gk[trg], g, "left"):np.searchsorted(gk[trg], g, "right")] if g >= 0
+                else tr[keys[tr] // 12 == -1 - g])
         rows = np.sort(rng.choice(rows, min(len(rows), 3000), replace=False))
         sel = np.flatnonzero(gk[va] == g)
         gauss[sel] = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), a.m, rng)
@@ -149,19 +182,16 @@ def main():
         res[f"crps_{name}"] = crps_ensemble(x, truth).mean(0)
         res[f"cov90_{name}"] = coverage90(x, truth).mean(0)
         res[f"cov99_{name}"] = coverage90(x, truth, 0.99).mean(0)
+        med = np.median(x, 1)
+        res[f"mae_{name}"] = np.abs(med - truth).mean(0)
+        res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" if cal else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
-    rows = []
-    for i, v in enumerate(PROFILE):
-        for b0, b1 in BANDS:
-            sel = np.zeros(len(res), bool)
-            sel[i * len(HEIGHTS):(i + 1) * len(HEIGHTS)] = (HEIGHTS >= b0) & (HEIGHTS < b1)
-            rows.append((v, f"{b0 / 1000:g}-{min(b1, 18000) / 1000:g} km", res[sel]))
-    rows += [(s, "surface", res[res.column == s]) for s in SURFACE]
+    rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
     summary = pd.DataFrame([dict(var=v, band=b, crps_clim=r.crps_clim.mean(), crps_known=r.crps_known.mean(),
                                  skill_gauss=1 - r.crps_gauss.mean() / r.crps_clim.mean(),
                                  skill_known=1 - r.crps_known.mean() / r.crps_clim.mean(),
@@ -172,9 +202,22 @@ def main():
                                  cov99_clim=r.cov99_clim.mean(), cov99_gauss=r.cov99_gauss.mean()) for v, b, r in rows])
     with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
         print(summary.to_string(index=False))
+        print("\nbest-guess error (median of the samples vs the truth; physical units, lower is better):")
+        print(pd.DataFrame([dict(var=v, band=b, mae_clim=r.mae_clim.mean(), mae_known=r.mae_known.mean(),
+                                 rmse_clim=np.sqrt((r.rmse_clim ** 2).mean()), rmse_known=np.sqrt((r.rmse_known ** 2).mean()),
+                                 mae_skill=1 - r.mae_known.mean() / r.mae_clim.mean()) for v, b, r in rows]).to_string(index=False))
         print("\nprofile shape (variogram score, skill vs climatology):")
         print(vs.to_string(index=False))
+        # per-column 99 % coverage says nothing about whole profiles: share of rows with every height inside
+        print("\nwhole-profile 99 % coverage (all 44 heights inside at once):  " + "  ".join(
+            f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
+            f" (clim {coverage90(clim[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
+            for i, v in enumerate(PROFILE)))
     print(f"wrote {out}")
+    c = {k: cond[va, FEATURES.index(k)] for k in ("doy_sin", "doy_cos")}
+    day = year[va].astype(np.int64) * 1000 + np.round(np.arctan2(c["doy_sin"], c["doy_cos"]) % (2 * np.pi) / (2 * np.pi) * 365.25).astype(np.int64)
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks()), stem + "_headline.csv")
+    diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     rdir = stem + "_report"
     report(rdir, res, vs, (known < truth[:, None]).sum(1), (truth[:3], known[:3]), histories, PROFILE, HEIGHTS, SURFACE)
     summary.to_csv(f"{rdir}/summary.csv", index=False)

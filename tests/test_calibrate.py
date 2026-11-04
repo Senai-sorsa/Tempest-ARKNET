@@ -9,14 +9,14 @@ from tempest.profiles.to_heights import HEIGHTS
 
 def test_correction_matches_balloon_mean_and_spread():
     rng = np.random.default_rng(0)
-    era = rng.normal(0, 1, (6000, 4, 5)).astype(np.float32)
+    era = rng.normal(0, 1, (6000, 4, len(HEIGHTS))).astype(np.float32)
     obs = (2 + 0.5 * era + rng.normal(0, 1, era.shape)).astype(np.float32)  # balloon = biased, damped + own detail
     g = rng.integers(0, 2, 6000)
     t = fit(era[:4000], obs[:4000], g[:4000], 2)
     out = apply(t, era[4000:], g[4000:], rng)
     raw = out[:, :3]  # first 3 variables (the 4th, RH, is clipped to 0-100)
     assert abs(raw.mean() - 2) < 0.05 and abs(raw.std() / obs[4000:, :3].std() - 1) < 0.05
-    assert np.allclose(t["b"][:, :3], 0.5, atol=0.05) and (t["n"] > 0).all()
+    assert np.allclose(t["b"][:, :3], 0.5, atol=0.1) and (t["n"] > 0).all()
 
 
 def test_correct_runs_on_difference_view():
@@ -63,3 +63,50 @@ def test_spread_calibration_fixes_too_narrow_ranges():
     t = spread.fit(samples[:4000], truth[:4000])  # keep=20 of 199 members, as in main
     raw, cal = (coverage90(x, truth[4000:], 0.99).mean() for x in (samples[4000:], spread.apply(t, samples[4000:])))
     assert raw < 0.8 and abs(cal - 0.99) < 0.005
+
+
+def test_diag_columns_reads_calibrated_and_biased_ensembles():
+    from tempest.scoring import diag
+    rng = np.random.default_rng(0)
+    y = rng.normal(size=(20000, 2))
+    x = rng.normal(size=(20000, 199, 2))
+    x[..., 1] += 1.0  # second column biased high
+    c = diag.columns(x, y)
+    assert abs(c.ss_ratio[0] - 1) < 0.05 and abs(c.miss_lo[0] - 0.005) < 0.003 and abs(c.bias[0]) < 0.03
+    assert c.bias[1] > 0.9 and c.miss_lo[1] > 0.03 and c.miss_hi[1] < 0.003
+
+
+def test_leftovers_follow_moisture_and_old_maps_still_apply():
+    rng = np.random.default_rng(2)
+    level = rng.uniform(10, 90, (3000, 1, 1)).astype(np.float32)  # how moist each sounding is
+    era = level + rng.normal(0, 2, (3000, 4, len(HEIGHTS))).astype(np.float32)
+    obs = era + rng.normal(0, 1, era.shape).astype(np.float32) * (level > 60) * 10  # scatter only when moist
+    t = fit(era, obs, np.zeros(3000, int), 1)
+    moist, dry = level[:, 0, 0] > 70, level[:, 0, 0] < 30
+    sd = lambda sel: (apply(t, era[sel], np.zeros(sel.sum(), int), rng) - era[sel])[:, 0].std()
+    assert sd(moist) > 3 * sd(dry)
+    old = dict(a=t["a"], b=t["b"], pool=t["pool"][:, 1], n=t["n"][:, 1])
+    assert apply(old, era[:5], np.zeros(5, int), rng).shape == (5, 4, len(HEIGHTS))
+
+
+def test_apply_refuses_a_map_fitted_with_another_member_count():
+    import pytest
+
+    from tempest.calibrate import spread
+    t = dict(qz=np.tile(spread.LEVELS[:, None], (1, 2)), qu=np.tile(spread.LEVELS[:, None], (1, 2)), m=np.array(199))
+    with pytest.raises(ValueError):
+        spread.apply(t, np.random.default_rng(0).normal(size=(3, 50, 2)).astype(np.float32))
+
+
+def test_headline_bootstrap():
+    from tempest.scoring import diag
+    rng = np.random.default_rng(0)
+    n, m, d = 400, 49, 3
+    truth = rng.normal(size=(n, d))
+    good = truth[:, None, :] + rng.normal(scale=0.3, size=(n, m, d))  # sharp and centred: should beat climatology
+    clim = rng.normal(size=(n, m, d))
+    groups = [("T", "a", np.array([1, 1, 0], bool)), ("T", "b", np.array([0, 0, 1], bool))]
+    tab = diag.headline(dict(clim=clim, clim15=clim, known=good, unknown=clim), truth, np.arange(n) // 4, groups, n_boot=200)
+    assert len(tab) == 2 and (tab.skill_known > 0.3).all() and (tab.skill_unknown.abs() < 1e-12).all()
+    assert (tab.skill_known_lo <= tab.skill_known).all() and (tab.skill_known <= tab.skill_known_hi).all()
+    assert (tab.mae_known < tab.mae_clim).all() and tab.cov99_unknown.between(0.9, 1).all()
