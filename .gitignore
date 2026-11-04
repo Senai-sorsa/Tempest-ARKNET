@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.cdsapirc
+
+# downloaded and generated data stays out of git
+data/
+*.grib
+*.nc
+*.parquet
+models/
+.ecmwfdatastoresrc
+.pytest_cache/
