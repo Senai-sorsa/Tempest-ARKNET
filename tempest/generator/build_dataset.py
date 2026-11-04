@@ -2,11 +2,13 @@
 
     python -m tempest.generator.build_dataset [--profiles data/pilot/profiles.zarr] [--out data/train/pilot.npz]
                                               [--rows 8000000] [--first-year 1991] [--last-year 2025]
+                                              [--station-map models/station_map.npz]
 
 Rows: random (point, hour) pairs in the solar 06-21 h window, so neighbouring hours and points are not all kept.
 target = per variable u, v, T, RH: to_diff over the 44 heights (surface value + 43 differences), then surface
 t2m, sp, rh2m. 10 m wind is not repeated: it is already the first profile value.
-shortcut: targets are ERA5, not yet station-corrected; switch to the corrected store once phase 6 / 3C exists.
+With --station-map (from tempest.calibrate.station) profiles are corrected toward weather-balloon
+statistics first (phase 6 S4); without it the targets are plain ERA5.
 """
 import argparse
 import os
@@ -15,6 +17,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from tempest.calibrate import station
 from tempest.generator.features import FEATURES, features
 from tempest.ingest import indices
 from tempest.profiles.diff import to_diff
@@ -42,7 +45,10 @@ def main():
     ap.add_argument("--first-year", type=int, default=1991)
     ap.add_argument("--last-year", type=int, default=2025)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--station-map", help="correction tables from tempest.calibrate.station; omit for plain ERA5")
     a = ap.parse_args()
+    qm = station.load(a.station_map) if a.station_map else None
+    crng = np.random.default_rng(a.seed + 1)
 
     ds = xr.open_zarr(a.profiles)
     done = os.path.join(a.profiles, "done.txt")
@@ -73,8 +79,10 @@ def main():
             continue
         b = ds.isel(time=slice(i0, i0 + block)).load()
         tt = times[i0 + t]
-        prof = np.concatenate([to_diff(b[v].values[p, t]) for v in PROFILE]
-                              + [b[v].values[p, t][:, None] for v in SURFACE], axis=1)
+        diffs = np.stack([to_diff(b[v].values[p, t]) for v in PROFILE], 1)  # (n, variable, height)
+        if qm is not None:
+            diffs = station.correct(qm, diffs, lat[p], lon[p], tt.month.to_numpy(), sh[p, i0 + t], crng)
+        prof = np.concatenate([diffs.reshape(len(p), -1)] + [b[v].values[p, t][:, None] for v in SURFACE], axis=1)
         oni, qbo30, qbo50, wwv = indices.at(tbl, tt).T
         k = slice(r, r + len(p))
         cond[k] = features(lat[p], lon[p], elev[p], elev[p], tt.dayofyear.to_numpy(), sh[p, i0 + t],
