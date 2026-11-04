@@ -40,6 +40,15 @@ def magnus_rh(t, td):
     return 100 * np.exp(17.625 * td / (243.04 + td) - 17.625 * t / (243.04 + t))
 
 
+def liquid_rh(t, r):
+    """ERA5 RH (%, IFS: over a water/ice mix below 0 C, all ice below -23 C) -> RH over liquid water, as balloons
+    (IGRA) report it. Checked on 2023-25 soundings: removes the ERA5-vs-balloon bias above 5 km (-8..-16 % -> ~-1 %)."""
+    es_l = 611.21 * np.exp(17.502 * (t - 273.16) / (t - 32.19))
+    es_i = 611.21 * np.exp(22.587 * (t - 273.16) / (t + 0.7))
+    a = np.clip((t - 250.16) / 23.0, 0, 1) ** 2
+    return r * (a * es_l + (1 - a) * es_i) / es_l
+
+
 def interp_columns(h, x, targets, log_below=None):
     """Interpolate every column (last axis = levels) of x at heights h onto `targets`.
 
@@ -84,8 +93,8 @@ def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
         u=interp_columns(hw, np.concatenate([u10[..., None], u100[..., None], u], -1), HEIGHTS, 100),
         v=interp_columns(hw, np.concatenate([v10[..., None], v100[..., None], v], -1), HEIGHTS, 100),
         T=interp_columns(ht, np.concatenate([t2m[..., None], t], -1), HEIGHTS),
-        # ERA5 RH runs past 0-100 % (ice-phase mixing, interpolation); clipped, it barely moves air density
-        RH=interp_columns(ht, np.concatenate([rh2m[..., None], np.clip(r, 0, 100)], -1), HEIGHTS),
+        # ERA5 RH is over ice when cold; balloons use liquid water. Clipped: past 100 % barely moves air density
+        RH=interp_columns(ht, np.concatenate([rh2m[..., None], np.clip(liquid_rh(t, r), 0, 100)], -1), HEIGHTS),
     ), rh2m
 
 

@@ -3,7 +3,7 @@ import pandas as pd
 
 from tempest.generator.build_dataset import target_names
 from tempest.ingest import indices
-from tempest.profiles.to_heights import HEIGHTS, G0, interp_columns, magnus_rh, profiles_from_levels
+from tempest.profiles.to_heights import HEIGHTS, G0, interp_columns, liquid_rh, magnus_rh, profiles_from_levels
 
 
 def test_interp_linear_unsorted_nan_and_out_of_range():
@@ -49,3 +49,16 @@ def test_indices_parsers(tmp_path):
 
 def test_target_names_match_layout():
     assert len(target_names()) == 4 * len(HEIGHTS) + 3
+
+
+def test_liquid_rh_unchanged_when_warm_and_lower_when_cold():
+    assert np.isclose(liquid_rh(np.float64(280.0), np.float64(60.0)), 60.0)
+    cold = liquid_rh(np.float64(220.0), np.float64(100.0))  # ice saturation at -53 C is ~60 % over water
+    assert 55 < cold < 65
+
+
+def test_liquid_rh_is_continuous_and_monotone_across_the_mixed_phase_range():
+    t = np.linspace(240.0, 280.0, 4001)
+    r = liquid_rh(t, np.full_like(t, 80.0))
+    assert np.isfinite(r).all() and np.abs(np.diff(r)).max() < 0.05  # no jump at 250.16 K or 273.16 K
+    assert (np.diff(r) >= -1e-9).all() and np.allclose(r[t >= 273.16], 80.0, atol=1e-6)
