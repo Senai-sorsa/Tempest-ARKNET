@@ -1,6 +1,6 @@
 """Download the pilot-box ERA5 (13 pressure levels + surface) from Earthmover's public icechunk store.
 
-    python -m tempest.ingest.fetch_earthmover [--out data/raw/era5_em] [--years N]
+    python -m tempest.ingest.fetch_earthmover [--out data/raw/era5_em] [--years N] [--first 1991] [--last 2025-12-31]
 
 One variable at a time to data/raw/era5_em/<var>.zarr. Finished variables are skipped, so rerunning resumes.
 Box 31-34 N, 108-101 W (store longitude is 0-360). Time starts on the store's time-chunk boundary just before
@@ -28,12 +28,12 @@ def open_store():
     return repo.readonly_session("main").store
 
 
-def subset(ds, years=None):
+def subset(ds, years=None, start=START, end=END):
     ds = ds.sel(latitude=slice(*LAT), longitude=slice(*LON))
     tc = ds["u10" if "u10" in ds else "u"].encoding["chunks"][0]
     t = ds.valid_time.values
-    i0 = (int(np.searchsorted(t, START)) // tc) * tc
-    i1 = int(np.searchsorted(t, END, side="right"))
+    i0 = (int(np.searchsorted(t, start)) // tc) * tc
+    i1 = int(np.searchsorted(t, end, side="right"))
     if years:
         i1 = min(i1, i0 + years * tc)
     ds = ds.isel(valid_time=slice(i0, i1)).drop_vars(["sdor", "slor"], errors="ignore")
@@ -44,13 +44,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default="data/raw/era5_em")
     ap.add_argument("--years", type=int, help="only the first N time chunks (for a quick test)")
+    ap.add_argument("--first", type=int, default=1991, help="first year (the store starts 1940; indices from 1980)")
+    ap.add_argument("--last", default="2025-12-31", help="last day, YYYY-MM-DD")
     a = ap.parse_args()
+    start, end = np.datetime64(f"{a.first}-01-01T00"), np.datetime64(f"{a.last}T23")
     os.makedirs(a.out, exist_ok=True)
     store = open_store()
     groups = {"pressure/temporal": PRESSURE, "single/temporal": SINGLE}
     with dask.config.set(scheduler="threads", num_workers=16):
         for group, names in groups.items():
-            ds, tc = subset(xr.open_zarr(store, group=group, zarr_format=3, chunks={}), a.years)
+            ds, tc = subset(xr.open_zarr(store, group=group, zarr_format=3, chunks={}), a.years, start, end)
             for v in names:
                 dst = os.path.join(a.out, f"{v}.zarr")
                 if os.path.exists(dst):
