@@ -1,0 +1,142 @@
+"""ERA5 pressure levels + surface anchors -> profiles on fixed heights above ground.
+
+    python -m tempest.profiles.to_heights [--raw data/raw/era5_em] [--cds data/raw/era5_cds] [--out data/pilot/profiles.zarr]
+
+Output dims (point, time, height): u, v, T (K), RH (%), plus surface t2m, sp, rh2m, u10, v10 and per-point
+lat, lon (-180..180), z_sfc (m). Kept UTC hours: 12-23 and 00-04 (every pilot-box point's solar 06-21 h, plus
+the 00Z/12Z radiosonde times); the exact solar window is applied when building the training set.
+Processed one store time-chunk (364 days) at a time; finished blocks are recorded in done.txt, so reruns resume.
+"""
+import argparse
+import os
+
+import dask.array as da
+import numpy as np
+import xarray as xr
+
+HEIGHTS = np.array([10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000]
+                   + list(range(2500, 18001, 500)), dtype=np.float32)
+assert len(HEIGHTS) == 44
+UTC_HOURS = list(range(12, 24)) + list(range(0, 5))
+G0, R_EARTH = 9.80665, 6371000.0
+PROFILE = ["u", "v", "T", "RH"]
+SURFACE = ["t2m", "sp", "rh2m", "u10", "v10"]
+
+
+def geometric_height(z):
+    """Geopotential (m2/s2) -> geometric height (m)."""
+    zh = z / G0
+    return R_EARTH * zh / (R_EARTH - zh)
+
+
+def magnus_rh(t, td):
+    """RH (%) from temperature and dewpoint (K)."""
+    t, td = t - 273.15, td - 273.15
+    return 100 * np.exp(17.625 * td / (243.04 + td) - 17.625 * t / (243.04 + t))
+
+
+def interp_columns(h, x, targets, log_below=None):
+    """Interpolate every column (last axis = levels) of x at heights h onto `targets`.
+
+    h may hold NaN (unusable level) and need not be sorted. Targets outside a column's valid range -> NaN.
+    Targets below `log_below` are interpolated linearly in ln(height), the rest linearly in height.
+    """
+    h = np.where(np.isfinite(h) & np.isfinite(x), h, np.inf)
+    order = np.argsort(h, axis=-1)
+    h, x = np.take_along_axis(h, order, -1), np.take_along_axis(x, order, -1)
+    n_valid = np.isfinite(h).sum(-1, keepdims=True)
+    out = np.full(h.shape[:-1] + (len(targets),), np.nan, np.float32)
+    for j, t in enumerate(targets):
+        k = (h <= t).sum(-1, keepdims=True) - 1          # last level at or below t
+        ok = (k >= 0) & (k + 1 < n_valid)
+        k0, k1 = np.clip(k, 0, h.shape[-1] - 2), np.clip(k + 1, 1, h.shape[-1] - 1)
+        h0, h1 = np.take_along_axis(h, k0, -1), np.take_along_axis(h, k1, -1)
+        x0, x1 = np.take_along_axis(x, k0, -1), np.take_along_axis(x, k1, -1)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            if log_below is not None and t < log_below:
+                w = (np.log(t) - np.log(h0)) / (np.log(h1) - np.log(h0))
+            else:
+                w = (t - h0) / (h1 - h0)
+        exact = (h0 == t) & (k >= 0)
+        val = np.where(exact, x0, x0 + w * (x1 - x0))
+        out[..., j] = np.where(ok | exact, val, np.nan)[..., 0]
+    return out
+
+
+def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
+    """Arrays (..., L) on pressure levels and (...) surface fields -> dict of (..., 44) profiles.
+
+    Pressure levels at or below the ground are dropped. Wind below 100 m comes from the 10/100 m anchors only.
+    """
+    agl = geometric_height(z) - geometric_height(z_sfc)[..., None]
+    agl = np.where(agl > 0, agl, np.nan)
+    agl_w = np.where(agl > 100, agl, np.nan)                 # pressure-level winds only above the 100 m anchor
+    shape = agl.shape[:-1] + (1,)
+    hw = np.concatenate([np.full(shape, 10.0), np.full(shape, 100.0), agl_w], -1)
+    ht = np.concatenate([np.full(shape, 2.0), agl], -1)
+    rh2m = np.clip(magnus_rh(t2m, d2m), 0, 100)
+    return dict(
+        u=interp_columns(hw, np.concatenate([u10[..., None], u100[..., None], u], -1), HEIGHTS, 100),
+        v=interp_columns(hw, np.concatenate([v10[..., None], v100[..., None], v], -1), HEIGHTS, 100),
+        T=interp_columns(ht, np.concatenate([t2m[..., None], t], -1), HEIGHTS),
+        # ERA5 RH runs past 0-100 % (ice-phase mixing, interpolation); clipped, it barely moves air density
+        RH=interp_columns(ht, np.concatenate([rh2m[..., None], np.clip(r, 0, 100)], -1), HEIGHTS),
+    ), rh2m
+
+
+def open_raw(raw, cds=None):
+    names = ["u", "v", "t", "r", "z", "u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
+    ds = xr.merge([xr.open_zarr(os.path.join(raw, f"{n}.zarr")) for n in names], compat="override")
+    if cds and os.path.isdir(cds) and any(f.endswith(".grib") for f in os.listdir(cds)):
+        raise NotImplementedError("CDS fill merge: add once data/raw/era5_cds has data (PHASE1 section 2)")
+    return ds
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--raw", default="data/raw/era5_em")
+    ap.add_argument("--cds", default="data/raw/era5_cds")
+    ap.add_argument("--out", default="data/pilot/profiles.zarr")
+    a = ap.parse_args()
+
+    ds = open_raw(a.raw, a.cds)
+    ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(UTC_HOURS))
+    lat2, lon2 = np.meshgrid(ds.latitude.values, ds.longitude.values, indexing="ij")
+    lat, lon = lat2.ravel(), ((lon2.ravel() + 180) % 360) - 180
+    z_sfc = ds.z_sfc.values.ravel()
+    n_pt, n_t = len(lat), ds.sizes["valid_time"]
+    block = 364 * len(UTC_HOURS)                             # one store time-chunk after the hour filter
+
+    if not os.path.exists(a.out):
+        p3, p2 = (29, block, 44), (29, block)
+        template = xr.Dataset(
+            {**{k: (("point", "time", "height"), da.zeros((n_pt, n_t, 44), np.float32, chunks=p3)) for k in PROFILE},
+             **{k: (("point", "time"), da.zeros((n_pt, n_t), np.float32, chunks=p2)) for k in SURFACE}},
+            coords=dict(point=np.arange(n_pt), time=ds.valid_time.values, height=HEIGHTS,
+                        lat=("point", lat), lon=("point", lon), z_sfc=("point", geometric_height(z_sfc))),
+        )
+        template.to_zarr(a.out, compute=False, mode="w", zarr_format=3)
+    done_path = os.path.join(a.out, "done.txt")
+    done = set(open(done_path).read().split()) if os.path.exists(done_path) else set()
+
+    for i0 in range(0, n_t, block):
+        if str(i0) in done:
+            continue
+        b = ds.isel(valid_time=slice(i0, i0 + block)).load()
+        # -> (point, time, level) / (point, time)
+        lv = lambda n: b[n].transpose("latitude", "longitude", "valid_time", "pressure_level").values.reshape(n_pt, -1, b.sizes["pressure_level"])
+        sf = lambda n: b[n].transpose("latitude", "longitude", "valid_time").values.reshape(n_pt, -1)
+        prof, rh2m = profiles_from_levels(lv("z"), lv("u"), lv("v"), lv("t"), lv("r"), np.broadcast_to(z_sfc[:, None], (n_pt, b.sizes["valid_time"])),
+                                          sf("u10"), sf("v10"), sf("u100"), sf("v100"), sf("t2m"), sf("d2m"))
+        out = xr.Dataset({**{k: (("point", "time", "height"), prof[k]) for k in PROFILE},
+                          "t2m": (("point", "time"), sf("t2m")), "sp": (("point", "time"), sf("sp")),
+                          "rh2m": (("point", "time"), rh2m.astype(np.float32)),
+                          "u10": (("point", "time"), sf("u10")), "v10": (("point", "time"), sf("v10"))})
+        out.to_zarr(a.out, region={"point": slice(None), "time": slice(i0, i0 + b.sizes["valid_time"]), "height": slice(None)})
+        with open(done_path, "a") as f:
+            f.write(f"{i0}\n")
+        print(f"block {i0 // block + 1}/{-(-n_t // block)}: {str(b.valid_time.values[0])[:10]}", flush=True)
+
+
+if __name__ == "__main__":
+    main()
