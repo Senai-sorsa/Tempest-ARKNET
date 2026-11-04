@@ -16,21 +16,24 @@ samples file.
 
 ## Status
 
-Phase 1 data pipeline written and tested on one year; full 1991–2025 download of the pilot box in progress.
-The generator (option 3A) has not been trained yet. Known issues and next fixes: the design review at the end
+Pilot box 1991–2025 downloaded and converted; training file built (8M rows). Copernicus boundary-layer
+fill downloading. The generator (option 3A) is written and tested but not trained yet. Known issues and next fixes: the design review at the end
 of [docs/PLAN.md](docs/PLAN.md).
 
 ## Run
 
 ```
 uv sync
-python -m pytest                                   # 10 tests, CPU is fine
+python -m pytest                                   # 23 tests, CPU is fine
 python -m tempest.ingest.fetch_earthmover          # ERA5 13 levels + surface, ~40 min, no account needed
 python -m tempest.ingest.fetch_indices             # ENSO / QBO / WWV indices
 python -m tempest.ingest.fetch_igra                # radiosondes (NCEI)
 python -m tempest.profiles.to_heights              # → data/pilot/profiles.zarr (~59 GB)
-python -m tempest.generator.build_dataset          # → data/train/pilot.npz
+python -m tempest.calibrate.station                # balloon correction → models/station_map.npz (+ held-out check)
+python -m tempest.generator.build_dataset --station-map models/station_map.npz   # → data/train/pilot.npz
 python -m tempest.generator.train --data data/train/pilot.npz --out models/generator_pilot.pt   # GPU
+python -m tempest.scoring.score --model models/generator_pilot.pt --data data/train/pilot.npz    # scorecard + charts in models/generator_pilot_report/
+python -m tempest.scoring.sonde --model models/generator_pilot.pt --data data/train/pilot.npz    # vs real weather balloons
 ```
 Optional boundary-layer fill: create a free Copernicus CDS account, put `url:` and `key:` lines in
 `%USERPROFILE%\.ecmwfdatastoresrc` (never commit it), then `python -m tempest.ingest.fetch_cds`.

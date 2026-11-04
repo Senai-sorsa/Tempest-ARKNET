@@ -251,7 +251,7 @@ inputs  ─ place: lat, lon, site elevation, ERA5 grid elevation
             │
             ▼
 outputs ─ per variable: surface value + 43 neighbour differences (u, v, T, RH), standardised
-        ─ surface T, p, RH, 10 m wind
+        ─ surface T (2 m), p, RH (2 m); 10 m wind = first profile height
             │
             ▼
         sum the differences up from the surface → 44-level profile
@@ -260,17 +260,20 @@ outputs ─ per variable: surface value + 43 neighbour differences (u, v, T, RH)
 - **Why Engression** (arXiv 2307.00835): the noise goes in before the network, not after it. That lets the
   model extrapolate a little beyond its training range, which matters because 2027–2029 are warmer than
   every training year. DExtrI (2608.19849) is the follow-up for interactions between drivers.
-- **Loss:** energy score on the whole output vector. It is a proper score, so the model is rewarded for the
-  right spread and joint shape, not just the right mean, and because the outputs *are* the neighbour
-  differences, it scores the shear directly. The variogram score is used for evaluation (phase 2 harness),
-  not in the loss: estimating it from 4 samples per row is too noisy.
+- **Loss** (as ECMWF AIFS-CRPS): per-value almost-fair CRPS on the rebuilt, standardised profiles, plus
+  0.1 x energy score on the whole vector to keep heights jointly consistent. Both are proper scores, so the
+  model is rewarded for the right spread and joint shape, not just the right mean. 4 samples per row.
+  The variogram score is used for evaluation (scorecard), not in the loss: from 4 samples it is too noisy.
+- **Network:** residual blocks whose layer norms are shifted and scaled by an embedding of the noise vector
+  (as AIFS-CRPS / DeepMind FGN), ~2.8 M parameters. 4 independently trained seeds are pooled at sampling
+  time (4x the training time below).
 - **Training targets:** ERA5 profiles after the station correction. The generator learns balloon-like shear
   and spread, not ERA5's smoothness. Pilot: S4's quantile map (both sites have a nearby IGRA station).
   CONUS: **option 3C** (a learned ERA5 → radiosonde correction conditioned on terrain and site) carries
   the correction to points far from any station, and 3A is retrained on its output (decided 2026-11-04).
 - **Training data:** pilot box first, then CONUS samples drawn from the store on the fly (phase 8).
   Measured 2026-11-04 on this machine's RTX 5070 Laptop GPU (12 GB) at pilot size (400k rows, 13 inputs,
-  181 outputs): 17–30 ms per step at batch 4,096, 0.4 GB GPU memory, so a 20,000-step run takes about
+  179 outputs): 17–30 ms per step at batch 4,096, 0.4 GB GPU memory, so a 20,000-step run takes about
   6–10 minutes. An RTX 4090 is faster. The CONUS limit will be disk and RAM, not the GPU.
 - **Sampling:** draw N noise vectors and N driver sets, then run one forward pass for all of them. Measured:
   1,024 profiles in 1.4 ms on the GPU and 10 ms on the CPU, including the copy back. That misses the
@@ -334,7 +337,7 @@ Download estimates at that rate (5 variables × 13 levels × 35 years per 3° ti
   us-east-1 (same region as the bucket, no egress fee for the read), write the reduced store, download that.
 
 **Store layout.** Zarr, chunked by spatial tile × full time axis, so a query reads 4 small chunks.
-Sizing for CONUS (≈ 13k points, 35 years, solar 06–21 h, 44 heights × 4 variables + 5 surface = 181 values,
+Sizing for CONUS (≈ 13k points, 35 years, solar 06–21 h, 44 heights × 4 variables + 3 surface (10 m wind is the first profile height) = 179 values,
 float16): raw profiles ≈ 1.1 TB; with 32 vertical EOF coefficients per profile ≈ 200 GB; every 2nd day ≈
 100 GB, still ~750 analogs per point. The **pilot keeps raw profiles** (~10 GB, no compression); EOF
 compression comes only at CONUS scale (phase 8).
@@ -413,15 +416,55 @@ Fixed in code:
 
 Open, in priority order (items from GPT-suggestions.md / suggestions-copoilet.md marked G/C):
 1. **Targets are ERA5, not radiosonde-corrected** until phase 6. First models will be under-spread, mostly wind.
-2. **CDS fill not merged yet** (`to_heights.open_raw` stops if gribs exist). Boundary layer uses 13 levels only.
-3. **Year feature extrapolates** past 2025. Query outside the training range should fall back to analogs (G F22).
-4. **WWV/ONI at query time are forecasts**, training uses observed values: leakage. Train with lagged or
-   forecast-like values, or add noise (G C9, C #4).
-5. **m = 4 samples per row** may under-spread; check PIT per height after the first run, try m = 8 (G F18).
+2. **CDS fill merge written** (`to_heights.cds_levels`, checked on 1991-02: levels interleave correctly, profiles change only below ~2.5 km). Waiting for all 420 months, then rebuild to `profiles_bl.zarr` / `pilot_bl.npz`.
+3. ~~Year feature extrapolates~~ **Done:** year left the main network; it enters a separate learned path,
+   output += slope(place, season, hour, height...) x year. Past 2025 the model follows that learned straight line.
+   Caveat: Pinatubo (1991-93 cooling) sits at the start of the record and can tilt the slope; check per-height
+   slopes after the first run.
+4. **Climate indices (ONI, WWV, QBO) enter as straight-line effects only** (fixed 2026-11-04). Fed into the
+   main network, their four monthly values fingerprinted each month: on the real data held-out error rose from
+   step 500 (0.50 -> 0.65 by step 3000) while training error fell. As slope(place, season, hour) x index, like
+   the year trend, held-out error falls steadily (0.4858 at 3000 steps vs 0.4871 without indices). Still open:
+   query-time indices are forecasts while training uses observed values (G C9, C #4); the scorecard's
+   "drivers unknown" column measures that case. Indices change only the mean so far, not the spread.
+5. **m = 4 samples per row** (what AIFS-CRPS uses; the almost-fair CRPS removes most of the small-m bias).
+   Still check PIT per height after the first run (G F18).
 6. **Loss weights every target equally**: 44 wind heights outweigh 3 surface values. Check per-variable
    scores before reweighting (G F19).
 7. **Rows are correlated** (neighbouring hours/points): validate by whole years, never random rows (C #10).
    Already done: last 3 years held out.
 8. **Physics checks**: hydrostatic height test (G A5), shear at 99th percentile vs IGRA (G F20).
 9. **Scale**: the npz is held in RAM. Fine for the pilot (~6 GB); CONUS needs streaming.
-10. **IGRA host (NCEI) was down** on 2026-11-04; rerun `fetch_igra` later.
+10. ~~IGRA host down~~ **Done:** both stations downloaded 2026-11-04 (Santa Teresa, Midland; zips verified).
+11. **No lapse-rate cap**: measured on the pilot store, 13-level ERA5 profiles cool faster than dry-adiabatic
+    (9.8 K/km) in 31 % of rows at 200-300 m, 10 % at 0.75-1 km, 2 % at 1.5-2 km (linear interpolation from the
+    2 m value on hot afternoons). A cap would fight the training data; revisit after the CDS merge.
+12. **Pressure**: only surface pressure (sp) is a target now. Add pressure-at-height as a 5th profile variable at
+    the CDS-merge rebuild (needs `to_heights` + dataset rebuild).
+13. **elev_site = elev_grid** in every ERA5 training row, so the site-elevation input carries no information
+    yet. Query with elev_site = elev_grid until phase 6 trains on station-corrected targets.
+14. **Phase 6 station correction (S4), as built** (`tempest.calibrate.station`): per (station, season, 00Z/12Z,
+    variable, height) balloon ~ a + b·ERA5, plus one whole leftover profile (balloon minus line) resampled from
+    the same group. The first try, a per-step quantile map in difference space, matched the steps but inflated
+    whole-profile spread 20-140 % (ERA5's smooth steps lean the same way and add up), so it was dropped.
+    Held-out 2023-2025 (4,208 soundings), ERA5 -> corrected: level gap u 0.45->0.22, v 0.42->0.24, T 0.51->0.22,
+    RH 7.1->2.4; 99th-percentile shear ratio u 0.58->0.84, v 0.50->0.82, RH 0.77->0.96; spread ratio stays
+    0.98-1.01. Shortcuts: two stations stand in for the box (nearest wins), two launch hours for the day,
+    leftovers only from fit years (no GPD tails yet); surface t2m/sp/rh2m are not corrected.
+15. **Site elevation** (PLAN line 82) is applied at query time: `sample.to_site` moves t2m (6.5 K/km) and sp
+    (hypsometric) from the grid to the site elevation; profiles are above ground and stay. Training keeps
+    elev_site = elev_grid (item 13).
+16. **Balloon scorecard** (`tempest.scoring.score` twin, `tempest.scoring.sonde`): held-out 00Z soundings
+    (~17 h local; 12Z is outside the training window) at both stations vs balloon climatology and a Gaussian.
+    First look (partly trained ERA5-only model): RH above 5 km and surface pressure lose to climatology, i.e.
+    ERA5's upper-air humidity and grid elevation differ from the balloons; the station-corrected model and
+    item 15 target exactly these.
+17. **CDS boundary-layer fill is slow**: about 1 month per 30 min, so ~9 days for 420 months. Phase 6 runs on the
+    13-level store meanwhile; the pipeline rebuilds, refits the station map and retrains when CDS completes.
+
+Scorecard: `python -m tempest.scoring.score --model ... --data ...` scores held-out years in physical units
+(CRPS, 90 % coverage, skill vs same-point/month/hour climatology), drivers known and drivers unknown, next to
+a NASA Earth-GRAM-style baseline (monthly mean + correlated bell-curve spread) and a variogram score for
+profile shape.
+CDS fill: the first month (1991-02) was checked on 2026-11-04: 8 levels, hourly, 13 x 29 points, as requested.
+Validation loss during training is now computed on rebuilt profiles, not on the differences.
