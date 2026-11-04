@@ -2,6 +2,9 @@
 
     python -m tempest.profiles.to_heights [--raw data/raw/era5_em] [--cds data/raw/era5_cds] [--out data/pilot/profiles.zarr]
 
+If --cds holds monthly <yyyymm>.grib files from fetch_cds, their 8 boundary-layer levels (975-750 hPa) are added
+to the 13 Earthmover levels (21 in all). Months without a file get NaN there, which interpolation skips.
+
 Output dims (point, time, height): u, v, T (K), RH (%), plus surface t2m, sp, rh2m, u10, v10 and per-point
 lat, lon (-180..180), z_sfc (m). Kept UTC hours: 12-23 and 00-04 (every pilot-box point's solar 06-21 h, plus
 the 00Z/12Z radiosonde times); the exact solar window is applied when building the training set.
@@ -12,6 +15,7 @@ import os
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 HEIGHTS = np.array([10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000]
@@ -21,6 +25,7 @@ UTC_HOURS = list(range(12, 24)) + list(range(0, 5))
 G0, R_EARTH = 9.80665, 6371000.0
 PROFILE = ["u", "v", "T", "RH"]
 SURFACE = ["t2m", "sp", "rh2m", "u10", "v10"]
+CDS_LEVELS = [975, 950, 900, 875, 825, 800, 775, 750]
 
 
 def geometric_height(z):
@@ -84,12 +89,28 @@ def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
     ), rh2m
 
 
-def open_raw(raw, cds=None):
+def open_raw(raw):
     names = ["u", "v", "t", "r", "z", "u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
-    ds = xr.merge([xr.open_zarr(os.path.join(raw, f"{n}.zarr")) for n in names], compat="override")
-    if cds and os.path.isdir(cds) and any(f.endswith(".grib") for f in os.listdir(cds)):
-        raise NotImplementedError("CDS fill merge: add once data/raw/era5_cds has data (PHASE1 section 2)")
-    return ds
+    return xr.merge([xr.open_zarr(os.path.join(raw, f"{n}.zarr")) for n in names], compat="override")
+
+
+def cds_levels(cds, times, lat, lon):
+    """CDS fill for `times` on the (lat, lon) grid (lon 0-360) -> dict u, v, t, r, z of (lat, lon, time, 8) float32.
+    NaN where a month's grib is missing."""
+    times = pd.DatetimeIndex(times)
+    out = {n: np.full((len(lat), len(lon), len(times), len(CDS_LEVELS)), np.nan, np.float32) for n in "uvtrz"}
+    months = times.strftime("%Y%m")
+    for ym in np.unique(months):
+        path = os.path.join(cds, f"{ym}.grib")
+        if not os.path.exists(path):
+            continue
+        k = months == ym
+        with xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""}) as g:
+            g = g.assign_coords(longitude=g.longitude % 360)
+            g = g.sel(isobaricInhPa=CDS_LEVELS, latitude=lat, longitude=lon, time=times[k].values)  # exact; KeyError if off-grid
+            for n in out:
+                out[n][:, :, k] = g[n].transpose("latitude", "longitude", "time", "isobaricInhPa").values
+    return out
 
 
 def main():
@@ -99,8 +120,14 @@ def main():
     ap.add_argument("--out", default="data/pilot/profiles.zarr")
     a = ap.parse_args()
 
-    ds = open_raw(a.raw, a.cds)
+    ds = open_raw(a.raw)
     ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(UTC_HOURS))
+    use_cds = os.path.isdir(a.cds) and any(f.endswith(".grib") for f in os.listdir(a.cds))
+    if use_cds:
+        have = {f[:6] for f in os.listdir(a.cds) if f.endswith(".grib")}
+        need = set(pd.DatetimeIndex(ds.valid_time.values).strftime("%Y%m"))
+        missing = sorted(m for m in need if m not in have and m >= "199101")  # CDS fill starts 1991; late 1990 is trimmed later
+        print(f"CDS fill: {len(have)} months, {len(missing)} missing (those keep 13 levels)", flush=True)
     lat2, lon2 = np.meshgrid(ds.latitude.values, ds.longitude.values, indexing="ij")
     lat, lon = lat2.ravel(), ((lon2.ravel() + 180) % 360) - 180
     z_sfc = ds.z_sfc.values.ravel()
@@ -124,7 +151,12 @@ def main():
             continue
         b = ds.isel(valid_time=slice(i0, i0 + block)).load()
         # -> (point, time, level) / (point, time)
-        lv = lambda n: b[n].transpose("latitude", "longitude", "valid_time", "pressure_level").values.reshape(n_pt, -1, b.sizes["pressure_level"])
+        em = lambda n: b[n].transpose("latitude", "longitude", "valid_time", "pressure_level").values.reshape(n_pt, -1, b.sizes["pressure_level"])
+        if use_cds:
+            fill = cds_levels(a.cds, b.valid_time.values, b.latitude.values, b.longitude.values)
+            lv = lambda n: np.concatenate([em(n), fill[n].reshape(n_pt, -1, len(CDS_LEVELS))], -1)
+        else:
+            lv = em
         sf = lambda n: b[n].transpose("latitude", "longitude", "valid_time").values.reshape(n_pt, -1)
         prof, rh2m = profiles_from_levels(lv("z"), lv("u"), lv("v"), lv("t"), lv("r"), np.broadcast_to(z_sfc[:, None], (n_pt, b.sizes["valid_time"])),
                                           sf("u10"), sf("v10"), sf("u100"), sf("v100"), sf("t2m"), sf("d2m"))
