@@ -7,6 +7,7 @@ One request per month -> <out>/<yyyymm>.grib. The ledger <out>/ledger.csv (yyyym
 state: rerunning after a crash only polls and downloads, it never pays for a request twice.
 """
 import argparse
+import calendar
 import csv
 import os
 import time
@@ -23,7 +24,7 @@ def request(yyyymm):
         "variable": ["u_component_of_wind", "v_component_of_wind", "temperature", "relative_humidity", "geopotential"],
         "pressure_level": ["975", "950", "900", "875", "825", "800", "775", "750"],
         "year": [yyyymm[:4]], "month": [yyyymm[4:]],
-        "day": [f"{d:02d}" for d in range(1, 32)],
+        "day": [f"{d:02d}" for d in range(1, calendar.monthrange(int(yyyymm[:4]), int(yyyymm[4:]))[1] + 1)],
         "time": [f"{h:02d}:00" for h in range(24)],
         "area": AREA,
         "data_format": "grib",
@@ -41,14 +42,21 @@ def main():
     ledger_path = os.path.join(a.out, "ledger.csv")
     ledger = {}
     if os.path.exists(ledger_path):
-        ledger = {r["yyyymm"]: r for r in csv.DictReader(open(ledger_path))}
+        with open(ledger_path, newline="") as f:
+            ledger = {r["yyyymm"]: r for r in csv.DictReader(f)}
 
     def save():
         with open(ledger_path + ".tmp", "w", newline="") as f:
             w = csv.DictWriter(f, ["yyyymm", "request_id", "status"])
             w.writeheader()
             w.writerows(ledger.values())
-        os.replace(ledger_path + ".tmp", ledger_path)
+        for attempt in range(10):  # Windows: antivirus/indexer can lock the just-written file for a moment
+            try:
+                return os.replace(ledger_path + ".tmp", ledger_path)
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(1)
 
     client = Client(progress=False)
     client.check_authentication()
