@@ -1,7 +1,7 @@
 """Phase 6 S4: correct ERA5 profiles toward weather balloons (IGRA radiosondes).
 
     python -m tempest.calibrate.station [--profiles data/pilot/profiles.zarr] [--out models/station_map.npz]
-                                        [--first-year 1991] [--last-year 2022] [--check-to 2025]
+                                        [--first-year 1991] [--last-year 2020] [--check-to 2025]
 
 ERA5 is smooth in the vertical: its pressure levels miss the sharp wind shear and inversions a balloon sees, and
 a grid box is not a point. For each IGRA station, ERA5 at the nearest grid point and the balloon at the same
@@ -89,14 +89,22 @@ def era5_at(ds, point, times):
     return out
 
 
+def moisture(levels):
+    """Mean RH 5-13 km of level-space rows (N, 4, 44): how moist the mid/upper air is."""
+    return levels[:, PROFILE.index("RH"), (HEIGHTS >= 5000) & (HEIGHTS <= 13000)].mean(1)
+
+
 def fit(era, obs, groups, n_groups, pool_max=3000, seed=0):
     """Paired level-space profiles (S, 4, 44) + group per sounding -> dict a, b (G, 4, 44) of balloon ~ a + b * ERA5
-    (least squares per height; identity where < 50 pairs) and pool (G, pool_max, 4, 44) of complete leftover
-    profiles, n (G,) of them per group (0 = no leftovers added)."""
+    (least squares per height; identity where < 50 pairs), moisture tercile cuts (G, 2) of ERA5 RH 5-13 km and
+    pool (G, 3, pool_max, 4, 44) of complete leftover profiles per tercile, n (G, 3) of them (0 = none added).
+    Leftovers come from soundings as moist as the one corrected: balloon-vs-ERA5 RH scatter is much larger in moist
+    air (2023-25 check: RH CRPS 9-18 km -8 %, other variables equal or slightly better)."""
     rng = np.random.default_rng(seed)
     shape = (n_groups,) + era.shape[1:]
     a, b = np.zeros(shape, np.float32), np.ones(shape, np.float32)
-    pool, n = np.zeros((n_groups, pool_max) + era.shape[1:], np.float32), np.zeros(n_groups, np.int64)
+    pool, n = np.zeros((n_groups, 3, pool_max) + era.shape[1:], np.float32), np.zeros((n_groups, 3), np.int64)
+    cuts = np.zeros((n_groups, 2), np.float32)
     for g in range(n_groups):
         E, O = era[groups == g], obs[groups == g]
         for i in range(E.shape[1]):
@@ -107,11 +115,18 @@ def fit(era, obs, groups, n_groups, pool_max=3000, seed=0):
                     b[g, i, k] = np.cov(e, o)[0, 1] / max(e.var(ddof=1), 1e-9)
                     a[g, i, k] = o.mean() - b[g, i, k] * e.mean()
         R = O - (a[g] + b[g] * E)
-        R = R[np.isfinite(R).all((1, 2))]
-        R = R[rng.permutation(len(R))[:pool_max]]
-        n[g] = len(R) if len(R) >= 50 else 0
-        pool[g, :n[g]] = R[:n[g]]
-    return dict(a=a, b=b, pool=pool, n=n)
+        keep = np.isfinite(R).all((1, 2))
+        if keep.sum() < 50:
+            continue
+        R, wet = R[keep], moisture(E[keep])
+        cuts[g] = np.quantile(wet, [1 / 3, 2 / 3])
+        tercile = (wet > cuts[g, 0]).astype(int) + (wet > cuts[g, 1])
+        for j in range(3):
+            Rj = R[tercile == j] if (tercile == j).sum() >= 50 else R
+            Rj = Rj[rng.permutation(len(Rj))[:pool_max]]
+            n[g, j] = len(Rj)
+            pool[g, j, :n[g, j]] = Rj
+    return dict(a=a, b=b, pool=pool, n=n, cuts=cuts)
 
 
 def apply(t, levels, groups, rng):
@@ -119,9 +134,17 @@ def apply(t, levels, groups, rng):
     shortcut: leftovers are resampled from the fit years only, so extremes never exceed what those balloons saw;
     add GPD tails (PLAN S4) if the tail check shows extremes too mild."""
     out = t["a"][groups] + t["b"][groups] * levels
-    n = t["n"][groups]
-    draw = (rng.random(len(groups)) * n).astype(np.int64)
-    out += np.where((n > 0)[:, None, None], t["pool"][groups, draw], 0)
+    if t["n"].ndim == 1:  # maps written before the moisture terciles: one leftover pool per group
+        n = t["n"][groups]
+        draw = (rng.random(len(groups)) * n).astype(np.int64)
+        left = t["pool"][groups, draw]  # gather one profile per row, never a whole pool per row
+    else:
+        wet, c = moisture(levels), t["cuts"][groups]
+        j = (wet > c[:, 0]).astype(int) + (wet > c[:, 1])
+        n = t["n"][groups, j]
+        draw = (rng.random(len(groups)) * n).astype(np.int64)
+        left = t["pool"][groups, j, draw]
+    out += np.where((n > 0)[:, None, None], left, 0)
     rh = PROFILE.index("RH")
     out[:, rh] = np.clip(out[:, rh], 0, 100)
     return out
@@ -187,7 +210,7 @@ def main():
     ap.add_argument("--igra", default="data/raw/igra")
     ap.add_argument("--out", default="models/station_map.npz")
     ap.add_argument("--first-year", type=int, default=1991)
-    ap.add_argument("--last-year", type=int, default=2022)
+    ap.add_argument("--last-year", type=int, default=2020)  # validation starts 2021
     ap.add_argument("--check-to", type=int, default=2025)
     a = ap.parse_args()
 
