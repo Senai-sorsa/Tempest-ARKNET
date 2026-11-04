@@ -100,7 +100,8 @@ def test_ensemble_sampler_splits_rows_across_members():
     y = (3 * x + 0.1 * rng.normal(size=(4000, 1))).astype(np.float32)
     year = np.repeat(np.arange(4), 1000)
     cfg = dict(width=16, depth=1, noise_dim=2, batch=256, steps=200, eval_every=100, val_years=1)
-    ck = [train(x, y, year, {**cfg, "seed": k}, device="cpu", log=lambda *_: None) for k in range(2)]
+    ck = train(x, y, year, cfg, device="cpu", log=lambda *_: None, members=2)["members"]  # trained side by side
+    assert [c["cfg"]["seed"] for c in ck] == [0, 1] and not torch.equal(ck[0]["state"]["inp.weight"], ck[1]["state"]["inp.weight"])
     s = Sampler(dict(members=ck), device="cpu")
     assert len(s.members) == 2
     out = s(np.zeros((1000, 1), np.float32))
@@ -171,3 +172,19 @@ def test_to_site_moves_surface_only():
     out = to_site(phys.copy(), 1262.0, np.array([1262.0, 1254.0]))
     assert np.allclose(out[0], phys[0]) and np.allclose(out[1, :-3], phys[1, :-3])
     assert np.isclose(out[1, -3], 300.052) and 85075 < out[1, -2] < 85085 and out[1, -1] == 40
+
+
+def test_block_split_keeps_a_gap():
+    from tempest.generator.features import FEATURES
+    from tempest.generator.train import split
+    days = np.arange(20 * 365)
+    year = 2000 + days // 365
+    a = 2 * np.pi * (days % 365 + 1) / 365.25
+    cond = np.zeros((len(days), len(FEATURES)), np.float32)
+    cond[:, FEATURES.index("doy_sin")], cond[:, FEATURES.index("doy_cos")] = np.sin(a), np.cos(a)
+    tr, val = split(year, cond, FEATURES, dict(val_block_frac=0.1, val_years=3))
+    assert not (tr & val).any() and 0.05 < val.mean() < 0.15 and len(np.unique(year[val])) >= 15
+    vd, td = days[val], days[tr]
+    assert np.abs(td[:, None] - vd[None, :]).min() >= 3  # no training day within 3 days of a validation day
+    tr0, val0 = split(year, cond, FEATURES, dict(val_years=3))
+    assert (val0 == (year >= 2017)).all() and (tr0 == ~val0).all()
