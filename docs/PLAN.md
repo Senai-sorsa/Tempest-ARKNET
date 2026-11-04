@@ -52,6 +52,9 @@ Nothing is left for the user to decide before phase 1.
 
 ## Architecture
 
+The user-facing tool (portable `tempest_weather/` folder, `values()` and `distribution()`, four modes) is planned in
+[TOOL_PLAN.md](TOOL_PLAN.md).
+
 ```
 query (lat, lon, date, local time, N)
    │
@@ -468,3 +471,165 @@ a NASA Earth-GRAM-style baseline (monthly mean + correlated bell-curve spread) a
 profile shape.
 CDS fill: the first month (1991-02) was checked on 2026-11-04: 8 levels, hourly, 13 x 29 points, as requested.
 Validation loss during training is now computed on rebuilt profiles, not on the differences.
+
+## Improvement log (from 2026-11-04; goal: 99 % of past values inside the 99 % range, everywhere)
+
+Coverage is now counted with order statistics (k = round((1-p)/2·(m+1)) from each end), so a perfect ensemble
+scores exactly p; interpolated quantiles undercounted (m = 100 scored 0.97 at 99 %). Test years 2024-2025 only;
+2023 (first validation year) is reserved for fitting calibrations. Diagnostics (`tempest.scoring.diag`, run by
+score and sonde): bias, spread/skill, which side of the 99 % range misses, worst columns, coverage by month and
+station; training logs per-variable validation CRPS, spread/skill, bias, gradient size and learning rate.
+
+| # | change | test | result |
+|---|---|---|---|
+| 1 | sp learned as departure from standard pressure at grid elevation | balloons | sp skill -0.072 -> -0.010 |
+| 2 | step loss (CRPS on height-to-height steps, weight 0.5), model st2 | balloons | variogram v -0.087 -> -0.034, u/T/RH positive |
+| 3 | range calibration on ERA5 2023 (`tempest.calibrate.spread`), st2 | ERA5 2024-25 | 99 % coverage 0.980-0.997 per band (raw cov90 0.83-0.88); CRPS skill unchanged |
+| 3 | same | balloons 2024-25 | 99 % coverage 0.982-0.997; misses: RH 11-13 km high side (spread/skill 0.76), T 5-7 km (0.84) |
+| 4 | extra balloon calibration fit on 2023 soundings, pooled per variable x band, on top of #3 | balloons 2024-25 | **rejected**: T 1-5 km 0.989 -> 0.979, RH 1-5 km 0.997 -> 0.983, T/rh2m CRPS worse; one year's quirks (u median shift ~1.4 m/s) don't carry over |
+| 5 | range calibration fit on 5 years (2019-2023, 60k rows) instead of 2023 only | ERA5 + balloons 2024-25 | **kept** (`--from-year 2019`): ERA5 worst column T 5-12 km 0.963 -> 0.982, T 1-5 km 0.966 -> 0.982, CRPS skill equal or better almost everywhere; balloons T 1-5 km 0.989 -> 0.994, T 5-12 km 0.983 -> 0.988, T skill +0.01-0.035; RH 12-18 km skill 0.002 -> -0.014 |
+| 6 | ERA5 RH converted to liquid-water RH (`to_heights.liquid_rh`; IFS mixes ice in below 0 C, balloons report over water) | ERA5 vs balloons 2023-25 | raw bias above 5 km -8..-16 % -> ~-1 %; after the station line fit only 0.03-0.09 % rmse better (the fit already absorbed it). **Kept** for the full-data rebuild: free there, and the big fix for anywhere without a nearby station |
+| 6b | station line fit on recent years only (2005+ / 2013+, newer radiosondes) | same | **rejected**: worse 5-13 km (bias +2..+5 %), better only 13-18 km |
+| 7 | station correction leftovers drawn from soundings with similar ERA5 moisture (tercile of RH 5-13 km) | balloons 2023-25, fit 1991-2022 | **kept**: RH CRPS 9-13 km 5.78 -> 5.34, 13-18 km 4.17 -> 3.84, v 9-13 km -1 %, others equal; 99 % coverage -0.001..-0.003 (range calibration absorbs it). Applies from the next station-map fit (full-data pipeline) |
+| 8 | range calibration split by season, or by spread tercile (instead of one global map) | ERA5 fit 2019-23, test 2024-25, 5k rows, m=199 | **rejected**: mean cov99 global 0.992 / season 0.990 / spread 0.991; worst band 0.973 / 0.967 / 0.970; CRPS +0.2 % / +0.1 %. Splitting thins each map's 99 % tail more than regimes differ |
+| 9 | GPT-suggestions parts 2-4: fixed validation noise (same noise at every early-stop check, training RNG untouched); calibration file refuses a different member count, score/sonde default --m to the calibration's m; liquid-RH continuity test | - | **added**: val noise moved the val loss by ~0.002 between checks (same size as real gains), so early stopping partly picked lucky checkpoints; effect shows at the next training. Rest triaged into docs/FUTURE_OPTIONS.md |
+| 10 | baseline retrained without station correction (generator_pilot13sp, same settings/sp fix) vs st2 | ERA5 + balloons 2023-25, m=50, uncalibrated | **st2 kept**: vs ERA5 the plain model is level or slightly better (skill RH 0.018 vs 0.011, T 0.076 vs 0.068), but vs balloons it loses badly (RH skill -0.28 vs 0.00, T 0.041 vs 0.057): the station correction is worth far more than its small ERA5 cost |
+| 10b | bug: station `apply` gathered a whole leftover pool per row (369 GB on the pilot build) | build_dataset with the moisture map | **fixed**: gather one drawn profile per row; same draws, tiny memory. Would also have crashed the full-data pipeline build |
+| 11 | moisture-tercile station leftovers (item 7, generator_pilot_mt, fixed val noise) vs st2, both with the 2019-23 range calibration | ERA5 + balloons 2024-25, m=199, calibrated | **rejected, st2 kept**: balloons upper RH improves (5-12 km miss 0.92 -> 0.53 %, 12-18 km 1.56 -> 1.24 %) but balloon mean miss gets worse (0.94 -> 1.10 %, t2m and upper wind worse), ERA5 RH 15-18 km low-side misses jump to 3-4 % per column, and mean CRPS skill drops slightly on both (ERA5 -0.0121 -> -0.0135, balloons -0.0136 -> -0.0141). The split pools are thinner and add noise; code stays (old one-pool maps still load) |
+| 12 | balloon range calibration fitted on 5 years (2019-23, 2,591 soundings; new `sonde --station-calib-from-year`) on top of the 2019-23 ERA5 calibration, st2 | balloons 2024-25, m=199 | **rejected**: surface gets better (t2m cov99 0.988 -> 0.997, sp, rh2m) but RH collapses where one pooled band map hides different columns: RH 12-18 km 0.984 -> 0.965 (spread/skill 0.76), RH 0-1 km 0.996 -> 0.984; both stations' overall cov99 drop (0.989 -> 0.987, 0.991 -> 0.990). Option kept for a per-column fit once more balloon years exist |
+| 13 | afCRPS alpha 0.99 instead of 0.95 (generator_pilot_a99, new `crps_alpha` setting, fixed val noise) vs st2, both with their own 2019-23 range calibration | ERA5 + balloons 2024-25, m=199, calibrated | **rejected, 0.95 kept**: calibrated miss rates look better (ERA5 mean 0.61 -> 0.59 %, balloons 0.94 -> 0.76 %) but CRPS skill does not move on ERA5 (mean 0.0314 -> 0.0315) and drops on balloons (0.0166 -> 0.0158, RH 12-18 km -0.014 -> -0.026); balloon band cov99 0.9906 -> 0.9911, ERA5 unchanged. Within noise and confounded with the val-noise change, so not a genuine gain. `crps_alpha` stays as a setting (default 0.95, configs/generator_a99.toml) |
+| 14 | balloon range calibration fitted on 2019-23 with one map per column (179) instead of per variable x band, st2 | balloons 2024-25, m=199 | **rejected, flag removed**: worse than no balloon calibration on every summary (band cov99 mean 0.9906 -> 0.9890, bands under 0.99 7 -> 8, RH 12-18 km 0.984 -> 0.965, stations 0.989/0.991 -> 0.986/0.989; skill 0.0166 -> 0.0168 is noise). With items 12 and 14 the lesson is that 2019-23 balloons want narrower ranges than 2024-25 needs: the gap drifts between years, so a balloon-fitted map does not carry forward |
+| 15 | ERA5 range calibration fitted on the latest 3 years (2021-23, 60k rows) instead of 2019-23, st2 | ERA5 + balloons 2024-25, m=199 | **rejected**: worse on both (ERA5 band cov99 mean 0.9919 -> 0.9916, bands under 0.99 4 -> 6, T 5-12 km 0.986 -> 0.984; balloons 0.9906 -> 0.9898, u 0-1 km 0.984 -> 0.981; skill 0.0314 -> 0.0312 and 0.0166 -> 0.0161). The ERA5 shortfall is not year-to-year drift; a narrower fit window only adds noise |
+| 16 | ERA5 range calibration on 150k rows of 2019-23 instead of 60k, st2 | ERA5 + balloons 2024-25, m=199 | **rejected, 60k kept**: coverage edges up (ERA5 band cov99 mean 0.9919 -> 0.9922, bands under 0.99 4 -> 3; balloons 0.9906 -> 0.9910, stations 0.989/0.991 -> 0.990/0.992) because the range ends widen (median scale 1.07/1.10 -> 1.08/1.11), but CRPS skill drops (ERA5 0.0314 -> 0.0311, balloons 0.0166 -> 0.0151). Items 15-16: the calibration fit is saturated; the last few tenths of a percent are within noise of 2 test years |
+| 17 | diagnostic: month-block bootstrap (12 calendar months, 20k resamples) of 99 % coverage per variable, st2 + 2019-23 calibration | ERA5 + balloons 2024-25 | **no change**: every balloon variable's 95 % interval contains 0.99 (t2m 0.987 [0.978, 0.994], u 0.989 [0.984, 0.993]), so no balloon shortfall is real at this sample size. Only ERA5 T is likely short (0.9885 [0.9854, 0.9913]): T 5-6.5 km misses both sides equally with spread/skill 0.89-0.92, worst in Jan-Mar and June, i.e. ranges slightly too narrow there, not shifted. Next real gain needs the model (more training data from the CDS years), not more calibration tuning |
+| 18 | audit (no model change): over/underfitting, leakage, and GPT part-5 claims | code + training logs + st2 score log | **findings**: no overfitting (train ~0.716 vs val ~0.725, val flat after ~1500 steps: input-limited, more capacity will not help). Real problems: (a) st2/a99/mt trained without `--max-year`, so val 2023-25 overlapped the 2024-25 test years and picked the early stop; (b) range calibration fitted on 2019-23, mostly training years, so ranges slightly narrow; (c) 17 decisions made on 2024-25, so they are development years; (d) cold T bias (val -0.07 to -0.10 std, test -0.2 to -0.37 K): year slope under-extrapolates warming. GPT part 5: CRPS 'not comparable across m' is wrong (all four methods use the same m; sorted formula is exact for the ensemble); 'k=1 of m=199 gives ~100 %' is wrong (198/200 = 0.99, tested); 'known drivers flatter the headline' is true in principle but immaterial (known vs unknown skill and cov99 differ by <= 0.01 in every band); 'ERA5 truth flatters coverage' is true by design, balloons are the real test; test-year reuse is true (= c). Added: whole-profile 99 % coverage line in score.py (per-column coverage hides joint misses); climatology itself reaches cov99 0.97-0.99, so per-column cov99 is a weak bar and CRPS skill (0-9 %) matters more. Fix: honest protocol from now on: train <= 2020, val 2021-23 (`--max-year 2023`), calibrate on 2021-23, dev test 2024-25, final untouched test 2026 Jan-Jun (`--last-test-year`). |
+| 19 | station correction fitted on balloons 1991-2020 instead of 1991-2022 (default `--last-year` now 2020; `models/station_map_2020.npz`) | balloons 2021-25 held out | **kept (leak fix)**: the old fit used validation years 2021-22. Held-out 2021-25 gap still closes: level gap u 0.41 -> 0.18, v 0.38 -> 0.20, T 0.51 -> 0.17, RH 7.9 -> 2.5; step gap u 0.95 -> 0.32. Full-data pipeline restarted as v3 with `--max-year 2023`, calibration 2021-23 and test 2024-25 (the old pipeline.sh and pipeline2.sh, both still waiting, are stopped; the CDS downloader keeps running). |
+| 20 | block validation option (`val_block_frac`, `configs/generator_blocks.toml`): validation = 10 % of 14-day blocks drawn from every year, rows within 3 days of a block dropped from training; default off (tail years as before) | queued: train `--max-year 2022` with blocks, calibrate 2023, test 2024-25 then 2026 Jan-Jun, against the tail-split B0/A5 models | **pending**: lets training see recent climate (drift) while 2024-25 and 2026 stay untouched; a unit test checks the 3-day gap and that the old split is unchanged. |
+| 21 | training speed: the 4 members train side by side in one loop (training rows normalised once and kept on the GPU in float16, forward pass in bfloat16, fused AdamW), `steps` 20000 -> 6000 to fit a 15-minute budget | timing on pilot_st.npz; accuracy: B0 of A5 (6000 steps) vs B0 retrained with `configs/generator_slow.toml` (20000 steps), same data and split, ERA5 + balloons 2024-25 | **pending accuracy check** (runs after A5). Speed measured: 4-member step 125 ms (was ~208 ms one member after another), so ~13 min for 6000 steps; 20000 steps would still take ~42 min because the GPU is now full (torch.compile is not available here: no Triton on Windows). The 6000-step cut is reverted if the 20000-step model is clearly better. |
+| 22 | A5: training years 1980-2020 (pilot80, 47 blocks) instead of 1991-2020 (B0), same code, 6000 steps, honest split, each with its own 2021-23 range calibration | ERA5 + balloons 2024-25, m=199 | **rejected, B0 kept**: T gets worse on both (ERA5 known skill 0-1 km 0.082 -> 0.074, 1-5 km 0.081 -> 0.072, 5-12 km 0.098 -> 0.092; balloons 0.046 -> 0.037, 0.044 -> 0.037, 0.079 -> 0.073), u slightly better (ERA5 0-1 km -0.008 -> -0.003, balloons 1-5 km 0.007 -> 0.019), and ERA5 whole-profile RH coverage drops 0.880 -> 0.820. Older years pull the learned warming trend down (the cold T bias, item 18d) more than the extra data helps. First run with the best-guess error table (A5, ERA5): T MAE 2.5-3.6 K vs climatology 2.7-4.0 K; u 5-12 km 9.3 vs 9.6 m/s; RH 0-1 km 14.2 vs 14.8 %. No error bars yet (Evaluation review E3) |
+
+## A6 and other drivers: inputs the user never gives (plan, 2026-11-04)
+
+The tool is called with only place and time. Every driver must be fetched by the tool itself, and at query time
+only **values up to now** exist: no future soil moisture, SST or index values. So each driver is trained the
+way it will be used.
+
+**Finding:** today's `oni`, `wwv`, `qbo30` and `qbo50` inputs use the value for the *target* month, which is
+unknown for a future date. The same fix applies to them.
+
+**How to use a driver we only know up to now (options):**
+1. **Lagged input (chosen).** During training, each row gets the driver value from `lag` days before the target
+   date, plus `lag` itself as an input.
+   - `lag` is drawn at random from 0-180 days, so the model learns how fast each signal fades.
+   - At query time, `lag` = target date minus the latest available value.
+2. **Damped persistence (fallback).** Use anomaly x exp(-lag / tau) as one input, with tau fitted per driver.
+   This is the same information with fewer free parameters. Use it if option 1 overfits.
+3. **Driver forecasts** (CPC/IRI ENSO plume, NMME or C3S SST and soil moisture): these are available, but the
+   archives of past forecasts are short and inconsistent. Moved to phase 9.
+4. **Unknown or very long lag.** A "driver missing" flag is set at random in training (about 10 % of rows), so
+   one model also answers with no driver and falls back to today's behaviour.
+5. **`uncertainty` kind.** The driver value at the target date is drawn from history: past cases with a similar
+   current value, followed forward by `lag` days. This replaces the plain random ENSO/QBO/solar draws in
+   `TOOL_PLAN.md`.
+
+**Candidates, all fetched automatically for free.** None counts as certain until it passes the held-out test.
+They are ordered by the strength of published evidence:
+
+| # | Input (fetched by the tool) | Source, delay | Expected effect | Confidence |
+|---|---|---|---|---|
+| 1 | Recent local departures from normal of the targets themselves (mean T, RH, u, v over the last 7 and 30 days at the site; surface + a few heights) | ERA5 store / Open-Meteo archive (~5 days behind) + Open-Meteo `past_days` for the last days | persistence is the strongest known predictor for weeks 3-8, mostly T and RH near the ground; fades with lag | high at lags < ~45 d |
+| 2 | Soil moisture, top layers (A6) | ERA5 `swvl1`-`swvl2` (same store) / Open-Meteo soil moisture | well-documented weeks 3-8 skill for 2 m T and humidity over semi-arid land in summer (GLACE-2); little above ~3 km | high for surface and boundary layer |
+| 3 | Regional SST: Gulf of California, Gulf of Mexico, east Pacific off Baja (A6) | NOAA OISST v2.1 daily via ERDDAP (~1-2 days behind) | monsoon moisture, Jun-Sep RH and T | medium |
+| 4 | MJO (RMM1, RMM2) | Australian BoM daily index (~1-2 days behind) | weeks 2-5 signal; weak over the Southwest | medium-low, mode 3 only |
+| 5 | Stratospheric polar vortex (10 hPa zonal wind at 60 N) | ERA5 store | winter weeks 3-8, mainly upper levels | low-medium |
+| 6 | Snow depth upwind (southern Rockies) | ERA5 `sd` | spring T near the surface | low for the pilot box |
+
+Dropped: PDO (mostly carries ENSO, which is already in) and CO2 (the year trend covers it).
+
+**Test (each candidate, one at a time, starting with 1 and 2):**
+- Train on years up to 2020, choose on 2021-23, report on 2024-25.
+- Report by lag band (15, 30, 60, 90 and 180 days) against the same model without the input.
+- Keep it only where CRPS improves at those lags and the 99 % range still holds 98.5-99.5 %.
+- The existing indices get the same lag treatment and the same test.
+
+## Blueprint review (2026-11-04: two "99 % past-weather accuracy" write-ups, checked against our numbers)
+
+Helpful, adopted:
+- Spread that depends on the weather in the station correction: item 7 (by moisture).
+- Liquid-water vs ice RH mismatch between ERA5 and balloons: item 6 above.
+- Separate past-weather mode that uses the known synoptic state: already the plan (Past dates: the actual ERA5
+  profile at that hour); the generator stays for unknown-weather dates.
+
+Mediocre: moved to `docs/FUTURE_OPTIONS.md` (one list with GPT-suggestions parts 2-4, plus discarded items).
+
+Discarded:
+- "50 samples cap coverage at 96 %": already solved (order statistics, m = 199).
+- Two-number conformal scaling (tau90 / tau99) or one sup-norm multiplier: our per-column quantile map is a superset
+  and keeps the band tight where the model is sure.
+- Low-rank Gaussian covariance head replacing the generator: Gaussian tails, loses the skew our calibration
+  learns, and would throw away a working model for an untested one.
+- Accuracy-loss percentages, latencies and "R^2 >= 0.99 / 30-45 % RMSE cut" claims: no sources, not reproducible.
+- The drop-in code (to_heights rewrite, TempestPastAssimilator): different variables and height grid, would break
+  the data layout and every saved model.
+
+## Evaluation review (2026-11-04: "are we measuring the right thing?")
+
+Started by the user noticing that no score reported the plain error of the single best guess (fixed: score.py and
+sonde.py now print MAE/RMSE of the per-height median, physical units). An outside-style review then found more of the
+same kind. Each was checked in the code; fixes are scoring-only unless marked.
+
+| # | Problem | Checked | Fix (order) |
+|---|---|---|---|
+| E1 | Climatology baseline pools 1980-2023 with no warming trend: about 1.4 K too cold for 2024-25, so T skill is partly "knows it is warmer now" | yes (score.py tr rows; t2m anomaly +1.41 K) | add a recent-years baseline (last 15 training years) and report skill against both |
+| E2 | "Known drivers" uses the target month's ENSO (ONI is a centred 3-month mean, so it also contains the next month); on balloons T skill drops 0.044 -> 0.024 (1-5 km) with drawn drivers | yes (indices.py) | MAE for `unknown` too; make drawn/lagged drivers the headline; real fix is A6's lag |
+| E3 | No error bars; many decisions rest on 0.005-0.02 differences | yes | block bootstrap by day, 95 % intervals (was already queued as GPT item) |
+| E4 | 2024-25 has been used for 17+ decisions, so it is development data now; the 2026 hold-out is Jan-Jun only (no monsoon) | yes | call 2024-25 "development"; add a second walk-forward fold; say plainly 2026 H1 says nothing about summer |
+| E5 | Model trained and tested only for solar 06-21 h and 00Z balloons at 2 stations; the tool accepts any hour | yes (build_dataset.py, sonde.py) | tool refuses/warns outside 06-21 solar h and outside the box until night hours are trained |
+| E6 | Wind best guess as separate u and v medians makes the speed too low | reasoning | also score wind speed and direction error |
+| E7 | Average 99 % coverage hides bad months/heights (balloon RH July 0.953, RH 11-12 km 0.943 all high-side misses); no whole-profile line for balloons | yes | print worst month and column; whole-profile line in sonde.py; try a seasonal range map |
+| E8 | The Gaussian (Earth-GRAM-like) baseline ignores the hour, a strawman near the surface | yes | group it by hour bin as well |
+| E9 | Range map fitted on known-driver samples, applied to drawn-driver ones (may over-widen) | yes | fit on the kind of samples the tool serves |
+| E10 | Balloon test keeps only soundings complete at all 44 heights (about 10 % dropped, likely the extreme ones) | yes (sonde.py `isfinite(...).all`) | score each height on the soundings that have it; report the dropped count |
+
+Order: E1, E2, E3, E7, E8, E10 (scoring only, then rescore B0 and A5 together); E9 and E5 next; E4 is wording and a
+second fold; E6 with the tool.
+
+**Done (scoring only, no model change):**
+- E1: recent climatology (last 15 years before the test).
+- E2: the HEADLINE table shows unknown-driver skill next to known.
+- E3: 95 % intervals from a whole-day bootstrap (`diag.headline`, test in `tests/test_calibrate.py`).
+- E7 (part): the whole-profile 99 % line for balloons.
+- E8: the Gaussian baseline is grouped by grid point x month x 2-h bin.
+
+The best-guess (median) MAE/RMSE is printed by both scorers. E10 and the worst-month/column print are still open.
+
+**First honest B0 numbers.** CPU check: balloons are all 2024-25 00Z soundings with m=199; ERA5 uses only 300 rows,
+so its intervals are wide. Skill15 means skill against the recent climatology; [ ] is the 95 % interval.
+
+| Balloons 2024-25 (B0) | skill15, known drivers | skill15, unknown drivers | MAE, recent clim -> model (unknown) |
+|---|---|---|---|
+| T 0-1 km | 0.028 [0.005, 0.051] | 0.018 [-0.002, 0.037] | 3.70 -> 3.61 K |
+| T 1-5 km | 0.032 [0.013, 0.050] | 0.014 [-0.001, 0.029] | 2.71 -> 2.67 K |
+| T 5-12 km | 0.047 [0.030, 0.065] | 0.039 [0.023, 0.054] | 2.38 -> 2.30 K |
+| u 5-12 km | 0.038 [0.021, 0.053] | 0.033 [0.017, 0.047] | 9.42 -> 9.10 m/s |
+| RH 5-12 km | -0.052 | -0.051 [-0.064, -0.038] | 16.8 -> 17.2 % (worse) |
+| RH 12-18 km, sp, rh2m | -0.02 to -0.05 | all below 0 | worse than climatology |
+
+The whole-profile 99 % coverage (all 44 heights inside together) is u 0.871, v 0.837, T 0.866 and RH 0.830; for
+climatology it is 0.79-0.83.
+
+What this means:
+- With the honest baselines the real month-ahead skill is small: about 1-4 % better than recent climatology for T and
+  upper wind.
+- Most near-surface T skill was the warming trend (E1) or next-month ENSO (E2).
+- RH aloft, surface pressure and rh2m are significantly worse than climatology. These are the first targets: shrink
+  toward climatology, or use climatology for those columns.
+- ERA5 (300-row check, wide intervals): T skill15 is 0.06-0.07 [0.02-0.03, 0.09-0.10] and u 5-18 km is 0.06-0.07.
+  The full rescore of B0, A5 and slowcheck uses `--rows 5000` and replaces these numbers.
+- E10 (part): sonde.py now prints the dropped count. For 2024-25, 64 of 726 (Santa Teresa) and 47 of 691 (Midland)
+  00Z soundings are incomplete, about 8 %. Per-height scoring of those is still open.
+- E9: `spread --drawn-drivers` (off by default) fits the map on samples with drawn drivers. Smoke-tested; queued on B0
+  after the rescore (`data/e9*.log`). Keep it only if unknown-driver 99 % coverage moves closer to 0.99 without a CRPS
+  loss.
+- E5: the rule is written into TOOL_PLAN (modes 3-4 refuse outside solar 06-21 h).
+- Queue: slowcheck (row 21) -> rescore B0 and A5 (`data/rescore*.log`) -> E9.

@@ -539,3 +539,567 @@ absorb it and then transfer the bias to new sites. Address these in phase 1.
 All items are out-of-fold hypotheses. Keep a change only when its named check
 passes beyond fold-to-fold noise, and retain analogs wherever a change does not
 pass.
+
+---
+
+# Part 2 — Secondary review of the 2026-11-04 implementation changes
+
+These structural changes should reduce silent scientific errors more than another
+round of model tuning. The most urgent are the canonical schema, centralized
+splits, explicit finite-ensemble interval API, versioned calibration artifacts,
+and source/support masks.
+
+---
+
+# Part 4 — Training speedups that do not change the result
+
+These target training wall-clock in `tempest/generator/train.py` and
+`tempest/generator/model.py`. Items in Part 4A are numerically lossless (same
+objective, same gradients up to floating-point reassociation, so the trained
+model is effectively identical). Items in Part 4B are safe engineering changes
+with negligible or no effect on the optimum. Each should be confirmed by a
+before/after test: identical (or within tight tolerance) loss on a fixed seed
+and batch, then equal or better steps-per-second.
+
+With `members = 4`, every one of these savings is multiplied by four, because
+the four seeds are trained sequentially in `main()`.
+
+## Part 4A — Lossless loss-function rewrites
+
+152. **Replace the `afcrps` pairwise outer product with the sort identity.**
+     `afcrps()` builds `(samples.unsqueeze(1) - samples.unsqueeze(2)).abs()`, an
+     `(B, m, m, D)` tensor, every step and again inside the step loss. The spread
+     term `sum_{i,j}|x_i - x_j|` equals, per value, `2 * sum_k (2k - m - 1) *
+     sort(x)_k` with `k = 1..m`. Sorting along the member axis and taking that
+     weighted sum gives the identical number in `O(B m log m D)` time and `O(B m D)`
+     memory, removing the `m*m*D` allocation (~47 MB per call at B=4096, m=4,
+     D=179). This is exact, not an approximation; assert equality to the current
+     implementation in a test before switching.
+
+153. **Vectorize `energy_score` instead of the Python pair loop.**
+     `energy_score()` sums over a Python generator of `m*(m-1)/2` member pairs,
+     launching many small kernels. Compute all pairwise norms with one batched
+     operation over the member axis (for example, a single `cdist` per row-block,
+     or the upper-triangular indices gathered once), keeping the same unbiased
+     formula. With `m=4` the arithmetic is tiny, so the gain is purely from fewer
+     kernel launches and Python overhead; keep the result bit-comparable on CPU.
+
+154. **Reuse the fit term shared by `afcrps` and `energy_score`.**
+     Both losses recompute `samples - y.unsqueeze(1)`. When `es_weight > 0`, form
+     that residual once per call site and pass it to both terms. This removes one
+     full `(B, m, D)` subtraction and its broadcast each step without changing any
+     value.
+
+155. **Compute the step loss from the already-reconstructed profiles.**
+     `score()` calls `afcrps` on `samples[..., :n_prof]` (the raw differences) in
+     addition to the main `afcrps`/`energy_score` on reconstructed profiles. The
+     difference-space values are already the per-step increments used to build the
+     profile, so the step loss can reuse intermediate tensors from the physical
+     reconstruction rather than re-slicing and re-standardizing. Confirm the
+     numbers match the current `step_weight` term exactly before relying on it.
+
+## Part 4B — Safe engineering speedups (no objective change)
+
+156. **Overlap host-to-device copies with pinned memory and `non_blocking`.**
+     `batch()` builds a normalized float32 array on the CPU and copies it to the
+     GPU synchronously every step. Allocate pinned (page-locked) host buffers for
+     the batch and validation tensors and copy with `non_blocking=True`, so the
+     transfer overlaps the previous step's compute. This changes only timing, not
+     values.
+
+157. **Move per-batch normalization to the device.**
+     `batch()` computes `(cond[idx] - cm) / cs` and the target transform in NumPy
+     on the CPU for every step. Copy the raw gathered rows once and apply the fixed
+     `cm/cs/tm/ts` (and the `sp_offset` subtraction) on the GPU. The CPU then only
+     does the memmap gather; the arithmetic runs where the model already is. Keep
+     the statistics in the same float precision to preserve values.
+
+158. **Prefetch the next batch while the current step runs.**
+     Row indices come from `rng.integers(...)` and a memmap gather. A one-batch
+     look-ahead (a small background thread or a CUDA stream for the copy) hides the
+     disk/gather latency behind GPU compute. Draw indices from the same seeded RNG
+     in the same order so the training trajectory is unchanged.
+
+159. **Enable TF32 / mixed precision explicitly and measure it.**
+     The code already sets `torch.set_float32_matmul_precision("high")` (TF32
+     matmuls). On this RTX 50-series GPU, also test autocast to bfloat16 for the
+     forward/backward with float32 master weights. bfloat16 is not bit-identical,
+     so treat it as Part 4B-conditional: keep it only if a fixed-seed run matches
+     the float32 validation curve within noise and does not worsen calibration or
+     tail scores. Keep the loss reductions and the standardization in float32.
+
+160. **`torch.compile` the model and loss once per process.**
+     Wrap the generator (and ideally the loss) in `torch.compile` so the residual
+     blocks, FiLM, and the sort-based loss fuse into fewer kernels. This does not
+     change the math. Guard it so a compile failure falls back to eager, and make
+     sure the first-step compile cost is excluded from throughput measurements.
+
+161. **Cut validation cost with fixed noise and a right-sized `val_rows`.**
+     Validation runs every 500 steps over up to 50,000 rows plus a `diagnose()`
+     pass. Use fixed (seeded) evaluation noise so the early-stop signal is not
+     noisy (this also improves selection, Part 2 item 117), and check whether a
+     smaller, fixed validation subset gives the same stopping decisions. Fewer
+     validation rows is a straight time saving once the subset is shown to pick the
+     same checkpoints.
+
+162. **Avoid the full-gradient-norm reduction if it is only a diagnostic.**
+     `clip_grad_norm_(..., float("inf"))` computes the global gradient norm every
+     step purely to log it ("measure only, no clipping"). Computing it only on
+     evaluation steps (every `eval_every`) removes a full parameter-wide reduction
+     from most steps with no effect on the optimizer.
+
+163. **Train the `members` seeds in parallel where the GPU has headroom.**
+     The four members are independent and currently trained one after another
+     (4× wall-clock). Measured pilot training used ~0.4 GB of a 12 GB GPU, so
+     several members can share the device via separate CUDA streams or a batched
+     "ensemble-of-MLPs" layout (a leading model axis on every `nn.Linear`). This is
+     the single largest wall-clock win and does not change any member's result as
+     long as each keeps its own seed, data order, and initialization.
+
+164. **Keep `load_npz` memory-mapped and gather contiguously.**
+     The custom reader already memory-maps uncompressed `.npz`. Ensure training
+     never triggers the `np.load` fallback (which reads the whole ~6 GB into RAM):
+     assert the file is `ZIP_STORED` at start, and, where possible, sort the sampled
+     row indices within a step so the memmap gather touches pages more
+     sequentially. Row order within a batch does not affect the loss.
+
+Part 4A items should be adopted first and locked behind an exact-equality test.
+Part 4B items 156–158 and 160, 162, 163 are the biggest wall-clock wins and carry
+no accuracy risk; item 159 (bfloat16) is the only one that must be gated on a
+calibration check before it ships.
+
+This section reviews the new improvement log and changes in `docs/PLAN.md`,
+`tempest/calibrate/`, `tempest/generator/`, `tempest/profiles/`,
+`tempest/scoring/`, and the associated tests. These findings are separate from
+Part 1 and focus on risks introduced by pressure-offset learning, liquid-water
+RH, step loss, ensemble members, range calibration, and the 99% past-weather
+coverage objective.
+
+The 99% objective is a calibration target for the stated verification population;
+it is not evidence that future weather is predictable. All findings below must
+be checked on untouched years, stations, and weather episodes.
+
+## Part 2A — Calibration and coverage correctness
+
+93. **Correct the finite-ensemble 99% coverage convention.**
+    `coverage90()` computes `k = round((1-p)(m+1)/2)` and then indexes the
+    `k-1` and `m-k` order statistics. For `m=199` and `p=0.99`, `k=1`, so the
+    interval is the sample minimum through maximum. For a continuous exchangeable
+    truth and 199 forecast members, that interval contains the truth essentially
+    100% of the time, not 99%. To obtain an approximately 99% central interval,
+    the endpoint convention must exclude appropriate extreme members (for example,
+    use the second and second-to-last members for this ensemble size), or use a
+    clearly defined randomized/interpolated quantile rule. Derive the finite-sample
+    coverage mathematically, test it with a large synthetic exchangeable ensemble,
+    and do not describe the current `k=1` result as exact 99% coverage.
+
+94. **Quantify uncertainty in the 99% coverage results.**
+    Two years of hourly rows are not two years of independent evidence. Report
+    confidence intervals using independent weather episodes, year, month and
+    station blocks, together with effective sample size. If the interval is too
+    wide to distinguish 99% from nearby values, label the band unresolved.
+
+95. **Make fit, calibration and test splits mutually exclusive by construction.**
+    The new commands combine `--year`, `--from-year`, `--first-test-year`, and
+    validation-year defaults. Create one split manifest containing exact years,
+    row IDs, soundings and episode IDs; reject overlap and save the manifest in
+    every calibration artifact consumed by `score` or `sonde`.
+
+96. **Prevent row and episode reuse during range calibration.**
+    `spread.fit()` pools model members and truth values from selected rows. Store
+    the selected IDs and verify that no row, timestamp, sounding or weather episode
+    appears in both calibration and final evaluation.
+
+97. **Use one finite-sample convention in fitting, applying and scoring.**
+    `spread.apply()` interpolates quantile knots and extrapolates beyond them,
+    whereas `coverage90()` uses discrete order statistics. Test the complete
+    production chain on synthetic exchangeable data and record the convention in
+    the calibration artifact.
+
+98. **Recheck RH calibration after clipping.**
+    `spread.apply()` calls `clip_ranges()` after the quantile transform. Clipping
+    creates point masses at 0 and 100%, changes ranks, and can alter tail coverage
+    and RH/T dependence. Prefer a bounded transform or measure PIT, tail coverage,
+    and physical consistency after the final clipping step.
+
+99. **Do not claim joint 99% profile coverage from marginal bands.**
+    Separate monotone maps preserve the raw rank copula across columns before any
+    clipping or ties, but they do not guarantee calibrated physical joint regions,
+    covariance, wind-vector magnitudes, or shear events. Report marginal, vector,
+    selected shear, thermodynamic, and whole-profile joint coverage separately,
+    including the effect of RH clipping.
+
+100. **Require minimum support for every calibrated tail.**
+     Range and station calibration can have too few rows after finite-value,
+     year, station, month and height filtering. Enforce minimum counts per column,
+     group and tail; otherwise mark that band unresolved instead of extrapolating
+     a 99% map from insufficient data.
+
+## Part 2B — Schema and physical-transform correctness
+
+101. **Make physical reconstruction schema-driven rather than 179-column-specific.**
+     `train.py` enables profile reconstruction only when metadata has exactly
+     `N_PROF + 3` targets, while `sample.py` assumes 179 columns and three surface
+     fields. Adding u10/v10, pressure levels or density could silently change the
+     loss into a raw-vector loss. Define a schema with names, units, dimensions,
+     transforms and a hash; reject mismatched datasets and checkpoints.
+
+102. **Test pressure-offset round trips at training and inference.**
+     Training subtracts standard pressure using `elev_grid`, and `Sampler` adds it
+     back using the condition index. Test multiple elevations, old checkpoints
+     without `sp_offset`, extreme synthetic values, units and finite outputs. A
+     missing or mismatched offset must fail loudly rather than produce plausible but
+     mis-scaled pressure.
+
+103. **Ensure every score receives physical pressure, not pressure departure.**
+     Confirm that calibration, Gaussian baselines, diagnostics, reports and output
+     writers all receive pressure in pascals after the offset is restored. Add an
+     invariant at the scoring boundary that rejects pressure departures outside
+     the expected physical range.
+
+104. **Evaluate step-loss weighting in physical units.**
+     Step loss is applied to normalized difference coordinates while the primary
+     loss uses reconstructed, per-channel standardized profiles. Measure each
+     component's actual loss and gradient contribution, and tune `step_weight`
+     inside training folds against physical shear and variogram scores.
+
+105. **Test the liquid-water RH conversion at all phase boundaries.**
+     Validate `liquid_rh()` above 0 C, below -23 C, and through the transition for
+     continuity, monotonicity, finite output and saturation behavior. Also measure
+     its effect on density and hypsometric pressure, not just RH bias.
+
+106. **Do not silently mix complete and partial CDS profiles.**
+     `to_heights.py` permits missing CDS months and partially filled months. Persist
+     source/support masks and report Earthmover-only, fully filled and partially
+     filled cases separately in training, calibration and scoring.
+
+## Part 2C — Station and radiosonde verification
+
+107. **Report support for every station-correction group.**
+     Station correction groups combine station, season and launch hour. Report pair
+     counts per group and height, reject unsupported groups, and explicitly identify
+     identity fallbacks instead of treating them as calibrated output.
+
+108. **Do not require complete 44-level soundings for all residual learning.**
+     `station.fit()` retains leftovers only when all variables and all 44 heights are
+     finite. This preferentially removes soundings with missing upper levels. Use
+     support masks or stratified corrections by maximum common height, and publish
+     the retained-versus-discarded distribution.
+
+109. **Align radiosonde truth with observation geometry.**
+     Nominal 00Z/12Z and nearest-grid comparisons omit release-time and ascent-path
+     representativeness. Compare nearest-grid, bilinear and—where metadata permit—
+     drift-aware matching before interpreting residuals as model error.
+
+110. **Keep station calibration and final sonde testing independent.**
+     The optional station calibration must use complete sounding episodes outside
+     the final test set. Save fit IDs and reject any overlap by sounding, day,
+     station or weather episode.
+
+## Part 2D — Scorecard and model-selection safeguards
+
+111. **Use one canonical schema across all scorecard baselines.**
+     Climatology, Gaussian, generator, sonde and reporting code must consume the
+     same ordered physical columns and support mask. A baseline that omits or
+     reorders a surface field can produce misleading aggregate skill.
+
+112. **Audit climatology grouping against direct timestamps.**
+     `group_keys()` reconstructs month and hour bins from sine/cosine features and
+     truncates them. Test year boundaries, leap day, negative longitude, fractional
+     solar time and bin edges against a timestamp-based implementation.
+
+113. **Do not drop held-out rows solely because a climatology group is empty.**
+     Such rows may be systematically rare. Use a declared fallback or report all
+     methods on the same eligible set together with the excluded-case distribution.
+
+114. **Use shrinkage covariance for the high-dimensional Gaussian baseline.**
+     Full covariance from a small group in 179 dimensions is unstable. Require a
+     minimum sample count, use documented shrinkage or low-rank covariance, check
+     positive definiteness, and compare against diagonal and low-rank baselines.
+
+115. **Separate training-member count from evaluation-member count.**
+     The current paths use m values of 4, 50, 100 and 199. CRPS and finite-ensemble
+     coverage depend on m. Define fixed training/evaluation conventions, use common
+     random numbers, and report sensitivity rather than comparing unlike ensembles.
+
+116. **Measure effective ensemble size across trained members.**
+     Members may differ only by seed while sharing rows, normalization and optimizer
+     settings. Measure inter-member correlation; do not count correlated members as
+     independent spread when evaluating coverage.
+
+117. **Use common random numbers for checkpoint selection.**
+     Fresh noise at every validation checkpoint adds Monte Carlo noise to early
+     stopping. Fix validation noise or average repeated common-noise evaluations,
+     using the same member count and physical metrics as the final report.
+
+118. **Keep model selection separate from final calibration selection.**
+     The improvement log uses 2024–2025 results to accept or reject calibration
+     choices. If those years are used for decisions, call them development years
+     and reserve an untouched final year/station block for the final accuracy claim.
+
+119. **Add invariance tests for batching and row order.**
+     Permuting rows or changing batch size should not change score definitions,
+     calibration tables or diagnostics except for documented random sampling.
+     This is especially important with sorted group arrays and chunked generation.
+
+## Part 2E — Acceptance and reproducibility
+
+120. **Separate past-weather coverage from future-forecast skill.**
+     Exact ERA5 lookup, radiosonde correction, near-term forecast calibration and
+     multi-month probabilistic skill are different products. Publish separate
+     acceptance tables and do not transfer a past-weather 99% result to future
+     dates.
+
+121. **Require every declared band to pass, not only an aggregate range.**
+     The improvement log already shows RH and T bands with different behavior.
+     Publish the worst band, miss direction, station/month breakdown and uncertainty;
+     aggregate summaries cannot hide a failed launch-critical band.
+
+122. **Predeclare nominal-coverage tolerances and multiplicity handling.**
+     Define tolerance intervals and block-bootstrap uncertainty before inspecting
+     results. Distinguish practical tolerance, statistical confidence and the fact
+     that many variable/height bands are tested.
+
+123. **Version every calibration artifact against the model and schema.**
+     Store model and member hashes, target-schema hash, transform version, source
+     hash, fit IDs, fit years, member count, random seed, quantile levels and
+     clipping policy. Refuse application when these do not match production.
+
+124. **Make diagnostics part of the automated ship gate.**
+     Bias, spread/skill, miss direction, worst columns, monthly/station coverage,
+     joint coverage and support counts should be machine-readable and thresholded.
+     Charts alone are insufficient for a 99% claim.
+
+125. **Run the complete changed suite in a clean pinned environment.**
+     The repository now changes scoring, calibration, profile and training paths.
+     Run all tests with the lockfile's Python/package/CUDA versions, including
+     synthetic score/calibration fixtures and real-data smoke tests, before treating
+     the improvement log as validated.
+
+Part 2 is complete only when the finite-ensemble convention, split manifest,
+schema hash, source-support mask, scorecard baselines and joint-coverage
+diagnostics are explicit and reproducible.
+
+---
+
+# Part 3 — Structural recommendations
+
+The largest remaining risk is not primarily the neural-network architecture. It
+is that schemas, transformations, data splits, calibration rules, routing, and
+verification logic are distributed across scripts and represented by anonymous
+arrays and dictionaries. The following structural changes are intended to make
+silent scientific errors difficult or impossible.
+
+## Part 3A — Canonical data and physical-domain contracts
+
+126. **Create one canonical profile schema.**
+     Add a central module such as `tempest/schema.py` containing the ordered
+     profile and surface variables, heights and reference heights, units,
+     difference-space and physical-space slices, bounds, transformations, and a
+     schema version/hash. Dataset builders, checkpoints, calibration artifacts,
+     scorecards, sample files, and TOML outputs must all carry and validate that
+     hash. This should eliminate the current 179/181 ambiguity and prevent field
+     permutations from remaining numerically plausible.
+
+127. **Separate physical transformations from generator sampling.**
+     Move difference-to-level reconstruction, standard-pressure handling,
+     pressure/density derivation, RH conventions, site-elevation transfer, and
+     physical constraints out of `generator/sample.py`. Suggested boundaries are
+     `tempest/physics/profile.py`, `tempest/physics/site.py`, and
+     `tempest/physics/constraints.py`. The sampler should load a model and produce
+     stochastic model outputs, not define atmospheric physics. Training should not
+     need to import physical transforms from the inference sampler.
+
+128. **Introduce a typed forecast-sample object.**
+     Replace anonymous arrays with an explicit container holding values, member
+     axis, variables, heights, units, issue and valid times, site/grid elevation,
+     route, source/support masks, calibration history, schema hash, and random-seed
+     provenance. Distinguish raw difference-space targets, pressure departures,
+     physical profiles, and site-adjusted profiles with separate types or explicit
+     states so they cannot be passed interchangeably.
+
+129. **Represent forecast queries explicitly.**
+     Create a query object containing issue time, target time, lead, location,
+     civil timezone, solar time, requested heights, predictor vintage, and the
+     predictors available at issue time. This structurally prevents target-time
+     climate indices or revised observations from being mistaken for predictors
+     available when the forecast was issued.
+
+130. **Define one authoritative physical-transform pipeline.**
+     Express the production order explicitly: model output, pressure-offset
+     restoration, level reconstruction, range calibration, physical constraints,
+     site transfer, derived pressure/density, and output serialization. Every
+     training, calibration, scoring, and production path should invoke the same
+     versioned transform graph rather than recreating parts of it independently.
+
+## Part 3B — Splits, artifacts, and scientific provenance
+
+131. **Centralize all temporal and spatial splits.**
+     Replace independently calculated training, validation, calibration, and test
+     years with a split registry. Each immutable split manifest should identify
+     row IDs, timestamps, years, stations, weather episodes, regions, data hashes,
+     and preprocessing versions for training, checkpoint validation, calibration,
+     development testing, and untouched release testing. Consumers must reject
+     overlapping roles automatically.
+
+132. **Replace loose calibration dictionaries with versioned artifacts.**
+     Define a common calibration artifact containing type/version, model and member
+     hashes, schema hash, transform version, source hash, split hash, fit IDs,
+     member count, quantile convention, clipping policy, support counts,
+     applicability domain, and fit diagnostics. It should expose a common interface
+     for fitting, application, compatibility validation, and diagnostics, and
+     refuse incompatible forecasts.
+
+133. **Make every model checkpoint self-describing and verifiable.**
+     Store schema and transform hashes, feature names and units, target names and
+     units, training split hash, data hash, configuration, software versions,
+     random seeds, normalization support counts, and validation report. Loading a
+     checkpoint should validate these fields before allocating the model or
+     producing samples.
+
+134. **Replace `done.txt` with transactional processing manifests.**
+     For every profile block, record input hashes, source availability, time range,
+     coordinates, height grid, transformation version, output checksum, and
+     validation status. Write and validate output atomically before committing the
+     manifest entry. Changes to raw inputs, interpolation, RH convention, grid, or
+     code must invalidate affected blocks automatically.
+
+135. **Carry source and support masks as first-class data.**
+     Each output value should identify whether it came from Earthmover ERA5, CDS,
+     a surface anchor, vertical interpolation, station correction, extrapolation,
+     or fallback. Preserve these masks through the profile store, training data,
+     forecast samples, and scorecards. Mixed 13-level, 21-level, corrected, and
+     provisional products must remain distinguishable.
+
+136. **Move beyond monolithic NPZ training artifacts.**
+     The custom memory-mapped NPZ reader is useful but fragile and cannot naturally
+     carry row-level masks and provenance. For larger stores, use a chunked,
+     schema-aware format such as Zarr for features, targets, masks, row IDs,
+     timestamps, split assignments, and provenance. Keep a small immutable index
+     for sampled row IDs and fold definitions.
+
+## Part 3C — Evaluation and scorecard architecture
+
+137. **Create a single pure metrics library.**
+     Put CRPS, energy score, variogram score, PIT, marginal coverage, joint
+     coverage, confidence intervals, and skill calculations in
+     `tempest/scoring/metrics.py` as side-effect-free functions. Freeze their axis,
+     masking, weighting, and finite-ensemble conventions with analytical tests and
+     a metric-version identifier.
+
+138. **Replace `coverage90()` with an explicit interval API.**
+     The function name and optional `p` argument obscure the interval convention.
+     Require callers to select order-statistic, interpolated-quantile, or randomized
+     finite-ensemble intervals, together with inclusive/exclusive endpoint rules.
+     Return the nominal probability, attainable finite-sample probability, observed
+     coverage, case count, and uncertainty rather than a bare Boolean array alone.
+
+139. **Separate case building, forecasting, evaluation, gating, and rendering.**
+     Current score scripts perform selection, baseline construction, sampling,
+     calibration, metrics, CSV writing, diagnostics, and charting in one path.
+     Split these into a case builder, forecast runner, metric evaluator, ship-gate
+     evaluator, and report renderer. Numerical tests should not need plotting,
+     command-line parsing, or live data access.
+
+140. **Define one forecast-provider interface for every baseline and model.**
+     Climatology, Gaussian reference atmosphere, analogs, generator, near-term
+     providers, and fallback routes should consume the same case table and return
+     the canonical forecast-sample object. This enforces identical cases, variables,
+     support masks, member counts, physical transforms, and scoring rules.
+
+141. **Create an automated, versioned ship gate.**
+     The gate should evaluate skill versus required baselines, marginal and joint
+     coverage, bias, spread/skill, worst variable-height band, source/support rate,
+     physical-consistency failures, out-of-domain rate, and block-bootstrap
+     uncertainty. Produce machine-readable pass, fail, or insufficient-evidence
+     decisions. Charts should explain decisions, not make them manually.
+
+142. **Keep a frozen, untouched release benchmark.**
+     Maintain benchmark cases that are never used to choose model architecture,
+     calibration method, thresholds, interval conventions, or routing. Clearly
+     separate exploratory, development-verification, and release-gate reports.
+     Require a new benchmark version when observations are revised or the product
+     schema changes.
+
+## Part 3D — Forecast routing and uncertainty layers
+
+143. **Make forecast routing a first-class component.**
+     Implement an explicit router with named routes for past analysis, near-term
+     ensembles, transition/blended leads, long-range generation, analog fallback,
+     and out-of-domain fallback. Each route should declare its valid lead range,
+     required inputs, supported region/heights, calibration artifact, verification
+     report, and fallback route.
+
+144. **Separate target-state conditioning from issue-time knowledge.**
+     Forecast providers should receive predictors through the query object and data
+     vintage rather than reading target-time indices directly. Historical backtests
+     must reconstruct only the information available at each issue time. An
+     idealized known-driver run may remain as a labeled upper bound, never as the
+     operational score.
+
+145. **Represent uncertainty sources as distinct composable layers.**
+     Keep atmospheric predictive uncertainty, analysis uncertainty,
+     site-representativeness uncertainty, launch-time uncertainty, measurement
+     uncertainty, and parameter/calibration uncertainty separate. Combine them only
+     in named product stages with recorded covariance assumptions. This prevents
+     station correction, range calibration, and analysis inflation from counting
+     the same error twice.
+
+146. **Add explicit out-of-domain detection and routing.**
+     Detect spatial, elevation, seasonal, driver, source-support, and physical-state
+     departures from training/calibration support. Return an applicability report
+     and route unsupported cases to an approved fallback. Do not rely on the neural
+     network or calibration map to extrapolate silently.
+
+## Part 3E — Testing architecture
+
+147. **Organize tests into four distinct levels.**
+     Maintain unit tests for transforms, parsers, and metrics; contract tests for
+     schema/artifact compatibility; integration tests for raw data through output;
+     and scientific regression tests for frozen cases and accepted score ranges.
+     Failures should identify whether code correctness, interface compatibility,
+     integration, or scientific performance regressed.
+
+148. **Add property-based and randomized invariants.**
+     Verify difference conversion invertibility, row-order and batch-size
+     invariance, calibration monotonicity, identity-calibration neutrality, schema
+     round trips, positive density, pressure decreasing with height, physical RH
+     bounds, and analytical finite-ensemble coverage. These tests can initially use
+     deterministic randomized loops without requiring another dependency.
+
+149. **Add a complete small-pipeline integration fixture.**
+     Include at least one synthetic month and one small immutable real-data fixture
+     covering raw-source merge, profile interpolation, dataset construction,
+     training or checkpoint loading, sampling, calibration, site transfer, scoring,
+     routing, and output serialization. Validate units, dimensions, hashes, masks,
+     and summaries at every boundary.
+
+150. **Add deterministic replay tests for every route.**
+     With frozen inputs and seed, require identical case IDs, route selection,
+     member assignment, driver draws, physical samples, calibration metadata, and
+     summaries. Changing only the seed may change samples but must not change route,
+     schema, source support, or fitted metadata.
+
+151. **Run scientific regression tests with uncertainty-aware thresholds.**
+     Do not require bit-identical GPU scores when nondeterministic kernels are
+     allowed. Instead, predeclare score intervals and seed-to-seed tolerances derived
+     from repeated runs. Keep exact deterministic tests for transforms, metrics,
+     manifests, schemas, and CPU fixtures.
+
+## Part 3F — Recommended implementation order
+
+1. Canonical schema, transform graph, and typed forecast/query objects.
+2. Central split manifests and artifact compatibility checks.
+3. Pure metrics library and corrected finite-ensemble interval API.
+4. Versioned calibration artifacts and checkpoint manifests.
+5. Transactional profile manifests and source/support masks.
+6. Common forecast-provider interface and explicit router.
+7. Automated ship gate and frozen release benchmark.
+8. Layered uncertainty composition.
+9. Contract, integration, property, replay, and scientific regression tests.
+10. Only then resume architecture tuning or broader deployment.
+
+These structural changes should reduce silent scientific errors more than another
+round of model tuning. The most urgent are the canonical schema, centralized
+splits, explicit finite-ensemble interval API, versioned calibration artifacts,
+and source/support masks.
