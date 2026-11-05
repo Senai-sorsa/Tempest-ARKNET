@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--shift")
     ap.add_argument("--shear-tail")
     ap.add_argument("--seasonal")
+    ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
     ap.add_argument("--out")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
@@ -67,6 +68,14 @@ def main():
     if a.shear_tail:
         from tempest.calibrate import shear_tail as st
         x = st.apply(dict(np.load(a.shear_tail)), x, np.random.default_rng(12345))
+    if a.shuffle:
+        from tempest.calibrate import shuffle as shuf_mod
+        tr = np.flatnonzero(year < a.first_year)
+        tr = tr[np.argsort(keys[tr], kind="stable")]
+        lo_, hi_ = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")
+        pick = tr[np.minimum(lo_[:, None] + (rng.random((len(idx), a.m)) * np.maximum(hi_ - lo_, 1)[:, None]).astype(np.int64), len(tr) - 1)]
+        tmpl = to_physical(np.asarray(d["target"][pick.ravel()])).reshape(len(idx), a.m, -1)
+        x = shuf_mod.apply(x, tmpl)
     pit = M.pit_values(x, y, rng)
     tv = M.pit_tv(pit)
     cov = M.coverage_levels(pit)
