@@ -89,6 +89,8 @@ Review items judged intentional design (no change): separate slope head for year
 
 | IL-92 | S | Seed noise of the headline: retrain p2f with two other seeds (same config) and read the skill15 spread; gains below that are not real | `VAR=p2f_s1 / p2f_s2` via phase2_variant (seed in config) | GPU 2 x 15 min | running 16:20 (`scripts/ap_il92.sh`, log data/ap_il92_chain.log) |
 
+| IL-93 | S | Re-judge earlier keeps against the seed spread (IL-92): coverage error and skill15 of 3 seeds of p2f; a keep needs a gain larger than the spread. Also: refit the w-range map on years the w head never saw (head trained <= 2020, early stopping on 2021-23 -> use a 2019-20 early-stopping split), and re-run F-27/soak with 6000 fit rows | after IL-92 | CPU/GPU 1 h | todo |
+
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |
 |---|---|---|---|---|---|
