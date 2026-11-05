@@ -282,7 +282,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
 
     ckpts = [dict(state=M["best_state"], cfg={**cfg, "seed": M["seed"]}, norm=norm, n_cond=cond.shape[1],
                   n_out=target.shape[1], linear_cols=linear_cols, sp_offset=sp_offset, val_loss=M["best"],
-                  history=M["history"], **(meta or {})) for M in mem]
+                  history=M["history"], train_years=[int(year[tr_idx].min()), int(year[tr_idx].max())], val_years_range=[int(year[va_idx].min()), int(year[va_idx].max())],
+                  **(meta or {})) for M in mem]
     ckpt = ckpts[0] if members == 1 else dict(members=ckpts)
     if out:
         torch.save(ckpt, out)
