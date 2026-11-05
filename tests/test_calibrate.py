@@ -110,3 +110,16 @@ def test_headline_bootstrap():
     assert len(tab) == 2 and (tab.skill_known > 0.3).all() and (tab.skill_unknown.abs() < 1e-12).all()
     assert (tab.skill_known_lo <= tab.skill_known).all() and (tab.skill_known <= tab.skill_known_hi).all()
     assert (tab.mae_known < tab.mae_clim).all() and tab.cov99_unknown.between(0.9, 1).all()
+
+
+def test_calib_provenance(tmp_path):
+    import pytest
+    from tempest.calibrate import spread
+    m1, m2, c = tmp_path / "a.pt", tmp_path / "b.pt", tmp_path / "a.calib.npz"
+    m1.write_bytes(b"model one"); m2.write_bytes(b"model two")
+    np.savez(c, m=5, model_sha=spread.model_hash(m1))
+    assert int(spread.load(c, m1)["m"]) == 5
+    with pytest.raises(SystemExit):
+        spread.load(c, m2)
+    np.savez(c, m=5)  # old files without a hash still load
+    assert int(spread.load(c, m2)["m"]) == 5

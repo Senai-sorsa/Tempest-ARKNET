@@ -62,3 +62,15 @@ def test_liquid_rh_is_continuous_and_monotone_across_the_mixed_phase_range():
     r = liquid_rh(t, np.full_like(t, 80.0))
     assert np.isfinite(r).all() and np.abs(np.diff(r)).max() < 0.05  # no jump at 250.16 K or 273.16 K
     assert (np.diff(r) >= -1e-9).all() and np.allclose(r[t >= 273.16], 80.0, atol=1e-6)
+
+
+def test_indices_analog():
+    rng = np.random.default_rng(0)
+    idx = pd.date_range("1980-01-01", "2020-12-01", freq="MS")
+    t = pd.DataFrame(rng.normal(size=(len(idx), 4)), index=idx, columns=indices.COLS)
+    times = pd.to_datetime(["2010-06-15", "2015-01-03"])
+    same = indices.analog(t, times, 0, 5, rng, before=2021, k=1)  # lag 0, k 1: the nearest analog is the month itself
+    assert same.shape == (2, 5, 4) and np.allclose(same, indices.at(t, times)[:, None])
+    old = indices.analog(t, times, 60, 50, rng, before=2000, k=8)  # only pre-2000 months, all same calendar month
+    assert np.isfinite(old).all() and not np.allclose(old, indices.at(t, times)[:, None])
+    assert len(np.unique(old[0, :, 0])) <= 8
