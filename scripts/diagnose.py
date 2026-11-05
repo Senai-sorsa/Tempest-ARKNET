@@ -39,6 +39,7 @@ def main():
     ap.add_argument("--shift")
     ap.add_argument("--shear-tail")
     ap.add_argument("--seasonal")
+    ap.add_argument("--shear-map")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
     ap.add_argument("--out")
     a = ap.parse_args()
@@ -62,6 +63,9 @@ def main():
     if a.seasonal:
         from tempest.calibrate import seasonal
         x = seasonal.apply(dict(np.load(a.seasonal)), x, month)
+    if a.shear_map:
+        from tempest.calibrate import shear_map as smap
+        x = smap.apply(dict(np.load(a.shear_map)), x)
     if a.shift:
         from tempest.calibrate import shift as sh
         x = sh.apply(dict(np.load(a.shift)), x)
