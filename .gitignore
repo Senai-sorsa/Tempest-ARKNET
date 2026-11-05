@@ -13,3 +13,4 @@ models/
 .ecmwfdatastoresrc
 .pytest_cache/
 out/
+tempest_weather/assets/
