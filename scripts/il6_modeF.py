@@ -32,6 +32,10 @@ ap.add_argument("--m", type=int, default=199)
 ap.add_argument("--rows", type=int, default=8000)
 ap.add_argument("--out", default="models/modeF.pt")
 ap.add_argument("--retrain", action="store_true")
+ap.add_argument("--wd", type=float, default=1e-4)
+ap.add_argument("--lr", type=float, default=1e-3)
+ap.add_argument("--coarse", type=int, default=1, help="use every k-th height of the forecast profile as network input")
+ap.add_argument("--noise-dim", type=int, default=16)
 a = ap.parse_args()
 rng = np.random.default_rng(0)
 torch.manual_seed(0)
@@ -42,15 +46,15 @@ sub = lambda d, n: {k: v[np.sort(rng.choice(len(v), min(n, len(v)), replace=Fals
 cal, te = sub(cal, a.rows), sub(te, a.rows)
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
-    cfg = dict(width=a.width, depth=a.depth, noise_dim=16, m=4, batch=1024, steps=a.steps, eval_every=250, patience=10, val_years=1, lr=1e-3, es_weight=0.1,
+    cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[])
-    train(F.cond_matrix(tr), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+    train(F.cond_matrix(tr, a.coarse), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
 m = a.m
 
 
 def draw_net(d):
-    c = F.cond_matrix(d)
+    c = F.cond_matrix(d, a.coarse)
     out = np.empty((len(c), m, F.D), np.float32)
     for i in range(0, len(c), 500):
         out[i:i + 500] = net(np.repeat(c[i:i + 500], m, 0)).reshape(len(c[i:i + 500]), m, -1)
@@ -69,13 +73,29 @@ for i in range(len(truth)):
     ok = np.flatnonzero(tr["lead_days"] == te["lead_days"][i])
     pool[i] = hres[i] + res_tr[rng.choice(ok, m)]
 x_pool = F.to_physical(hres, pool - hres[:, None])
+# linear (ridge) per lead + error pool of its own residuals
+lin = np.empty((len(truth), m, F.D), np.float32)
+h_tr = tr["hres"].reshape(len(tr["obs"]), -1)
+for L in (1, 3, 5, 7):
+    ktr, kte = tr["lead_days"] == L, te["lead_days"] == L
+    mu, sd = h_tr[ktr].mean(0), h_tr[ktr].std(0) + 1e-6
+    Z = np.concatenate([(h_tr[ktr] - mu) / sd, np.ones((ktr.sum(), 1))], 1)
+    W = np.linalg.solve(Z.T @ Z + 200.0 * np.eye(Z.shape[1]), Z.T @ tr["obs"].reshape(len(tr["obs"]), -1)[ktr])
+    fit_tr = Z @ W
+    res_L = tr["obs"].reshape(len(tr["obs"]), -1)[ktr] - fit_tr
+    Zt = np.concatenate([(hres[kte] - mu) / sd, np.ones((kte.sum(), 1))], 1)
+    pred = Zt @ W
+    idxs = np.flatnonzero(kte)
+    for j, i in enumerate(idxs):
+        lin[i] = pred[j] + res_L[rng.choice(len(res_L), m)]
+lin = F.to_physical(np.zeros((len(truth), F.D), np.float32), lin)
 clim = np.empty_like(x_pool)
 tro = tr["obs"].reshape(len(tr["obs"]), -1)
 for i in range(len(truth)):
     dd = np.abs(((tr["doy"] - te["doy"][i] + 183) % 366) - 183)
     ok = np.flatnonzero((dd <= 20) & (np.abs(tr["z_sfc"] - te["z_sfc"][i]) < 250))
     clim[i] = tro[rng.choice(ok if len(ok) > 30 else np.arange(len(tro)), m)]
-methods = {"climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "network (raw)": x_net, "network + range map": x_cal}
+methods = {"climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network (raw)": x_net, "network + range map": x_cal}
 bands = P.names()
 masks = np.stack([s for _, _, s in bands], 1).astype(float)
 masks /= masks.sum(0)
@@ -99,7 +119,7 @@ print("CRPS skill vs the short-record climatology")
 print((1 - pv["crps"] / base).round(3).to_string())
 print("MAE of the median")
 print(pv["mae"].round(3).to_string())
-cv = t[t.method.isin(["HRES + error pool", "network (raw)", "network + range map"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
+cv = t[t.method.isin(["HRES + error pool", "ridge + error pool", "network (raw)", "network + range map"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
 print("mean |cov99 - 0.99|")
 print(cv.round(4).to_string())
 print("skill vs climatology by variable (network + range map), lead 1 / 3 / 5 / 7")

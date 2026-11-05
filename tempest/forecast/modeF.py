@@ -80,10 +80,11 @@ def load_year(year, ds, hres_dir="data/raw/wb2_hres", n_points=60, seed=0):
     return {k: v[ok] for k, v in out.items()}
 
 
-def cond_matrix(d):
+def cond_matrix(d, coarse=1):
+    """Network inputs: place, season, lead, and the forecast profile (every `coarse`-th height of each variable: fewer columns, less overfitting)."""
     a = 2 * np.pi * d["doy"] / 365.25
     head = np.stack([d["lat"], d["lon"], d["z_sfc"] / 1e4, np.sin(a), np.cos(a), d["lead_days"] / 7.0], 1).astype(np.float32)
-    return np.concatenate([head, d["hres"].reshape(len(head), D).astype(np.float32)], 1)
+    return np.concatenate([head, d["hres"][:, :, ::coarse].reshape(len(head), -1).astype(np.float32)], 1)
 
 
 def residual(d):
