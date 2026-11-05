@@ -17,6 +17,7 @@ GPU (float16, ~2 bytes x 192 columns per row) and the forward pass runs in bfloa
 `linear_features` (year and the ENSO/QBO indices) enter as straight-line effects, see model.Generator.
 """
 import argparse
+import copy
 import math
 import struct
 import time
@@ -32,11 +33,28 @@ from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
 DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weight=0.1, step_weight=0.0, batch=4096, lr=1e-3, weight_decay=1e-4,
                 steps=20000, eval_every=500, patience=10, val_years=3, val_block_frac=0.0, val_rows=50000, seed=0,
-                linear_features=["year", "oni", "wwv", "qbo30", "qbo50"])
+                linear_features=["year", "oni", "wwv", "qbo30", "qbo50"],
+                # Phase 2 keys, all off by default (see Code-Modifications/PHASED_PLAN.md):
+                step_strides=None,          # e.g. [1, 2, 4, 8, 16]: CRPS on sums of that many height steps; weights share step_weight
+                ema_decay=0.0,              # e.g. 0.999: evaluate and save an exponential moving average of the weights
+                superadiabatic_weight=0.0,  # e.g. 0.01: penalty on lapse rates above 9.8 K/km above 2 km
+                shear_tail_weight=0.0,      # e.g. 0.3: tail-weighted CRPS of the vector wind shear (strong-shear layers)
+                shear_tail_q=0.9)           # shear above this quantile of the training rows (per layer) counts in that term
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
 def load_npz(path):
+    """Dataset file -> dict of arrays (see _load). Also activates what the dataset says about itself: its input
+    columns (features.FEATURES) and its humidity target (sample.RH_TARGET); old files without those keys reset both
+    to the original behaviour."""
+    out = _load(path)
+    from tempest.generator import features, sample
+    features.set_active(out["cond_names"] if "cond_names" in out else features.BASE_FEATURES)
+    sample.set_rh_target(str(out["rh_target"]) if "rh_target" in out else "rh")
+    return out
+
+
+def _load(path):
     """Uncompressed .npz (np.savez) -> dict of read-only memory maps. np.load ignores mmap_mode for .npz and
     would read all 6 GB into RAM; here rows are read from disk when indexed. Compressed files fall back to np.load."""
     out = {}
@@ -111,15 +129,68 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
 
     ph = physical(tref)
     pm, ps = (torch.tensor(a, dtype=torch.float32, device=device) for a in (ph.mean(0), safe(ph.std(0))))
+    stride_scale = {}  # spread of each window-sum column in the training rows (for cfg step_strides)
+    if cfg["step_strides"] and n_prof:
+        dref = tref[:, :n_prof].reshape(len(tref), len(PROFILE), len(HEIGHTS))[..., 1:]
+        cum = np.pad(np.cumsum(dref, -1), [(0, 0), (0, 0), (1, 0)])
+        for st in cfg["step_strides"]:
+            stride_scale[st] = torch.tensor(safe((cum[..., st:] - cum[..., :-st]).std(0)), dtype=torch.float32, device=device)
+    shear_thr = shear_scale = None  # for cfg shear_tail_weight: per-layer threshold and scale of the excess shear
+    if cfg["shear_tail_weight"] and n_prof:
+        dref = tref[:, :n_prof].reshape(len(tref), len(PROFILE), len(HEIGHTS))[..., 1:]
+        shear_ref = np.hypot(dref[:, PROFILE.index("u")], dref[:, PROFILE.index("v")]) / (np.diff(HEIGHTS) / 1000.0)
+        thr = np.quantile(shear_ref, cfg["shear_tail_q"], axis=0)
+        shear_thr = torch.tensor(thr, dtype=torch.float32, device=device)
+        shear_scale = torch.tensor(safe(np.maximum(shear_ref - thr, 0).std(0)), dtype=torch.float32, device=device)
     del ph, tref
     tm_d, ts_d = norm["tm"].to(device), norm["ts"].to(device)
     phys_std = lambda x: (physical(x * ts_d + tm_d) - pm) / ps  # normalised diffs -> standardised profiles
+
+    n_h, n_v = len(HEIGHTS), len(PROFILE)
+    strides = list(cfg["step_strides"] or []) if n_prof else []
+    if strides:  # window sums of s consecutive steps (changes over s heights), scaled by their spread in the training rows
+        def windows(d, st):  # (..., V, 43) -> (..., V, 43 - st + 1)
+            c = (np.cumsum if isinstance(d, np.ndarray) else torch.cumsum)(d, -1)
+            c = np.pad(c, [(0, 0)] * (c.ndim - 1) + [(1, 0)]) if isinstance(c, np.ndarray) else torch.nn.functional.pad(c, (1, 0))
+            return c[..., st:] - c[..., :-st]
+    t_idx = PROFILE.index("T")
+    dz_km = torch.tensor(np.diff(HEIGHTS) / 1000.0, dtype=torch.float32, device=device)
+    above2 = torch.tensor(HEIGHTS[1:] > 2000, device=device)
+
+    def stride_loss(samples, t):
+        d_s = (samples[..., :n_prof] * ts_d[:n_prof] + tm_d[:n_prof]).reshape(*samples.shape[:-1], n_v, n_h)[..., 1:]
+        d_t = (t[..., :n_prof] * ts_d[:n_prof] + tm_d[:n_prof]).reshape(*t.shape[:-1], n_v, n_h)[..., 1:]
+        tot = 0.0
+        for st in strides:
+            ws, wt = windows(d_s, st) / stride_scale[st], windows(d_t, st) / stride_scale[st]
+            tot = tot + afcrps(ws.flatten(-2), wt.flatten(-2), cfg["crps_alpha"])
+        return tot / len(strides)
+
+    def superadiabatic(samples):  # mean squared excess of the lapse rate over dry-adiabatic above 2 km, in K/km
+        d = (samples[..., :n_prof] * ts_d[:n_prof] + tm_d[:n_prof]).reshape(*samples.shape[:-1], n_v, n_h)
+        dT = d[..., t_idx, 1:]                       # temperature change per layer (K)
+        lapse = -dT / dz_km
+        return torch.relu(lapse[..., above2] - 9.8).pow(2).mean()
+
+    def shear_tail_loss(samples, t):  # threshold-weighted CRPS of |vector shear| (m/s per km): only the excess over the threshold counts
+        def f(x):
+            d = (x[..., :n_prof] * ts_d[:n_prof] + tm_d[:n_prof]).reshape(*x.shape[:-1], n_v, n_h)[..., 1:]
+            sh = torch.hypot(d[..., PROFILE.index("u"), :], d[..., PROFILE.index("v"), :]) / dz_km
+            return torch.relu(sh - shear_thr) / shear_scale
+        return afcrps(f(samples), f(t), cfg["crps_alpha"])
 
     def score(samples, t):
         s, y = phys_std(samples), phys_std(t)
         loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
         if cfg["step_weight"] and n_prof:  # CRPS on the height-to-height steps too: level CRPS alone leaves shear too smooth
-            loss = loss + cfg["step_weight"] * afcrps(samples[..., :n_prof], t[..., :n_prof], cfg["crps_alpha"])
+            if strides:
+                loss = loss + cfg["step_weight"] * stride_loss(samples, t)
+            else:
+                loss = loss + cfg["step_weight"] * afcrps(samples[..., :n_prof], t[..., :n_prof], cfg["crps_alpha"])
+        if cfg["superadiabatic_weight"] and n_prof:
+            loss = loss + cfg["superadiabatic_weight"] * superadiabatic(samples)
+        if cfg["shear_tail_weight"] and n_prof:
+            loss = loss + cfg["shear_tail_weight"] * shear_tail_loss(samples, t)
         return loss
 
     groups = ([(v, slice(i * len(HEIGHTS), (i + 1) * len(HEIGHTS))) for i, v in enumerate(PROFILE)]
@@ -156,7 +227,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
         mem.append(dict(model=model, opt=opt, sched=sched, g=g, seed=cfg["seed"] + k, best=float("inf"),
-                        best_state=None, bad=0, history=[], done=False))
+                        best_state=None, bad=0, history=[], done=False,
+                        ema=copy.deepcopy(model).eval() if cfg["ema_decay"] else None))
 
     t0 = time.time()
     for step in range(1, cfg["steps"] + 1):
@@ -175,7 +247,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), float("inf"))  # measure only, no clipping
             M["opt"].step()
             M["sched"].step()
+            if M["ema"] is not None:  # weights averaged over the last ~1/(1-decay) steps; evaluated and saved instead of the raw ones
+                with torch.no_grad():
+                    torch._foreach_lerp_(list(M["ema"].parameters()), list(model.parameters()), 1 - cfg["ema_decay"])
             if step % cfg["eval_every"] == 0 or step == cfg["steps"]:
+                if M["ema"] is not None:
+                    model = M["ema"]
                 model.eval()
                 # same validation noise at every check: fresh noise made early stopping chase sampling luck;
                 # forking restores the training RNG afterwards, so the training run itself is unchanged
@@ -226,6 +303,8 @@ def main():
         keep = slice(keep[0], keep[-1] + 1)
     cond, target, year = (d[k][keep] for k in ("cond", "target", "year"))
     meta = {k: [str(x) for x in d[k]] for k in ("cond_names", "target_names") if k in d}
+    if "rh_target" in d:
+        meta["rh_target"] = str(d["rh_target"])
     t0 = time.time()
     train(cond, target, np.asarray(year), cfg, out=a.out, meta=meta, members=int(cfg.pop("members", 1)))
     print(f"trained in {(time.time() - t0) / 60:.1f} min", flush=True)
