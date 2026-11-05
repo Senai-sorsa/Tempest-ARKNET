@@ -935,3 +935,14 @@ the store lacks (ASK_LATER 5). Pulled with `fetch_earthmover --only ...` (about 
 - Phase 1: 1.0 tooling, 1.1 logger, 1.2 thermo, 1.3 trust (rejected, off), 1.4 joint band, 1.5 extras, 1.6 stress, 1.7 coupled files: all built, tested, logged (rows P1-a to P1-g). Gap found and closed: the coupled-file accuracy test (tests 1-2) is now `scripts/coupling_check.py` (row P3-8).
 - Phase 2: 2.1 kept; 2.2, 2.3, 2.4, 2.7 rejected; 2.5 EMA alone is running (P2-f); 2.6 lapse hinge off (never fires on the data); new shear-tail loss kept.
 - Phase 3: 3.1, 3.2, 3.4, 3.7, 3.8 built and tested; 3.3 built, data check blocked; 3.5 pending; 3.6 and 3.9 blocked with reasons above.
+
+**P2-f (EMA alone on top of P2-e; `generator_p2f`).** Weight averaging, decay 0.999, evaluated and saved instead of the raw weights. ERA5 skill15 +0.0277 / cov dev 0.0034 / min cov99 0.9832;
+balloons +0.0083 / 0.0039 (P2-e: +0.0277 / 0.0032; +0.0081 / 0.0040, so skill is unchanged). Shear percentiles (m/s per km; truth in brackets): 99th 18.3 (17.9) / 20.4 (20.7) / 25.5 (25.1) at 1-5 / 5-12 / >12 km,
+99.9th 24.0 (25.7) / 27.1 (30.3) / 32.5 (34.8), against P2-e 23.5 / 26.2 / 30.3 and E12 21.6 / 24.0 / 28.3; 0-1 km 99.9th 77.8 (82.3; E12 79.6). Training 15.6 min.
+**Kept: the Phase 2 model is now `models/generator_80_p2f.pt`** (calibration `generator_80_p2f.calib2021.npz`, data `data/train/pilot80_dpd.npz`, config `configs/generator_p2f.toml` =
+`generator.toml` + `shear_tail_weight = 1.0` + `ema_decay = 0.999`; humidity learned as dewpoint depression via the dataset's `rh_target = dpd`). 2.5 (EMA) is therefore kept; 2.6 (lapse hinge) stays off.
+
+**P3-8 end-to-end check (`tempest/output/atmosphere.py`, `out/demo_spaceport`).** One call from (32.99 N, 106.97 W, 2027-06-16 15:00 solar) builds 1,024 coupled atmospheres with the Phase 2 model p2f: indices from the
+ridge forecast (9 months ahead), range-calibrated samples, vertical wind from the w-head, 10 m gust parameters, 24 h soak history, written as the three coupled files. June afternoon values are
+plausible: t2m 306.9 K (sd 3.6), surface pressure 848 hPa, air density 0.96 kg/m3, 10 m wind mean 5.1 / 99th pct 11.2 m/s, gust location 5.3 m/s + scale 2.2 (mean gust about 6.5 m/s),
+w at 1 km sd 3.1 cm/s, T_soak (tau 6 h) 302.8 K, 24 h t2m range 14 K. Still NaN: `w_sigma`, `w_turb` (needs sshf), gust parameters above 10 m.

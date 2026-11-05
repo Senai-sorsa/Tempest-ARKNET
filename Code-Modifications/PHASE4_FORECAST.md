@@ -1,6 +1,6 @@
 # Phase 4: Forecast and past-date correction system
 
-Written 2026-11-04. Status: **ON HOLD. Do not start until Phases 1-3 are finished (user's decision, 2026-11-04).** Nothing in this file may be built before then. Not even the 4.0 probe or the fetchers.
+Written 2026-11-04. Status: **STARTED 2026-11-05** (Phases 1-3 finished; hold ended). Progress in docs/PHASE4_LOG.md. Original note: ON HOLD until Phases 1-3 are finished (user's decision, 2026-11-04).
 
 Phase 4 is a **separate system** from Phases 1-3 (`PHASED_PLAN.md`). Another session is already working on Phases 1-3. Phase 4 has its own session, its own files and its own experiment log. It shares the machine, the data and the rules, and it must never break the Phases 1-3 work (section 3).
 
@@ -387,7 +387,11 @@ Tell the user plainly that weeks 3-6 will be close to E12. The gain there is a s
 
 ---
 
-## 13. Open questions answered by the 4.0 probe (fill in)
+## 13. Open questions answered by the 4.0 probe (filled in 2026-11-05; details in docs/PHASE4_LOG.md)
+
+- Pressure-level history of past forecasts at a lead: **not available from Open-Meteo** (Previous Runs is surface-only; Historical Forecast is a stitched best-estimate series, GFS from 2021-06, IFS from ~2024; Single Runs only the newest runs).
+- EC46: surface daily variables only, 51 members, archive from 2025-09-01.
+- Still to verify: GEFS reforecast years/members/35-day runs and the size of per-point byte-range fetches.
 
 - [ ] Previous Runs: pressure levels for IFS and GFS? Which levels? True start dates?
 - [ ] Single Runs: pressure levels for IFS HRES? Weight of one full-run call?
