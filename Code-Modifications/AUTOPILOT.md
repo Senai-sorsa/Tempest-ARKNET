@@ -60,7 +60,7 @@ Where the system stands (measured, p2f, 2024-25, ERA5 / balloons, from `models/g
 | IL-14 | S | Chronos + ridge average for ONI/WWV | `scripts/chronos_bakeoff.py --blend` (CPU; libs via `CHRONOS_LIB`) | CPU 15 min | todo |
 | IL-15 | S | Mode P tendency inputs for wind columns only | `scripts/p4_modeP.py --tendency` with a column mask | GPU 15 min | todo |
 | IL-16 | S | Stack check: all kept S-items together vs p2f | `score` with all kept flags | GPU 20 min | todo |
-| IL-6 | D | Calibrate modes F/F2 on WeatherBench2 HRES | when `data/raw/wb2_hres/*.nc` exists (the user runs the Colab notebook whenever they like) | data | blocked-on-data |
+| IL-6 | D | Calibrate modes F/F2 on WeatherBench2 HRES | data arrived 11:48 (user ran the notebook); skill table done (IL-6a); building continues as IL-73/74 | data | running |
 | 4.6 | D | 21-level retrain of mode P and the generator | when `data/raw/era5_cds` has 420 months (CDS or ARCO .nc): `to_heights`, rebuild dataset, retrain p2f, verdict | data | blocked-on-data |
 | IL-17 | L | Analog-driver K tuning (A6), block validation (row 20) | existing scripts | CPU/GPU | todo |
 | IL-18 | L | 2C shear codebook / 2B spectral generator probes | only if G items showed that structure matters | GPU | todo |
@@ -166,6 +166,10 @@ Shear goals (numbers): 99.9th within 5 % of the truth in all four bands for 2021
 | IL-69 | S | Worst PIT cells T 5-12 km (0.059), T 1-5 km (0.052): full PIT recalibration (IL-46) first | IL-46 | todo, raised in priority |
 | IL-70 | S | Monthly median bias normalised by climate sd reaches 0.46 at T 12-18 km (mean over cells 0.27): month x band shift (IL-20) fitted on 2011-2023 | IL-20 after IL-66 | todo |
 | IL-71 | G | Event-conditional coverage gap 0.18 at RH 5-12 km: extreme RH outcomes are missed more often than a perfect forecast would miss them; bounded-variable mixture head (IL-52) or RH tail map | IL-52 | todo |
+
+| IL-73 | D | **Mode F (forecast-conditioned profile) from the HRES archive**: the finding above says forecasts carry 40-70 % of the variance up to 5 days. Build: HRES fields -> 44-height profile with the same converter (approximations for u100, v100, d2m, labelled), then the mode P residual network with lead time as an input: target = ERA5-height profile minus HRES profile; train starts 2016-2019, early stopping 2020, range map on 2021, TEST 2022 (the HRES archive ends 2023-01, so 2024-25 is not available: state this); compare with raw HRES profile, with the climate generator, and with mode P-style error-pool; judge CRPS/MAE/PIT/coverage per lead and the shape targets | `tempest/forecast/modeF.py`, `scripts/il6_modeF.py`, tests | todo, HIGH priority (the largest accuracy gain available) |
+| IL-74 | D | Lead blending: between 0 and about 7 days use mode F, beyond about 10-15 days the climate generator, with a smooth weight by lead fitted on the skill table (IL-6a) and checked on 2022; router change in `tempest/forecast/router.py` | after IL-73 | todo |
+| IL-75 | D | More HRES starts/leads: only 92 starts a year at leads 1/3/5/7; a second Colab pull with 00 and 12 UTC, every 2nd day, leads 12 h ... 10 days would triple the training cases. Only if IL-73 shows data is the limit; goes to ASK_LATER as an optional notebook rerun | after IL-73 | todo (optional, needs the user to rerun the notebook) |
 
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)
 | ID | Step | How |

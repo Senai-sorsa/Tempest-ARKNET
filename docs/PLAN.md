@@ -1033,3 +1033,16 @@ See the top of `Code-Modifications/AUTOPILOT.md`: measured status (PIT distance 
 | Bias by year | `models/generator_80_p2f_bias_by_year.csv`: no linear trend in the median error; large year-to-year swings (T 0-1 km -0.4..+0.7 K, RH 0-1 km -3.4..+2.5 %); T 1-5 km truth warmer than the median by +0.2..+0.5 K in 2015-2020 too (training years); T 12-18 km steps from -1.0 K (2015-19) to +0.2 K (2021-25) | IL-66 (long-window shift) and IL-67 (inhomogeneous target aloft) added |
 
 IL-67 evidence (`scripts/era5_vs_balloon_by_year.py`, balloon minus raw ERA5, mean over both stations, 00Z and 12Z): T 12-18 km -0.5..-0.9 K through 2010-2023, -1.05 / -1.10 K in 2024 / 2025; T 1-5 km +0.3..+0.5 K until 2022 then +0.11..+0.15 K; RH 5-12 km about -5.5 % until 2022 then -0.8..-1.6 %; RH 12-18 km about -4.6 % until 2022 then -0.3..-1.4 %; wind 5-12 km +0.25..+0.38 m/s stable. The station correction (fit 1991-2020) is therefore stale for recent years in temperature aloft and humidity (balloon sensor change); new idea IL-72 (offset fitted on balloons 2022-23).
+
+### IL-6a: the WeatherBench2 IFS HRES archive is in (data/raw/wb2_hres, 2016-2022, 92 starts a year at 00 UTC, leads 1/3/5/7 days) and it is strongly informative
+Checked: 7 files, 92 x 4 x 13 levels x 13 x 29 box, no missing values, valid times and levels as expected. `scripts/il6_skill.py` (ERA5 pressure levels as truth, climatology = ERA5 00 UTC +-7 days of 1991-2015), MSE skill score of the raw HRES forecast over the climatology, mean over the box (`models/il6_skill.csv`):
+
+| variable, level | 1 day | 3 days | 5 days | 7 days |
+|---|---|---|---|---|
+| T 250 hPa | 0.67 | 0.61 | 0.44 | 0.17 |
+| T 500 hPa | 0.66 | 0.59 | 0.46 | 0.12 |
+| T 850 hPa | 0.71 | 0.66 | 0.55 | 0.32 |
+| u 250 / 500 / 850 hPa | 0.68 / 0.63 / 0.29 | 0.60 / 0.58 / 0.17 | 0.45 / 0.43 / 0.03 | 0.19 / 0.09 / -0.31 |
+| v 250 / 500 / 850 hPa | 0.87 / 0.83 / 0.43 | 0.81 / 0.75 / 0.36 | 0.58 / 0.53 / 0.20 | 0.32 / 0.22 / -0.21 |
+
+RMSE of the forecast: T 250 hPa 1.5 K (1 day) to 2.4 K (7 days); u 500 hPa 5.0 to 7.7 m/s; v 500 hPa 3.5 to 7.7 m/s. (850 hPa is partly below ground in the mountains of the box, so its values are weaker.) Compare: the climate generator knows nothing of the day and gains only 3 % in CRPS. A forecast-conditioned mode F is therefore worth far more than any climate-side tweak for lead times up to about 5 days, and still useful at 7.
