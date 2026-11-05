@@ -1055,3 +1055,17 @@ Validation CRPS (standardised) is best at step 250 (0.531) and rises to 0.64 at 
 
 ### Mode F, first evaluation was wrong (bug found 12:30)
 The subsampling helper of `scripts/il6_modeF.py` drew a new random index for every array, so the forecast and the truth of the range-map and test sets were from different cases. That made the raw HRES profile look worse than climatology and independent of lead time (MAE 7.3 / 7.1 / 7.0 / 7.1 at 1/3/5/7 days; real forecast error grows from 0.55 K to 2.4 K). Fixed (one index for all arrays), guard added (forecast error must grow with lead), evaluation rerun; the numbers above in this section are void. The training itself used complete, aligned arrays, so the overfitting observation stands. Pitfall list items 21 (misaligned arrays) and 22 (mixed-unit averages) added.
+
+### IL-73 mode F, corrected evaluation (TEST 2022 only: the HRES archive ends 2023-01; 8,000 test rows, 2,000 per lead; train 2016-2020, range map 2021; m = 199)
+Mean CRPS over the 16 variable x band cells (mixed units, dominated by RH; per-variable skill below) and CRPS skill vs a short-record climatology (2016-20 rows within 20 days of the date and 250 m of the altitude):
+
+| method | lead 1 d | 3 d | 5 d | 7 d |
+|---|---|---|---|---|
+| raw HRES profile (one value) | skill 0.56 | 0.33 | 0.07 | -0.23 |
+| HRES + error pool of the same lead | 0.67 | 0.50 | 0.30 | 0.10 |
+| ridge per lead + error pool | 0.68 | 0.52 | 0.33 | 0.19 |
+| residual network (raw) | 0.69 | 0.54 | 0.34 | 0.18 |
+| **residual network + range map (mode F)** | **0.69** | **0.54** | **0.34** | **0.18** |
+
+MAE of the median (mixed units): climatology 6.5, raw HRES 2.05 / 3.03 / 4.29 / 5.57, mode F 1.96 / 2.84 / 4.12 / 5.22 at 1/3/5/7 days. Mean abs(cov99 - 0.99): mode F 0.0045 / 0.0032 / 0.0067 / 0.0084 (ridge + pool 0.0028 / 0.0022 / 0.0070 / 0.0039). Mode F skill vs climatology by variable (mean over the four height bands): T 0.78 / 0.69 / 0.48 / 0.37, u 0.77 / 0.62 / 0.46 / 0.24, v 0.76 / 0.61 / 0.39 / 0.19, RH 0.60 / 0.43 / 0.24 / 0.10.
+Reading: knowing the forecast raises the CRPS skill from about 0.03 (climate generator) to 0.69 at one day and 0.34 at five days; the network adds 2-7 points over the raw forecast with an error pool and ties the simple ridge model at 7 days (0.18 vs 0.19), where the ridge also has the better coverage. The range map restores 99 % coverage (raw network 0.005 / 0.007 / 0.021 / 0.026). Caveats stated: one test year (2022), forecast archive of the deterministic HRES only, approximations for u100, v100 and 2 m dew point in the forecast profile, 60 correlated grid points per case, test cases from 92 starts a year. Regularised variants (IL-77) and the shape metrics on this output are next.
