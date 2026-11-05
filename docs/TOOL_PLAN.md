@@ -1,5 +1,7 @@
 # Query tool plan: `tempest_weather/` (portable folder, two functions)
 
+> **Modes 1-3 (past, 0-15 days, weeks 3-6) moved to Phase 4**, a separate system: `Code-Modifications/PHASE4_FORECAST.md`. This file still covers the tool skeleton, mode 4 and the layout.
+
 Status: planned 2026-11-04, not built. It turns the trained model into a tool someone can copy into another repo.
 The tool takes only a location, date and time, chooses the right source by itself, and fetches everything else
 online. It refines the router in `PLAN.md` (*Architecture*); the analog branch there is dropped from this tool.
@@ -56,7 +58,7 @@ A median taken height by height is not itself one sampled profile, and the docs 
 | 1 Past | before now | ERA5 (Earthmover store, anonymous) up to the store's end, then the Open-Meteo historical-forecast API (has pressure levels) | launch-slip window (±N h the same day) + station-fitted ERA5 error (`station_map`) |
 | 2 Near term | 0-15 days (raw forecasts are not tuned) | Open-Meteo ensembles: WeatherNext 2 (64 members) + ECMWF IFS ENS (51), each converted to heights above ground | per-source spread inflation, then one pooled inflation. Days 10-15 blend toward mode 3 with a linear weight. |
 | 3 AI + adjustment | 15-30 days (the AI part of "the next month") | trained generator tuned by the past 7 days and the next 7 forecast days (below) | `kind` setting; calibrated per lead band |
-| 4 AI only | > 30 days | trained generator; drivers (ENSO/QBO/solar, A6 soil moisture and SST) from their latest known values with the lag as an input (`PLAN.md`, *A6 and other drivers*) | the existing range calibration (`spread.py` map) |
+| 4 AI only | > 30 days | trained generator; ENSO/QBO/solar as analog draws from their latest known values (`indices.analog`, K = 8; tested in `PLAN.md`, *A6 and other drivers*; soil moisture and lagged local departures were rejected for this mode) | the existing range calibration (`spread.py` map) |
 
 The boundaries are settings (`near_days = 15`, `adjust_until = 30`), and so are the tuning windows
 (`past_days = 7`, `forecast_days = 7`). **These are the starting values, not final ones**: the experiment grid below
