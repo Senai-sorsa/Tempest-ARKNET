@@ -1016,3 +1016,10 @@ M1-M18 and queue items IL-43..IL-45 in `Code-Modifications/AUTOPILOT.md`: PIT er
 
 ### MAIN TARGET set by the user (2026-11-05): the whole distribution shape must match reality
 See the top of `Code-Modifications/AUTOPILOT.md`: measured status (PIT distance from flat 0.033 ERA5 / 0.050 balloons; coverage at 50/80/90 % off by 0.015; worst cells RH 5-12 km on balloons 0.131, T 5-12 km 0.063), shape targets S1-S8 and shape queue IL-43, IL-44, IL-46..IL-53. Every later item is judged on the shape numbers too. IL-8 (height tokens) was stopped at step 500 (1700 s per 500 steps, worse early validation) and deferred to a cheaper rerun.
+
+### Autopilot results, group S (2026-11-05, vs p2f, 2024-25, seed 0, m=199)
+| ID | Result | Verdict |
+|---|---|---|
+| IL-13 | Median bias shift fitted on 2021-23: the shifts are tiny (T 0-5 km +0.03 K, T 12-18 km -0.03 K, wind <= 0.08 m/s, RH 5-12 km +0.18 %). ERA5 skill15 +0.0277 -> +0.0278; rule (b) fails because RH 1-5 km coverage fell 0.9949 -> 0.9758 (a single column pooled into the band, shift on a bounded variable). Balloons +0.0083 -> +0.0084, pass | discarded. Finding: the 0.36-0.46 K cold bias seen in P3-5 is not present in 2021-23, so it is a drift that grows with the year -> IL-19 (bias per year table queued) |
+| IL-12 | Shear patches at 5-12 km only (p = 0.05): ERA5 and balloons identical to p2f in the scorer (skill15 +0.0277 / +0.0083, cov error 0.0034 / 0.0039) | discarded (no measurable effect; shape effect only in the shear percentiles, see IL-5) |
+| IL-11 | Seasonal width factors for RH and surface only: ERA5 skill15 +0.0277 -> +0.0279, mean abs(cov99 - 0.99) 0.0034 -> 0.0025, no band worse, lowest cov99 0.9832 | **kept as a flag** (`score --seasonal models/generator_80_p2f.seasonal2021_rhsfc.npz`); balloon check waits for IL-28 |
