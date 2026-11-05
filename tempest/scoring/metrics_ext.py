@@ -75,8 +75,14 @@ def tail_exceedance(x, y, clim, qs=(0.001, 0.01, 0.05, 0.95, 0.99, 0.999)):
     for i, q in enumerate(qs):
         thr = np.quantile(clim, q, axis=0)
         below = q < 0.5
-        obs[i] = (y < thr).mean(0) if below else (y > thr).mean(0)
-        pred[i] = (x < thr).mean((0, 1)) if below else (x > thr).mean((0, 1))
+        # ties (RH clipped at 0 or 100 %, calm-wind atoms) count half on each side: otherwise a threshold that sits on an atom makes observed and predicted rates
+        # differ by construction (found 2026-11-05: RH tail-rate error of 7-20 nominal rates was this artefact)
+        if below:
+            obs[i] = ((y < thr) + 0.5 * (y == thr)).mean(0)
+            pred[i] = ((x < thr) + 0.5 * (x == thr)).mean((0, 1))
+        else:
+            obs[i] = ((y > thr) + 0.5 * (y == thr)).mean(0)
+            pred[i] = ((x > thr) + 0.5 * (x == thr)).mean((0, 1))
     return obs, pred
 
 

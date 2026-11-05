@@ -115,6 +115,7 @@ def main():
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib); outputs get a _seas suffix")
+    ap.add_argument("--pooled-template", action="store_true", help="with --shuffle: dependence templates pooled over grid points (month x 2-hour bin) instead of the same grid point")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
@@ -202,7 +203,10 @@ def main():
         known, unknown = seasonal.apply(sw, known, mon), seasonal.apply(sw, unknown, mon)
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
-        known, unknown = shuf_mod.apply(known, clim), shuf_mod.apply(unknown, clim)
+        tpl = clim
+        if a.pooled_template:                                                        # IL-94: templates pooled over grid points, as shipped in the tool
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), pooled=True)
+        known, unknown = shuf_mod.apply(known, tpl), shuf_mod.apply(unknown, tpl)
     if a.shear_map:
         if not cal:
             raise SystemExit("--shear-map needs --calib")
@@ -245,7 +249,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("_ridge" if a.driver_mode == "ridge" else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + ("_ridge" if a.driver_mode == "ridge" else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 

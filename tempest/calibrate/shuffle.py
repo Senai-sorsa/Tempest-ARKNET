@@ -14,10 +14,12 @@ def apply(x, template):
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
 
 
-def group_template(target, keys, year, idx, m, rng, before_year):
+def group_template(target, keys, year, idx, m, rng, before_year, pooled=False):
     """Real profiles as dependence template: for each row idx, m training-year rows (year < before_year) of the same scoring group (grid point x month x hour bin).
     target: dataset target array, keys: group keys for all rows, year: year per row. Returns (len(idx), m, D) physical profiles."""
     from tempest.generator.sample import to_physical
+    if pooled:                                           # IL-94: templates by month x 2-hour bin only (all grid points together): small enough to ship with the tool
+        keys = np.asarray(keys) % 144
     tr = np.flatnonzero(year < before_year)
     tr = tr[np.argsort(keys[tr], kind="stable")]
     lo, hi = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")

@@ -176,3 +176,47 @@ def allocate(weights, blocks, rng):
         order = np.argsort(-(exact - c) + 1e-9 * rng.random(len(c)))
         c[order[:rest]] += 1
     return c
+
+
+# ---- shape post-processing (copied from tempest/calibrate/{seasonal,shuffle,shear_map}.py; optional assets, absent = skipped) ----
+def seasonal_apply(scale, x, month):
+    """x (N, m, D), month (N,) 1..12, scale (12, D) -> widened copy about each row's median (ranks kept)."""
+    s = np.asarray(scale)[np.asarray(month, int) - 1][:, None, :]
+    med = np.median(x, axis=1, keepdims=True)
+    return clip_ranges((med + s * (x - med)).astype(x.dtype))
+
+
+def shuffle_apply(x, template):
+    """x, template (N, m, D): each column's samples handed out in the rank order of the template's column (marginals unchanged)."""
+    ranks = np.argsort(np.argsort(template, axis=1), axis=1)
+    return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
+
+
+def _uniform_filter_nearest(a, size):
+    """scipy.ndimage.uniform_filter1d(a, size, axis=-1, mode='nearest') in numpy (odd or even size, origin 0)."""
+    lo = size // 2
+    hi = size - 1 - lo
+    pad = np.concatenate([np.repeat(a[..., :1], lo, -1), a, np.repeat(a[..., -1:], hi, -1)], -1)
+    c = np.cumsum(np.concatenate([np.zeros_like(pad[..., :1]), pad], -1), -1)
+    return (c[..., size:] - c[..., :-size]) / size
+
+
+def shear_apply(table, x, smooth=9):
+    """Shear-space quantile map (IL-58/IL-91). table: edges, grid (bands, G), gain (bands, G). x (S, m, D) physical, u and v in the first 2 NH columns."""
+    mid = HEIGHTS[1:]
+    dz = np.diff(HEIGHTS) / 1000.0
+    out = x.copy()
+    uv = x[..., :2 * NH].reshape(*x.shape[:-1], 2, NH).astype(np.float64)
+    d = np.diff(uv, axis=-1)
+    s = np.hypot(d[..., 0, :], d[..., 1, :]) / dz
+    edges = np.asarray(table["edges"]) if "edges" in table else np.array([0, 1000, 5000, 12000, 18001])
+    layer_band, nb = np.digitize(mid, edges[1:-1]), len(edges) - 1
+    g = np.ones_like(s)
+    for b in range(nb):
+        sel = layer_band == b
+        g[..., sel] = np.interp(s[..., sel], table["grid"][b], table["gain"][b])
+    delta = np.cumsum(d * (g[..., None, :] - 1.0), axis=-1)
+    delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
+    rough = delta - _uniform_filter_nearest(delta, smooth)
+    out[..., :2 * NH] = (uv + rough).reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
+    return out

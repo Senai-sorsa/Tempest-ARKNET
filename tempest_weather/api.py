@@ -28,6 +28,37 @@ M_CAL = 199
 _ASSETS = {}
 
 
+def _load_post(z, manifest):
+    """Optional shape post-processing assets (IL-91 / F-16): Schaake-shuffle templates (month x 2-hour bin), shear-space map, seasonal widths. None when not exported."""
+    if not manifest.get("post_included"):
+        return None
+    post = {}
+    if "post/tpl" in z.files:
+        post["tpl"] = z["post/tpl"]
+    if "post/smap_grid" in z.files:
+        post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
+    if "post/seasonal" in z.files:
+        post["seasonal"] = z["post/seasonal"]
+    return post
+
+
+def _post_process(A, x, doy, sh):
+    """x (groups, M_CAL, D) range-calibrated samples -> seasonal widths, then the shuffle with the template of the query's month x 2-hour bin, then the shear map (the order the scorer uses)."""
+    post = A.get("post")
+    if not post:
+        return x
+    month, hb = int(doy / 365.25 * 12) % 12, int(sh / 2) % 12
+    if "seasonal" in post:
+        x = _core.seasonal_apply(post["seasonal"], x, np.full(len(x), month + 1))
+    if "tpl" in post:
+        tpl = post["tpl"][month * 12 + hb].astype(np.float32)
+        if np.any(tpl):                                                  # an empty bin (no training rows) leaves the order as it is
+            x = _core.shuffle_apply(x, np.broadcast_to(tpl, x.shape))
+    if "smap" in post:
+        x = _core.shear_apply(post["smap"], x)
+    return x
+
+
 def _assets(path=None):
     path = path or os.path.join(HERE, "assets")
     if path in _ASSETS:
@@ -53,6 +84,7 @@ def _assets(path=None):
              modef_tpl={L: z[f"modef_tpl/L{L}"].astype(np.float32) for L in (1, 3, 5, 7)} if manifest.get("modef_included") else None,
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
+             post=_load_post(z, manifest),
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
@@ -178,10 +210,6 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         yb = t_utc.year - 2025
         if yb > 5:
             quality = quality + [f"year-trend-extrapolated-{yb}-years-beyond-the-training-data" + ("-unreliable" if yb > 25 else "")]
-    if used == "ai":                                                  # the generator extrapolates a straight-line year trend past its training data (2025)
-        yb = t_utc.year - 2025
-        if yb > 5:
-            quality = quality + [f"year-trend-extrapolated-{yb}-years-beyond-the-training-data" + ("-unreliable" if yb > 25 else "")]
     groups = 1 if predicted else int(np.ceil(n / M_CAL))
     total = n if predicted else groups * M_CAL
     drv, drv_note = A["indices"].draws(t_utc, total, rng, expected=predicted)
@@ -217,7 +245,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     if phys is None:
         phys = A["net"].profiles(cond, rng)
         if not predicted:
-            phys = _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)).reshape(total, -1)[:n]
+            phys = _post_process(A, _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)), t_utc.timetuple().tm_yday, sh).reshape(total, -1)[:n]
             cond = cond[:n]
     nh = _core.NH
     w_site = None

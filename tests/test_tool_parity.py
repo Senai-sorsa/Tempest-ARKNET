@@ -69,3 +69,23 @@ def test_copied_numerics_match_the_originals():
     x = rng.normal(size=(3, 199, 179)).astype(np.float32)
     x[..., 2 * 44] += 280
     assert np.allclose(spread.apply(cal, x), _core.calibrate(cal, x), atol=1e-4)
+
+
+def test_shape_postprocessing_matches_the_originals():
+    """seasonal widening, Schaake shuffle and the shear-space map in the tool equal the main package's versions."""
+    from tempest.calibrate import seasonal, shear_map, shuffle
+    rng = np.random.default_rng(1)
+    n, m, D = 3, 40, 179
+    x = rng.normal(size=(n, m, D)).astype(np.float32) * 5
+    x[..., 3 * 44:4 * 44] += 50                                                           # RH in range
+    x[..., 4 * 44 + 2] = 60 + 5 * rng.normal(size=(n, m))
+    scale = np.full((12, D), 1.1, np.float32)
+    assert np.allclose(_core.seasonal_apply(scale, x, [1, 6, 12]), seasonal.apply(dict(scale=scale), x.copy(), [1, 6, 12]), atol=1e-5)
+    tpl = rng.normal(size=(n, m, D)).astype(np.float32)
+    assert np.array_equal(_core.shuffle_apply(x, tpl), shuffle.apply(x, tpl))
+    grid = np.tile(np.linspace(0, 60, 400), (4, 1))
+    table = dict(grid=grid, gain=1 + 0.002 * grid)
+    wind = x.copy()
+    wind[..., :88] = np.cumsum(rng.normal(size=(n, m, 88)), -1) * 2
+    assert np.allclose(_core.shear_apply(table, wind), shear_map.apply(table, wind), atol=1e-4)
+    assert np.allclose(_core._uniform_filter_nearest(wind[0, 0, :44], 9), __import__("scipy.ndimage", fromlist=["x"]).uniform_filter1d(wind[0, 0, :44], 9, mode="nearest"), atol=1e-5)

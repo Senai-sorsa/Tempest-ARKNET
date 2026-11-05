@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--shear-tail")
     ap.add_argument("--seasonal")
     ap.add_argument("--shear-map")
+    ap.add_argument("--pooled-template", action="store_true", help="shuffle templates pooled over grid points (month x 2-hour bin), as shipped in the tool")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
     ap.add_argument("--out")
     a = ap.parse_args()
@@ -62,7 +63,7 @@ def main():
         x[sl] = spread.apply(cal, sampler.profiles(np.repeat(cond[idx[sl]], a.m, axis=0)).reshape(len(cond[idx[sl]]), a.m, -1))
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
-        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template))
     if a.seasonal:
         from tempest.calibrate import seasonal
         x = seasonal.apply(dict(np.load(a.seasonal)), x, month)

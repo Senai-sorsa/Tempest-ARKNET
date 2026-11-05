@@ -44,6 +44,9 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--calib", required=True)
     ap.add_argument("--head")
+    ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
+    ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
+    ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
     ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
     ap.add_argument("--modep", help="past-date residual network (models/modeP.pt); its range map is read from the same name with .calib.npz")
@@ -64,6 +67,29 @@ def main():
             arrays[f"calib/{k}"] = cal[k]
     if a.head:
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
+    post = bool(a.post_templates or a.post_smap or a.post_seasonal)
+    if a.post_templates:
+        from tempest.generator.sample import to_physical
+        from tempest.generator.train import load_npz
+        from tempest.scoring.score import group_keys
+        dd = load_npz(a.post_templates)
+        keys, yr = group_keys(np.asarray(dd["cond"])) % 144, np.asarray(dd["year"])
+        rng_t = np.random.default_rng(0)
+        first_test = 2021                                                          # templates from training years only (<= 2020)
+        tpl = np.zeros((144, 199, 179), np.float16)
+        tr = np.flatnonzero(yr < first_test)
+        for k in range(144):
+            r = tr[keys[tr] == k]
+            if len(r):
+                pick = np.sort(rng_t.choice(r, 199, replace=len(r) < 199))
+                tpl[k] = to_physical(np.asarray(dd["target"][pick])).astype(np.float16)
+        arrays["post/tpl"] = tpl
+    if a.post_smap:
+        sm = np.load(a.post_smap)
+        arrays["post/smap_grid"], arrays["post/smap_gain"] = sm["grid"], sm["gain"]
+        assert "edges" not in sm.files, "7-group maps need an edges asset (not exported yet)"
+    if a.post_seasonal:
+        arrays["post/seasonal"] = np.load(a.post_seasonal)["scale"]
     if a.wcalib:
         wc = np.load(a.wcalib)
         for k in ("qz", "qu", "m"):
@@ -105,7 +131,7 @@ def main():
     files = ["model.npz", "indices.npz", "grid.npz"]
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
