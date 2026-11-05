@@ -64,6 +64,7 @@ def main():
     # the wind input is the ERA5 10 m wind here (in the tool: the generator's 10 m wind sample)
     X = {"wind": gm.design(d.ws, d.doy, d.hour, station=d.station), "wind+fg": gm.design(d.ws, d.doy, d.hour, fg=d.fg, station=d.station)}
     models = {k: gm.fit(x[fit_m], d.G[fit_m].values) for k, x in X.items()}
+    np.savez("models/gust_model.npz", **{f"{k}_{p_}": v_ for k, m_ in models.items() for p_, v_ in m_.items()}, fit_years="2000-2020")
     c = float(np.mean((d.G / np.maximum(d.ws, 0.5))[fit_m]))
     b1, b0 = np.polyfit(d.fg[fit_m], d.G[fit_m], 1)
     print(f"baselines: constant factor c = {c:.2f}; bias-corrected fg10: G = {b0:.2f} + {b1:.2f} fg10")
