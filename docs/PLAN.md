@@ -1082,3 +1082,15 @@ Vertical correlation error (goal 0.05) of the network + range map: u 0.30 / 0.31
 - **IL-55 / IL-56 / IL-57 (p2h weight 4, p2i, p2j):** p2h ERA5 +0.0277 -> +0.0284, balloons +0.0083 -> +0.0091, cov error 0.0034 -> 0.0030 / 0.0039 -> 0.0033, but 99.9th shear 23.60 / 26.42 / 30.49 (below p2f); p2j (tail quantile 0.8) skill15 +0.0277 -> +0.0277 / +0.0083 -> +0.0077, fails rule (a); p2i crashed (GPU hand-over) and is queued. No loss weight lifts the tail: discarded; the shear map is the working mechanism.
 - **IL-66 long-window shift (2011-2023): discarded.** ERA5 skill15 +0.0277 -> +0.0266, cov error 0.0034 -> 0.0072, lowest band 0.9203; balloons +0.0083 -> +0.0089.
 - **IL-85 PIT recalibration for mode F: no gain** (PIT distance unchanged); the excess over the noise floor is date-level.
+
+### IL-60: where the shear tail gap sits (p2f, 2024-25, ratio of the sample 99.9th to the truth 99.9th; 1.00 is perfect)
+| layers | all | DJF | MAM | JJA | SON | with the 4-band shear map (all) |
+|---|---|---|---|---|---|---|
+| 0-1 km | 0.98 | 0.99 | 0.98 | 0.97 | 1.01 | 0.96 |
+| 1-3 km | 0.89 | 0.84 | 0.86 | 0.82 | 0.89 | 0.94 |
+| 3-6 km | 0.90 | 0.88 | 0.90 | 0.91 | 1.05 | 0.90 |
+| 6-9 km | 0.91 | 0.90 | 0.88 | 0.97 | 0.91 | 0.93 |
+| 9-12 km | 0.90 | 0.89 | 0.90 | 1.00 | 0.90 | 0.94 |
+| 12-15 km | 0.90 | 0.85 | 0.94 | 1.01 | 0.85 | 0.91 |
+| 15-18 km | 1.00 | 1.07 | 0.93 | 1.02 | 1.10 | 1.04 |
+The 99th percentile is within 5 % almost everywhere (0.93-1.08). The gap is a feature of the middle atmosphere (1-15 km), strongest in winter, and the four-band map already removes about half of it. p2i (step weight 1.0) was discarded: ERA5 +0.0277 -> +0.0280, balloons +0.0083 -> +0.0069.
