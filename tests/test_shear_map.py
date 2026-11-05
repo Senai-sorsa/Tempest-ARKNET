@@ -37,3 +37,14 @@ def test_gain_one_leaves_samples_alone_below_median():
     assert np.abs(body - 1.0).mean() < 0.1
     y = SM.apply(dict(grid=t["grid"], gain=np.ones_like(t["gain"])), x)
     assert np.allclose(y, x, atol=1e-4)
+
+
+def test_seven_layer_groups_and_old_tables_still_work():
+    x = _profiles(200, 20, 1.0, 3)
+    truth = _profiles(200, 1, 1.8, 4)[:, 0]
+    t7 = SM.fit(x, truth, edges=SM.EDGES7)
+    assert t7["grid"].shape[0] == 7 and "edges" in t7
+    y = SM.apply(t7, x)
+    assert y.shape == x.shape and np.isfinite(y).all()
+    t4 = SM.fit(x, truth)
+    assert t4["grid"].shape[0] == 4 and "edges" not in t4 and SM.apply(t4, x).shape == x.shape
