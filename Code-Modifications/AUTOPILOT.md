@@ -139,6 +139,26 @@ Rule: from IL-44 on, every experiment is also run through `diagnose.py`; the wea
 - IL-42 other launch sites (needs new data and training; feasibility note only).
 - The user's own landing-scatter test with a real vehicle file (IL-31 replaces it with a generic in-repo ascent model).
 
+## SHEAR TRACK (user 2026-11-05: keep looking for solutions for wind shear; runs as a standing priority next to the shape target)
+State of shear (p2f, 2024-25, ERA5, m/s per km, 99th / 99.9th percentile of neighbour shear; truth in brackets): 1-5 km 18.3 / 24.0 (17.9 / 25.7), 5-12 km 20.4 / 27.1 (20.7 / 30.3), above 12 km 25.5 / 32.5 (25.1 / 34.8), 0-1 km 55.3 / 77.8 (54.4 / 82.3). So the 99th is right and the 99.9th is 5-11 % low. The 2021-23 targets differ from 2024-25 (1-5 km 99.9th: 29.2 vs 25.7), so the tail is partly a moving target: judge on both periods.
+What was tried: step CRPS on neighbour steps (kept, weight 0.5); multi-stride step CRPS (rejected, weaker); shear-tail threshold-weighted CRPS (kept at 1.0, dose response not saturated: 0.5 -> 1.0 moved the 1-5 km 99.9th from 23.4 to 24.0); Earth-GRAM-style patches (IL-5, IL-12: help the 99.9th, push the 99th up, no scorer effect).
+
+| ID | Idea | Why it might work | Test | State |
+|---|---|---|---|---|
+| IL-54 | Shear-tail loss weight 2.0 (`generator_p2g`) | the dose response from 0.5 to 1.0 was still rising | `scripts/ap_shear_chain.sh`: full chain, physics 99/99.9th + headline vs p2f | running queue (after the S chain, diagnostics and IL-28) |
+| IL-55 | Weight 4.0 (`generator_p2h`) | find where it saturates or hurts | same | queued in the same chain |
+| IL-56 | Step weight 1.0 (`generator_p2i`) | the plain step loss shapes the body of the shear distribution, not only the tail | same | queued in the same chain |
+| IL-57 | Tail quantile 0.8 instead of 0.9 (`generator_p2j`) | more layers count as "strong shear", the tail loss gets more signal | same | queued in the same chain |
+| IL-58 | **Shear-space quantile map with high-pass gain (rank-preserving)**: split each wind profile into a smooth part (moving average over 5 heights) and a rough part; for every layer compute the sample's local shear from the rough part, find its rank among the sample shears of that layer band, and scale the rough part by a gain g(rank) fitted on 2021-23 so that the shear quantiles (50 ... 99.9 %) of the samples equal the truth's. Smooth part, and so the large-scale winds and the median, are untouched | patches (IL-5) added random noise and moved the 99th too; this map moves each quantile to its target and keeps order, so the whole shear distribution (not two percentiles) is matched | `tempest/calibrate/shear_map.py` (fit, apply, tests), `score --shear-map`, physics check, KS of shear (M7) | todo, next code item |
+| IL-59 | Balloon-based shear gain: balloons have sharper layers than station-corrected ERA5; fit the IL-58 gain on balloon-truth 2021-23 instead of ERA5 and judge on balloons 2024-25 | real shear is what a rocket sees | `sonde --shear-map` with the balloon fit; compare against the ERA5-fitted map | todo (after IL-58) |
+| IL-60 | Shear tail by layer and season: ratio truth / sample for the 99.9th at each of the 43 layers and for the four seasons; where the gap sits decides the next step (jet level, tropopause, boundary layer) | the gap may sit in a few layers or in winter only; then a targeted fix beats a global one | add to `diagnose.py`, run on p2f | todo (with IL-44) |
+| IL-61 | Heavy-tailed noise channels for the wind outputs: Student-t or Laplace instead of Gaussian input noise (part of IL-50) | the network can only make tails as heavy as its noise allows; shear tails are heavy | variant `generator_p2k` with a noise option | todo |
+| IL-62 | Vector-shear energy score: add an energy score on the (du, dv) shear vectors of each layer to the loss, so direction and magnitude of shear are learned jointly | the present tail term uses the magnitude only | training variant `generator_p2l` | todo |
+| IL-63 | Resolution check: shear computed on the 44 heights is smoother than a balloon's 100 m shear; measure the shear ratio balloon-native-resolution / balloon-at-44-heights and report a resolution correction factor with the output | users compare against raw soundings | script on IGRA high-resolution levels if available, else on the 44-height balloons | todo (note only if no data) |
+| IL-64 | More vertical resolution in the boundary layer: the 21-level fill (CDS or ARCO) gives 8 real levels in 0-3 km instead of interpolated ones, where 0-1 km shear is largest | the strongest shear is near the ground | after the fill: rebuild, retrain p2f, compare shear 0-3 km | blocked-on-data |
+| IL-65 | Combine the winners: the best loss variant (IL-54..IL-57) plus the shear map (IL-58) plus balloon gain (IL-59) | losses fix the model, the map fixes what is left | stack run vs p2f on shear numbers and the shape targets | todo (last in track) |
+Shear goals (numbers): 99.9th within 5 % of the truth in all four bands for 2021-23 AND 2024-25; shear KS (M7) <= 0.03; mean skill15 not lower; 99th within 5 %.
+
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)
 | ID | Step | How |
 |---|---|---|
