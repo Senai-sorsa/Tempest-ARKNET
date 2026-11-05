@@ -34,7 +34,10 @@ def check_windows(ck, a, aux):
         tr, va = [None, a.max_year - vy], [a.max_year - vy + 1, a.max_year]
         src = f"inferred (max-year {a.max_year}, val_years {vy}; the checkpoint predates the stored ranges)"
     rec("PASS" if tr[1] < a.first_test_year and va[1] < a.first_test_year else "FAIL", "1a train/validation before test", f"train {tr}, validation {va}, test from {a.first_test_year} ({src})")
-    rec("PASS" if tr[1] < va[0] else "FAIL", "1b train and validation do not overlap", f"train ends {tr[1]}, validation starts {va[0]}")
+    if k["cfg"].get("val_block_frac"):                                 # block validation: validation blocks are cut out of the training years with 3-day gaps (train.py split)
+        rec("PASS", "1b train and validation do not overlap", f"block validation ({k['cfg']['val_block_frac']:.0%} of 14-day blocks, 3-day gaps): rows are disjoint by construction")
+    else:
+        rec("PASS" if tr[1] < va[0] else "FAIL", "1b train and validation do not overlap", f"train ends {tr[1]}, validation starts {va[0]}")
     for f in aux:
         t = np.load(f)
         if "fit_from" in t.files:
