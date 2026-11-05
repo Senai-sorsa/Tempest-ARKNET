@@ -162,11 +162,12 @@ def values(lat, lon, when, variables, mode=None, n=1024, seed=0, **kw):
     """Best estimate of each requested variable (median across the atmospheres; wind direction from the vector median). Returns an ordered dict."""
     names = _need(variables)
     atm, info = atmosphere_set(lat, lon, when, n, False, seed, mode=mode, **kw)
-    ev = registry.evaluate(atm, [v for v in names if v != "wind_dir@x"], np.random.default_rng(seed + 1))
+    ev = registry.evaluate(atm, [v for v in names if not v.startswith("wind_dir@")], np.random.default_rng(seed + 1))
     out = {}
     for v in names:
-        out[v] = float(np.median(ev[v]))
-        if v.startswith("wind_dir@"):
+        if not v.startswith("wind_dir@"):
+            out[v] = float(np.median(ev[v]))
+        else:
             z = v.split("@")[1]
             e = registry.evaluate(atm, [f"u@{z}", f"v@{z}"])
             out[v] = float(np.degrees(np.arctan2(-np.median(e[f"u@{z}"]), -np.median(e[f"v@{z}"]))) % 360.0)
@@ -196,6 +197,9 @@ def distribution(lat, lon, when, variables, setting=0, n=1024, seed=0, mode=None
 def couple(lat, lon, when, variables, method="whole_sample", setting=0, n=1024, seed=0, mode=None, **kw):
     """A coupling object over the requested variables (draw(k) -> (indices, rows), spec()). `whole_sample` rows are real atmospheres from one set."""
     names = _need(variables)
+    if method == "gaussian_copula" and any(v.startswith("wind_dir@") for v in names):
+        raise ValueError("wind_dir is a circular angle (1 and 359 degrees are neighbours) and cannot enter a Gaussian copula; ask for u@z and v@z (and derive the direction) "
+                         "or use method='whole_sample'")
     atm, info = _set_for(lat, lon, when, setting, n, seed, mode, kw)
     ev = registry.evaluate(atm, names, np.random.default_rng(seed + 1))
     table = np.stack([ev[v] for v in names], 1)

@@ -13,10 +13,8 @@ Processed one store time-chunk (364 days) at a time; finished blocks are recorde
 import argparse
 import os
 
-import dask.array as da
 import numpy as np
 import pandas as pd
-import xarray as xr
 
 HEIGHTS = np.array([10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000]
                    + list(range(2500, 18001, 500)), dtype=np.float32)
@@ -99,11 +97,13 @@ def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
 
 
 def open_raw(raw):
+    import xarray as xr
     names = ["u", "v", "t", "r", "z", "u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
     return xr.merge([xr.open_zarr(os.path.join(raw, f"{n}.zarr")) for n in names], compat="override")
 
 
 def cds_levels(cds, times, lat, lon):
+    import xarray as xr
     """CDS fill for `times` on the (lat, lon) grid (lon 0-360) -> dict u, v, t, r, z of (lat, lon, time, 8) float32.
     NaN where a month's grib is missing."""
     times = pd.DatetimeIndex(times)
@@ -125,6 +125,8 @@ def cds_levels(cds, times, lat, lon):
 
 
 def main():
+    import dask.array as da
+    import xarray as xr
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--raw", default="data/raw/era5_em")
     ap.add_argument("--cds", default="data/raw/era5_cds")
