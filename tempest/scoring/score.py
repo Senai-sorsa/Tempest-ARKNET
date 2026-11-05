@@ -121,6 +121,9 @@ def main():
     ap.add_argument("--shear-tail", help="rare wind-shear patches from tempest.calibrate.shear_tail (needs --calib); outputs get a _stail suffix")
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
                     "samples toward the 15-year climatology where the model has no skill (outputs get a _trust suffix)")
+    ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="how the 'unknown' set draws ONI/WWV/QBO: copied from random training rows of the "
+                    "group (analog, default) or from the ridge index forecast made --driver-lead months earlier (what the tool serves)")
+    ap.add_argument("--driver-lead", type=int, default=6, help="lead in months for --driver-mode ridge")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
@@ -182,7 +185,11 @@ def main():
     if cal:
         known = spread.apply(cal, known)
     dc = [FEATURES.index(k) for k in drivers()]  # oni, wwv, qbo (+ the ONI hinges and lag when the dataset has them)
-    rep[:, dc] = cond[draws.ravel()][:, dc]
+    if a.driver_mode == "ridge":
+        from tempest.scoring import ridge_drivers
+        ridge_drivers.fill(rep, cond[va], year[va], a.m, a.driver_lead, rng)
+    else:
+        rep[:, dc] = cond[draws.ravel()][:, dc]
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         unknown = spread.apply(cal, unknown)
@@ -238,7 +245,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("_ridge" if a.driver_mode == "ridge" else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 

@@ -56,6 +56,8 @@ def main():
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib), applied at grid level; outputs get a _smap suffix")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
+    ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="unknown drivers: analog draw (default) or ridge index forecast (what the tool serves)")
+    ap.add_argument("--driver-lead", type=int, default=6)
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     a = ap.parse_args()
@@ -153,8 +155,12 @@ def main():
             known.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
             dc = [FEATURES.index(k) for k in drivers()]
             td = t[draws.ravel()]
-            rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, td)[:, [0, 3, 1, 2]].T,
-                                  **({k: (v if k == 'oni_lag3' else 0) for k, v in indices.feature_extras(FEATURES, tbl, gm, td).items()}))[:, dc]
+            if a.driver_mode == "ridge":                                                      # F-13: the drivers the tool serves (ridge index forecast), default off
+                from tempest.scoring import ridge_drivers
+                ridge_drivers.fill(rep, cond, tv.year.to_numpy(), a.m, a.driver_lead, rng, table=tbl)
+            else:
+              rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, td)[:, [0, 3, 1, 2]].T,
+                                    **({k: (v if k == 'oni_lag3' else 0) for k, v in indices.feature_extras(FEATURES, tbl, gm, td).items()}))[:, dc]
             unknown.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
     truth, years = np.concatenate(truth), np.concatenate(years)
     sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]
