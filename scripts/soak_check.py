@@ -12,6 +12,8 @@ candidate days equally likely). Reports CRPS, MAE of the median, and 90/99 % cov
 import argparse
 
 import numpy as np
+
+from tempest import region
 import pandas as pd
 import torch
 import xarray as xr
@@ -32,7 +34,7 @@ def row_times(cond, year):
     doy = np.round(np.arctan2(c("doy_sin"), c("doy_cos")) % (2 * np.pi) / (2 * np.pi) * 365.25).astype(int)
     sh = np.arctan2(c("hour_sin"), c("hour_cos")) % (2 * np.pi) / (2 * np.pi) * 24
     lat, lon = np.round(c("lat") * 4) / 4, np.round(c("lon") * 4) / 4
-    point = np.round((34 - lat) / 0.25).astype(int) * 29 + np.round((lon + 108) / 0.25).astype(int)
+    point = region.load().point_index(lat, lon)
     t_solar = pd.to_datetime(pd.Series(year.astype(str)) + "-01-01") + pd.to_timedelta(doy - 1, "D") + pd.to_timedelta(sh, "h")
     return point, pd.DatetimeIndex(t_solar - pd.to_timedelta(c("lon") / 15.0, "h")).round("h")
 

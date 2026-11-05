@@ -126,7 +126,8 @@ class Sampler:
         set_rh_target(self.rh_target)
         if self.cond_names is not None:
             from tempest.generator import features
-            features.set_active(self.cond_names)
+            if set(self.cond_names) <= set(features.BASE_FEATURES) | set(features.P2_FEATURES):      # a climate generator; the mode P / mode F residual networks have their own inputs
+                features.set_active(self.cond_names)
 
     @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:

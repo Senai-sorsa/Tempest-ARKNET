@@ -71,3 +71,12 @@ Copy the outputs to `data/raw/era5_cds/` and `data/raw/wb2_hres/`, then tell Cla
 ## 8. Optional: second forecast-archive pull with the whole diurnal cycle (needed to use mode F at every hour)
 The archived HRES cases are 00 UTC starts at whole-day leads, so every valid time is 00 UTC (about 17:00 local solar time in the box). Mode F is therefore only trained for the late afternoon; the tool uses it only between 14 and 20 solar hours and falls back to the climate generator otherwise (flagged).
 To cover 06-21 h: in `notebooks/wb2_colab.md` change `--leads` to `30 36 42 54 60 66 78 84 90 102 108 114 126 132 138 150 156 162` (valid times 06, 12, 18 UTC) and rerun the cell with `--out .../tempest_wb2_diurnal`; copy the files to `data/raw/wb2_hres_diurnal/` (about 100 MB). Then mode F can be trained with the hour of day as an input.
+
+## 9. Needs the user, asked at the very end: North America (docs/REGION_PLAN.md, R-6)
+Serving places outside the pilot box needs new training data over the target region. The unattended part (region file, many-station correction, a small portability dry run) is done or queued; the data pulls for a continental lattice need Colab runs (ARCO-ERA5 in Google's network, about 25 TB read for 6-hourly 1991-2025) and the choice of the region and lattice spacing (1 or 2 degrees). Decision for the user: how far (CONUS only, or Canada and Mexico), what spacing, and whether to run the Colab pulls.
+
+## 10. Needs the user, asked at the very end: stage 6 (flight-simulator add-on features)
+Plan file: C:\Users\Senai\Downloads\tempest_arknet_flight_sim_expansion_blueprint.md (not read yet by design). Starts only after the user approves, after the final model is built.
+
+## 11. Needs the user: GitHub
+Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after approval or at the very end). Local commits continue. Ask at the end: push all.

@@ -165,13 +165,19 @@ def test_sp_offset_roundtrip():
     assert abs(out.mean() - (standard_pressure(1500) + 150)) < 40
 
 
-def test_to_site_moves_surface_only():
+def test_to_site_moves_the_surface_and_fades_the_low_level_shift_with_height():
     from tempest.generator.sample import to_site
+    from tempest.profiles.to_heights import HEIGHTS
+    nh = len(HEIGHTS)
     phys = np.full((2, 179), 50.0)
     phys[:, -3:] = [300.0, 85000.0, 40.0]
     out = to_site(phys.copy(), 1262.0, np.array([1262.0, 1254.0]))
-    assert np.allclose(out[0], phys[0]) and np.allclose(out[1, :-3], phys[1, :-3])
-    assert np.isclose(out[1, -3], 300.052) and 85075 < out[1, -2] < 85085 and out[1, -1] == 40
+    assert np.allclose(out[0], phys[0])                                          # same elevation: nothing moves
+    assert np.allclose(out[1, :2 * nh], phys[1, :2 * nh])                        # winds are not touched
+    assert np.isclose(out[1, -3], 300.052) and 85075 < out[1, -2] < 85085        # t2m: standard lapse rate; sp: hypsometric
+    dT = out[1, 2 * nh:3 * nh] - phys[1, 2 * nh:3 * nh]                          # site 8 m lower: warmer, the shift fades with height (no jump between 2 m and 10 m)
+    assert abs(dT[0] - 0.052) < 0.002 and np.all(np.diff(dT) <= 1e-9) and dT[-1] < 1e-3
+    assert 39.5 < out[1, -1] < 40 and np.all(out[1, 3 * nh:4 * nh] <= 100)       # dew point kept: warmer air, lower RH
 
 
 def test_block_split_keeps_a_gap():

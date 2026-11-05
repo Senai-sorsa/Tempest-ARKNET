@@ -74,8 +74,9 @@ class Atmosphere:
         return d[:, [0, 3, 1, 2]], f"ridge forecast, {horizon} months ahead"
 
     def sample(self, lat, lon, when, n=1024, seed=0, tau_hours=6.0):
-        if not (BOX["lat"][0] <= lat <= BOX["lat"][1] and BOX["lon"][0] <= lon <= BOX["lon"][1]):
-            raise ValueError(f"({lat}, {lon}) is outside the trained area {BOX}")
+        box = dict(lat=(float(self.pt_lat.min()), float(self.pt_lat.max())), lon=(float(self.pt_lon.min()), float(self.pt_lon.max())))      # the grid defines the trained area
+        if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
+            raise ValueError(f"({lat}, {lon}) is outside the trained area {box}")
         rng = np.random.default_rng(seed)
         torch.manual_seed(seed)
         t_utc, sh = solar_time(when, lon)

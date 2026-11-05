@@ -23,7 +23,7 @@ from tempest_weather.sources import era5_local, openmeteo
 from tempest_weather.sources.indices import Indices
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))
+BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))      # default only; the assets carry their own grid and the check in atmosphere_set uses it
 M_CAL = 199
 _ASSETS = {}
 
@@ -144,9 +144,10 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted)
 
 def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None):
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
-    if not (BOX["lat"][0] <= lat <= BOX["lat"][1] and BOX["lon"][0] <= lon <= BOX["lon"][1]):
-        raise ValueError(f"({lat}, {lon}) is outside the trained area {BOX}; modes beyond the pilot box need the CONUS stage")
     A = _assets(assets)
+    box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
+    if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
+        raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; other regions need their own assets (docs/REGION_PLAN.md)")
     rng = np.random.default_rng(seed)
     t_utc, sh = _time(when, lon)
     if not 6.0 <= sh <= 21.0:
@@ -172,6 +173,14 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     elev = float(np.dot(wts, g["elev"][pts])) if elevation is None else float(elevation)   # the site (bilinear grid elevation unless given); the model runs at each point's elevation, then moves to the site
     if used == "past" and predicted:
         quality = quality + ["past-without-model-error-is-the-ERA5-value"]
+    if used == "ai":                                                  # the generator extrapolates a straight-line year trend past its training data (2025)
+        yb = t_utc.year - 2025
+        if yb > 5:
+            quality = quality + [f"year-trend-extrapolated-{yb}-years-beyond-the-training-data" + ("-unreliable" if yb > 25 else "")]
+    if used == "ai":                                                  # the generator extrapolates a straight-line year trend past its training data (2025)
+        yb = t_utc.year - 2025
+        if yb > 5:
+            quality = quality + [f"year-trend-extrapolated-{yb}-years-beyond-the-training-data" + ("-unreliable" if yb > 25 else "")]
     groups = 1 if predicted else int(np.ceil(n / M_CAL))
     total = n if predicted else groups * M_CAL
     drv, drv_note = A["indices"].draws(t_utc, total, rng, expected=predicted)

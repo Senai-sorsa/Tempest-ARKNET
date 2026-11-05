@@ -13,6 +13,8 @@ import argparse
 import os
 
 import numpy as np
+
+from tempest import region
 import pandas as pd
 import xarray as xr
 
@@ -30,7 +32,7 @@ def load(asos, surf):
         d = d[(d.valid.dt.minute >= 40) & d.sknt.notna()].copy()  # hourly routine reports (about :53)
         d["time"] = d.valid.dt.round("h")
         d = d.drop_duplicates("time")
-        point = int(np.round((34 - lat) / 0.25)) * 29 + int(np.round((lon + 108) / 0.25))
+        point = int(region.load().point_index(lat, lon))
         t = pd.DatetimeIndex(surf.time.values)
         ix = t.get_indexer(d["time"])
         ok = ix >= 0

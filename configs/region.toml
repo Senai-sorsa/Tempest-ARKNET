@@ -1,0 +1,18 @@
+# The region the system is built for (data fetch, point indexing, stations, trained-area check). The default is the pilot box; change these values (and rebuild the data and
+# the models) to train for another box. Longitudes are degrees east (negative = west). Review item "adjustable for any location" (2026-11-05), see docs/REGION_PLAN.md.
+name = "pilot"
+lat_north = 34.0        # northern edge of the grid, degrees
+lat_south = 31.0
+lon_west = -108.0
+lon_east = -101.0
+step = 0.25             # grid spacing in degrees (ERA5 native)
+
+# balloon stations (IGRA id = latitude, longitude, launch-level height in m) used for the station correction and the balloon scoring
+[stations]
+USM00072364 = [31.8728, -106.6981, 1254.0]   # Santa Teresa NM
+USM00072265 = [31.9475, -102.1894, 874.0]    # Midland TX
+
+# hourly surface stations (ASOS) used for the gust model: the station flag value is the position in this list
+[asos]
+MAF = [31.9425, -102.2019]
+TCS = [33.2369, -107.2672]

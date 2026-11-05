@@ -19,7 +19,10 @@ import xarray as xr
 PRESSURE = ["u", "v", "t", "r", "z"]
 SINGLE = ["u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
 EXTRA = {"single/temporal": ["fg10", "blh", "ssrd", "slhf", "ssr"], "pressure/temporal": ["w"]}  # Phase 3: gusts, boundary layer, radiation, vertical wind (opt-in via --only)
-LAT, LON = (34.0, 31.0), (252.0, 259.0)
+from tempest import region as _region  # noqa: E402
+
+_R = _region.load()
+LAT, LON = (_R.lat_north, _R.lat_south), _R.era5_lon360      # the box comes from configs/region.toml (default: the pilot box)
 START, END = np.datetime64("1991-01-01T00"), np.datetime64("2025-12-31T23")
 
 
