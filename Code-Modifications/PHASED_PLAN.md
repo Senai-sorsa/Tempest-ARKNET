@@ -359,6 +359,9 @@ deviations and random perturbations per place and month; excellent as a design r
    - seasonal range map (E7) for the summer T 5-12 km miss found by the stress table;
    - tail-weighted shear loss variants (Phase 2 result), shear calibration in difference space;
    - analog-driver tuning (A6: K), 2nd walk-forward fold, block validation (row 20), ensemble-size/width probes.
+   - added 2026-11-05: IL-3 more pooled seeds, IL-5 rare shear patches (Earth-GRAM), IL-6 WeatherBench2 lead-time history for modes F/F2,
+     IL-7a Chronos-2 index forecast, IL-8 height-token generator, IL-9 mask tokens + arcsinh scaling (queue in `docs/PLAN.md`);
+     user rule: an item that fails the pass rule is discarded (not adopted, flag stays off).
    Stop only when several honest attempts in a row give no real gain, then report.
 4. Machine rules unchanged: 12 logical CPUs at most (mask 4095), one GPU job, never edit a running script, local commits
    only, no Claude attribution, 2026 Jan-Jun touched once at the very end.
