@@ -62,10 +62,20 @@ def _time(when, lon):
     return u, (u.hour + u.minute / 60 + lon / 15.0) % 24
 
 
-def _gust_params(g, ws, doy, hour):
+_GUST_SITES = {"MAF": (31.9425, -102.2019), "TCS": (33.2369, -107.2672)}
+
+
+def _gust_station(lat, lon):
+    """1 for the Truth or Consequences side (Spaceport America), 0 for Midland: the flag the gust model was fitted with."""
+    d = {k: (lat - a) ** 2 + (lon - b) ** 2 for k, (a, b) in _GUST_SITES.items()}
+    return 1.0 if d["TCS"] < d["MAF"] else 0.0
+
+
+def _gust_params(g, ws, doy, hour, station=0.0):
+    """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports)."""
     a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
     X = np.stack([np.ones_like(ws), ws, ws ** 2 / 10.0, np.full_like(ws, np.sin(a)), np.full_like(ws, np.cos(a)), np.full_like(ws, np.sin(h)),
-                  np.full_like(ws, np.cos(h)), np.zeros_like(ws)], 1)
+                  np.full_like(ws, np.cos(h)), np.full_like(ws, station)], 1)
     return X @ g["theta"], np.exp(np.clip(X @ g["phi"], -5, 5))
 
 
@@ -130,18 +140,16 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             phys = _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)).reshape(total, -1)[:n]
             cond = cond[:n]
     nh = _core.NH
-    if elev != elev_grid:                                             # surface temperature and pressure to the site elevation (standard lapse rate, hypsometric)
-        dz = elev - elev_grid
-        t_ = phys[:, 4 * nh]
-        phys[:, 4 * nh + 1] *= np.exp(-_core.G0 * dz / (_core.RD * (t_ - 0.0065 * dz / 2)))
-        phys[:, 4 * nh] = t_ - 0.0065 * dz
+    w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng) if A["head"] is not None else None   # the vertical-wind head saw grid-elevation inputs: sample BEFORE the site shift
+    if elev != elev_grid:                                             # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
+        _core.site_shift(phys, elev - elev_grid)
     atm = dict(u=phys[:, :nh], v=phys[:, nh:2 * nh], T=phys[:, 2 * nh:3 * nh], RH=phys[:, 3 * nh:4 * nh], t2m=phys[:, 4 * nh], sp=phys[:, 4 * nh + 1], rh2m=phys[:, 4 * nh + 2])
     th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
     atm.update(p=th["p"], rho=th["rho"], a=th["a"])
-    atm["w"] = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng) if A["head"] is not None else None
+    atm["w"] = w_site
     atm["gust_mu"] = atm["gust_beta"] = None
     if A["gust"] is not None:
-        atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, sh)
+        atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
     src = ("ERA5 + learned balloon correction" if not predicted else "ERA5 value") if used == "past" else (
         "tempest generator (calibrated)" if not predicted else "tempest generator (predicted set, no range map)")
     info = dict(mode=used, source=src, quality=quality,

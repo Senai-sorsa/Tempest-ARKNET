@@ -15,8 +15,22 @@ KT = 0.514444  # m/s per knot
 EULER = 0.5772156649
 
 
+SITES = {"MAF": (31.9425, -102.2019), "TCS": (33.2369, -107.2672)}   # the two ASOS stations the model was fitted on; flag 0 = Midland, 1 = Truth or Consequences
+
+
+def station_flag(lat, lon):
+    """Station flag of the ASOS site nearer to (lat, lon): 1 for Truth or Consequences (the Spaceport America side of the box), 0 for Midland."""
+    d = {k: (lat - a) ** 2 + (lon - b) ** 2 for k, (a, b) in SITES.items()}
+    return 1.0 if d["TCS"] < d["MAF"] else 0.0
+
+
+def utc_hour(t):
+    """Hour of day in UTC (with minutes) of a timestamp: the gust model was fitted with the UTC hour of the report, not the local solar hour."""
+    return t.hour + t.minute / 60.0
+
+
 def design(ws, doy, hour, fg=None, station=None):
-    """Input matrix: 1, ws, ws^2, season and hour harmonics, optional station flag and ERA5 gust (fg, fg - ws)."""
+    """Input matrix: 1, ws, ws^2, season and hour harmonics (hour = UTC hour), optional station flag and ERA5 gust (fg, fg - ws)."""
     ws = np.asarray(ws, float)
     a, h = 2 * np.pi * np.asarray(doy, float) / 365.25, 2 * np.pi * np.asarray(hour, float) / 24.0
     cols = [np.ones_like(ws), ws, ws ** 2 / 10.0, np.sin(a), np.cos(a), np.sin(h), np.cos(h)]

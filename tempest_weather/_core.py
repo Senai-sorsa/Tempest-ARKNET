@@ -121,3 +121,23 @@ def feature_matrix(names, lat, lon, elev_site, elev_grid, doy, solar_hour, year,
     if missing:
         raise ValueError(f"model needs inputs {missing} that were not supplied")
     return np.stack(np.broadcast_arrays(*[np.asarray(cols[k], float) for k in names]), axis=-1).astype(np.float32)
+
+
+LAPSE, SHIFT_SCALE = 0.0065, 1500.0
+
+
+def site_shift(phys, dz):
+    """(n, 179) values at the grid elevation -> the site elevation `dz` metres higher (in place): sp hypsometric, t2m with the standard lapse rate, the temperature
+    profile with a shift that fades with height (-lapse * dz * exp(-z / 1500 m): no jump between 2 m and 10 m), humidity keeping its dew point where the shift acts."""
+    nh = NH
+    t = phys[:, 4 * nh]
+    phys[:, 4 * nh + 1] *= np.exp(-G0 * dz / (RD * (t - LAPSE * dz / 2)))
+    w = np.exp(-HEIGHTS / SHIFT_SCALE)
+    t_old = phys[:, 2 * nh:3 * nh].copy()
+    t_new = t_old - LAPSE * dz * w
+    rh = phys[:, 3 * nh:4 * nh]
+    phys[:, 3 * nh:4 * nh] = np.clip(rh * es_liquid(t_old) / es_liquid(t_new) * w + rh * (1 - w), 0, 100)
+    phys[:, 2 * nh:3 * nh] = t_new
+    phys[:, 4 * nh + 2] = np.clip(phys[:, 4 * nh + 2] * es_liquid(t) / es_liquid(t - LAPSE * dz), 0, 100)
+    phys[:, 4 * nh] = t - LAPSE * dz
+    return phys

@@ -15,7 +15,7 @@ import json
 
 import numpy as np
 
-from tempest.profiles.to_heights import G0, HEIGHTS, geometric_height, interp_columns, liquid_rh  # noqa: F401 (liquid_rh: ERA5 humidity is converted elsewhere)
+from tempest.profiles.to_heights import G0, HEIGHTS, geometric_height, interp_columns, liquid_rh
 
 LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
 
@@ -40,8 +40,10 @@ def _uv(speed, direction):
     return -speed * np.sin(r), -speed * np.cos(r)
 
 
-def to_profiles(doc, elevation=None):
-    """Open-Meteo ensemble response -> dict(time, u, v, T, RH (M, T, 44); t2m, sp, rh2m (M, T)). `elevation` (m above sea level) defaults to the response's."""
+def to_profiles(doc, elevation=None, liquid_phase=True):
+    """Open-Meteo ensemble response -> dict(time, u, v, T, RH (M, T, 44); t2m, sp, rh2m (M, T)). `elevation` (m above sea level) defaults to the response's.
+    liquid_phase: the pressure-level RH of the IFS follows the IFS definition (over a water / ice mix below 0 C, ice below -23 C); balloons and the rest of this system use RH over
+    liquid water, so the levels are converted with `liquid_rh` (no effect above 0 C). 2 m RH comes from the 2 m dew point over water and is left alone."""
     h = doc["hourly"]
     elev = float(doc.get("elevation", 0.0) if elevation is None else elevation)
     get = lambda var: _members(h, var)
@@ -53,6 +55,8 @@ def to_profiles(doc, elevation=None):
     lev = lambda base: np.stack([get(f"{base}_{p}hPa") for p in LEVELS], -1)          # (M, T, L)
     temp, rh, ws, wd, gh = (lev(b) for b in ("temperature", "relative_humidity", "wind_speed", "wind_direction", "geopotential_height"))
     temp = temp + 273.15
+    if liquid_phase:
+        rh = liquid_rh(temp, rh)
     u, v = _uv(ws, wd)
     u10, v10 = _uv(ws10, wd10)
     agl = geometric_height(gh * G0) - elev                                            # metres above the site

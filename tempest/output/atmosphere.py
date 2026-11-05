@@ -99,7 +99,7 @@ class Atmosphere:
             extras["w"] = self.head(head_inputs(cond, phys)).astype(np.float32)
         if self.gust is not None:
             u10, v10 = phys[:, 0], phys[:, len(HEIGHTS)]
-            X = gm.design(np.hypot(u10, v10), np.full(n, doy), np.full(n, sh), station=np.zeros(n))
+            X = gm.design(np.hypot(u10, v10), np.full(n, doy), np.full(n, gm.utc_hour(t_utc)), station=np.full(n, gm.station_flag(lat, lon)))   # fitted with UTC hour and the nearer ASOS site
             mu, beta = gm.params(self.gust, X)
             gmu, gbeta = np.full((n, 5), np.nan, np.float32), np.full((n, 5), np.nan, np.float32)
             gmu[:, 0], gbeta[:, 0] = mu, beta

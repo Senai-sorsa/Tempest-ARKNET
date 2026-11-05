@@ -69,14 +69,35 @@ def standard_pressure(z):
     return 101325.0 * (1 - 2.25577e-5 * np.asarray(z, np.float64)) ** 5.25588
 
 
+LAPSE = 0.0065        # K per m, standard atmosphere
+SHIFT_SCALE = 1500.0  # m: the site-elevation temperature shift fades with height above the ground, exp(-z / SHIFT_SCALE)
+
+
+def _es(t):
+    return 611.21 * np.exp(17.502 * (t - 273.16) / (t - 32.19))
+
+
 def to_site(phys: np.ndarray, z_grid, z_site) -> np.ndarray:
-    """(..., 179) physical values at the ERA5 grid elevation -> surface T and pressure at the site elevation (in
-    place): standard lapse rate for t2m, hypsometric equation for sp. Profiles are above ground, so they stay."""
+    """(..., 179) physical values at the ERA5 grid elevation -> values at the site elevation (in place).
+    sp: hypsometric equation. t2m: standard lapse rate. The temperature profile above ground follows with a shift that fades with height,
+    -lapse * dz * exp(-z / 1500 m), so there is no jump between the 2 m and the 10 m value; humidity keeps its dew point (RH changes with T, kept <= 100 %)
+    at 2 m and on the profile with the same fading weight."""
     dz = np.asarray(z_site, np.float64) - np.asarray(z_grid, np.float64)
-    j = len(HEIGHTS) * len(PROFILE)
+    nh = len(HEIGHTS)
+    j = nh * len(PROFILE)
     t = phys[..., j + SURFACE.index("t2m")]
-    phys[..., j + SURFACE.index("sp")] *= np.exp(-9.80665 * dz / (287.05 * (t - 0.0065 * dz / 2)))
-    phys[..., j + SURFACE.index("t2m")] = t - 0.0065 * dz
+    phys[..., j + SURFACE.index("sp")] *= np.exp(-9.80665 * dz / (287.05 * (t - LAPSE * dz / 2)))
+    w = np.exp(-HEIGHTS / SHIFT_SCALE)
+    dz_ = np.asarray(dz)[..., None] if np.ndim(dz) else dz
+    iT, iR = PROFILE.index("T") * nh, PROFILE.index("RH") * nh
+    T_old = phys[..., iT:iT + nh].copy()
+    T_new = T_old - LAPSE * dz_ * w
+    rh_old = phys[..., iR:iR + nh]
+    phys[..., iR:iR + nh] = np.clip(rh_old * _es(T_old) / _es(T_new) * w + rh_old * (1 - w), 0, 100)       # dew point kept where the shift acts
+    phys[..., iT:iT + nh] = T_new
+    ir = j + SURFACE.index("rh2m")
+    phys[..., ir] = np.clip(phys[..., ir] * _es(t) / _es(t - LAPSE * dz), 0, 100)
+    phys[..., j + SURFACE.index("t2m")] = t - LAPSE * dz
     return phys
 
 
@@ -93,13 +114,25 @@ class Sampler:
             model = make_generator(c.get("arch", "mlp"), k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"))
             model.load_state_dict(k["state"])
             self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
-        self.sp_offset = ckpt.get("members", [ckpt])[0].get("sp_offset")
-        set_rh_target(ckpt.get("members", [ckpt])[0].get("rh_target", "rh"))  # a model trained on dpd targets needs the inverse  # [target col, cond col], or None (old files)
+        k0 = ckpt.get("members", [ckpt])[0]
+        self.sp_offset = k0.get("sp_offset")                      # [target col, cond col], or None (old files)
+        self.rh_target = k0.get("rh_target", "rh")                # a model trained on dpd targets needs the inverse
+        self.cond_names = list(k0["cond_names"]) if k0.get("cond_names") else None
+        self._activate()
+
+    def _activate(self):
+        """The humidity target and the input-column list are module-level settings (features.FEATURES, RH_TARGET). Every sampler re-applies ITS OWN before it samples, so
+        two models or datasets with different settings can be used alternately in one process (review item F-4)."""
+        set_rh_target(self.rh_target)
+        if self.cond_names is not None:
+            from tempest.generator import features
+            features.set_active(self.cond_names)
 
     @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:
         """cond (N, F) raw features, one row per sample (drivers already drawn) -> (N, D) raw targets.
         Row i goes to member i % K, so repeated rows (one query, many samples) are shared evenly."""
+        self._activate()
         c = torch.as_tensor(cond, dtype=torch.float32, device=self.device)
         m0 = self.members[0][0]
         out = torch.empty(len(c), getattr(m0, "n_out", None) or m0.head[-1].out_features, device=self.device)
@@ -113,4 +146,5 @@ class Sampler:
 
     def profiles(self, cond: np.ndarray) -> np.ndarray:
         """Like __call__, but physical profiles with the range rules applied (see to_physical)."""
-        return to_physical(self(cond))
+        out = self(cond)               # activates this sampler's settings
+        return to_physical(out)

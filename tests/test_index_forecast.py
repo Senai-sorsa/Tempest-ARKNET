@@ -45,3 +45,15 @@ def test_joint_draws_keep_the_correlation_between_indices():
     r_hist = np.corrcoef(tab["oni"].to_numpy()[2:], tab["wwv"].to_numpy()[2:])[0, 1]
     r_draw = np.corrcoef(d[:, indices.COLS.index("oni")], d[:, indices.COLS.index("wwv")])[0, 1]
     assert r_draw > 0.3 and r_hist > 0.3
+
+
+def test_wwv_scale_does_not_break_the_draw_and_qbo_phase_is_used():
+    tab = _table()
+    tab["wwv"] = tab["wwv"] * 1e13 + 5e13                      # the real scale
+    rng = np.random.default_rng(2)
+    origin = tab.index[300]
+    d = fc.draw(tab, origin, 6, 3000, rng)
+    assert np.isfinite(d).all() and abs(d[:, 3].mean() / 1e13) < 100
+    f = fc.fit(tab, origin, 6)
+    assert np.all(np.linalg.eigvalsh(np.corrcoef(np.random.default_rng(0).normal(size=(50, 4)).T)) > 0) and f["cov"].shape == (4, 4)
+    assert f["beta"].shape[0] == 4 * fc.LAGS + 2 + 3             # lags, month harmonics, QBO phase sin / cos / amplitude

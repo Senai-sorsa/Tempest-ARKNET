@@ -12,7 +12,7 @@ busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"nam
 while [ "$(busy)" != "0" ]; do sleep 60; done
 log start
 [ -f $D ] || $PY -W ignore -u -m tempest.generator.build_dataset --profiles $P --out $D --first-year 1980 --last-year 2026 --station-map $S --features $FEAT --rh-target dpd >> data/phase2_build.log 2>&1 || { log "FAILED build"; exit 3; }
-[ -f $M ] || { $PY -u -m tempest.generator.train --data $D --out $M.part --max-year 2023 --min-year 1991 --config $CFG > data/phase2_train_$V.log 2>&1 && mv $M.part $M; } || { log "FAILED train"; exit 4; }
+[ -f $M ] || { $PY -u -m tempest.generator.train --data $D --out $M.part --max-year ${MAXY:-2023} --min-year 1991 --config $CFG > data/phase2_train_$V.log 2>&1 && mv $M.part $M; } || { log "FAILED train"; exit 4; }
 log "trained"
 [ -f $C ] || $PY -W ignore -u -m tempest.calibrate.spread --model $M --data $D --year 2023 --from-year 2021 --rows 60000 --m 199 >> data/phase2_$V.log 2>&1 || { log "FAILED spread"; exit 5; }
 J=models/generator_80_$V.joint2021.npz
