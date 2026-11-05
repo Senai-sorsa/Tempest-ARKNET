@@ -133,6 +133,8 @@ def main():
     d = load_npz(a.data)
     cond, year = d["cond"], d["year"]
     held = (year > year.max() - ckpt["cfg"]["val_years"]) & (year >= (a.first_test_year or 0)) & (year <= (a.last_test_year or 9999))
+    if a.first_test_year:  # an explicit test window is used as given (walk-forward folds earlier than the last val_years); same result when it lies inside them
+        held = (year >= a.first_test_year) & (year <= (a.last_test_year or 9999))
     cal = spread.load(a.calib, a.model)
     a.m = a.m or (int(cal["m"]) if cal else 50)
     keys = group_keys(cond)

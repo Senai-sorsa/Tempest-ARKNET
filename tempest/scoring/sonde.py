@@ -63,7 +63,7 @@ def main():
     histories = [c.get("history") for c in ckpt.get("members", [ckpt])]
     dset = load_npz(a.data)
     last = int(dset["year"].max())
-    held_from = max(last - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1, a.first_test_year or 0)
+    held_from = a.first_test_year or (last - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1)  # an explicit first test year is used as given
     last = min(last, a.last_test_year or last)
     cal = spread.load(a.calib, a.model)
     a.m = a.m or (int(cal["m"]) if cal else 50)
