@@ -18,6 +18,9 @@ Each entry has the reason, the evidence and the exact command or change.
 
 ## 2. History split and force-push (from HANDOVER section 9)
 
+**Status (2026-11-05):** the history is rebuilt locally as 75 small commits with the same final tree (backup branch `backup-pre-rewrite` keeps the old one). Only the push is left, because the auto-mode classifier blocks force-pushes: run `git push --force-with-lease=main:ba2e2df origin main` yourself (type `! git push --force-with-lease=main:ba2e2df origin main` in the prompt). The old `update-ref` command below is no longer needed.
+
+
 ```
 git update-ref refs/heads/main split-main ba2e2df && git push --force-with-lease=main:ba2e2df origin main && git worktree remove <old scratchpad>/splitwt && git branch -D split-main
 ```
