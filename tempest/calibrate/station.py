@@ -26,8 +26,11 @@ import xarray as xr
 from tempest.profiles.diff import from_diff, to_diff
 from tempest.profiles.to_heights import G0, HEIGHTS, PROFILE, geometric_height
 
-STATIONS = {"USM00072364": (31.8728, -106.6981), "USM00072265": (31.9475, -102.1894)}  # Santa Teresa NM, Midland TX
-ELEV = {"USM00072364": 1254.0, "USM00072265": 874.0}  # m, launch-level height in the IGRA files (2015+)
+from tempest import region as _region  # noqa: E402
+
+_R = _region.load()                                              # configs/region.toml (default: the pilot box with Santa Teresa NM and Midland TX)
+STATIONS = {k: (v[0], v[1]) for k, v in _R.stations.items()}
+ELEV = {k: v[2] for k, v in _R.stations.items()}                  # m, launch-level height in the IGRA files (2015+)
 MAX_GAP = 2000.0  # m between usable balloon levels; wider gaps are left missing instead of drawn as a straight line
 
 

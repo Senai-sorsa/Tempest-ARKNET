@@ -1,0 +1,21 @@
+# Portability dry run (R-5): a tiny generator for the Denver box, CPU only; settings otherwise as the adopted model.
+noise_dim = 16
+width = 128
+depth = 2
+m = 4
+crps_alpha = 0.95
+es_weight = 0.1
+step_weight = 0.5
+members = 1
+batch = 2048
+lr = 1e-3
+weight_decay = 1e-4
+steps = 800
+eval_every = 200
+patience = 5
+val_years = 1
+val_rows = 20000
+seed = 0
+ema_decay = 0.999
+shear_tail_weight = 1.0
+shear_tail_q = 0.9

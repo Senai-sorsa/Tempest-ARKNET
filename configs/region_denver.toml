@@ -1,0 +1,13 @@
+# Second box for the portability dry run (R-5): 2 x 2 degrees around Denver. Used with TEMPEST_REGION=configs/region_denver.toml.
+name = "denver"
+lat_north = 40.0
+lat_south = 38.0
+lon_west = -106.0
+lon_east = -104.0
+step = 0.25
+
+[stations]
+USM00072469 = [39.7667, -104.8667, 1611.0]   # Denver CO
+
+[asos]
+DEN = [39.8467, -104.6562]

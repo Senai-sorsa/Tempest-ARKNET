@@ -240,7 +240,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             model.train()
             idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
             c, t = Xc[idx].float(), Xt[idx].float()
-            with torch.autocast("cuda", torch.bfloat16, enabled=gpu):
+            with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
                 s = model(c, cfg["m"])
             loss = score(s.float(), t)
             M["opt"].zero_grad(set_to_none=True)
