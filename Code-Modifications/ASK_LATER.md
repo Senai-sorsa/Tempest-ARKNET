@@ -28,3 +28,32 @@ Local commits made by Claude would sit on top of `ba2e2df`; rebase them onto `sp
 
 Not built: needs the wind, shear, temperature and RH limits per vehicle or launch from the user. Send them and
 3.9 plus any go/no-go output get built.
+
+## 4. Real NASA Earth-GRAM for the comparison (PHASED_PLAN section 8)
+
+- **Reason:** the user wants the final system shown to beat Earth-GRAM. A statistical stand-in ("gauss", built the same way)
+  is scored already; the real program needs the NASA GRAM Suite, which must be requested from NASA (software catalog).
+- **Not done by Claude:** getting software that needs an account/agreement with an external party.
+- **Evidence:** E12 vs gauss table in PHASED_PLAN section 8.
+- **What to do:** obtain the GRAM Suite (Linux/WSL, has a Python API), tell Claude where it is installed; Claude then runs
+  it at Spaceport America and Midland for the 2024-25 test hours and scores it with the existing code.
+
+## 5. Data for the thermals check (PHASED_PLAN 3.3): sshf and high-resolution soundings
+
+- **Reason:** `tempest/output/thermals.py` (convective boundary-layer scaling) needs the surface sensible heat flux H.
+  ERA5's `sshf` is not in the Earthmover store (checked: `single/temporal` has blh, fg10, ssrd, ssr, slhf but no sshf). It
+  has to come from the Copernicus CDS (`reanalysis-era5-single-levels`, variable `surface_sensible_heat_flux`, box
+  31-34 N, 108-101 W, 1991-2025, hourly). The check of the coefficients needs NWS 1-second radiosonde data (balloon rise
+  rates) at Santa Teresa and Midland, which is not yet downloaded.
+- **Why not done:** the one CDS downloader (`fetch_cds`, 420 monthly requests, 33 done after a day) already fills the
+  user's queue; a second job would compete with it and break the "one downloader" rule in HANDOVER section 1.
+- **Evidence:** thermals module and its 4 physics unit tests exist; no data check yet. The module is off everywhere.
+- **What to do after `fetch_cds` finishes:** run a one-year-per-request pull of `surface_sensible_heat_flux` (35 requests,
+  small), then `tempest.profiles.surface_hourly` gets `sshf`, then compare `w_sigma` with rise-rate variance.
+
+## 6. Chronos-2 and CPC/IRI/NMME in the index-forecast bake-off (PHASED_PLAN 3.7)
+
+- Not run: needs a model download (Chronos-2 weights from Hugging Face) or archives of the other forecasts. The run that
+  was done (persistence, climatology, ridge regression, analog draw) already shows regression beating the analog draw.
+  Chronos-2 is a candidate for the improvement loop. Command idea: `pip install chronos-forecasting` into the venv, then add a
+  method in `scripts/index_bakeoff.py`.

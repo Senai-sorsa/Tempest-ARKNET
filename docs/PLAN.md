@@ -878,3 +878,60 @@ earlier code state. All Phase 1 and later comparisons use the re-scored baseline
 
 Phase 1 verdict: everything kept except the trust layer. Because of the stress finding (month-dependent T 5-12 km miss),
 a seasonal range map (E7) is a Phase 2 candidate, tested only if the Phase 2 retrain leaves the same weakness.
+
+## Phase 2 results (retrain; 2026-11-04/05; development years 2024-25; baseline = E12 re-scored, ERA5 skill15 +0.0273 / cov dev 0.0027, balloons +0.0071 / 0.0036)
+
+Datasets: `pilot80_p2.npz` (gmst, ONI hinges and lag, dpd humidity) and `pilot80_dpd.npz` (original inputs, dpd humidity), both
+the same 8,000,480 rows as E12's `pilot80_smix.npz`. Training as E12 (6000 steps, 4 members) unless stated.
+
+| # | Variant (configs/generator_*.toml) | What it contains | ERA5 skill15 / cov dev / min cov99 | Balloons skill15 / cov dev | Verdict |
+|---|---|---|---|---|---|
+| P2-a | p2: all flags (2.1-2.6) | dpd, gmst + hinges + lag, strides, EMA, lapse hinge | +0.0262 / 0.0036 / 0.9825 | +0.0051 / 0.0038 | **fails rule (a)**; bisected below |
+| P2-b | p2a: inputs + dpd, loss flags off | 2.1, 2.2, 2.3 | +0.0262 / 0.0033 / 0.9830 | +0.0061 / 0.0039 | same skill as p2: the loss group (2.4-2.6) did not cause the drop; but T 5-18 km worse (bias 5-12 km -0.43 K -> -0.59 K) |
+| P2-c | p2c: dpd only, original inputs | 2.1 | +0.0273 / 0.0029 / 0.9837 | +0.0072 / 0.0036 | **inputs (gmst, hinges) were the culprit**; dpd alone matches E12 on skill. Over-covers RH 1-5 km (0.994 vs 0.990, flagged by rule b) |
+| P2-d | p2d: P2-c + shear-tail loss 0.5 | new `shear_tail_weight` | +0.0274 / 0.0030 / 0.9832 | +0.0052 / 0.0037 | extreme shear stronger (99.9th pct 1-5 km 21.5 -> 23.4) |
+| P2-e | **p2e: P2-c + shear-tail loss 1.0** | `shear_tail_weight = 1.0` | **+0.0277 / 0.0032 / 0.9832** | **+0.0081 / 0.0040** | **adopted as the Phase 2 model** (`models/generator_80_p2e.pt`, calib `.calib2021.npz`, data `pilot80_dpd.npz`) |
+
+Item verdicts:
+- **2.1 dpd humidity: kept.** RH_2500 lower-tail miss 2.76 % -> 0.58 % (p2c) / 0.06 % (p2a); whole-profile RH 99 % coverage 0.852 -> 0.903 (p2a). Skill equal to E12.
+- **2.2 GMST input: rejected.** Fixes the low-level cold bias (0-5 km: -0.45 / -0.35 K -> -0.18 / -0.17 K) but T 5-12 km gets colder and T/RH skill at 5-18 km drops 0.005-0.008 (P2-b vs P2-c). Flag stays off (`--features p2`, `linear_features` unchanged).
+- **2.3 ONI hinges and lag: rejected** with 2.2 (confounded in P2-b; not separable without another build). Off.
+- **2.4 multi-stride step CRPS: rejected.** With everything else off it made extreme shear weaker, not stronger: 99.9th pct (1-5 / 5-12 / >12 km) E12 21.6 / 24.0 / 28.3, p2 20.9 / 22.7 / 27.5 (truth 25.7 / 30.3 / 34.8). Off (`step_strides` unset).
+- **2.5 EMA, 2.6 lapse hinge: not separable yet.** Only tested inside p2, which failed for other reasons; the hinge never fires on the data (no super-adiabatic samples above 2 km get penalised; unit test shows it acts when forced). Both stay off. EMA alone on top of p2e is queued (P2-f).
+- **2.7 ridge smoothing of the balloon correction: rejected offline** (`scripts/ridge_check.py`): lambda 0 wins on 2021-22 (level gap 1.009, 1.010, 1.013, 1.017, 1.038 for lambda 0, 1, 10, 100, 1000) and on 2023-25. `--ridge` stays 0.
+- **New: tail-weighted vector-shear loss** (`shear_tail_weight`, `shear_tail_q`): threshold-weighted CRPS of |vector shear| above its 90th percentile per layer. P2-e: 99th pct shear 1-5 km 17.9 (truth 17.9), 5-12 km 19.7 (20.7), >12 km 23.9 (25.1); 99.9th pct 23.5 / 26.2 / 30.3 (truth 25.7 / 30.3 / 34.8; E12 21.6 / 24.0 / 28.3). Cost: 0-1 km 99.9th pct 82.3 truth, E12 79.6, P2-e 76.9. Kept (weight 1.0).
+- Training time with strides + EMA was 23 min (over the 15 min guideline); p2c/p2d/p2e train in 14-15 min.
+- Noise: training-to-training variation is being measured with a second seed of P2-c (P2-g, running); until then differences below about 0.003 in a single cell are not conclusive.
+- Note on rule (b): in every variant that includes 2.1 the ERA5 cell RH 1-5 km is flagged because it is over-covered (0.994-0.995, target 0.990), not under-covered. Mean |cov99 - 0.99| stays 0.0029-0.0032 and the lowest band 0.983. Not repaired; candidate for the improvement loop (refit range calibration after dpd).
+
+**P2-g (training noise).** P2-c retrained with seed 1 (`generator_p2cs1`): mean skill15 ERA5 +0.0263 vs +0.0273 (seed 0), balloons +0.0052 vs +0.0072;
+per-cell skill15 differences between the two seeds: mean 0.0013 / 0.0026, maximum 0.0041 / 0.0094 (ERA5 / balloons); mean
+|cov99 - 0.99| 0.0030 vs 0.0029 (ERA5), 0.0035 vs 0.0036 (balloons). **Consequence:** a change in mean skill15 below about 0.002
+(ERA5) or 0.003 (balloons), or in a single cell below about 0.005 (balloons 0.01), cannot be told from a retraining. All
+Phase 2 skill differences between P2-c, P2-d and P2-e are inside this noise; only the shear percentiles (which moved by
+2-3 m/s per km, far outside seed variation of the physics check) and the RH tail are real effects. Future decisions on
+skill need either a larger margin or several seeds.
+
+## Phase 3 results (new modules and data; 2026-11-05; development years 2024-25 unless stated)
+
+Data note: the Earthmover store (`single/temporal`, `pressure/temporal`) holds gusts (`fg10`), boundary-layer height (`blh`), solar radiation
+(`ssrd`, `ssr`), latent heat flux (`slhf`) and vertical velocity (`w`, omega), so no CDS queue was needed except for `sshf` (sensible heat flux), which
+the store lacks (ASK_LATER 5). Pulled with `fetch_earthmover --only ...` (about 6 minutes in total); airport reports from the Iowa Mesonet
+(`fetch_asos`, MAF and TCS, 2000-2025).
+
+| # | Item | Test and numbers | Verdict |
+|---|---|---|---|
+| P3-1 | Gust module (`tempest/gust/`, `scripts/gust_check.py`): Gumbel regression on peak gust, inputs = model 10 m wind + season + hour + station (+ ERA5 fg10) | fit 2000-2020 (364k hourly reports), test 2024-25 (34k): CRPS 1.40 [1.36, 1.44] m/s vs 2.11 (bias-corrected fg10) and 2.21 (constant factor 1.48); 90 % range holds 0.890, 99 % holds 0.986; ERA5's own gust field adds nothing (1.395 vs 1.402). First version (reported-gust mixture bounded below by the model wind) held the 99 % range only 59 % of the time: dropped | **kept** (module off until the tool uses it) |
+| P3-2 | Vertical wind: a w-head (`tempest/output/whead.py`, `scripts/whead.py`, `build_wdata.py`), an Engression network conditioned on the sampled atmosphere, instead of 44 extra outputs of the main generator (223-output retrain) | data: omega -> w m/s via `thermo` on 8,000,480 rows (75.6 % have w; ERA5 w starts 1990-10-29); eval with m = 199 generated atmospheres per row: skill vs 15-yr climatology +0.0094 [0.0015, 0.0165] at 1-5 km, +0.0141 [0.0081, 0.0201] at 5-12 km, +0.0108 [0.0055, 0.0162] at 12-18 km, -0.0031 [-0.0160, 0.0077] at 0-1 km; 99 % range holds 0.984-0.989; spread/skill 0.91-0.94 (slightly narrow) | **kept** (deviation from the written plan: keeps the passed generator untouched; the Monte Carlo coupling is kept because w is drawn given the sample) |
+| P3-3 | Thermals (`tempest/output/thermals.py`): w*, Lenschow sigma_w, skewed height-coupled draws | 4 physics unit tests. The spec's sigma_w formula drops a square root (would be 34 % too strong); the variance form is used. **Not data-checked**: needs sshf and 1-second soundings (ASK_LATER 5) | built, **off**; check blocked |
+| P3-4 | Soak history (`profiles/surface_hourly.py`, `output/soak.py`, `scripts/soak_check.py`) | 800 test rows, final model p2e: overnight-minimum CRPS 1.875 [1.755, 2.003] K matched vs 2.063 [1.963, 2.177] unmatched; T_soak (tau 3/6/12 h) CRPS 2.20 / 2.08 / 2.03 matched vs 2.23 / 2.14 / 2.10; 90 % ranges hold 0.915-0.929 (target 0.90), 99 % ranges 0.993-0.996 | **kept** |
+| P3-5 | Longer record 1980-2023 with gmst inputs + shear loss (`generator_p35`) | queued behind P2-f | pending |
+| P3-6 | More IGRA stations | IGRA list checked: no other station inside the box 31-34 N, 108-101 W; nearest Albuquerque and Amarillo (1.0-1.2 deg north), Del Rio (1.6 S), Tucson (1.5 W) | **blocked by geometry**; needs a larger ERA5 box (CONUS stage) |
+| P3-7 | Index forecast bake-off (`scripts/index_bakeoff.py`, `ingest/index_forecast.py`) | 2012-2025 hindcasts, horizons 1-12 months, mean CRPS over horizons: ONI regression 0.342 vs analog K=8 0.424 vs climatology 0.457 vs persistence 0.636; QBO30 4.63 vs 5.91 vs 9.12; QBO50 2.75 vs 3.35 vs 4.89; WWV regression also best. At 12 months ONI regression 0.470 vs climatology 0.478 (skill gone). Chronos-2, CPC/IRI/NMME not run (ASK_LATER 6) | **regression kept** as the index forecast for the tool (joint draws); the analog draw stays the scoring default so numbers stay comparable |
+| P3-8 | Coupled file filled in (`coupled.build(extras=...)`) | placeholders replaced row for row; `w` joins the correlations; unit test. Coupling accuracy check (`scripts/coupling_check.py`, p2e, Midland June 17 h, 2000 real vs 600 generated): mean |difference of correlation| 0.046-0.053 per height band (sampling noise 0.021-0.025), vertical u/v/T/RH 0.038/0.055/0.033/0.061; shear 99 / 99.9 pct real 27.5 / 51.4, generated 26.7 / 52.6 | **kept**; coupling about twice the sampling noise off, not exact |
+| P3-9 | Launch-commit P(scrub) | needs the user's go/no-go limits | **blocked** (ASK_LATER 3) |
+
+### End-of-phase checklist (Phases 1-3), 2026-11-05
+- Phase 1: 1.0 tooling, 1.1 logger, 1.2 thermo, 1.3 trust (rejected, off), 1.4 joint band, 1.5 extras, 1.6 stress, 1.7 coupled files: all built, tested, logged (rows P1-a to P1-g). Gap found and closed: the coupled-file accuracy test (tests 1-2) is now `scripts/coupling_check.py` (row P3-8).
+- Phase 2: 2.1 kept; 2.2, 2.3, 2.4, 2.7 rejected; 2.5 EMA alone is running (P2-f); 2.6 lapse hinge off (never fires on the data); new shear-tail loss kept.
+- Phase 3: 3.1, 3.2, 3.4, 3.7, 3.8 built and tested; 3.3 built, data check blocked; 3.5 pending; 3.6 and 3.9 blocked with reasons above.
