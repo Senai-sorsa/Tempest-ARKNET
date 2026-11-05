@@ -117,15 +117,15 @@ def main():
     truth = to_physical(np.asarray(d["target"][rows]))
     cond = d["cond"]
     if a.drawn_drivers:
-        from tempest.generator.features import FEATURES
-        from tempest.scoring.score import DRIVERS, group_keys  # late import: score imports this module
+        from tempest.generator.features import FEATURES, drivers
+        from tempest.scoring.score import group_keys  # late import: score imports this module
         keys = group_keys(np.asarray(cond))
         tr = np.flatnonzero(year < (a.from_year or fy))
         tr = tr[np.argsort(keys[tr], kind="stable")]
         lo, hi = np.searchsorted(keys[tr], keys[rows], "left"), np.searchsorted(keys[tr], keys[rows], "right")
         assert (hi > lo).all(), "a fit row has no earlier-year group to draw drivers from"
         draws = tr[lo[:, None] + (rng.random((len(rows), a.m)) * (hi - lo)[:, None]).astype(np.int64)]
-        dc = [FEATURES.index(k) for k in DRIVERS]
+        dc = [FEATURES.index(k) for k in drivers()]
 
     def inputs(i):
         rep = np.repeat(cond[rows[i:i + 1000]], a.m, 0)

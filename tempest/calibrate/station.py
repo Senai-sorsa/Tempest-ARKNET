@@ -94,12 +94,24 @@ def moisture(levels):
     return levels[:, PROFILE.index("RH"), (HEIGHTS >= 5000) & (HEIGHTS <= 13000)].mean(1)
 
 
-def fit(era, obs, groups, n_groups, pool_max=3000, seed=0):
+def smooth(x, lam):
+    """Whittaker smoother along the last axis: argmin |x - z|^2 + lam |second difference of z|^2 (ridge on curvature).
+    lam = 0 returns x unchanged. NaN-free input only."""
+    if not lam:
+        return x
+    n = x.shape[-1]
+    d = np.diff(np.eye(n), 2, axis=0)
+    return np.linalg.solve(np.eye(n) + lam * d.T @ d, x.T).T
+
+
+def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0):
     """Paired level-space profiles (S, 4, 44) + group per sounding -> dict a, b (G, 4, 44) of balloon ~ a + b * ERA5
     (least squares per height; identity where < 50 pairs), moisture tercile cuts (G, 2) of ERA5 RH 5-13 km and
     pool (G, 3, pool_max, 4, 44) of complete leftover profiles per tercile, n (G, 3) of them (0 = none added).
     Leftovers come from soundings as moist as the one corrected: balloon-vs-ERA5 RH scatter is much larger in moist
-    air (2023-25 check: RH CRPS 9-18 km -8 %, other variables equal or slightly better)."""
+    air (2023-25 check: RH CRPS 9-18 km -8 %, other variables equal or slightly better).
+    ridge > 0 smooths each slope b(z) across heights (Whittaker, penalty on curvature) and refits a(z) so the mean is
+    kept; 0 (default) is the per-height fit as before."""
     rng = np.random.default_rng(seed)
     shape = (n_groups,) + era.shape[1:]
     a, b = np.zeros(shape, np.float32), np.ones(shape, np.float32)
@@ -107,6 +119,7 @@ def fit(era, obs, groups, n_groups, pool_max=3000, seed=0):
     cuts = np.zeros((n_groups, 2), np.float32)
     for g in range(n_groups):
         E, O = era[groups == g], obs[groups == g]
+        mean_e, mean_o, has = np.zeros(E.shape[1:]), np.zeros(E.shape[1:]), np.zeros(E.shape[1:], bool)
         for i in range(E.shape[1]):
             for k in range(E.shape[2]):
                 ok = np.isfinite(E[:, i, k]) & np.isfinite(O[:, i, k])
@@ -114,6 +127,12 @@ def fit(era, obs, groups, n_groups, pool_max=3000, seed=0):
                     e, o = E[ok, i, k].astype(np.float64), O[ok, i, k].astype(np.float64)
                     b[g, i, k] = np.cov(e, o)[0, 1] / max(e.var(ddof=1), 1e-9)
                     a[g, i, k] = o.mean() - b[g, i, k] * e.mean()
+                    mean_e[i, k], mean_o[i, k], has[i, k] = e.mean(), o.mean(), True
+        if ridge:  # smooth the slopes where all heights have a fit, then refit the intercepts to keep each height's mean
+            for i in range(E.shape[1]):
+                if has[i].all():
+                    b[g, i] = smooth(b[g, i].astype(np.float64), ridge)
+                    a[g, i] = mean_o[i] - b[g, i] * mean_e[i]
         R = O - (a[g] + b[g] * E)
         keep = np.isfinite(R).all((1, 2))
         if keep.sum() < 50:
@@ -212,6 +231,8 @@ def main():
     ap.add_argument("--first-year", type=int, default=1991)
     ap.add_argument("--last-year", type=int, default=2020)  # validation starts 2021
     ap.add_argument("--check-to", type=int, default=2025)
+    ap.add_argument("--ridge", type=float, default=0.0, help="smooth the correction slopes across heights (0 = off, the "
+                    "per-height fit); choose it offline with scripts/ridge_check.py")
     a = ap.parse_args()
 
     ds = xr.open_zarr(a.profiles)
@@ -226,7 +247,7 @@ def main():
     def gcat(sel):
         return np.concatenate([g[m] for g, m in zip(groups, sel)])
 
-    t = fit(cat(1, fit_rows), cat(2, fit_rows), gcat(fit_rows), len(STATIONS) * 8)
+    t = fit(cat(1, fit_rows), cat(2, fit_rows), gcat(fit_rows), len(STATIONS) * 8, ridge=a.ridge)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     lat, lon = np.array(list(STATIONS.values())).T
     np.savez(a.out, **t, lat=lat, lon=lon, stations=np.array(list(STATIONS)),

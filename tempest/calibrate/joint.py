@@ -67,8 +67,8 @@ def load(path, model=None, calib=None):
 
 
 def main():
-    from tempest.generator.features import FEATURES
-    from tempest.scoring.score import DRIVERS, group_keys  # late import: score imports this module
+    from tempest.generator.features import FEATURES, drivers
+    from tempest.scoring.score import group_keys  # late import: score imports this module
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
     ap.add_argument("--data", required=True)
@@ -96,7 +96,7 @@ def main():
     keep = hi > lo
     rows, lo, hi = rows[keep], lo[keep], hi[keep]
     draws = tr[lo[:, None] + (rng.random((len(rows), a.m)) * (hi - lo)[:, None]).astype(np.int64)]
-    dc = [FEATURES.index(k) for k in DRIVERS]
+    dc = [FEATURES.index(k) for k in drivers()]
     truth = to_physical(np.asarray(target[rows]))
     D, n = truth.shape[1], len(HEIGHTS)
     # whole-profile coverage needs all rows at once per variable; keep only the three statistics the band needs

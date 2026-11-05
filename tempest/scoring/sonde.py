@@ -20,7 +20,7 @@ import xarray as xr
 from tempest.calibrate import spread, trust
 from tempest.calibrate.station import ELEV, STATIONS, nearest_point, read_igra
 from tempest.generator.build_dataset import solar_hour
-from tempest.generator.features import FEATURES, features
+from tempest.generator.features import FEATURES, drivers, features
 from tempest.generator.sample import SURFACE, Sampler, to_site
 from tempest.generator.train import load_npz
 from tempest.ingest import indices
@@ -87,6 +87,7 @@ def main():
         return trust.apply_full(tw, x, q) if tw is not None else x
     ds = xr.open_zarr(a.profiles)
     tbl = indices.load(a.indices)
+    gm = indices.gmst_table(a.indices) if "gmst" in FEATURES else None
 
     truth, clim, gauss, known, unknown, months, sids, years = [], [], [], [], [], [], [], []
     clim15, days = [], []  # recent-years baseline and day ids for the headline table
@@ -118,12 +119,15 @@ def main():
             gauss.append(gaussian_samples(phys[r].astype(np.float64), len(v), a.m, rng))
             tv = t[v]
             cond = features(lat, lon, z, z, tv.dayofyear.to_numpy(), solar_hour(tv, np.array([lon]))[0],
-                            tv.year.to_numpy(), *indices.at(tbl, tv)[:, [0, 3, 1, 2]].T)  # at(): oni, qbo30, qbo50, wwv
+                            tv.year.to_numpy(), *indices.at(tbl, tv)[:, [0, 3, 1, 2]].T,  # at(): oni, qbo30, qbo50, wwv
+                            **indices.feature_extras(FEATURES, tbl, gm, tv))
             rep = np.repeat(cond, a.m, axis=0)
             q = qpool.quantiles(trust.keys_like(ref_cond, cond)) if qpool else None  # grid-level climatology of this group
             known.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
-            dc = [FEATURES.index(k) for k in DRIVERS]
-            rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, t[draws.ravel()])[:, [0, 3, 1, 2]].T)[:, dc]
+            dc = [FEATURES.index(k) for k in drivers()]
+            td = t[draws.ravel()]
+            rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, td)[:, [0, 3, 1, 2]].T,
+                                  **({k: (v if k == 'oni_lag3' else 0) for k, v in indices.feature_extras(FEATURES, tbl, gm, td).items()}))[:, dc]
             unknown.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
     truth, years = np.concatenate(truth), np.concatenate(years)
     sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]

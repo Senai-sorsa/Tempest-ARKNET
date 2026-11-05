@@ -26,7 +26,7 @@ import pandas as pd
 import torch
 
 from tempest.calibrate import spread, trust
-from tempest.generator.features import FEATURES
+from tempest.generator.features import FEATURES, drivers
 from tempest.generator.sample import SURFACE, Sampler, clip_ranges, to_physical
 from tempest.generator.train import load_npz
 from tempest.scoring import diag
@@ -174,7 +174,7 @@ def main():
     known = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         known = spread.apply(cal, known)
-    dc = [FEATURES.index(k) for k in DRIVERS]
+    dc = [FEATURES.index(k) for k in drivers()]  # oni, wwv, qbo (+ the ONI hinges and lag when the dataset has them)
     rep[:, dc] = cond[draws.ravel()][:, dc]
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
