@@ -60,3 +60,10 @@ Not built: needs the wind, shear, temperature and RH limits per vehicle or launc
   was done (persistence, climatology, ridge regression, analog draw) already shows regression beating the analog draw.
   Chronos-2 is a candidate for the improvement loop. Command idea: `pip install chronos-forecasting` into the venv, then add a
   method in `scripts/index_bakeoff.py`.
+
+## 7. Two Colab notebooks to run when you are at the computer (optional, each saves hours or days)
+
+Both extract a small box from Google's public archives inside Google's network, so nothing large comes to your machine.
+- `notebooks/arco_fill_colab.md`: the 8 boundary-layer ERA5 levels (975-750 hPa) from ARCO-ERA5, as `<yyyymm>.nc`, run newest month first. Speeds up or replaces the CDS download.
+- `notebooks/wb2_colab.md`: IFS HRES forecasts 2016-2022 at 1/3/5/7 days (a few MB per year). Needed for the calibrated forecast modes (IL-6).
+Copy the outputs to `data/raw/era5_cds/` and `data/raw/wb2_hres/`, then tell Claude.
