@@ -10,7 +10,8 @@ Goal: the user can walk away for hours or days. Nothing below needs the user. Ev
 4. Verdict rule for every item: run `scripts/compare_headline.py` on ERA5 and on balloons against the adopted model (p2f). **Keep** if the phase pass rule holds on both (mean skill15 not lower, no band worse with non-overlapping intervals, mean cov99 error not worse by more than 0.001) AND there is a real gain (mean skill15 up by more than 0.001, or mean cov99 error down by more than 0.0005 without a band getting worse). Otherwise **discard** (flag stays off; code stays; one `salvage` look: which bands gained, can a restricted version be queued once).
 5. Log every item as a row in `docs/PLAN.md` (improvement-loop queue table plus a result line), commit locally (small commits, NO Claude attribution, never push, never `data/` or `models/`).
 6. Machine rules: 12 CPUs (`source scripts/cap_cpu.sh`), one GPU job, never edit a running script, never run pytest while a scoring job runs, 2026 Jan-Jun is only touched in the final test (E4).
-7. Stop rule for the improvement loop: three consecutive finished items (kept or discarded) with no kept gain, counted over groups S and G below -> go to group E.
+7. NO stop rule on failures (user decision 2026-11-05): a string of discarded items never ends the loop. Keep taking the next item. Group E starts only when the queue AND the idea backlog (below) hold no `todo` item that can run without the user; items waiting on user data stay `blocked-on-data` and are re-checked each tick.
+7b. **Idea intake (standing rule):** every time a possible improvement shows up (a limit found while building, a pattern in a result, a bias that a fix leaves open, a new source, a salvageable part of a discarded item), append it at once to the idea backlog below as a new `IL-n` row (hypothesis, why it might work, how to test, state `todo`). Do this when the idea appears, not later. The backlog is part of the queue.
 8. Safety net: a recurring wake-up prompt ("Autopilot tick") re-enters this file every ~25 minutes while the session lives. It is session-only; if the session ended, a new session reads this file and continues.
 
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
@@ -29,6 +30,22 @@ Goal: the user can walk away for hours or days. Nothing below needs the user. Ev
 | 4.6 | D | 21-level retrain of mode P and the generator | when `data/raw/era5_cds` has 420 months (CDS or ARCO .nc): `to_heights`, rebuild dataset, retrain p2f, verdict | data | blocked-on-data |
 | IL-17 | L | Analog-driver K tuning (A6), block validation (row 20) | existing scripts | CPU/GPU | todo |
 | IL-18 | L | 2C shear codebook / 2B spectral generator probes | only if G items showed that structure matters | GPU | todo |
+
+## Idea backlog (add rows whenever an idea appears; they are queue items)
+| ID | Group | Idea and why | Test | State |
+|---|---|---|---|---|
+| IL-19 | S | IL-13's shift is a 2021-23 average, so it cannot follow a warming trend. Fit the shift per year over a longer window (2015-23, using only years not used to train the shift target) and extrapolate a linear trend in the shift; or let the shift depend on year with a ridge slope | `tempest/calibrate/shift.py --trend`; test 2024-25 vs plain shift | todo |
+| IL-20 | S | Shift per calendar month (smoothed 3 months) and per hour bin: the cold bias is probably seasonal/diurnal like the T 5-12 km summer miss | month x band shift, same fit window | todo |
+| IL-21 | S | IL-2/IL-11 and IL-13 share one idea (a table over month x band): fit them jointly (shift then width) so the width is measured around the shifted median | joint fit script | todo |
+| IL-22 | S | Stack IL-10 (trust), IL-11, IL-12, IL-13 in the best order and re-fit each on the output of the previous one (they were fitted separately) | stack run, then verdict vs p2f | todo |
+| IL-23 | G | Pool the members of the token model (IL-8) with the MLP members (p2f) into one ensemble: different architectures make different errors | `Sampler` over a merged members file; score | todo (after IL-8) |
+| IL-24 | S | Worst measured cells (stress table): DJF evening t2m skill15 -0.046, T 0-1 km -0.038, JJA evening T 5-12 km cov99 0.955: cell-specific blend toward the 15-year climatology (trust idea) or width fix for exactly these season x hour cells, chosen on 2021-23 | month x hour-bin table for t2m / T low | todo |
+| IL-25 | S | Shear patch rate p and size per band were fixed (p = 0.05, 0.01): fit p jointly with sigma on the calibration years (grid over p) instead of picking | `shear_tail --p` grid + physics check | todo |
+| IL-26 | D | QBO forecast: ridge beat Chronos and analog, but a phase-aware model (QBO is nearly periodic, ~28 months) should do better still: regression on sin/cos of the QBO phase from the last values | `scripts/index_bakeoff.py` new method | todo |
+| IL-27 | D | WWV is in raw m3 (1e13): standardising/log before ridge and analog may change which method wins (the covariance fix in the numpy tool already needed it) | bake-off with standardised WWV | todo |
+| IL-28 | S | Balloon-side: IL-11 could not be scored against balloons (no month hook in `sonde`); add the month so seasonal tables can be judged on balloons too | patch `sonde.py` draw() with month | todo |
+| IL-29 | G | After IL-8/IL-9: if tokens help the shear tail, try depth/width of the token model (d = 192, 6 layers) and a second pass with the shear-tail loss weight raised | variants of `configs/generator_il8.toml` | todo (after IL-8) |
+| IL-30 | D | Mode P with the 21 levels (4.6) and the ARCO fill: retrain residual network and compare MAE vs balloons 2.571 | after 420 months exist | blocked-on-data |
 
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)
 | ID | Step | How |
