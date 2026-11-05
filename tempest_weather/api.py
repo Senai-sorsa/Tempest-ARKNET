@@ -130,6 +130,8 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     hour12 = 1.0 if 6 <= t_utc.hour < 18 else 0.0
     era = np.concatenate([e["u"], e["v"], e["T"], e["RH"]]).astype(np.float32)
     cond = np.concatenate([[st, np.sin(a), np.cos(a), hour12], era]).astype(np.float32)
+    if A["manifest"].get("modep_post2022"):                        # F-11 part 2: the network was trained with the post-2022 indicator (1 from 2022 on = the current humidity sensors)
+        cond = np.concatenate([cond, [1.0 if t_utc.year >= 2022 else 0.0]]).astype(np.float32)
     groups = int(np.ceil(n / M_CAL))
     res = A["modep"].sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
     x = era[None, None, :] + res

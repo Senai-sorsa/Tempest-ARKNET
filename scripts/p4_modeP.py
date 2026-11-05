@@ -37,6 +37,7 @@ def main():
     ap.add_argument("--m", type=int, default=199)
     ap.add_argument("--retrain", action="store_true")
     ap.add_argument("--tendency", action="store_true", help="add ERA5 one hour later minus at launch as network inputs (balloon climb time)")
+    ap.add_argument("--post2022", action="store_true", help="F-11 part 2: add an indicator input that is 1 for soundings from 2022 on (humidity sensor change); queries always get 1")
     a = ap.parse_args()
     rng = np.random.default_rng(0)
     torch.manual_seed(0)
@@ -48,12 +49,12 @@ def main():
     if a.retrain or not os.path.exists(a.out):
         cfg = dict(width=a.width, depth=a.depth, noise_dim=16, m=4, batch=512, steps=a.steps, eval_every=250, patience=10, val_years=3,
                    lr=1e-3, es_weight=0.1, step_weight=0.0, linear_features=[])
-        train(P.cond_matrix(tr), P.residual(tr), tr["time"].year.to_numpy(), cfg, out=a.out, device=a.device, meta=dict(cond_names=P.COND_NAMES_TEND if a.tendency else P.COND_NAMES), members=a.members)
+        train(P.cond_matrix(tr, a.post2022), P.residual(tr), tr["time"].year.to_numpy(), cfg, out=a.out, device=a.device, meta=dict(cond_names=P.COND_NAMES_POST if a.post2022 else (P.COND_NAMES_TEND if a.tendency else P.COND_NAMES)), members=a.members)
     net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
     m = a.m
 
     def draw_net(dd):
-        c = P.cond_matrix(dd)
+        c = P.cond_matrix(dd, a.post2022)
         res = net(np.repeat(c, m, 0)).reshape(len(c), m, -1)
         return P.to_physical(dd["era"].reshape(len(c), -1), res)
     tmap = station.load(a.map)

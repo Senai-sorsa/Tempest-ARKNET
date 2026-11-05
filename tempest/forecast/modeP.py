@@ -19,6 +19,7 @@ D = NV * NH  # 176 profile columns
 BANDS = [(0, 1000), (1000, 5000), (5000, 12000), (12000, 18001)]
 COND_NAMES = ["station", "doy_sin", "doy_cos", "hour12"] + [f"era_{i}" for i in range(D)]
 COND_NAMES_TEND = COND_NAMES + [f"tend_{i}" for i in range(D)]
+COND_NAMES_POST = COND_NAMES + ["post2022"]       # F-11 part 2: 1 for soundings from 2022 on (new humidity sensor); every query is "post", so the network can learn the old/new offset from all years
 
 
 def load_pairs(profiles, igra, first=1991, last=2025, tendency=False):
@@ -42,13 +43,15 @@ def load_pairs(profiles, igra, first=1991, last=2025, tendency=False):
     return out
 
 
-def cond_matrix(d):
-    """Network inputs: station, season harmonics, launch hour, and the ERA5 profile."""
+def cond_matrix(d, post=False):
+    """Network inputs: station, season harmonics, launch hour, and the ERA5 profile (+ post-2022 indicator when post=True)."""
     a = 2 * np.pi * d["time"].dayofyear.to_numpy() / 365.25
     head = np.stack([d["station"], np.sin(a), np.cos(a), d["hour12"]], 1).astype(np.float32)
     parts = [head, d["era"].reshape(len(head), D).astype(np.float32)]
     if "tend" in d:
         parts.append(d["tend"].reshape(len(head), D).astype(np.float32))
+    if post:
+        parts.append((d["time"].year.to_numpy() >= 2022).astype(np.float32)[:, None])
     return np.concatenate(parts, 1)
 
 
