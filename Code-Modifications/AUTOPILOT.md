@@ -16,11 +16,11 @@ Goal: the user can walk away for hours or days. Nothing below needs the user. Ev
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |
 |---|---|---|---|---|---|
-| IL-8 | G | Height-token generator (attention along the 44 heights) | new `tempest/generator/tokens.py` + config key `arch = "tokens"` (default `"mlp"`), `configs/generator_il8.toml`, train with `scripts/phase2_variant.sh VAR=il8 FEAT=base DS=pilot80_dpd`, then verdict vs p2f | GPU 1-2 h | todo |
-| IL-10 | S | Trust layer refit on p2f, bands chosen on 2021-23 gain only, RH>=5 km and u/T aloft at zero | `python -m tempest.calibrate.trust ...` with a band mask option; `score --trust` | GPU 20 min | todo |
-| IL-11 | S | Seasonal factors for RH and surface groups only | mask `models/generator_80_p2f.seasonal2021.npz` (scale 1 elsewhere); `score --seasonal` | GPU 15 min | todo |
-| IL-12 | S | Shear patches at 5-12 km only | `shear_tail` with `sigma=[0,0,s,0]`, refit s; physics check + `score --shear-tail` | GPU 20 min | todo |
-| IL-13 | S | Median bias shift per variable x band fitted on 2021-23 | new `tempest/calibrate/shift.py` + `score --shift`; median error and skill | GPU 20 min | todo |
+| IL-8 | G | Height-token generator (attention along the 44 heights) | new `tempest/generator/tokens.py` + config key `arch = "tokens"` (default `"mlp"`), `configs/generator_il8.toml`, train with `scripts/phase2_variant.sh VAR=il8 FEAT=base DS=pilot80_dpd`, then verdict vs p2f | GPU 1-2 h | running (started 10:14, log data/phase2_train_il8.log; checkpointing keeps it inside 12 GB) |
+| IL-10 | S | Trust layer refit on p2f, bands chosen on 2021-23 gain only, RH>=5 km and u/T aloft at zero | `python -m tempest.calibrate.trust ...` with a band mask option; `score --trust` | GPU 20 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
+| IL-11 | S | Seasonal factors for RH and surface groups only | mask `models/generator_80_p2f.seasonal2021.npz` (scale 1 elsewhere); `score --seasonal` | GPU 15 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
+| IL-12 | S | Shear patches at 5-12 km only | `shear_tail` with `sigma=[0,0,s,0]`, refit s; physics check + `score --shear-tail` | GPU 20 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
+| IL-13 | S | Median bias shift per variable x band fitted on 2021-23 | new `tempest/calibrate/shift.py` + `score --shift`; median error and skill | GPU 20 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
 | IL-9 | G | Mask tokens with random input dropout + arcsinh scaling for shear/gust targets | extend the IL-8 code, or add to the MLP: `input_dropout`, `target_arcsinh` | GPU 1-2 h | todo |
 | IL-14 | S | Chronos + ridge average for ONI/WWV | `scripts/chronos_bakeoff.py --blend` (CPU; libs via `CHRONOS_LIB`) | CPU 15 min | todo |
 | IL-15 | S | Mode P tendency inputs for wind columns only | `scripts/p4_modeP.py --tendency` with a column mask | GPU 15 min | todo |
