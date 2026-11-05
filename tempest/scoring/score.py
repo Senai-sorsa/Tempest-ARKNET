@@ -114,6 +114,7 @@ def main():
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
+    ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib); outputs get a _seas suffix")
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
                     "samples toward the 15-year climatology where the model has no skill (outputs get a _trust suffix)")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
@@ -181,6 +182,13 @@ def main():
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         unknown = spread.apply(cal, unknown)
+    if a.seasonal:
+        if not cal:
+            raise SystemExit("--seasonal needs --calib")
+        from tempest.calibrate import seasonal
+        sw = dict(np.load(a.seasonal))
+        mon = (keys[va] // 12) % 12 + 1
+        known, unknown = seasonal.apply(sw, known, mon), seasonal.apply(sw, unknown, mon)
     if a.trust:
         if not cal:
             raise SystemExit("--trust needs --calib")
@@ -205,7 +213,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 

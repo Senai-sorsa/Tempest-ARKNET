@@ -36,10 +36,11 @@ def main():
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--m", type=int, default=199)
     ap.add_argument("--retrain", action="store_true")
+    ap.add_argument("--tendency", action="store_true", help="add ERA5 one hour later minus at launch as network inputs (balloon climb time)")
     a = ap.parse_args()
     rng = np.random.default_rng(0)
     torch.manual_seed(0)
-    d = P.load_pairs(a.profiles, a.igra)
+    d = P.load_pairs(a.profiles, a.igra, tendency=a.tendency)
     yr, hr = d["time"].year.to_numpy(), d["time"].hour.to_numpy()
     sel = lambda m: {k: (v[m] if not isinstance(v, pd.DatetimeIndex) else v[m]) for k, v in d.items()}
     tr, cal, te = sel(yr <= 2020), sel((yr >= 2021) & (yr <= 2023) & (hr == 0)), sel((yr >= 2024) & (hr == 0))
@@ -47,7 +48,7 @@ def main():
     if a.retrain or not os.path.exists(a.out):
         cfg = dict(width=a.width, depth=a.depth, noise_dim=16, m=4, batch=512, steps=a.steps, eval_every=250, patience=10, val_years=3,
                    lr=1e-3, es_weight=0.1, step_weight=0.0, linear_features=[])
-        train(P.cond_matrix(tr), P.residual(tr), tr["time"].year.to_numpy(), cfg, out=a.out, device=a.device, meta=dict(cond_names=P.COND_NAMES), members=a.members)
+        train(P.cond_matrix(tr), P.residual(tr), tr["time"].year.to_numpy(), cfg, out=a.out, device=a.device, meta=dict(cond_names=P.COND_NAMES_TEND if a.tendency else P.COND_NAMES), members=a.members)
     net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
     m = a.m
 

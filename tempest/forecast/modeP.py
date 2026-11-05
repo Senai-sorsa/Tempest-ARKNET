@@ -18,18 +18,25 @@ NV, NH = len(PROFILE), len(HEIGHTS)
 D = NV * NH  # 176 profile columns
 BANDS = [(0, 1000), (1000, 5000), (5000, 12000), (12000, 18001)]
 COND_NAMES = ["station", "doy_sin", "doy_cos", "hour12"] + [f"era_{i}" for i in range(D)]
+COND_NAMES_TEND = COND_NAMES + [f"tend_{i}" for i in range(D)]
 
 
-def load_pairs(profiles, igra, first=1991, last=2025):
+def load_pairs(profiles, igra, first=1991, last=2025, tendency=False):
     """-> dict(time, station, hour12, era (S, 4, 44), obs (S, 4, 44)) for soundings with a complete ERA5 and balloon profile."""
     ds = xr.open_zarr(profiles)
     keep = []
     for s, (sid, (lat, lon)) in enumerate(station.STATIONS.items()):
         t, prof, _ = station.read_igra(f"{igra}/{sid}-drvd.txt.zip", first, last)
-        era = station.era5_at(ds, station.nearest_point(ds, lat, lon), t)
+        pt = station.nearest_point(ds, lat, lon)
+        era = station.era5_at(ds, pt, t)
         ok = np.isfinite(era).all((1, 2)) & np.isfinite(prof).all((1, 2))
-        keep.append(dict(time=t[ok], station=np.full(int(ok.sum()), s), era=era[ok], obs=prof[ok]))
-    out = {k: np.concatenate([x[k] for x in keep]) for k in ("station", "era", "obs")}
+        row = dict(time=t[ok], station=np.full(int(ok.sum()), s), era=era[ok], obs=prof[ok])
+        if tendency:  # ERA5 one hour after the nominal launch minus at it: a balloon climbs for ~90 min, so the air it sampled is not the launch-hour air
+            nxt = station.era5_at(ds, pt, t + pd.Timedelta(hours=1))
+            ok2 = ok & np.isfinite(nxt).all((1, 2))
+            row = dict(time=t[ok2], station=np.full(int(ok2.sum()), s), era=era[ok2], obs=prof[ok2], tend=(nxt - era)[ok2])
+        keep.append(row)
+    out = {k: np.concatenate([x[k] for x in keep]) for k in ("station", "era", "obs") + (("tend",) if tendency else ())}
     out["time"] = pd.DatetimeIndex(np.concatenate([x["time"].values for x in keep]))
     out["hour12"] = (out["time"].hour == 12).astype(np.float32)
     return out
@@ -39,7 +46,10 @@ def cond_matrix(d):
     """Network inputs: station, season harmonics, launch hour, and the ERA5 profile."""
     a = 2 * np.pi * d["time"].dayofyear.to_numpy() / 365.25
     head = np.stack([d["station"], np.sin(a), np.cos(a), d["hour12"]], 1).astype(np.float32)
-    return np.concatenate([head, d["era"].reshape(len(head), D).astype(np.float32)], 1)
+    parts = [head, d["era"].reshape(len(head), D).astype(np.float32)]
+    if "tend" in d:
+        parts.append(d["tend"].reshape(len(head), D).astype(np.float32))
+    return np.concatenate(parts, 1)
 
 
 def residual(d):

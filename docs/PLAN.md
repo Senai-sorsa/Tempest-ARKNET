@@ -962,3 +962,11 @@ w at 1 km sd 3.1 cm/s, T_soak (tau 6 h) 302.8 K, 24 h t2m range 14 K. Still NaN:
 ### Final state of the Phase 3 checklist (2026-11-05)
 3.1 gust built and kept; 3.2 vertical wind built (as a conditional head) and kept; 3.3 thermals built, data check blocked (ASK_LATER 5); 3.4 soak kept; 3.5 run and rejected; 3.6 blocked by geometry;
 3.7 index forecast kept; 3.8 coupled files filled and end-to-end demo (`tempest/output/atmosphere.py`) plus the tool; 3.9 blocked on the user's limits. Every kept item has a test and a row above.
+
+## Improvement loop (after Phase 5; each row: one change, tested on the development years 2024-25 unless stated; noise level: training-to-training about 0.002 mean skill15)
+
+| # | Change | Result | Verdict |
+|---|---|---|---|
+| IL-1 | Past-date network (mode P) gets ERA5 one hour after launch minus ERA5 at launch as extra inputs (`p4_modeP.py --tendency`; a balloon climbs ~90 min) | hybrid mean MAE vs balloons 2.571 -> 2.561, CRPS 1.867 -> 1.864 (0.4 %); wind aloft 1-2 % better, RH 0-1 km worse (+0.15 %) ; inside the noise | rejected (flag off) |
+
+| IL-2 | Seasonal width factors (month x variable-band) on top of the range map; flag `score --seasonal`, off by default | Code and tests written (`tempest/calibrate/seasonal.py`, `tests/test_seasonal.py`); fit on 2021-23 and test on 2024-25 queued behind the fold-2 GPU job | pending |
