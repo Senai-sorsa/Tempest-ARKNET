@@ -12,3 +12,4 @@ data/
 models/
 .ecmwfdatastoresrc
 .pytest_cache/
+out/

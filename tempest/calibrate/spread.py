@@ -58,8 +58,9 @@ def table(z, u, groups=None):
     return dict(qz=qz, qu=qu)
 
 
-def apply(table, samples):
-    """samples (N, m, D) physical -> calibrated copy. Beyond the outer knots the end slope is extended."""
+def apply(table, samples, clip=True):
+    """samples (N, m, D) physical -> calibrated copy. Beyond the outer knots the end slope is extended. clip=False skips the
+    179-column RH range rule (for other column layouts, e.g. the profile-only residual model)."""
     if "m" in table and int(table["m"]) != samples.shape[1]:  # the 5-95 % width a map is fitted on depends on m
         raise ValueError(f"calibration fitted with m = {int(table['m'])}, applied to m = {samples.shape[1]}")
     z, med, hw = _standardise(samples.astype(np.float64))
@@ -73,7 +74,8 @@ def apply(table, samples):
         hi_s = (b[-1] - b[-5]) / max(a[-1] - a[-5], 1e-9)
         y = np.where(zj < a[0], b[0] + (zj - a[0]) * lo_s, y)
         out[..., j] = np.where(zj > a[-1], b[-1] + (zj - a[-1]) * hi_s, y)
-    return clip_ranges((med + out * hw).astype(samples.dtype))
+    res = (med + out * hw).astype(samples.dtype)
+    return clip_ranges(res) if clip else res
 
 
 def model_hash(path):
