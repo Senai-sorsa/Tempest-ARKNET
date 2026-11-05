@@ -181,15 +181,34 @@ def load(path):
     return dict(np.load(path))
 
 
-def correct(t, diff, lat, lon, month, solar_hour, rng):
+def blend_weights(t, lat, lon, solar_hour):
+    """F-20: soft versions of the two hard choices in `correct`. -> (station weights (N, S) from inverse squared distance, probability of the 12Z class (N,)
+    = a cosine ramp from 1 at 05:00 to 0 at 17:00 local solar time). The correction stays one coherent table set per row: `correct(blend=True)` draws the station and the
+    launch class from these weights, so neighbouring rows differ but no row mixes two tables, and the training target has no jump across the old seam (104.4 W) or the old 11:00 switch."""
+    d2 = (np.asarray(lat)[:, None] - t["lat"]) ** 2 + ((np.asarray(lon)[:, None] - t["lon"]) * np.cos(np.radians(np.asarray(lat)))[:, None]) ** 2
+    w = 1.0 / np.maximum(d2, 1e-6)
+    sh = np.asarray(solar_hour, float)
+    p12 = np.where(sh <= 5, 1.0, np.where(sh >= 17, 0.0, 0.5 + 0.5 * np.cos(np.pi * (sh - 5.0) / 12.0)))
+    return w / w.sum(1, keepdims=True), p12
+
+
+def correct(t, diff, lat, lon, month, solar_hour, rng, blend=False, return_group=False):
     """Correct difference-view ERA5 rows (N, 4, 44) anywhere in the box: nearest station's tables, season from
     month, and the launch hour nearer in local solar time (00Z ~ 17 h, 12Z ~ 05 h in the pilot box).
     shortcut: two stations stand in for the whole box and two launch hours for the whole day; add stations
     (or blend by distance) before leaving the pilot region."""
-    st = np.argmin((np.asarray(lat)[:, None] - t["lat"]) ** 2 + (np.asarray(lon)[:, None] - t["lon"]) ** 2, 1)
     sh = np.asarray(solar_hour)
-    hc = ((sh >= 23) | (sh < 11)).astype(int)
-    return to_diff(apply(t, from_diff(diff), group_id(st, month, hc), rng))
+    if blend:
+        w, p12 = blend_weights(t, lat, lon, sh)
+        u = rng.random(len(w))
+        st = (u[:, None] > np.cumsum(w, 1)).sum(1).clip(0, w.shape[1] - 1)
+        hc = (rng.random(len(w)) < p12).astype(int)
+    else:
+        st = np.argmin((np.asarray(lat)[:, None] - t["lat"]) ** 2 + (np.asarray(lon)[:, None] - t["lon"]) ** 2, 1)
+        hc = ((sh >= 23) | (sh < 11)).astype(int)
+    gid = group_id(st, month, hc)
+    out = to_diff(apply(t, from_diff(diff), gid, rng))
+    return (out, gid) if return_group else out
 
 
 def check(era, obs, cor):

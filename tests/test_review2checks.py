@@ -144,3 +144,12 @@ def test_tool_station_correction_equals_the_package_version_for_the_hybrid_colum
     d = (np.random.default_rng(1).random(1) * t["n"][5, j]).astype(int)[0]
     ref = np.clip(a + b * era[0, 3, 31:] + t["pool"][5, j, d, 3, 31:], 0, 100)
     assert np.allclose(out, ref, atol=1e-4)
+
+
+def test_station_blend_weights_and_correction():
+    """F-20: weights sum to one, the nearer station gets more, the 12Z probability falls from 1 at 05 h to 0 at 17 h; blended correction still returns whole, coherent rows."""
+    from tempest.calibrate import station
+    t = dict(lat=np.array([31.87, 31.95]), lon=np.array([-106.70, -102.19]))
+    w, p12 = station.blend_weights(t, np.array([31.9, 31.9, 31.9]), np.array([-106.5, -104.4, -102.4]), np.array([6.0, 11.0, 18.0]))
+    assert np.allclose(w.sum(1), 1) and w[0, 0] > w[0, 1] and w[2, 1] > w[2, 0] and abs(w[1, 0] - w[1, 1]) < 0.15
+    assert p12[0] > 0.9 and abs(p12[1] - 0.5) < 0.1 and p12[2] == 0.0

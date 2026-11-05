@@ -52,6 +52,9 @@ def main():
                     "year, plus ONI hinges and a 3-month lagged ONI (Phase 2 items 2.2, 2.3); base = the original 13 columns")
     ap.add_argument("--rh-target", choices=["rh", "dpd"], default="rh", help="dpd: learn humidity as ln(T - Td + 1 K) so that "
                     "RH <= 100 %% by construction (Phase 2 item 2.1); rh = relative humidity as before")
+    ap.add_argument("--station-blend", action="store_true", help="F-20: draw the correcting station by inverse-distance weights and the launch class by a cosine ramp over 05-17 h solar "
+                    "(no Voronoi seam, no 11:00 switch); default off = the hard nearest-station / 11:00 rule")
+    ap.add_argument("--sidecar", action="store_true", help="F-35: also store row provenance (grid point, UTC time, correction group, correction version) in the npz")
     a = ap.parse_args()
     if a.features == "p2":
         feat.set_active(feat.P2_FEATURES)
@@ -80,6 +83,7 @@ def main():
     cond = np.empty((n, len(FEATURES)), np.float32)
     target = np.empty((n, 4 * len(HEIGHTS) + len(SURFACE)), np.float32)
     year = np.empty(n, np.int16)
+    prov = dict(point=np.empty(n, np.int32), time=np.empty(n, "datetime64[h]"), group=np.full(n, -1, np.int16))
     r = 0
     for i0 in range(0, len(times), block):
         s = sel[:, i0:i0 + block]
@@ -89,8 +93,9 @@ def main():
         b = ds.isel(time=slice(i0, i0 + block)).load()
         tt = times[i0 + t]
         diffs = np.stack([to_diff(b[v].values[p, t]) for v in PROFILE], 1)  # (n, variable, height)
+        gid = None
         if qm is not None:
-            diffs = station.correct(qm, diffs, lat[p], lon[p], tt.month.to_numpy(), sh[p, i0 + t], crng)
+            diffs, gid = station.correct(qm, diffs, lat[p], lon[p], tt.month.to_numpy(), sh[p, i0 + t], crng, blend=a.station_blend, return_group=True)
         sfc = [b[v].values[p, t][:, None] for v in SURFACE]
         if a.rh_target == "dpd":  # humidity coordinate ln(T - Td + 1): on the levels (after the station correction), then back to steps
             lev = from_diff(diffs)
@@ -105,14 +110,21 @@ def main():
                            tt.year.to_numpy(), oni, wwv, qbo30, qbo50,
                            **indices.feature_extras(FEATURES, tbl, gm, tt))
         target[k], year[k] = prof, tt.year.to_numpy()
+        prov["point"][k], prov["time"][k] = p, tt.to_numpy().astype("datetime64[h]")
+        if gid is not None:
+            prov["group"][k] = gid
         r += len(p)
         print(f"{tt[0].date()}: {r:,}/{n:,} rows", flush=True)
 
     ok = np.isfinite(target).all(1) & np.isfinite(cond).all(1)
     print(f"dropping {(~ok).sum():,} rows with missing values (profile top above 50 hPa, or index gaps)", flush=True)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
+    extra = {}
+    if a.sidecar:
+        extra = dict(row_point=prov["point"][ok], row_time=prov["time"][ok], row_group=prov["group"][ok],
+                     correction=np.array(f"station-map {os.path.basename(a.station_map or 'none')}, blend={a.station_blend}"))
     np.savez(a.out, cond=cond[ok], target=target[ok], year=year[ok],
-             cond_names=np.array(FEATURES), target_names=np.array(target_names()), rh_target=np.array(a.rh_target))
+             cond_names=np.array(FEATURES), target_names=np.array(target_names()), rh_target=np.array(a.rh_target), **extra)
     print(f"wrote {a.out}: {ok.sum():,} rows, {target.shape[1]} targets", flush=True)
 
 
