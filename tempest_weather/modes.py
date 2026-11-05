@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 BOUNDS = dict(past=-6.0, recent=0.0, week=7.0, medium=46.0)  # lead in days (valid time minus now)
 IMPLEMENTED = {"ai"}                                          # modes that always work; "past" is added when an ERA5 store is configured (api passes `available`)
-NAMES = ("past", "recent", "week", "medium", "ai")
+NAMES = ("past", "recent", "week", "medium", "ai", "forecast")
 
 
 def lead_days(when_utc, now=None):
@@ -29,6 +29,9 @@ def choose(lead, requested=None, available=None):
         raise ValueError(f"mode must be one of {NAMES}")
     wanted = requested or ("past" if lead <= BOUNDS["past"] else "recent" if lead <= BOUNDS["recent"] else "week" if lead <= BOUNDS["week"]
                            else "medium" if lead <= BOUNDS["medium"] else "ai")
-    if wanted in (IMPLEMENTED | set(available or ())):
+    avail = set(available or ())
+    if wanted in ("recent", "week") and "forecast" in avail:       # corrected IFS forecast (mode F), available only inside its tested lead and hour window
+        return "forecast", ["nominal"]
+    if wanted in (IMPLEMENTED | avail):
         return wanted, ["nominal"]
     return "ai", ["fallback-mode", f"{wanted}-source-not-available"]

@@ -21,6 +21,7 @@ EDGES = [0, 1000, 5000, 12000, 18001]
 DZ = np.diff(HEIGHTS) / 1000.0
 MID = HEIGHTS[1:]
 LEVELS = np.concatenate([np.linspace(0.5, 0.99, 50), [0.995, 0.997, 0.998, 0.999, 0.9995]])
+LEVELS_FULL = np.concatenate([np.linspace(0.02, 0.99, 98), [0.995, 0.997, 0.998, 0.999, 0.9995]])   # IL-91: the whole distribution, not only above the median
 GRID = 400                       # points of the shear-value grid per band
 SMOOTH = 9                       # heights; the accumulated change keeps no variation on larger scales than this
 BAND_OF_LAYER = np.digitize(MID, EDGES[1:-1])      # (43,) 0..3
@@ -69,20 +70,21 @@ def _band_values(s, edges=None):
     return [flat[:, layer_band == b].ravel() for b in range(nb)]
 
 
-def fit(samples, truth, passes=3, damp=0.8, edges=None):
+def fit(samples, truth, passes=3, damp=0.8, edges=None, full=False):
     """samples (S, m, D), truth (S, D) -> table dict(grid (B, GRID), gain (B, GRID)[, edges]); B = 4 height bands, or len(edges) - 1 layer groups (IL-89)."""
     nb = 4 if edges is None else len(edges) - 1
+    lv = LEVELS_FULL if full else LEVELS
     uv_t = truth[:, :2 * NH].reshape(len(truth), 2, NH).astype(np.float64)
-    q_t = _quantiles(_band_values(shears(uv_t)[1], edges))
+    q_t = _quantiles(_band_values(shears(uv_t)[1], edges), lv)
     uv_s = samples[..., :2 * NH].reshape(*samples.shape[:-1], 2, NH).astype(np.float64)
     s0 = _band_values(shears(uv_s)[1], edges)
     grid = np.stack([np.quantile(v, np.linspace(0.0, 0.9999, GRID)) for v in s0])
     gain = np.ones((nb, GRID))
     extra = {} if edges is None else dict(edges=np.asarray(edges))
     table = dict(grid=grid, gain=gain, **extra)
-    q_ref = _quantiles(s0)
+    q_ref = _quantiles(s0, lv)
     for _ in range(passes):
-        cur = _quantiles(_band_values(shears(apply(table, samples)[..., :2 * NH].reshape(*samples.shape[:-1], 2, NH).astype(np.float64))[1], edges))
+        cur = _quantiles(_band_values(shears(apply(table, samples)[..., :2 * NH].reshape(*samples.shape[:-1], 2, NH).astype(np.float64))[1], edges), lv)
         for b in range(nb):
             ratio = np.where(q_ref[b] > 0, q_t[b] / np.maximum(cur[b], 1e-9), 1.0)         # at the original sample quantile values
             # gain as a function of the ORIGINAL shear value: multiply the current gain at those values
@@ -114,6 +116,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out")
     ap.add_argument("--groups", type=int, default=4, choices=[4, 7], help="4 height bands (default) or 7 layer groups (IL-89)")
+    ap.add_argument("--full", action="store_true", help="IL-91: fit the whole shear distribution (2 % upward), not only above the median")
     ap.add_argument("--shuffle", action="store_true", help="fit on samples that were Schaake-shuffled first (use with score --shuffle --shear-map)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
@@ -133,7 +136,7 @@ def main():
         from tempest.scoring.score import group_keys
         keys = group_keys(np.asarray(d["cond"]))
         x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year))
-    table = fit(x, truth, edges=EDGES7 if a.groups == 7 else None)
+    table = fit(x, truth, edges=EDGES7 if a.groups == 7 else None, full=a.full)
     out = a.out or a.model.rsplit(".", 1)[0] + f".shearmap{a.from_year}.npz"
     np.savez(out, grid=table["grid"], gain=table["gain"], **({"edges": table["edges"]} if "edges" in table else {}), fit_from=a.from_year, fit_to=a.year, m=a.m, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
     qt = _quantiles(_band_values(shears(truth[:, :2 * NH].reshape(len(truth), 2, NH).astype(np.float64))[1]), [0.99, 0.999])

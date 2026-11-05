@@ -48,3 +48,13 @@ def test_seven_layer_groups_and_old_tables_still_work():
     assert y.shape == x.shape and np.isfinite(y).all()
     t4 = SM.fit(x, truth)
     assert t4["grid"].shape[0] == 4 and "edges" not in t4 and SM.apply(t4, x).shape == x.shape
+
+
+def test_full_distribution_fit_moves_the_bulk_too():
+    x = _profiles(300, 20, 1.0, 5)
+    truth = _profiles(300, 1, 1.5, 6)[:, 0]
+    t = SM.fit(x, truth, full=True)
+    y = SM.apply(t, x)
+    med = lambda a: np.median(SM._band_values(SM.shears(a[..., :2 * SM.NH].reshape(*a.shape[:-1], 2, SM.NH).astype(float))[1])[1])
+    tm = np.median(SM._band_values(SM.shears(truth[:, :2 * SM.NH].reshape(300, 2, SM.NH).astype(float))[1])[1])
+    assert abs(med(y) - tm) < abs(med(x) - tm)                                  # the median shear moves toward the truth's

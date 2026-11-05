@@ -17,9 +17,9 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from tempest_weather import _core, coupling, distributions, modes, outputs, ranking, registry
+from tempest_weather import _core, coupling, distributions, forecast, modes, outputs, ranking, registry
 from tempest_weather.engine import Net
-from tempest_weather.sources import era5_local
+from tempest_weather.sources import era5_local, openmeteo
 from tempest_weather.sources.indices import Indices
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +47,11 @@ def _assets(path=None):
              head=Net.load(os.path.join(path, "model.npz"), prefix="head_") if manifest.get("head_included") else None,
              modep=Net.load(os.path.join(path, "model.npz"), prefix="modep_") if manifest.get("modep_included") else None,
              modep_calib=dict(qz=z["modep_calib/qz"], qu=z["modep_calib/qu"], m=z["modep_calib/m"]) if manifest.get("modep_included") else None,
+             modef=Net.load(os.path.join(path, "model.npz"), prefix="modef_") if manifest.get("modef_included") else None,
+             modef_calib=dict(qz=z["modef_calib/qz"], qu=z["modef_calib/qu"], m=z["modef_calib/m"]) if manifest.get("modef_included") else None,
+             modef_bl=dict(ratio=z["modef_bl/ratio"], dpd_a=float(z["modef_bl/dpd_a"]), dpd_b=float(z["modef_bl/dpd_b"])) if manifest.get("modef_included") else None,
+             modef_tpl={L: z[f"modef_tpl/L{L}"].astype(np.float32) for L in (1, 3, 5, 7)} if manifest.get("modef_included") else None,
+             modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
@@ -102,7 +107,42 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     return np.concatenate([x, t2m[:, None], np.full((n, 1), e["sp"]), rh2m[:, None]], 1).astype(np.float32), e
 
 
-def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None):
+FORECAST_LEAD = (0.75, 7.5)       # days: the leads mode F was tested at are 1, 3, 5 and 7
+FORECAST_SOLAR = (14.0, 20.0)     # hours of local solar time: the archived cases are all valid at 00 UTC, about 17 h solar in the box (AUTOPILOT F-8a)
+
+
+def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted):
+    """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
+    -> ((n, 179) physical, the forecast profile dict, quality flags)."""
+    doc = (fetch or openmeteo.fetch)(lat, lon, t_utc.strftime("%Y-%m-%d"))
+    fields = forecast.fields_from_openmeteo(doc, int(t_utc.hour))
+    prof = forecast.forecast_profile(fields, z_sfc, A["modef_bl"])
+    flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
+    if min(abs(lead - x) for x in (1, 3, 5, 7)) > 0.6:
+        flag.append("lead-between-the-tested-1-3-5-7-day-leads")
+    nh = _core.NH
+    base = forecast.flat(prof)
+    if predicted:
+        row = np.concatenate([base, [prof["t2m"], prof["sp"], prof["rh2m"]]]).astype(np.float32)
+        return np.tile(row, (n, 1)), prof, flag
+    groups = int(np.ceil(n / M_CAL))
+    g = A["grid"]
+    cond = forecast.condition(prof, float(g["lat"][p]), float(g["lon"][p]), z_sfc, t_utc.timetuple().tm_yday, lead, A["modef_coarse"])
+    res = A["modef"].sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
+    x = base[None, None, :] + res
+    i = 3 * nh
+    x[..., i:i + nh] = np.clip(x[..., i:i + nh], 0, 100)
+    x = _core.calibrate(A["modef_calib"], x, clip=False)
+    tpl = A["modef_tpl"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]          # real forecast-error profiles of the nearest tested lead
+    ranks = np.argsort(np.argsort(tpl[rng.integers(0, len(tpl), (groups, M_CAL))], axis=1), axis=1)
+    x = np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1)[:n]
+    x[:, i:i + nh] = np.clip(x[:, i:i + nh], 0, 100)
+    t2m = prof["t2m"] + (x[:, 2 * nh] - prof["T"][0])
+    rh2m = np.clip(prof["rh2m"] + (x[:, 3 * nh] - prof["RH"][0]), 0, 100)
+    return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
+
+
+def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None):
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
     if not (BOX["lat"][0] <= lat <= BOX["lat"][1] and BOX["lon"][0] <= lon <= BOX["lon"][1]):
         raise ValueError(f"({lat}, {lon}) is outside the trained area {BOX}; modes beyond the pilot box need the CONUS stage")
@@ -113,7 +153,18 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         raise ValueError(f"solar time {sh:.1f} h is outside the trained 06-21 h window")
     store_path = era5_store or era5_local.default_path()
     avail = {"past"} if (store_path and A["modep"] is not None) else set()
-    used, quality = modes.choose(modes.lead_days(t_utc, now), mode, avail)
+    lead = modes.lead_days(t_utc, now)
+    why_not = []
+    if A["modef"] is not None:
+        if not FORECAST_LEAD[0] <= lead <= FORECAST_LEAD[1]:
+            why_not.append(f"forecast-mode-lead-outside-{FORECAST_LEAD[0]}-{FORECAST_LEAD[1]}-days")
+        if not FORECAST_SOLAR[0] <= sh <= FORECAST_SOLAR[1]:
+            why_not.append(f"forecast-mode-only-trained-for-solar-hours-{FORECAST_SOLAR[0]:g}-{FORECAST_SOLAR[1]:g}")
+        if not why_not:
+            avail.add("forecast")
+    used, quality = modes.choose(lead, mode, avail)
+    if used == "ai" and "fallback-mode" in quality and why_not and (mode in (None, "recent", "week", "forecast")):
+        quality = quality + why_not
     g = A["grid"]
     p = int(np.argmin((g["lat"] - lat) ** 2 + (g["lon"] - lon) ** 2))      # nearest grid point (reported; the mode P and past paths use the exact position)
     pts, wts = _core.bilinear(g["lat"], g["lon"], lat, lon)             # the four points around the query and their bilinear weights (F-6)
@@ -143,7 +194,17 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         else:
             phys, _ = _past_phys(A, store, lat, lon, t_utc, n, rng)
         cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
+    elif used == "forecast":
+        try:
+            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted)
+            quality = quality + fflags
+            cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
+        except Exception as e:  # noqa: BLE001  (network, unexpected response: the climate generator answers, and says so)
+            used, quality = "ai", ["fallback-mode", f"forecast-fetch-failed:{type(e).__name__}"]
+            phys = None
     else:
+        phys = None
+    if phys is None:
         phys = A["net"].profiles(cond, rng)
         if not predicted:
             phys = _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)).reshape(total, -1)[:n]
@@ -160,7 +221,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     atm["gust_mu"] = atm["gust_beta"] = None
     if A["gust"] is not None:
         atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
-    src = ("ERA5 + learned balloon correction" if not predicted else "ERA5 value") if used == "past" else (
+    src = ("ERA5 + learned balloon correction" if not predicted else "ERA5 value") if used == "past" else ("IFS forecast (Open-Meteo) + learned forecast error" if used == "forecast" else
         "tempest generator (calibrated)" if not predicted else "tempest generator (predicted set, no range map)")
     info = dict(mode=used, source=src, quality=quality,
                 valid_utc=str(t_utc), solar_hour=sh, grid_point=p, spatial_blend=dict(points=[int(x) for x in pts], weights=[round(float(x), 4) for x in wts]), elevation_m=elev, grid_elevation_m=elev_grid, indices=drv_note, kind="predicted" if predicted else "uncertainty",
