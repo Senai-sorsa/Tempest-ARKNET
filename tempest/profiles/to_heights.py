@@ -111,10 +111,12 @@ def cds_levels(cds, times, lat, lon):
     months = times.strftime("%Y%m")
     for ym in np.unique(months):
         path = os.path.join(cds, f"{ym}.grib")
-        if not os.path.exists(path):
+        nc = os.path.join(cds, f"{ym}.nc")                       # same fill written by tempest.ingest.arco_fill (ARCO-ERA5), used when no grib exists
+        if not os.path.exists(path) and not os.path.exists(nc):
             continue
         k = months == ym
-        with xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""}) as g:
+        opener = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}) if os.path.exists(path) else {}
+        with xr.open_dataset(path if os.path.exists(path) else nc, **opener) as g:
             g = g.assign_coords(longitude=g.longitude % 360)
             g = g.sel(isobaricInhPa=CDS_LEVELS, latitude=lat, longitude=lon, time=times[k].values)  # exact; KeyError if off-grid
             for n in out:
@@ -131,9 +133,9 @@ def main():
 
     ds = open_raw(a.raw)
     ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(UTC_HOURS))
-    use_cds = os.path.isdir(a.cds) and any(f.endswith(".grib") for f in os.listdir(a.cds))
+    use_cds = os.path.isdir(a.cds) and any(f.endswith((".grib", ".nc")) for f in os.listdir(a.cds))
     if use_cds:
-        have = {f[:6] for f in os.listdir(a.cds) if f.endswith(".grib")}
+        have = {f[:6] for f in os.listdir(a.cds) if f.endswith((".grib", ".nc"))}
         need = set(pd.DatetimeIndex(ds.valid_time.values).strftime("%Y%m"))
         missing = sorted(m for m in need if m not in have and m >= "199101")  # CDS fill starts 1991; late 1990 is trimmed later
         print(f"CDS fill: {len(have)} months, {len(missing)} missing (those keep 13 levels)", flush=True)
