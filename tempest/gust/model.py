@@ -29,7 +29,7 @@ def utc_hour(t):
     return t.hour + t.minute / 60.0
 
 
-def design(ws, doy, hour, fg=None, station=None):
+def design(ws, doy, hour, fg=None, station=None, stab=None):
     """Input matrix: 1, ws, ws^2, season and hour harmonics (hour = UTC hour), optional station flag and ERA5 gust (fg, fg - ws)."""
     ws = np.asarray(ws, float)
     a, h = 2 * np.pi * np.asarray(doy, float) / 365.25, 2 * np.pi * np.asarray(hour, float) / 24.0
@@ -39,6 +39,9 @@ def design(ws, doy, hour, fg=None, station=None):
     if fg is not None:
         fg = np.asarray(fg, float)
         cols += [fg, fg - ws]
+    if stab is not None:                                  # F-26: stab (n, 2) = wind speed at 500 m (m/s) and lapse t2m - T(500 m) (K); default off
+        stab = np.asarray(stab, float)
+        cols += [stab[:, 0], stab[:, 1] / 5.0]
     return np.stack(cols, 1)
 
 
