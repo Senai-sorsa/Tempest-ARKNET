@@ -18,6 +18,7 @@ import xarray as xr
 
 PRESSURE = ["u", "v", "t", "r", "z"]
 SINGLE = ["u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
+EXTRA = {"single/temporal": ["fg10", "blh", "ssrd", "slhf", "ssr"], "pressure/temporal": ["w"]}  # Phase 3: gusts, boundary layer, radiation, vertical wind (opt-in via --only)
 LAT, LON = (34.0, 31.0), (252.0, 259.0)
 START, END = np.datetime64("1991-01-01T00"), np.datetime64("2025-12-31T23")
 
@@ -46,12 +47,18 @@ def main():
     ap.add_argument("--years", type=int, help="only the first N time chunks (for a quick test)")
     ap.add_argument("--first", type=int, default=1991, help="first year (the store starts 1940; indices from 1980)")
     ap.add_argument("--last", default="2025-12-31", help="last day, YYYY-MM-DD")
+    ap.add_argument("--only", nargs="+", help="fetch just these variables (any of the defaults or %s) instead of the default set" % sum(EXTRA.values(), []))
+    ap.add_argument("--workers", type=int, default=16, help="download threads (lower = cooler laptop)")
     a = ap.parse_args()
     start, end = np.datetime64(f"{a.first}-01-01T00"), np.datetime64(f"{a.last}T23")
     os.makedirs(a.out, exist_ok=True)
     store = open_store()
     groups = {"pressure/temporal": PRESSURE, "single/temporal": SINGLE}
-    with dask.config.set(scheduler="threads", num_workers=16):
+    if a.only:
+        allv = {g: names + EXTRA[g] for g, names in groups.items()}
+        groups = {g: [v for v in a.only if v in allv[g]] for g in allv}
+        groups = {g: v for g, v in groups.items() if v}
+    with dask.config.set(scheduler="threads", num_workers=a.workers):
         for group, names in groups.items():
             ds, tc = subset(xr.open_zarr(store, group=group, zarr_format=3, chunks={}), a.years, start, end)
             for v in names:
