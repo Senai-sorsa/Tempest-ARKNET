@@ -85,6 +85,7 @@ def _assets(path=None):
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
+             sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
              sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
@@ -136,6 +137,16 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     x[..., i:i + _core.NH] = np.clip(x[..., i:i + _core.NH], 0, 100)
     x = _core.calibrate(A["modep_calib"], x, clip=False).reshape(groups * M_CAL, -1)[:n]
     nh = _core.NH
+    sta = A.get("sta")
+    if sta is not None:                                            # F-11: where the station correction beat the network on 2021-23 (RH 12-18 km), serve it: a + b ERA5 + a leftover profile of the same group and moisture class
+        gid = (st * 4 + (t_utc.month % 12) // 3) * 2 + int(hour12)
+        wet = float(e["RH"][(_core.HEIGHTS >= 5000) & (_core.HEIGHTS <= 13000)].mean())
+        j = int(wet > sta["cuts"][gid, 0]) + int(wet > sta["cuts"][gid, 1])
+        nj = int(sta["n"][gid, j])
+        cols = sta["cols"]
+        sc = sta["a"][gid] + sta["b"][gid] * era[cols]
+        left = sta["pool"][gid, j, (rng.random(n) * nj).astype(np.int64)].astype(np.float64) if nj > 0 else 0.0
+        x[:, cols] = np.clip(sc[None, :] + left, 0, 100)
     pool = A.get("sfc_pool")
     if pool is not None:                                           # F-12: surface values = ERA5 + a whole (t2m, sp, rh2m) residual row of the same station x season x launch hour (joint, empirical)
         key = (st * 4 + (t_utc.month % 12) // 3) * 2 + int(hour12)

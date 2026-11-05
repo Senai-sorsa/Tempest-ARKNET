@@ -125,3 +125,22 @@ def test_interaction_slope_lets_one_driver_change_anothers_effect():
     h = Generator(4, 3, noise_dim=2, width=16, depth=1, linear_cols=[2, 3], interactions=False)
     assert ya.shape == (1, 1, 3) and not torch.allclose(ya, yb)
     assert h.slope[0].in_features == 2 and g.slope[0].in_features == 4
+
+
+def test_tool_station_correction_equals_the_package_version_for_the_hybrid_columns():
+    """F-11: the numpy station correction in the tool (a + b ERA5 + leftover of the group and moisture class) reproduces station.apply on the exported columns."""
+    import os
+    from tempest.calibrate import station
+    if not os.path.exists("models/station_map_mix.npz"):
+        pytest.skip("station map not present")
+    t = station.load("models/station_map_mix.npz")
+    rng = np.random.default_rng(0)
+    era = rng.uniform(5, 80, (1, 4, 44)).astype(np.float32)
+    gid = np.array([5])
+    out = station.apply(t, era, gid, np.random.default_rng(1))[0, 3, 31:]
+    wet = station.moisture(era)[0]
+    j = int(wet > t["cuts"][5, 0]) + int(wet > t["cuts"][5, 1])
+    a, b = t["a"][5, 3, 31:], t["b"][5, 3, 31:]
+    d = (np.random.default_rng(1).random(1) * t["n"][5, j]).astype(int)[0]
+    ref = np.clip(a + b * era[0, 3, 31:] + t["pool"][5, j, d, 3, 31:], 0, 100)
+    assert np.allclose(out, ref, atol=1e-4)

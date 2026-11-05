@@ -47,6 +47,7 @@ def main():
     ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
+    ap.add_argument("--modep-sta", help="F-11: station-correction map (models/station_map_mix.npz); with --modep, the columns where hybrid_use_network is False are served by the station correction instead of the network")
     ap.add_argument("--modep-sfc", help="F-12: surface residual pool for past dates (scripts/modeP_surface.py output); default off")
     ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
@@ -91,6 +92,17 @@ def main():
         assert "edges" not in sm.files, "7-group maps need an edges asset (not exported yet)"
     if a.post_seasonal:
         arrays["post/seasonal"] = np.load(a.post_seasonal)["scale"]
+    if a.modep_sta:
+        use = np.load(a.modep.rsplit(".", 1)[0] + ".hybrid_use_network.npy")
+        cols = np.flatnonzero(~use)
+        sm = np.load(a.modep_sta, allow_pickle=True)
+        nh_ = 44
+        v_, h_ = cols // nh_, cols % nh_
+        assert (v_ == 3).all(), "export of the station-correction columns is written for the RH block only (the hybrid choice picked other variables)"
+        arrays["modep_sta/cols"] = cols.astype(np.int32)
+        arrays["modep_sta/a"], arrays["modep_sta/b"] = sm["a"][:, 3][:, h_], sm["b"][:, 3][:, h_]
+        arrays["modep_sta/pool"] = sm["pool"][:, :, :, 3][..., h_].astype(np.float16)
+        arrays["modep_sta/n"], arrays["modep_sta/cuts"] = sm["n"], sm["cuts"]
     if a.modep_sfc:
         sp_ = np.load(a.modep_sfc)
         arrays["modep_sfc/res"], arrays["modep_sfc/key"] = sp_["res"], sp_["key"]
@@ -135,7 +147,7 @@ def main():
     files = ["model.npz", "indices.npz", "grid.npz"]
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
