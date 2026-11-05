@@ -77,7 +77,7 @@ Where the system stands (measured, p2f, 2024-25, ERA5 / balloons, from `models/g
 | IL-25 | S | Shear patch rate p and size per band were fixed (p = 0.05, 0.01): fit p jointly with sigma on the calibration years (grid over p) instead of picking | `shear_tail --p` grid + physics check | todo |
 | IL-26 | D | QBO forecast: ridge beat Chronos and analog, but a phase-aware model (QBO is nearly periodic, ~28 months) should do better still: regression on sin/cos of the QBO phase from the last values | `scripts/index_bakeoff.py` new method | todo |
 | IL-27 | D | WWV is in raw m3 (1e13): standardising/log before ridge and analog may change which method wins (the covariance fix in the numpy tool already needed it) | bake-off with standardised WWV | todo |
-| IL-28 | S | Balloon-side: IL-11 could not be scored against balloons (no month hook in `sonde`); add the month so seasonal tables can be judged on balloons too | patch `sonde.py` draw() with month | todo |
+| IL-28 | S | Balloon-side: IL-11 could not be scored against balloons (no month hook in `sonde`); add the month so seasonal tables can be judged on balloons too | patch `sonde.py` draw() with month | code done (`sonde --seasonal`); the balloon run is queued in `scripts/ap_next2.sh` (log data/ap_next2.log, verdict appended to data/ap_s_verdicts.txt) |
 | IL-29 | G | After IL-8/IL-9: if tokens help the shear tail, try depth/width of the token model (d = 192, 6 layers) and a second pass with the shear-tail loss weight raised | variants of `configs/generator_il8.toml` | todo (after IL-8) |
 | IL-30 | D | Mode P with the 21 levels (4.6) and the ARCO fill: retrain residual network and compare MAE vs balloons 2.571 | after 420 months exist | blocked-on-data |
 

@@ -53,6 +53,7 @@ def main():
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
                     "samples toward the dataset's 15-year climatology before they are moved to the launch site (outputs get a _trust suffix)")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib), applied at grid level; outputs get a _shift suffix")
+    ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
@@ -85,22 +86,26 @@ def main():
         qpool = trust.ClimPool(group_keys(ref_cond), dset["year"], dset["target"], (held_from - int(tw["clim_years"]), held_from - 1), a.m)
 
     post = []  # grid-level steps after the range calibration (IL-11..13), all optional
-    if a.shift or a.shear_tail:
+    if a.shift or a.shear_tail or a.seasonal:
         if not cal:
-            raise SystemExit("--shift / --shear-tail need --calib")
+            raise SystemExit("--shift / --shear-tail / --seasonal need --calib")
         if a.shift:
             from tempest.calibrate import shift as shift_mod
             _sh = dict(np.load(a.shift))
-            post.append(lambda x: shift_mod.apply(_sh, x))
+            post.append(lambda x, mo: shift_mod.apply(_sh, x))
         if a.shear_tail:
             from tempest.calibrate import shear_tail as st_mod
             _st, _prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
-            post.append(lambda x: st_mod.apply(_st, x, _prng))
+            post.append(lambda x, mo: st_mod.apply(_st, x, _prng))
+        if a.seasonal:
+            from tempest.calibrate import seasonal as seas_mod
+            _se = dict(np.load(a.seasonal))
+            post.append(lambda x, mo: seas_mod.apply(_se, x, np.full(len(x), mo)))
 
-    def draw(rep, n, q=None):
+    def draw(rep, n, q=None, mo=None):
         x = draw0(rep, n)
         for f in post:
-            x = f(x)
+            x = f(x, mo)
         return trust.apply_full(tw, x, q) if tw is not None else x
     ds = xr.open_zarr(a.profiles)
     tbl = indices.load(a.indices)
@@ -140,12 +145,12 @@ def main():
                             **indices.feature_extras(FEATURES, tbl, gm, tv))
             rep = np.repeat(cond, a.m, axis=0)
             q = qpool.quantiles(trust.keys_like(ref_cond, cond)) if qpool else None  # grid-level climatology of this group
-            known.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
+            known.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
             dc = [FEATURES.index(k) for k in drivers()]
             td = t[draws.ravel()]
             rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, td)[:, [0, 3, 1, 2]].T,
                                   **({k: (v if k == 'oni_lag3' else 0) for k, v in indices.feature_extras(FEATURES, tbl, gm, td).items()}))[:, dc]
-            unknown.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
+            unknown.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
     truth, years = np.concatenate(truth), np.concatenate(years)
     sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]
     months, sids = np.concatenate(months), np.concatenate(sids)
@@ -179,7 +184,7 @@ def main():
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
