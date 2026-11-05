@@ -17,7 +17,7 @@ import pandas as pd
 import torch
 import xarray as xr
 
-from tempest.calibrate import spread
+from tempest.calibrate import spread, trust
 from tempest.calibrate.station import ELEV, STATIONS, nearest_point, read_igra
 from tempest.generator.build_dataset import solar_hour
 from tempest.generator.features import FEATURES, features
@@ -27,7 +27,7 @@ from tempest.ingest import indices
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 from tempest.scoring import diag
 from tempest.scoring.report import report
-from tempest.scoring.score import band_masks, coverage90, crps_ensemble, gaussian_samples, physical_names, var_slices, variogram_score
+from tempest.scoring.score import band_masks, coverage90, crps_ensemble, gaussian_samples, group_keys, physical_names, var_slices, variogram_score
 
 DRIVERS = ["oni", "wwv", "qbo30", "qbo50"]
 
@@ -50,24 +50,41 @@ def main():
                     "height band) on this year's soundings and apply it on top; must be before --first-test-year")
     ap.add_argument("--station-calib-from-year", type=int, help="fit the balloon calibration on from-year..station-calib-year "
                     "(default: just that year); one year's quirks did not carry over")
+    ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
+                    "samples toward the dataset's 15-year climatology before they are moved to the launch site (outputs get a _trust suffix)")
+    ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
+                    "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
+    torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
 
     ckpt = torch.load(a.model, map_location="cpu", weights_only=True)
     sampler = Sampler(ckpt, device=a.device)
     histories = [c.get("history") for c in ckpt.get("members", [ckpt])]
-    last = int(load_npz(a.data)["year"].max())
+    dset = load_npz(a.data)
+    last = int(dset["year"].max())
     held_from = max(last - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1, a.first_test_year or 0)
     last = min(last, a.last_test_year or last)
-    cal = spread.load(a.calib)
+    cal = spread.load(a.calib, a.model)
     a.m = a.m or (int(cal["m"]) if cal else 50)
     scal = a.station_calib_year
     if scal and scal >= held_from:
         raise SystemExit("--station-calib-year must be before the first scored year")
     sfrom = a.station_calib_from_year or scal
     start = min(held_from, sfrom or held_from)
-    draw = lambda rep, n: (spread.apply(cal, sampler.profiles(rep).reshape(n, a.m, -1)) if cal
-                           else sampler.profiles(rep).reshape(n, a.m, -1))  # calibrated at grid elevation, then moved
+    draw0 = lambda rep, n: (spread.apply(cal, sampler.profiles(rep).reshape(n, a.m, -1)) if cal
+                            else sampler.profiles(rep).reshape(n, a.m, -1))  # calibrated at grid elevation, then moved
+    tw = qpool = ref_cond = None
+    if a.trust:
+        if not cal:
+            raise SystemExit("--trust needs --calib")
+        tw = trust.load(a.trust, a.model, a.calib)
+        ref_cond = np.asarray(dset["cond"])
+        qpool = trust.ClimPool(group_keys(ref_cond), dset["year"], dset["target"], (held_from - int(tw["clim_years"]), held_from - 1), a.m)
+
+    def draw(rep, n, q=None):
+        x = draw0(rep, n)
+        return trust.apply_full(tw, x, q) if tw is not None else x
     ds = xr.open_zarr(a.profiles)
     tbl = indices.load(a.indices)
 
@@ -103,10 +120,11 @@ def main():
             cond = features(lat, lon, z, z, tv.dayofyear.to_numpy(), solar_hour(tv, np.array([lon]))[0],
                             tv.year.to_numpy(), *indices.at(tbl, tv)[:, [0, 3, 1, 2]].T)  # at(): oni, qbo30, qbo50, wwv
             rep = np.repeat(cond, a.m, axis=0)
-            known.append(to_site(draw(rep, len(v)), z, ELEV[sid]))
+            q = qpool.quantiles(trust.keys_like(ref_cond, cond)) if qpool else None  # grid-level climatology of this group
+            known.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
             dc = [FEATURES.index(k) for k in DRIVERS]
             rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, t[draws.ravel()])[:, [0, 3, 1, 2]].T)[:, dc]
-            unknown.append(to_site(draw(rep, len(v)), z, ELEV[sid]))
+            unknown.append(to_site(draw(rep, len(v), q), z, ELEV[sid]))
     truth, years = np.concatenate(truth), np.concatenate(years)
     sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]
     months, sids = np.concatenate(months), np.concatenate(sids)
@@ -140,7 +158,7 @@ def main():
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
@@ -167,6 +185,9 @@ def main():
         for i, v in enumerate(PROFILE)))
     diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks()), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), months, var_slices())
+    if a.extras:
+        from tempest.scoring import extras  # late import, only for the flag
+        extras.write(stem, dict(sets)["unknown"], truth, band_masks(), months, physical_names(), "unknown")
     for sid in np.unique(sids):  # a station-specific failure shows up here
         r = sids == sid
         print(f"DIAG station {sid}: n={int(r.sum())} cov99={coverage90(known[r], truth[r], 0.99).mean():.4f} "

@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from tempest.calibrate import spread
+from tempest.calibrate import spread, trust
 from tempest.generator.features import FEATURES
 from tempest.generator.sample import SURFACE, Sampler, clip_ranges, to_physical
 from tempest.generator.train import load_npz
@@ -114,8 +114,17 @@ def main():
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
+    ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
+                    "samples toward the 15-year climatology where the model has no skill (outputs get a _trust suffix)")
+    ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
+                    "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
+    ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
+                    "(<stem>_stress.csv) and print the worst cells; read-only")
+    ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
+                    "whole-profile coverage of the simultaneous 99 %% band (output only; samples are not changed)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
+    torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
 
     ckpt = torch.load(a.model, map_location="cpu", weights_only=True)
     sampler = Sampler(ckpt, device=a.device)
@@ -124,7 +133,7 @@ def main():
     d = load_npz(a.data)
     cond, year = d["cond"], d["year"]
     held = (year > year.max() - ckpt["cfg"]["val_years"]) & (year >= (a.first_test_year or 0)) & (year <= (a.last_test_year or 9999))
-    cal = spread.load(a.calib)
+    cal = spread.load(a.calib, a.model)
     a.m = a.m or (int(cal["m"]) if cal else 50)
     keys = group_keys(cond)
 
@@ -170,6 +179,13 @@ def main():
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         unknown = spread.apply(cal, unknown)
+    if a.trust:
+        if not cal:
+            raise SystemExit("--trust needs --calib")
+        tw = trust.load(a.trust, a.model, a.calib)
+        qpool = trust.ClimPool(keys, year, target, (first - int(tw["clim_years"]), first - 1), a.m)  # same window as clim15 above
+        q = qpool.quantiles(keys[va])
+        known, unknown = trust.apply_full(tw, known, q), trust.apply_full(tw, unknown, q)
 
     res = pd.DataFrame({"column": physical_names()})
     sets = [("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown)]
@@ -187,7 +203,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
@@ -213,11 +229,27 @@ def main():
             f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
             f" (clim {coverage90(clim[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
             for i, v in enumerate(PROFILE)))
+    if a.joint:
+        from tempest.calibrate import joint  # late import, only for the flag
+        jt = joint.load(a.joint, a.model, a.calib)
+        for mode, x in (("known", known), ("unknown", unknown)):
+            lo_j, hi_j = joint.apply(jt[f"scale_{mode}"], x)
+            ok = (truth[:, :lo_j.shape[1]] >= lo_j) & (truth[:, :lo_j.shape[1]] <= hi_j)
+            print(f"JOINT band ({mode} drivers) whole-profile 99 % coverage: " + "  ".join(
+                f"{v} {ok[:, i * n:(i + 1) * n].all(1).mean():.3f}" for i, v in enumerate(PROFILE)) +
+                "   per-height coverage inside it: " + "  ".join(
+                f"{v} {ok[:, i * n:(i + 1) * n].mean():.4f}" for i, v in enumerate(PROFILE)))
     print(f"wrote {out}")
     c = {k: cond[va, FEATURES.index(k)] for k in ("doy_sin", "doy_cos")}
     day = year[va].astype(np.int64) * 1000 + np.round(np.arctan2(c["doy_sin"], c["doy_cos"]) % (2 * np.pi) / (2 * np.pi) * 365.25).astype(np.int64)
     diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks()), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
+    if a.extras:
+        from tempest.scoring import extras  # late import, only for the flag
+        extras.write(stem, unknown, truth, band_masks(), (keys[va] // 12) % 12 + 1, physical_names(), "unknown")
+    if a.stress:
+        from tempest.scoring import stress  # late import, only for the flag
+        stress.write(stem, unknown, clim15, truth, cond[va], list(FEATURES), band_masks())
     rdir = stem + "_report"
     report(rdir, res, vs, (known < truth[:, None]).sum(1), (truth[:3], known[:3]), histories, PROFILE, HEIGHTS, SURFACE)
     summary.to_csv(f"{rdir}/summary.csv", index=False)
