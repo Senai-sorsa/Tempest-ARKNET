@@ -12,3 +12,14 @@ def apply(x, template):
     """x, template (N, m, D) -> x with the template's rank structure along the m axis."""
     ranks = np.argsort(np.argsort(template, axis=1), axis=1)
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
+
+
+def group_template(target, keys, year, idx, m, rng, before_year):
+    """Real profiles as dependence template: for each row idx, m training-year rows (year < before_year) of the same scoring group (grid point x month x hour bin).
+    target: dataset target array, keys: group keys for all rows, year: year per row. Returns (len(idx), m, D) physical profiles."""
+    from tempest.generator.sample import to_physical
+    tr = np.flatnonzero(year < before_year)
+    tr = tr[np.argsort(keys[tr], kind="stable")]
+    lo, hi = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")
+    pick = tr[np.minimum(lo[:, None] + (rng.random((len(idx), m)) * np.maximum(hi - lo, 1)[:, None]).astype(np.int64), len(tr) - 1)]
+    return to_physical(np.asarray(target[pick.ravel()])).reshape(len(idx), m, -1)

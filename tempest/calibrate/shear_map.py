@@ -102,6 +102,7 @@ def main():
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out")
+    ap.add_argument("--shuffle", action="store_true", help="fit on samples that were Schaake-shuffled first (use with score --shuffle --shear-map)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)
@@ -115,6 +116,11 @@ def main():
     for i in range(0, len(idx), 400):
         sl = slice(i, i + 400)
         x[sl] = spread.apply(cal, sampler.profiles(np.repeat(cond[sl], a.m, axis=0)).reshape(len(cond[sl]), a.m, -1))
+    if a.shuffle:
+        from tempest.calibrate import shuffle as shuf_mod
+        from tempest.scoring.score import group_keys
+        keys = group_keys(np.asarray(d["cond"]))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year))
     table = fit(x, truth)
     out = a.out or a.model.rsplit(".", 1)[0] + f".shearmap{a.from_year}.npz"
     np.savez(out, grid=table["grid"], gain=table["gain"], fit_from=a.from_year, fit_to=a.year, m=a.m, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))

@@ -60,6 +60,9 @@ def main():
     for i in range(0, len(idx), 400):
         sl = slice(i, i + 400)
         x[sl] = spread.apply(cal, sampler.profiles(np.repeat(cond[idx[sl]], a.m, axis=0)).reshape(len(cond[idx[sl]]), a.m, -1))
+    if a.shuffle:
+        from tempest.calibrate import shuffle as shuf_mod
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year))
     if a.seasonal:
         from tempest.calibrate import seasonal
         x = seasonal.apply(dict(np.load(a.seasonal)), x, month)
@@ -72,14 +75,6 @@ def main():
     if a.shear_tail:
         from tempest.calibrate import shear_tail as st
         x = st.apply(dict(np.load(a.shear_tail)), x, np.random.default_rng(12345))
-    if a.shuffle:
-        from tempest.calibrate import shuffle as shuf_mod
-        tr = np.flatnonzero(year < a.first_year)
-        tr = tr[np.argsort(keys[tr], kind="stable")]
-        lo_, hi_ = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")
-        pick = tr[np.minimum(lo_[:, None] + (rng.random((len(idx), a.m)) * np.maximum(hi_ - lo_, 1)[:, None]).astype(np.int64), len(tr) - 1)]
-        tmpl = to_physical(np.asarray(d["target"][pick.ravel()])).reshape(len(idx), a.m, -1)
-        x = shuf_mod.apply(x, tmpl)
     pit = M.pit_values(x, y, rng)
     tv = M.pit_tv(pit)
     cov = M.coverage_levels(pit)
