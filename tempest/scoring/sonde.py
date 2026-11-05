@@ -53,6 +53,7 @@ def main():
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
                     "samples toward the dataset's 15-year climatology before they are moved to the launch site (outputs get a _trust suffix)")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib), applied at grid level; outputs get a _shift suffix")
+    ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib), applied at grid level; outputs get a _smap suffix")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
@@ -86,7 +87,7 @@ def main():
         qpool = trust.ClimPool(group_keys(ref_cond), dset["year"], dset["target"], (held_from - int(tw["clim_years"]), held_from - 1), a.m)
 
     post = []  # grid-level steps after the range calibration (IL-11..13), all optional
-    if a.shift or a.shear_tail or a.seasonal:
+    if a.shift or a.shear_tail or a.seasonal or a.shear_map:
         if not cal:
             raise SystemExit("--shift / --shear-tail / --seasonal need --calib")
         if a.shift:
@@ -97,6 +98,10 @@ def main():
             from tempest.calibrate import shear_tail as st_mod
             _st, _prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
             post.append(lambda x, mo: st_mod.apply(_st, x, _prng))
+        if a.shear_map:
+            from tempest.calibrate import shear_map as smap_mod
+            _sm = dict(np.load(a.shear_map))
+            post.append(lambda x, mo: smap_mod.apply(_sm, x))
         if a.seasonal:
             from tempest.calibrate import seasonal as seas_mod
             _se = dict(np.load(a.seasonal))
@@ -184,7 +189,7 @@ def main():
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]

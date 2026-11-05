@@ -115,6 +115,7 @@ def main():
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib); outputs get a _seas suffix")
+    ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
     ap.add_argument("--shear-tail", help="rare wind-shear patches from tempest.calibrate.shear_tail (needs --calib); outputs get a _stail suffix")
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
@@ -191,6 +192,12 @@ def main():
         sw = dict(np.load(a.seasonal))
         mon = (keys[va] // 12) % 12 + 1
         known, unknown = seasonal.apply(sw, known, mon), seasonal.apply(sw, unknown, mon)
+    if a.shear_map:
+        if not cal:
+            raise SystemExit("--shear-map needs --calib")
+        from tempest.calibrate import shear_map
+        smt = dict(np.load(a.shear_map))
+        known, unknown = shear_map.apply(smt, known), shear_map.apply(smt, unknown)
     if a.shift:
         if not cal:
             raise SystemExit("--shift needs --calib")
@@ -227,7 +234,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
