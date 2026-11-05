@@ -150,10 +150,11 @@ try:
             xs, ys = x[k], truth[k]
             pit = M.pit_values(xs, ys, rng)
             tv = M.pit_tv(pit).mean()
+            floor = M.pit_tv(M.pit_values(xs[:, 1:], xs[:, 0], rng)).mean()      # same statistic for a perfectly calibrated forecast (a member as pseudo-truth): the noise floor of this test set
             cov = np.abs(M.coverage_levels(pit) - levels[:, None]).mean()
             vc = [M.vertical_corr_error(xs, ys, np.arange(i * F.NH, (i + 1) * F.NH), rng=rng) for i in range(len(_PROF))]
             mom = M.standardized_moments(xs, ys)
-            srows.append(dict(method=name, lead=L, pit_tv=tv, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
+            srows.append(dict(method=name, lead=L, pit_tv=tv, pit_floor=floor, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
                               skew_diff=np.abs(mom[:, 0] - mom[:, 1]).mean(), kurt_diff=np.abs(mom[:, 2] - mom[:, 3]).mean()))
     st = pd.DataFrame(srows)
     st.to_csv(a.out.rsplit(".", 1)[0] + "_shape.csv", index=False)
