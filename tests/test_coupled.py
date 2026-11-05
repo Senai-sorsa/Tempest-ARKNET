@@ -56,3 +56,18 @@ def test_temperature_density_are_anticorrelated_in_the_data():
     c = coupled.coupling(a)
     vs = list(c["variables"])
     assert c["corr_vars_at_height"][10, vs.index("T"), vs.index("rho")] < -0.5  # warm column is thinner at a given height
+
+
+def test_phase3_extras_fill_placeholders_and_join_the_correlations():
+    ph = _phys(300)
+    n, nh = len(ph), len(HEIGHTS)
+    rng = np.random.default_rng(5)
+    w = rng.normal(0, 0.05, (n, nh)) + 0.02 * (ph[:, :nh] - ph[:, :nh].mean(0)) / ph[:, :nh].std(0)  # w tied to u
+    a, meta = coupled.build(ph, 1400.0, np.zeros((n, 5)), extras=dict(w=w, gust_mu=np.full((n, 5), 6.0), T_soak=np.full(n, 300.0)))
+    assert not np.isnan(a["w"]).any() and "w" not in meta["placeholders"] and "w_turb" in meta["placeholders"]
+    c = coupled.coupling(a)
+    vs = list(c["variables"])
+    assert "w" in vs and c["corr_vars_at_height"][10, vs.index("u"), vs.index("w")] > 0.2
+    import pytest
+    with pytest.raises(ValueError):
+        coupled.build(ph, 1400.0, np.zeros((n, 5)), extras=dict(w=np.zeros((n, 3))))

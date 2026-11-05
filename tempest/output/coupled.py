@@ -20,12 +20,12 @@ from tempest.profiles import thermo
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
 GUST_HEIGHTS = HEIGHTS[HEIGHTS <= 200]
-COUPLED_VARS = ["u", "v", "T", "p", "rho", "a", "RH"]  # w joins when Phase 3 fills it in
+COUPLED_VARS = ["u", "v", "T", "p", "rho", "a", "RH", "w"]  # w joins the correlations once it is filled in (finite)
 QUANTILES = [50, 90, 99, 99.9]
 SOAK_HOURS = 24
 
 
-def build(phys, elev_site, drivers, query=None, member=None, weight=None, stratum_top_m=3000.0):
+def build(phys, elev_site, drivers, query=None, member=None, weight=None, stratum_top_m=3000.0, extras=None):
     """phys (n, 179) physical samples (to_physical output), drivers (n, 5) = oni, wwv, qbo30, qbo50, warming ->
     (arrays, meta). Samples keep their row order."""
     phys = np.asarray(phys, np.float64)
@@ -46,9 +46,16 @@ def build(phys, elev_site, drivers, query=None, member=None, weight=None, stratu
         weight=np.ones(n, np.float32) if weight is None else np.asarray(weight, np.float32),
         member=np.zeros(n, np.int16) if member is None else np.asarray(member, np.int16),
         drivers=np.asarray(drivers, np.float32), stratum_key=speed.astype(np.float32))
+    # Phase 3 outputs, row for row from the same samples: w (n, 44), w_sigma, w_turb (n, 44), gust_mu, gust_beta (n, g),
+    # soak_t2m, soak_ssrd, soak_wind10 (n, 24), T_soak (n,). Anything not given stays NaN (a placeholder).
+    for k, v in (extras or {}).items():
+        if k not in arrays or np.shape(v) != arrays[k].shape:
+            raise ValueError(f"extras[{k!r}] must match the shape {arrays.get(k, np.empty(0)).shape if k in arrays else 'of an existing key'}")
+        arrays[k] = np.asarray(v, np.float32)
+    placeholders = [k for k in ("w", "w_sigma", "w_turb", "gust_mu", "gust_beta", "soak_t2m", "soak_ssrd", "soak_wind10", "T_soak")
+                    if np.isnan(arrays[k]).all()]
     meta = dict(coupling="whole-sample", n=int(n), site_elevation_m=float(elev_site), stratum="mean wind speed 0-3 km AGL",
-                placeholders=["w", "w_sigma", "w_turb", "gust_mu", "gust_beta", "soak_t2m", "soak_ssrd", "soak_wind10", "T_soak"],
-                query=query or {}, tau_soak_hours=None)
+                placeholders=placeholders, query=query or {}, tau_soak_hours=None)
     return arrays, meta
 
 
