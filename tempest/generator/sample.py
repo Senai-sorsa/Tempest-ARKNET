@@ -126,7 +126,10 @@ class Sampler:
         set_rh_target(self.rh_target)
         if self.cond_names is not None:
             from tempest.generator import features
-            if set(self.cond_names) <= set(features.BASE_FEATURES) | set(features.P2_FEATURES):      # a climate generator; the mode P / mode F residual networks have their own inputs
+            union = set(features.BASE_FEATURES) | set(features.P2_FEATURES)
+            if set(self.cond_names) <= union:                                                          # a climate generator; the mode P / mode F residual networks have their own inputs
+                if self.cond_names not in (features.BASE_FEATURES, features.P2_FEATURES):              # normalisation is positional: an unknown order or a duplicate gives plausible, wrong output (review 1.7 / 5.5)
+                    raise ValueError(f"checkpoint feature list {self.cond_names} is neither the base nor the P2 schema in its exact order")
                 features.set_active(self.cond_names)
 
     @torch.inference_mode()

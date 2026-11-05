@@ -13,8 +13,8 @@ import pandas as pd
 import torch
 
 from tempest.calibrate import spread
-from tempest.generator.features import FEATURES  # noqa: F401
-from tempest.generator.sample import Sampler, to_physical
+from tempest.generator.features import FEATURES, drivers  # noqa: F401
+from tempest.generator.sample import Sampler, clip_ranges, to_physical
 from tempest.generator.train import load_npz
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 from tempest.scoring import metrics_ext as M
@@ -42,6 +42,8 @@ def main():
     ap.add_argument("--shear-map")
     ap.add_argument("--pooled-template", action="store_true", help="shuffle templates pooled over grid points (month x 2-hour bin), as shipped in the tool")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
+    ap.add_argument("--drivers", choices=["unknown", "known"], default="unknown", help="unknown (default, what a query for a future date gets): ONI/WWV/QBO copied together from a random "
+                    "earlier-year row of the same grid point x month x hour bin; known: the observed target-month values (an upper bound, review 2.1)")
     ap.add_argument("--out")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
@@ -58,9 +60,27 @@ def main():
     cal_idx = np.sort(rng.choice(np.flatnonzero((year >= 2021) & (year <= 2023)), 20000, replace=False))
     clim = to_physical(np.asarray(d["target"][cal_idx]))
     x = np.empty((len(idx), a.m, y.shape[1]), np.float32)
+    dc = [FEATURES.index(k) for k in drivers()]
+    tr = np.flatnonzero(year < a.first_year)
+    tr = tr[np.argsort(keys[tr], kind="stable")]
+    lo, hi = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")
+    draws = tr[np.minimum(lo[:, None] + (rng.random((len(idx), a.m)) * np.maximum(hi - lo, 1)[:, None]).astype(np.int64), len(tr) - 1)]
+    nh = len(HEIGHTS)
+    ri = PROFILE.index("RH") * nh
+    pre = np.zeros(2)                                              # review 2.8: how often the calibrated RH leaves 0-100 % before the clip repairs it
+    cnt = 0
+    preclip = np.zeros((nh + 1,))
     for i in range(0, len(idx), 400):
         sl = slice(i, i + 400)
-        x[sl] = spread.apply(cal, sampler.profiles(np.repeat(cond[idx[sl]], a.m, axis=0)).reshape(len(cond[idx[sl]]), a.m, -1))
+        rep = np.repeat(cond[idx[sl]], a.m, axis=0)
+        if a.drivers == "unknown":
+            rep[:, dc] = cond[draws[sl].ravel()][:, dc]
+        raw = spread.apply(cal, sampler.profiles(rep).reshape(len(cond[idx[sl]]), a.m, -1), clip=False)
+        rh = np.concatenate([raw[..., ri:ri + nh], raw[..., 4 * nh + 2:4 * nh + 3]], -1)           # 44 RH levels and rh2m
+        preclip += ((rh < 0) | (rh > 100)).sum((0, 1))
+        cnt += rh.shape[0] * rh.shape[1]
+        x[sl] = clip_ranges(raw)
+    preclip /= cnt
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template))
@@ -100,6 +120,9 @@ def main():
         sd = np.maximum(clim[:, sel].std(0), 1e-9)
         add("bias_month_max", v, b, max(np.abs(bias[g][sel] / sd).mean() for g in bias))
         add("spread_skill_min", v, b, min(ss[g][sel].mean() for g in ss))
+    for name, sl in (("0-1 km", HEIGHTS <= 1000), ("1-5 km", (HEIGHTS > 1000) & (HEIGHTS <= 5000)), ("5-12 km", (HEIGHTS > 5000) & (HEIGHTS <= 12000)), ("12-18 km", HEIGHTS > 12000)):
+        add("preclip_rate", "RH", name, preclip[:NH][sl].mean())
+    add("preclip_rate", "rh2m", "surface", preclip[NH])
     for i, v in enumerate(PROFILE):
         cols = np.arange(i * NH, (i + 1) * NH)
         add("vcorr_err", v, "profile", M.vertical_corr_error(x, y, cols, rng=rng))

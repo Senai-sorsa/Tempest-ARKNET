@@ -80,7 +80,7 @@ def coupling(arrays, variance=0.99):
     vs = [k for k in COUPLED_VARS if np.isfinite(arrays[k]).all()]
     prof = np.stack([arrays[k].astype(np.float64) for k in vs], 1)             # (n, V, 44)
     n, V = prof.shape[0], len(vs)
-    out = dict(variables=np.array(vs))
+    out = dict(variables=np.array(vs), variables_excluded=np.array([k for k in COUPLED_VARS if k not in vs]))      # review 8.6: say which variables had NaNs and were left out
     for tag, sp_ in (("corr", False), ("spearman", True)):
         out[f"{tag}_vars_at_height"] = np.stack([_corr(prof[:, :, h], sp_) for h in range(nh)])        # (44, V, V)
         for i, k in enumerate(vs):

@@ -80,10 +80,15 @@ def split(year, cond, names, cfg):
         val = year > year.max() - cfg["val_years"]
         return ~val, val
     doy = np.arctan2(cond[:, names.index("doy_sin")], cond[:, names.index("doy_cos")]) % (2 * np.pi) / (2 * np.pi) * 365.25
-    day = year.astype(np.int64) * 366 + doy.astype(np.int64)
+    day = (np.asarray(year, np.int64) - 1970).astype("datetime64[Y]").astype("datetime64[D]").astype(np.int64) + np.minimum(doy.astype(np.int64), 364)   # true day number (leap years included), review 1.4
     vb = np.random.default_rng(12345).random(int(day.max()) // 14 + 2) < cfg["val_block_frac"]
     val = vb[day // 14]
-    return ~(val | vb[(day - 3) // 14] | vb[(day + 3) // 14]), val
+    tr = ~(val | vb[(day - 3) // 14] | vb[(day + 3) // 14])
+    yrs, cnt_v, cnt_t = np.unique(year), [(val & (year == y)).sum() for y in np.unique(year)], [(tr & (year == y)).sum() for y in np.unique(year)]
+    if val.sum() < 0.02 * len(year) or min(cnt_t) == 0:                                          # review 1.5: minimum support on both sides
+        raise ValueError(f"block validation split has too little support: {int(val.sum())} validation rows, training rows per year min {min(cnt_t)}")
+    print(f"block validation: {int(val.sum()):,} validation rows ({100 * val.mean():.1f} %), years without validation rows: {[int(y) for y, c in zip(yrs, cnt_v) if c == 0]}", flush=True)
+    return tr, val
 
 
 def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=None, members=1):
@@ -209,7 +214,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     gpu = str(device).startswith("cuda")
     # shortcut: every training row is normalised and copied to the device once (CPU runs keep a float32 copy in
     # RAM; fine for tests, a GPU-less full run would need ~2x the data in RAM)
-    dt = torch.float16 if gpu else torch.float32
+    dt = torch.float16 if (gpu and cfg.get("store_dtype", "float16") != "float32") else torch.float32       # F-29: store_dtype = "float32" keeps the training rows at full precision (reference mode)
     Xc = torch.empty(len(tr_idx), cond.shape[1], dtype=dt, device=device)
     Xt = torch.empty(len(tr_idx), target.shape[1], dtype=dt, device=device)
     for i in range(0, len(tr_idx), 1_000_000):
@@ -280,6 +285,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         if all(M["done"] for M in mem):
             break
 
+    for M in mem:                                                                               # F-30: a run whose validation never produced a finite loss has no checkpoint to save
+        if M["best_state"] is None:
+            raise RuntimeError(f"member seed {M['seed']}: no finite validation loss was ever recorded (NaN or inf); nothing to save. Check the data, learning rate and loss terms.")
+        bad_norm = [k for k, v in norm.items() if not bool(torch.isfinite(torch.as_tensor(v)).all())]
+        if bad_norm:
+            raise RuntimeError(f"normalisation arrays {bad_norm} contain non-finite values; training data has NaN or inf columns")
     ckpts = [dict(state=M["best_state"], cfg={**cfg, "seed": M["seed"]}, norm=norm, n_cond=cond.shape[1],
                   n_out=target.shape[1], linear_cols=linear_cols, sp_offset=sp_offset, val_loss=M["best"],
                   history=M["history"], train_years=[int(year[tr_idx].min()), int(year[tr_idx].max())], val_years_range=[int(year[va_idx].min()), int(year[va_idx].max())],

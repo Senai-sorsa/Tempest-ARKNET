@@ -18,6 +18,9 @@ def scenarios(samples, outcome_fn, pcts=(1, 25, 50, 75, 99), weights=None):
     if weights is None:
         targets = np.percentile(out, pcts)
     else:  # weighted percentiles (sample weights from the coupled file)
+        w_ = np.asarray(weights, float)
+        if w_.shape != out.shape or not np.isfinite(w_).all() or (w_ < 0).any() or not w_.sum() > 0:
+            raise ValueError("weights must be finite, non-negative, one per sample, with a positive sum")
         order = np.argsort(out)
         cw = np.cumsum(np.asarray(weights, float)[order])
         cw = (cw - 0.5 * np.asarray(weights, float)[order]) / cw[-1]

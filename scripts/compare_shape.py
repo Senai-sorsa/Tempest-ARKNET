@@ -13,7 +13,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-METRICS = ["pit_tv", "cov_err_mean", "skew_diff", "kurt_diff", "tail_rate_err", "event_cov_gap", "vcorr_err", "shear_ks"]
+METRICS = ["preclip_rate", "pit_tv", "cov_err_mean", "skew_diff", "kurt_diff", "tail_rate_err", "event_cov_gap", "vcorr_err", "shear_ks"]
 
 
 def means(path):

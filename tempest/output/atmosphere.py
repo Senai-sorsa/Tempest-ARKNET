@@ -25,7 +25,7 @@ import xarray as xr
 from tempest.calibrate import spread
 from tempest.generator import features as feat
 from tempest.generator import sample as sample_mod
-from tempest.generator.sample import Sampler
+from tempest.generator.sample import PROFILE, SURFACE, Sampler
 from tempest.generator.train import load_npz
 from tempest.gust import model as gm
 from tempest.ingest import index_forecast, indices
@@ -69,7 +69,7 @@ class Atmosphere:
         if month <= known.index[-1]:
             row = known.loc[month, ["oni", "wwv", "qbo30", "qbo50"]].to_numpy(float)
             return np.tile(row, (n, 1)), "observed"
-        horizon = int(min(12, (month.year - known.index[-1].year) * 12 + month.month - known.index[-1].month))
+        horizon = int(min(60, (month.year - known.index[-1].year) * 12 + month.month - known.index[-1].month))     # review 8.4: was clamped at 12 months, which hid how far ahead the query really is
         d = index_forecast.draw(known, known.index[-1], horizon, n, rng)  # columns in indices.COLS order: oni, qbo30, qbo50, wwv
         return d[:, [0, 3, 1, 2]], f"ridge forecast, {horizon} months ahead"
 
@@ -103,8 +103,11 @@ class Atmosphere:
         if self.head is not None:
             extras["w"] = self.head(head_inputs(cond, phys)).astype(np.float32)
         phys = sample_mod.to_site(phys, elev_row[:n], elev)                              # temperature, pressure, humidity to the site (the w head above saw grid-elevation inputs)
+        NHs = len(HEIGHTS)
+        assert phys.shape[1] == NHs * len(PROFILE) + len(SURFACE), f"unexpected sample layout {phys.shape[1]} columns (review 8.2)"       # indices below are by name, not by magic number
+        I_U10, I_V10, I_T2M = 0, NHs, NHs * len(PROFILE) + SURFACE.index("t2m")          # lowest-level u and v, and the 2 m temperature
         if self.gust is not None:
-            u10, v10 = phys[:, 0], phys[:, len(HEIGHTS)]
+            u10, v10 = phys[:, I_U10], phys[:, I_V10]
             X = gm.design(np.hypot(u10, v10), np.full(n, doy), np.full(n, gm.utc_hour(t_utc)), station=np.full(n, gm.station_flag(lat, lon)))   # fitted with UTC hour and the nearer ASOS site
             mu, beta = gm.params(self.gust, X)
             gmu, gbeta = np.full((n, 5), np.nan, np.float32), np.full((n, 5), np.nan, np.float32)
@@ -112,7 +115,7 @@ class Atmosphere:
             extras["gust_mu"], extras["gust_beta"] = gmu, gbeta
             notes.append("gust parameters at 10 m only")
         if self.lib is not None:
-            hist = self.lib.draw(p, t_utc.round("h"), phys[:, 176], rng)
+            hist = self.lib.draw(p, t_utc.round("h"), phys[:, I_T2M], rng)
             extras["soak_t2m"], extras["soak_ssrd"], extras["soak_wind10"] = (h.astype(np.float32) for h in hist)
             extras["T_soak"] = soak.t_soak(hist[0], tau_hours).astype(np.float32)
             notes.append(f"T_soak tau = {tau_hours:g} h (a setting)")

@@ -37,10 +37,10 @@ class Indices:
         return np.array(cols + [np.sin(2 * np.pi * month / 12), np.cos(2 * np.pi * month / 12)], float)
 
     def forecast(self, ts, ridge=3.0):
-        """-> (mean (4,), cov (4, 4), horizon_months) for the month of ts after the last observed one (horizon capped at 12)."""
+        """-> (mean (4,), cov (4, 4), horizon_months) for the month of ts after the last observed one (horizon capped at 60 months; review 8.4, was 12)."""
         last_i = len(self.months) - 1
         y, m = divmod(self.last(), 100)
-        h = max(1, min(12, (ts.year - y) * 12 + ts.month - m))
+        h = max(1, min(60, (ts.year - y) * 12 + ts.month - m))
         org = np.arange(LAGS, last_i - h + 1)
         X = np.stack([self._design(i) for i in org])
         Y = self.table[org + h]
