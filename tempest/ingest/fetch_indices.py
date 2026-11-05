@@ -12,6 +12,7 @@ URLS = {
     "qbo_u30.txt": "https://www.cpc.ncep.noaa.gov/data/indices/qbo.u30.index",
     "qbo_u50.txt": "https://www.cpc.ncep.noaa.gov/data/indices/qbo.u50.index",
     "wwv.txt": "https://www.pmel.noaa.gov/tao/wwv/data/wwv.dat",
+    "gistemp.csv": "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv",  # global mean temperature anomaly (GMST)
 }
 
 

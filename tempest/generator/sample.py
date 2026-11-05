@@ -7,6 +7,32 @@ from tempest.profiles.diff import from_diff
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
 SURFACE = ["t2m", "sp", "rh2m"]  # same order as build_dataset.SURFACE
+RH_TARGET = "rh"  # "dpd": humidity was learned as ln(T - Td + 1 K); set by train.load_npz / Sampler, see rh_from_dpd
+
+
+def set_rh_target(mode: str) -> None:
+    global RH_TARGET
+    if mode not in ("rh", "dpd"):
+        raise ValueError(f"rh_target must be 'rh' or 'dpd', got {mode!r}")
+    RH_TARGET = mode
+
+
+def es_liquid(t):
+    """Saturation vapour pressure over liquid water (Pa), T in K; the formula behind to_heights.liquid_rh."""
+    return 611.21 * np.exp(17.502 * (t - 273.16) / (t - 32.19))
+
+
+def dpd_from_rh(t, rh):
+    """T (K) and RH over liquid water (%) -> learned humidity coordinate ln(T - Td + 1 K); RH floored at 0.5 %."""
+    y = np.log(np.clip(rh, 0.5, 100.0) / 100.0 * es_liquid(t) / 611.21)
+    td = (y * 32.19 - 17.502 * 273.16) / (y - 17.502)  # inverse of the vapour-pressure formula
+    return np.log1p(np.maximum(t - td, 0.0))
+
+
+def rh_from_dpd(t, lnd):
+    """Inverse of dpd_from_rh: RH (%) <= 100 by construction (a negative depression is clipped to saturation)."""
+    td = t - np.maximum(np.expm1(np.clip(lnd, None, 5.0)), 0.0)
+    return 100.0 * es_liquid(td) / es_liquid(t)
 
 
 def to_physical(raw: np.ndarray) -> np.ndarray:
@@ -16,7 +42,15 @@ def to_physical(raw: np.ndarray) -> np.ndarray:
     cap would fight the training data; revisit after the CDS boundary-layer merge."""
     n, p = len(HEIGHTS), len(PROFILE)
     prof = from_diff(raw[..., :n * p].reshape(*raw.shape[:-1], p, n))
-    return clip_ranges(np.concatenate([prof.reshape(*raw.shape[:-1], n * p), raw[..., n * p:]], axis=-1))
+    rest = raw[..., n * p:]
+    if RH_TARGET == "dpd":  # humidity was learned as ln(dewpoint depression + 1): rebuild RH from T
+        prof = np.array(prof, dtype=np.float64)
+        i_t, i_rh = PROFILE.index("T"), PROFILE.index("RH")
+        prof[..., i_rh, :] = rh_from_dpd(prof[..., i_t, :], prof[..., i_rh, :])
+        rest = np.array(rest, dtype=np.float64)
+        rest[..., SURFACE.index("rh2m")] = rh_from_dpd(rest[..., SURFACE.index("t2m")], rest[..., SURFACE.index("rh2m")])
+        prof, rest = prof.astype(raw.dtype), rest.astype(raw.dtype)
+    return clip_ranges(np.concatenate([prof.reshape(*raw.shape[:-1], n * p), rest], axis=-1))
 
 
 def clip_ranges(phys: np.ndarray) -> np.ndarray:
@@ -59,7 +93,8 @@ class Sampler:
             model = Generator(k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"))
             model.load_state_dict(k["state"])
             self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
-        self.sp_offset = ckpt.get("members", [ckpt])[0].get("sp_offset")  # [target col, cond col], or None (old files)
+        self.sp_offset = ckpt.get("members", [ckpt])[0].get("sp_offset")
+        set_rh_target(ckpt.get("members", [ckpt])[0].get("rh_target", "rh"))  # a model trained on dpd targets needs the inverse  # [target col, cond col], or None (old files)
 
     @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:

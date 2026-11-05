@@ -52,6 +52,45 @@ def at(table, times):
 COLS = ["oni", "qbo30", "qbo50", "wwv"]
 
 
+def read_gmst(path):
+    """NASA GISTEMP v4 monthly CSV (global mean surface temperature anomaly, K) -> monthly Series. Row 1 is a title;
+    columns Year, Jan..Dec; "***" is missing."""
+    out = {}
+    for ln in open(path, encoding="utf-8").read().splitlines()[2:]:
+        p = ln.split(",")
+        if len(p) < 13 or not p[0].isdigit():
+            continue
+        for m in range(12):
+            try:
+                out[pd.Timestamp(int(p[0]), m + 1, 1)] = float(p[1 + m])
+            except ValueError:
+                pass
+    return pd.Series(out).sort_index()
+
+
+def gmst_table(root="data/raw/indices", window=60):
+    """Smoothed GMST known at the START of each month: the mean of the previous `window` monthly anomalies (a trailing
+    mean, so nothing from the future leaks into a training row). Extended with the last value for later months, which
+    is what a query about the future gets ("last known value carried forward")."""
+    s = read_gmst(os.path.join(root, "gistemp.csv"))
+    sm = s.rolling(window, min_periods=window).mean().shift(1)
+    last = s.index[-1] + pd.DateOffset(months=1)
+    sm.loc[last] = s.iloc[-window:].mean()  # the month after the last datum is known from the data so far
+    return sm.dropna()
+
+
+def gmst_at(sm, times):
+    """Smoothed GMST for each timestamp's month (float32); months past the table carry the last value forward."""
+    months = pd.DatetimeIndex(times).to_period("M").to_timestamp()
+    i = np.clip(sm.index.searchsorted(months, side="right") - 1, 0, len(sm) - 1)  # latest table month at or before each one
+    return sm.to_numpy()[i].astype(np.float32)
+
+
+def oni_lag(table, times, months=3):
+    """ONI of `months` months before each timestamp's month (float32)."""
+    return at(table, pd.DatetimeIndex(times) - pd.DateOffset(months=months))[:, 0]
+
+
 def analog(table, times, lag_days, m, rng, before, k=8):
     """Driver values for m samples per time when only values `lag_days` old are known (PLAN A6, option 5).
     For each time, the k past months of the same calendar month (year < before) whose values lag_days earlier are
@@ -69,4 +108,15 @@ def analog(table, times, lag_days, m, rng, before, k=8):
         kk = min(k, len(cand))
         near = np.argsort(((now[r][:, None] - (at(table, cand - lag) / sd)[None]) ** 2).sum(-1), 1)[:, :kk]
         out[r] = at(table, cand[near[np.arange(len(r))[:, None], rng.integers(0, kk, (len(r), m))].ravel()]).reshape(len(r), m, -1)
+    return out
+
+
+def feature_extras(names, table, gm, times):
+    """Keyword arguments for features.features() that the active feature list needs beyond the original 13:
+    gmst (from gmst_table, `gm`) and the 3-month lagged ONI. Empty for the original list."""
+    out = {}
+    if "gmst" in names:
+        out["gmst"] = gmst_at(gm, times)
+    if "oni_lag3" in names:
+        out["oni_lag3"] = oni_lag(table, times)
     return out
