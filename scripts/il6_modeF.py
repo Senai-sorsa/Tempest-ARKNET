@@ -133,3 +133,28 @@ print(cv.round(4).to_string())
 print("skill vs climatology by variable (network + range map), lead 1 / 3 / 5 / 7")
 sk = t[t.method == "network + range map"].groupby(["var", "lead"]).crps.mean().unstack("lead") / t[t.method.str.startswith("climatology")].groupby(["var", "lead"]).crps.mean().unstack("lead")
 print((1 - sk).round(3).to_string())
+
+# ---- shape metrics (MAIN TARGET) per lead for the probabilistic methods
+try:
+    from tempest.profiles.to_heights import PROFILE as _PROF
+    levels = np.array([0.1, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95, 0.99])
+    srows = []
+    for name in ("network + range map", "ridge + error pool", "HRES + error pool"):
+        x = methods[name]
+        for L in (1, 3, 5, 7):
+            k = te["lead_days"] == L
+            xs, ys = x[k], truth[k]
+            pit = M.pit_values(xs, ys, rng)
+            tv = M.pit_tv(pit).mean()
+            cov = np.abs(M.coverage_levels(pit) - levels[:, None]).mean()
+            vc = [M.vertical_corr_error(xs, ys, np.arange(i * F.NH, (i + 1) * F.NH), rng=rng) for i in range(len(_PROF))]
+            mom = M.standardized_moments(xs, ys)
+            srows.append(dict(method=name, lead=L, pit_tv=tv, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
+                              skew_diff=np.abs(mom[:, 0] - mom[:, 1]).mean(), kurt_diff=np.abs(mom[:, 2] - mom[:, 3]).mean()))
+    st = pd.DataFrame(srows)
+    st.to_csv(a.out.rsplit(".", 1)[0] + "_shape.csv", index=False)
+    with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
+        print("shape metrics on the test rows (goals: PIT distance <= 0.02, level error <= 0.008, vertical corr error <= 0.05, skew <= 0.15, kurt <= 0.4)")
+        print(st.to_string(index=False))
+except Exception as e:  # noqa: BLE001
+    print("shape block failed:", repr(e))
