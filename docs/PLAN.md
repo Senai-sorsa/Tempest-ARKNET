@@ -983,7 +983,7 @@ w at 1 km sd 3.1 cm/s, T_soak (tau 6 h) 302.8 K, 24 h t2m range 14 K. Still NaN:
 
 | # | Item | State |
 |---|---|---|
-| IL-3 | 8 pooled seeds instead of 4 (`configs/generator_il3.toml`, `scripts/phase2_variant.sh VAR=il3`) | training |
+| IL-3 | 8 pooled seeds instead of 4 (`configs/generator_il3.toml`, `scripts/phase2_variant.sh VAR=il3`) | done, discarded: ERA5 mean skill15 +0.0277 -> +0.0278 (noise), cov99 error 0.0034 -> 0.0031; balloons +0.0083 -> +0.0071 (rule a fails, within the 0.002 noise but wrong direction). No real gain for double the sampling cost |
 | IL-5 | Rare shear patches from Earth-GRAM 2.12.2 (`tempest/calibrate/shear_tail.py`, `scripts/il5.sh`) | queued after IL-3 |
 | IL-6 | Calibrate forecast modes F/F2 on WeatherBench2 IFS HRES (+ IFS ENS) lead-time history | queued after IL-5 |
 | IL-7a | Chronos-2 as index forecaster (`scripts/chronos_bakeoff.py`) | running (CPU) |
