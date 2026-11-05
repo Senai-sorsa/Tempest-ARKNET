@@ -27,3 +27,10 @@ def test_fit_raises_a_too_light_tail_and_is_bounded():
     after = st.band_shear_q(st.apply(dict(p=0.05, sigma=sig), calm, rng), 99.9)
     before = st.band_shear_q(calm, 99.9)
     assert (after >= before - 1e-6).all() and (sig > 0).any() and (sig <= 8).all()
+
+
+def test_fixed_bands_stay_zero():
+    rng = np.random.default_rng(2)
+    calm, wild = _x(rng, scale=1.0), _x(rng, scale=3.0)
+    sig, _ = st.fit_sigma(calm, wild[:, 0], 0.05, rng, free=(False, False, True, False))
+    assert sig[0] == sig[1] == sig[3] == 0.0 and sig[2] > 0

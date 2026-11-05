@@ -5,6 +5,7 @@ residual blocks whose layer norms are shifted and scaled by an embedding of one 
 every layer sees the same random draw; trained on the per-value almost-fair CRPS.
 """
 import torch
+import torch.utils.checkpoint
 from torch import nn
 
 
@@ -77,9 +78,14 @@ class TokBlock(nn.Module):
         nn.init.zeros_(self.film.weight)
         nn.init.zeros_(self.film.bias)
         self.attn = nn.MultiheadAttention(d, heads, batch_first=True)
-        self.ff = nn.Sequential(nn.Linear(d, 4 * d), nn.SiLU(), nn.Linear(4 * d, d))
+        self.ff = nn.Sequential(nn.Linear(d, 2 * d), nn.SiLU(), nn.Linear(2 * d, d))
 
     def forward(self, h, z):
+        if self.training and torch.is_grad_enabled():   # recompute in the backward pass: 44 tokens per sample would not fit otherwise
+            return torch.utils.checkpoint.checkpoint(self._f, h, z, use_reentrant=False)
+        return self._f(h, z)
+
+    def _f(self, h, z):
         s1, b1, s2, b2 = (t.unsqueeze(1) for t in self.film(z).chunk(4, dim=-1))
         x = self.n1(h) * (1 + s1) + b1
         h = h + self.attn(x, x, x, need_weights=False)[0]
@@ -93,7 +99,7 @@ class TokenGenerator(nn.Module):
     a linear head on the mean token. Output order is variable-major like the dataset's targets."""
 
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
-                 linear_cols: list[int] | None = None, n_height: int = 44, n_var: int = 4, d: int = 192, heads: int = 6):
+                 linear_cols: list[int] | None = None, n_height: int = 44, n_var: int = 4, d: int = 128, heads: int = 4):
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.keep_cols = [i for i in range(n_cond) if i not in self.linear_cols]

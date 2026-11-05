@@ -32,3 +32,14 @@ def test_month_smoothing_is_circular():
     s = np.ones((12, 1)); s[0, 0] = 1.3
     sm = seasonal.smooth_months(s)
     assert sm[11, 0] > 1 and sm[1, 0] > 1 and np.isclose(sm.mean(), s.mean())
+
+
+def test_restrict_keeps_only_chosen_variables():
+    from tempest.scoring.score import band_masks
+    tab = dict(scale=np.full((12, len(band_masks()[0][2])), 0.9, np.float32))
+    r = seasonal.restrict(tab, {"RH"})
+    rh = np.zeros(tab["scale"].shape[1], bool)
+    for v, _, sel in band_masks():
+        if v == "RH":
+            rh |= sel
+    assert np.allclose(r["scale"][:, rh], 0.9) and np.allclose(r["scale"][:, ~rh], 1.0)

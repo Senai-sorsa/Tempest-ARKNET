@@ -58,15 +58,16 @@ def band_shear_q(x, q):
     return np.array([np.percentile(sh[..., (mid >= EDGES[i]) & (mid < EDGES[i + 1])], q) for i in range(4)])
 
 
-def fit_sigma(samples, truth, p, rng, q=99.9, iters=14):
+def fit_sigma(samples, truth, p, rng, q=99.9, iters=14, free=(True, True, True, True)):
     """Bisection per band on sigma so that the q-th shear percentile of (patched) samples equals the truth's."""
     target = band_shear_q(truth, q)
     lo, hi = np.zeros(4), np.full(4, 8.0)
+    free = np.asarray(free, bool)
     for _ in range(iters):
-        mid = (lo + hi) / 2
+        mid = np.where(free, (lo + hi) / 2, 0.0)          # bands that are not free stay at zero (IL-12: only the band where the patches helped)
         cur = band_shear_q(apply(dict(p=p, sigma=mid), samples, np.random.default_rng(int(rng.integers(1 << 30)))), q)
         lo, hi = np.where(cur < target, mid, lo), np.where(cur < target, hi, mid)
-    return (lo + hi) / 2, target
+    return np.where(free, (lo + hi) / 2, 0.0), target
 
 
 def main():
@@ -78,6 +79,8 @@ def main():
     ap.add_argument("--data", required=True)
     ap.add_argument("--calib", required=True)
     ap.add_argument("--p", type=float, default=0.05)
+    ap.add_argument("--only-bands", type=int, nargs="+", help="band numbers 0-3 (0-1, 1-5, 5-12, 12-18 km) that get patches; default all")
+    ap.add_argument("--out")
     ap.add_argument("--year", type=int, default=2023)
     ap.add_argument("--from-year", type=int, default=2021)
     ap.add_argument("--rows", type=int, default=3000)
@@ -93,8 +96,9 @@ def main():
     idx = np.sort(rng.choice(np.flatnonzero((d["year"] >= a.from_year) & (d["year"] <= a.year)), a.rows, replace=False))
     truth = to_physical(np.asarray(d["target"][idx]))
     x = spread.apply(cal, sampler.profiles(np.repeat(np.asarray(d["cond"])[idx], a.m, axis=0)).reshape(len(idx), a.m, -1))
-    sig, target = fit_sigma(x, truth, a.p, rng)
-    out = a.model.rsplit(".", 1)[0] + f".sheartail{a.from_year}.npz"
+    free = [b in (a.only_bands or range(4)) for b in range(4)]
+    sig, target = fit_sigma(x, truth, a.p, rng, free=free)
+    out = a.out or a.model.rsplit(".", 1)[0] + f".sheartail{a.from_year}.npz"
     before = band_shear_q(x, 99.9)
     after = band_shear_q(apply(dict(p=a.p, sigma=sig), x, rng), 99.9)
     print("99.9th shear (m/s/km) by band 0-1, 1-5, 5-12, 12-18 km")

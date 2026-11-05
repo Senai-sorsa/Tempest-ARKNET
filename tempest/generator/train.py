@@ -259,10 +259,11 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                 # forking restores the training RNG afterwards, so the training run itself is unchanged
                 with torch.no_grad(), torch.random.fork_rng(devices=[torch.device(device)] if gpu else []):
                     torch.manual_seed(M["seed"] + 12345)
-                    v = float(sum(score(model(vc[i:i + 8192], cfg["m"]), vt[i:i + 8192])
-                                  * len(vc[i:i + 8192])
-                                  for i in range(0, len(vc), 8192)) / len(vc))
-                    d = diagnose(model, vc[:4096], vt[:4096])
+                    vb = 8192 if cfg["arch"] == "mlp" else 1024   # the token model holds 44 tokens per sample: smaller chunks
+                    v = float(sum(score(model(vc[i:i + vb], cfg["m"]), vt[i:i + vb])
+                                  * len(vc[i:i + vb])
+                                  for i in range(0, len(vc), vb)) / len(vc))
+                    d = diagnose(model, vc[:vb // 2 if vb < 8192 else 4096], vt[:vb // 2 if vb < 8192 else 4096])
                 tag = f"member {k + 1}  " if members > 1 else ""
                 log(f"{tag}step {step:6d}  train {loss.item():.4f}  val {v:.4f}  lr {M['sched'].get_last_lr()[0]:.2e}  "
                     f"grad {gnorm.item():.3f}  {time.time() - t0:.0f}s")

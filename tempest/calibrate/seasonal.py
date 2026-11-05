@@ -49,6 +49,18 @@ def smooth_months(s):
     return (np.roll(s, 1, 0) + s + np.roll(s, -1, 0)) / 3.0
 
 
+def restrict(table, variables):
+    """Copy of a seasonal table with factor 1 everywhere except the physical columns of the given variables (names as in scoring.score.band_masks, e.g. RH, rh2m)."""
+    from tempest.scoring.score import band_masks
+    keep = np.zeros(table["scale"].shape[1], bool)
+    for v, _, sel in band_masks():
+        if v in variables:
+            keep |= sel
+    out = dict(table)
+    out["scale"] = np.where(keep[None, :], table["scale"], 1.0).astype(np.float32)
+    return out
+
+
 def main():
     from tempest.generator.features import FEATURES, drivers
     from tempest.scoring.score import band_masks, group_keys
