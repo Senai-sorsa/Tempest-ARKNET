@@ -97,13 +97,17 @@ for L in (1, 3, 5, 7):
     for j, i in enumerate(idxs):
         lin[i] = pred[j] + res_L[rng.choice(len(res_L), m)]
 lin = F.to_physical(np.zeros((len(truth), F.D), np.float32), lin)
+# Schaake shuffle (IL-82): keep the network's marginals per column, take the dependence (ranks across the draws, by height and variable) from real forecast-error profiles
+res_draw = x_pool - hres[:, None]                                    # real error profiles of the same lead (clip effects of RH are negligible here)
+ranks = np.argsort(np.argsort(res_draw, axis=1), axis=1)
+x_shuf = np.take_along_axis(np.sort(x_cal, axis=1), ranks, axis=1)
 clim = np.empty_like(x_pool)
 tro = tr["obs"].reshape(len(tr["obs"]), -1)
 for i in range(len(truth)):
     dd = np.abs(((tr["doy"] - te["doy"][i] + 183) % 366) - 183)
     ok = np.flatnonzero((dd <= 20) & (np.abs(tr["z_sfc"] - te["z_sfc"][i]) < 250))
     clim[i] = tro[rng.choice(ok if len(ok) > 30 else np.arange(len(tro)), m)]
-methods = {"climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network (raw)": x_net, "network + range map": x_cal}
+methods = {"climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network + range map + Schaake shuffle": x_shuf, "network (raw)": x_net, "network + range map": x_cal}
 bands = P.names()
 masks = np.stack([s for _, _, s in bands], 1).astype(float)
 masks /= masks.sum(0)
@@ -139,7 +143,7 @@ try:
     from tempest.profiles.to_heights import PROFILE as _PROF
     levels = np.array([0.1, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95, 0.99])
     srows = []
-    for name in ("network + range map", "ridge + error pool", "HRES + error pool"):
+    for name in ("network + range map", "network + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
         x = methods[name]
         for L in (1, 3, 5, 7):
             k = te["lead_days"] == L
