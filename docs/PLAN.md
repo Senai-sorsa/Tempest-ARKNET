@@ -1007,3 +1007,6 @@ Method: for each rejected item, look at WHERE it gained and WHERE it lost, and k
 | Forecast modes (4.7/4.8) | never calibrated: no lead-time history | IL-6 with WeatherBench2 HRES once the Colab output exists |
 
 New, higher-probability ideas that came out of the measured results: the median bias shift (IL-13: the model is still 0.36-0.46 K cold at 0-12 km after all the work, a plain shift is the most direct fix and improves MAE/RMSE directly), and applying a rank-preserving blend only where it was proven (IL-10).
+
+### Usefulness goals added to the queue (2026-11-05)
+IL-31..IL-42 in `Code-Modifications/AUTOPILOT.md` (group U): an in-repo downstream rocket-ascent test that replaces the missing simulator test, downstream scores in the scorer, conditional sampling around known observations, tail-directed sampling with weights, hourly launch-window sequences, downrange spatial coherence, derived hazards with balloon checks, numeric targets for the shape gaps, export formats, Monte Carlo sample-size helper, per-query trust card, and an other-sites feasibility check.
