@@ -165,11 +165,37 @@ Shear goals (numbers): 99.9th within 5 % of the truth in all four bands for 2021
 | IL-68 | G | Vertical correlation error is 0.056-0.099 (goal 0.05; worst T 0.099, u 0.094): profiles have slightly wrong vertical coherence | IL-53 copula check/rank reorder and IL-47 variogram loss first | todo, raised in priority |
 | IL-69 | S | Worst PIT cells T 5-12 km (0.059), T 1-5 km (0.052): full PIT recalibration (IL-46) first | IL-46 | todo, raised in priority |
 | IL-70 | S | Monthly median bias normalised by climate sd reaches 0.46 at T 12-18 km (mean over cells 0.27): month x band shift (IL-20) fitted on 2011-2023 | IL-20 after IL-66 | todo |
+| IL-76 | G | **Validation and calibration windows overlap** (found by pitfall check 1c): the generators are early-stopped on 2021-23 and every range map / table is fitted on the same 2021-23, so the residuals used for calibration are slightly optimistic. Split them: train <= 2018, early-stopping 2019-2020, calibration 2021-23, test 2024-25; compare coverage and PIT on 2024-25 with p2f | one retrain with `--max-year 2020` and `val_years 2` (new config), full chain; judge by the shape numbers | todo, medium priority |
 | IL-71 | G | Event-conditional coverage gap 0.18 at RH 5-12 km: extreme RH outcomes are missed more often than a perfect forecast would miss them; bounded-variable mixture head (IL-52) or RH tail map | IL-52 | todo |
 
 | IL-73 | D | **Mode F (forecast-conditioned profile) from the HRES archive**: the finding above says forecasts carry 40-70 % of the variance up to 5 days. Build: HRES fields -> 44-height profile with the same converter (approximations for u100, v100, d2m, labelled), then the mode P residual network with lead time as an input: target = ERA5-height profile minus HRES profile; train starts 2016-2019, early stopping 2020, range map on 2021, TEST 2022 (the HRES archive ends 2023-01, so 2024-25 is not available: state this); compare with raw HRES profile, with the climate generator, and with mode P-style error-pool; judge CRPS/MAE/PIT/coverage per lead and the shape targets | `tempest/forecast/modeF.py`, `scripts/il6_modeF.py`, tests | todo, HIGH priority (the largest accuracy gain available) |
 | IL-74 | D | Lead blending: between 0 and about 7 days use mode F, beyond about 10-15 days the climate generator, with a smooth weight by lead fitted on the skill table (IL-6a) and checked on 2022; router change in `tempest/forecast/router.py` | after IL-73 | todo |
 | IL-75 | D | More HRES starts/leads: only 92 starts a year at leads 1/3/5/7; a second Colab pull with 00 and 12 UTC, every 2nd day, leads 12 h ... 10 days would triple the training cases. Only if IL-73 shows data is the limit; goes to ASK_LATER as an optional notebook rerun | after IL-73 | todo (optional, needs the user to rerun the notebook) |
+
+## Pitfall checks (user 2026-11-05): quick checks for the classic beginner and expert mistakes, run after every item that trains, fits or changes a file, and at the end of every phase
+Automated: `PYTHONPATH=. python scripts/pitfall_check.py MODEL CALIB DATA --aux <fitted tables> [--skip-model]` (about a minute, GPU only for a few hundred samples). It must print no FAIL; every WARN gets a line in the PLAN row of the item. First run on p2f (2026-11-05): 11 pass, 0 fail, 3 warn (calibration window = early-stopping window, see IL-76).
+| # | Pitfall | Check | Automated |
+|---|---|---|---|
+| 1 | Training, validation, calibration and test data overlap (the user's example) | train years < validation years; calibration/fit windows end before the test years; warn when a fit window overlaps the early-stopping validation window | yes (1a, 1b, 1c) |
+| 2 | Peeking at the final test (2026 Jan-Jun) | no fitted file ends in 2026; no log of a development run mentions 2026 | yes (2) |
+| 3 | Stale or mismatched files | every fitted table carries the hash of this exact model; results are newer than the model | yes (3, 11) |
+| 4 | Garbage outputs (NaN, impossible values, collapsed samples) | finite, RH 0-100, T and wind in physical range, no constant columns, samples distinct | yes (4, 4b) |
+| 5 | Not reproducible, or seed luck | same seed gives identical samples, other seed differs; a result inside the seed-noise band (0.001-0.002 in skill15) is not a gain | yes (5) + verdict rule |
+| 6 | Model ignores its inputs, or the target leaks in | shuffling the date and driver inputs must make the CRPS worse | yes (6) |
+| 7 | Too good to be true | mean skill15 above 0.15 is treated as a leak until explained | yes (7) |
+| 8 | Coverage bought with width | 99 % range not wider than the climate range | yes (8) |
+| 9 | Normalisation or statistics computed with test data | stored means agree with the training years rather than all years | yes (9) |
+| 10 | Repository hygiene | no data/models/keys tracked, no file > 5 MB, no attribution lines | yes (10) |
+| 12 | Overfitting | validation loss / training loss from the stored history < 1.35 | yes (12) |
+| 13 | Comparing against a weak or different baseline | every comparison uses the same rows, seed, m and code as the adopted model (scripts/compare_headline.py); the climatology baseline is the recent-15-years one | by procedure |
+| 14 | Garden of forking paths: many variants, one wins by luck | with n variants in a group the gain needed to adopt one is 0.001 + 0.0005 x (n - 1) in mean skill15, and it must hold on both ERA5 and balloons | by procedure (verdict rule) |
+| 15 | Tuning on the test years | choices (bands, margins, thresholds, weights) are made on 2021-23 only; if a choice is made after seeing 2024-25, the item is labelled "chosen on test" and cannot be adopted | by procedure |
+| 16 | Units and ordering | column order u, v, T, RH, t2m, sp, rh2m and the 44 heights are asserted in the unit tests; surface height in metres vs geopotential was a real bug (IL-73) | tests + review |
+| 17 | Averages hide the failure | every table reports the worst cell next to the mean | by procedure |
+| 18 | Target or truth drifts (inhomogeneous data) | per-year bias table (`scripts/bias_by_year.py`, `scripts/era5_vs_balloon_by_year.py`) is rerun when a band looks off | by procedure |
+| 19 | Trusting a metric that does not test the claim | the tail metric that compared the truth with the nominal rate instead of the model's prediction was found and fixed (IL-43); each new metric gets a synthetic test where the answer is known | tests |
+| 20 | Silent fallbacks | a mode that falls back (forecast modes) sets a flag in the output; tests assert the flag | tests |
+Extra check after every phase: `pytest` (nothing else running), `git status` clean apart from data/models, the PLAN row exists with numbers and intervals.
 
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)
 | ID | Step | How |
