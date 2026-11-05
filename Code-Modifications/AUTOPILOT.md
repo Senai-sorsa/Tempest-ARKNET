@@ -196,6 +196,8 @@ Automated: `PYTHONPATH=. python scripts/pitfall_check.py MODEL CALIB DATA --aux 
 | 18 | Target or truth drifts (inhomogeneous data) | per-year bias table (`scripts/bias_by_year.py`, `scripts/era5_vs_balloon_by_year.py`) is rerun when a band looks off | by procedure |
 | 19 | Trusting a metric that does not test the claim | the tail metric that compared the truth with the nominal rate instead of the model's prediction was found and fixed (IL-43); each new metric gets a synthetic test where the answer is known | tests |
 | 20 | Silent fallbacks | a mode that falls back (forecast modes) sets a flag in the output; tests assert the flag | tests |
+| 21 | Misaligned arrays (inputs and truth subsampled with different random indices) | draw ONE index and apply it to every array; assert an expected relationship (here: forecast error grows with lead time, the forecast beats climatology at day 1) before reading any score. Found in IL-73: the first mode F evaluation showed the forecast worse than climatology | assertion in `il6_modeF.py` |
+| 22 | Mixed-unit averages (m/s, K and % averaged into one number) | always report per variable; the mean over cells is dominated by RH (errors of 10-20 %) | by procedure |
 Extra check after every phase: `pytest` (nothing else running), `git status` clean apart from data/models, the PLAN row exists with numbers and intervals.
 
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)

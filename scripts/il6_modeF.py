@@ -42,7 +42,11 @@ torch.manual_seed(0)
 yrs = {y: dict(np.load(f"data/modeF/{y}.npz")) for y in range(2016, 2023)}
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 tr, cal, te = cat(range(2016, 2021)), cat([2021]), cat([2022])
-sub = lambda d, n: {k: v[np.sort(rng.choice(len(v), min(n, len(v)), replace=False))] for k, v in d.items()}
+def sub(d, n):
+    """random subset of rows; ONE index for all arrays (drawing a new index per array once misaligned forecast and truth)"""
+    i = np.sort(rng.choice(len(d['obs']), min(n, len(d['obs'])), replace=False))
+    return {k: v[i] for k, v in d.items()}
+
 cal, te = sub(cal, a.rows), sub(te, a.rows)
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
@@ -61,6 +65,10 @@ def draw_net(d):
     return F.to_physical(d["hres"].reshape(len(c), -1), out)
 
 
+# alignment guard: forecast error must grow with lead time, otherwise forecast and truth are not the same cases
+_e = np.abs(te["obs"] - te["hres"]).mean((1, 2))
+_m = [_e[te["lead_days"] == L].mean() for L in (1, 7)]
+assert _m[0] < _m[1], f"raw forecast error does not grow with lead ({_m}): arrays misaligned?"
 truth_cal, truth = cal["obs"].reshape(len(cal["obs"]), -1), te["obs"].reshape(len(te["obs"]), -1)
 table = P.fit_calibration(draw_net(cal), truth_cal, rng)
 np.savez(a.out.rsplit(".", 1)[0] + ".calib.npz", **table)
