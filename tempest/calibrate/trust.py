@@ -134,6 +134,9 @@ def main():
     ap.add_argument("--clim-years", type=int, default=15)
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--min-gain", type=float, default=0.0, help="IL-10: a band keeps its fitted weight only if the calibration-year CRPS gain over w = 1 is at least this share (e.g. 0.003)")
+    ap.add_argument("--skip", nargs="*", default=[], help="IL-10: bands left at w = 1 whatever the fit says, as 'RH:5-12 km' (variable:band label); coverage safeguard decided before the test years")
+    ap.add_argument("--no-second-map", action="store_true", help="IL-10: blend only, no second range map (v1 of the layer)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)
@@ -173,10 +176,12 @@ def main():
     for v, b, sel in band_masks():
         tot = crps[:, sel].sum(1)
         w_col[sel] = W_GRID[int(np.argmin(tot))]
+        if 1 - tot.min() / tot[-1] < a.min_gain or f"{v}:{b}" in a.skip:
+            w_col[sel] = 1.0
         print(f"{v:<8}{b:<12}{w_col[sel][0]:6.2f}  {tot.min() / tot[-1]:>12.4f}{tot.min() / tot[0]:>30.4f}")
     # second pass: range map on the blended samples (restores 99 % coverage that blending narrows)
     zs, us = [], []
-    for i in range(0, len(rows), step):
+    for i in range(0, 0 if a.no_second_map else len(rows), step):
         sl = slice(i, i + step)
         rep = np.repeat(cond[rows[sl]], a.m, axis=0)
         rep[:, dc] = cond[draws[sl].ravel()][:, dc]
@@ -184,9 +189,10 @@ def main():
         z, u = spread.parts(apply(w_col, x, pool.quantiles(keys[rows[sl]])), truth_all[sl], rng=rng)
         zs.append(z), us.append(u)
         print(f"pass 2: {min(i + step, len(rows)):,}/{len(rows):,} rows", flush=True)
-    tab = spread.table(np.concatenate(zs), np.concatenate(us))
+    tab = dict(qz=np.zeros(1), qu=np.zeros(1)) if a.no_second_map else spread.table(np.concatenate(zs), np.concatenate(us))
     out = a.model.rsplit(".", 1)[0] + f".trust{a.from_year}.npz"
-    np.savez(out, qz=tab["qz"], qu=tab["qu"], w=w_col, w_grid=W_GRID, crps=crps / len(rows), fit_from=a.from_year, fit_to=a.year, m=a.m,
+    extra = {} if a.no_second_map else dict(qz=tab["qz"], qu=tab["qu"])
+    np.savez(out, **extra, w=w_col, w_grid=W_GRID, crps=crps / len(rows), fit_from=a.from_year, fit_to=a.year, m=a.m,
              clim_years=a.clim_years, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
     print(f"fit on {len(rows):,} rows of {a.from_year}-{a.year}; {int((w_col < 1).sum())} of {D} columns lean on climatology; wrote {out}")
 
