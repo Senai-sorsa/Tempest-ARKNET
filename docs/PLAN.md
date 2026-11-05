@@ -989,3 +989,21 @@ w at 1 km sd 3.1 cm/s, T_soak (tau 6 h) 302.8 K, 24 h t2m range 14 K. Still NaN:
 | IL-7a | Chronos-2 as index forecaster (`scripts/chronos_bakeoff.py`) | done, discarded. Hindcast origins 2012-2025, horizons 1-12 months, mean CRPS: ONI regression 0.342, Chronos-2 0.337 (alone) / 0.348 (with the other indices), analog 0.424, climatology 0.457; QBO30 regression 4.63 vs Chronos 5.16; QBO50 2.75 vs 2.99-3.06; WWV (raw volume units) regression 4.48e13 vs Chronos with covariates 4.36e13, alone 5.79e13. Chronos-2 is a tie with the ridge regression on ONI and WWV (differences far inside the bootstrap noise) and worse on QBO, for a 120 M-parameter dependency. Ridge stays |
 | IL-8 | Height-token generator (attention along the 44 heights instead of the flat MLP), same loss and calibration | queued after IL-6 |
 | IL-9 | Mask tokens with random input dropout (missing drivers or station) and arcsinh scaling for shear / gust targets | queued after IL-8 |
+
+### Salvage review of everything rejected or discarded so far (2026-11-05)
+
+Method: for each rejected item, look at WHERE it gained and WHERE it lost, and keep the part that worked. Gains must be measured on the calibration years (2021-23) to choose bands; 2024-25 only judges.
+
+| Rejected item | What the numbers say | Salvage (queued as) |
+|---|---|---|
+| Trust layer (P1-d), blend toward 15-year climatology | v1 raised ERA5 mean skill15 +0.0273 -> +0.0293 and balloons +0.0071 -> +0.0094; gains of +0.003..+0.009 in RH 0-1 km, rh2m, sp, v at all heights, T 0-5 km, t2m. Losses only in u 5-18 km (-0.005..-0.008), T 12-18 km (-0.005) and RH 5-18 km coverage (0.9747, 0.9673) | **IL-10**: refit the weights on p2f and keep a band's weight only where the 2021-23 gain is above a margin, with RH >= 5 km and the u/T bands aloft at zero |
+| Seasonal width factors (IL-2) | coverage error 0.0034 -> 0.0019 came from RH bands and rh2m (trimmed overshoot); T 5-12 km got worse | **IL-11**: apply the factors only to RH and surface groups |
+| Shear patches (IL-5) | at 5-12 km both percentiles moved toward truth (99th 20.41 -> 21.04 vs 20.65; 99.9th 27.12 -> 28.9 vs 30.27); at 1-5 km they overshot | **IL-12**: patches only at 5-12 km |
+| GMST input (2.2) | fixed the low-level cold bias (0-5 km -0.45/-0.35 K -> -0.18/-0.17 K) but made 5-12 km worse | **IL-13**: no new input: a median shift per variable x band, fitted on 2021-23, applied to T (and checked for u, v, RH, surface) |
+| Chronos-2 (IL-7a) | ties the ridge regression on ONI (0.337 vs 0.342) and WWV, loses on QBO | **IL-14**: average of Chronos and ridge forecasts for ONI/WWV only (two different forecasters usually beat each of them) |
+| Mode P tendency inputs (IL-1) | wind aloft 1-2 % better, RH 0-1 km worse | **IL-15**: tendency inputs for the wind columns only (gain expected inside noise: lowest priority) |
+| Moisture-tercile leftovers (item 11) | balloons upper RH improved (5-12 km miss 0.92 -> 0.53 %), everything else worse | no salvage (thin pools add noise) |
+| Range-calibration variants (items 8, 12-16), longer record (item 22, P3-5), multi-stride loss (2.4), ridge smoothing (2.7), 8 seeds (IL-3) | no band where they gained that is not noise | no salvage |
+| Forecast modes (4.7/4.8) | never calibrated: no lead-time history | IL-6 with WeatherBench2 HRES once the Colab output exists |
+
+New, higher-probability ideas that came out of the measured results: the median bias shift (IL-13: the model is still 0.36-0.46 K cold at 0-12 km after all the work, a plain shift is the most direct fix and improves MAE/RMSE directly), and applying a rank-preserving blend only where it was proven (IL-10).
