@@ -3,8 +3,8 @@
 Weather for **Monte Carlo flight simulation** at any place in the contiguous US, any day, 08:00–20:00
 local time, from tomorrow to about three years ahead. Past dates are handled too.
 
-Status: planning. Nothing is built yet. The flight sim (FS / JARVIS, in the `dynamics` repo) is **not**
-changed by this work; its side comes later.
+Status (2026-11-05): the pilot-box system is built and scored (see the improvement log, the Phase 1-3 results and `docs/PHASE4_LOG.md` below); the original plan text that follows is kept as written.
+The flight sim (FS / JARVIS, in the `dynamics` repo) is **not** changed by this work; its side comes later.
 
 v2 rewrites v1 using the research report *Tempest-ARKNET Probabilistic Weather Architecture* (Nov 2026).
 What was kept from it, what was cut, and why: [research-notes.md](research-notes.md).
