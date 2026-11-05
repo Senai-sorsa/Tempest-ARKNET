@@ -63,3 +63,17 @@ def test_slot_is_stable_within_half_day():
     b = L.slot(datetime(2026, 11, 5, 11, 59, tzinfo=timezone.utc))
     c = L.slot(datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc))
     assert a == b == "20261105_00z" and c == "20261105_12z"
+
+
+def test_ec46_validator_accepts_complete_and_rejects_short_or_missing_members():
+    from tempest.ops import logger_p4 as P4
+    d = {"time": [f"d{i}" for i in range(46)]}
+    for var in P4.DAILY:
+        d[var] = [1.0] * 46
+        for k in range(1, P4.MEMBERS):
+            d[f"{var}_member{k:02d}"] = [1.0] * 46
+    assert P4.validate({"daily": d})[0]
+    short = {k: (v[:20] if isinstance(v, list) else v) for k, v in d.items()}
+    assert not P4.validate({"daily": short})[0]
+    del d["precipitation_sum_member07"]
+    assert not P4.validate({"daily": d})[0]
