@@ -66,4 +66,4 @@ class Indices:
         mean, cov, h = self.forecast(ts)
         if expected:
             return np.tile(mean, (n, 1)), f"expected value of the ridge forecast, {h} months ahead"
-        return rng.multivariate_normal(mean, cov, size=n), f"ridge forecast draws, {h} months ahead"
+        return rng.multivariate_normal(mean, cov, size=n, check_valid="ignore"), f"ridge forecast draws, {h} months ahead"

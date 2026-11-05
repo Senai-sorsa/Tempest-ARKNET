@@ -13,8 +13,9 @@ import hashlib
 import json
 import os
 
+from datetime import datetime, timedelta, timezone
+
 import numpy as np
-import pandas as pd
 
 from tempest_weather import _core, coupling, distributions, modes, outputs, ranking, registry
 from tempest_weather.engine import Net
@@ -53,10 +54,11 @@ def _assets(path=None):
 
 
 def _time(when, lon):
-    t = pd.Timestamp(when)
+    """-> (naive UTC datetime, solar hour). A datetime/ISO string with an offset is an exact instant; a naive one is local solar time at the longitude."""
+    t = when if isinstance(when, datetime) else datetime.fromisoformat(str(when).strip().replace(" ", "T", 1) if " " in str(when).strip() and "T" not in str(when) else str(when).strip())
     if t.tzinfo is None:
-        return t - pd.Timedelta(hours=lon / 15.0), t.hour + t.minute / 60
-    u = t.tz_convert("UTC").tz_localize(None)
+        return t - timedelta(hours=lon / 15.0), t.hour + t.minute / 60
+    u = t.astimezone(timezone.utc).replace(tzinfo=None)
     return u, (u.hour + u.minute / 60 + lon / 15.0) % 24
 
 
@@ -74,7 +76,7 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     """Past dates: ERA5 profile for that hour + learned balloon-minus-ERA5 residual draws, range-calibrated. -> ((n, 179) physical, ERA5 dict)."""
     e = era5_local.profile(store, lat, lon, t_utc)
     st = int(np.argmin([(lat - a) ** 2 + (lon - b) ** 2 for a, b in STATIONS]))
-    a = 2 * np.pi * t_utc.day_of_year / 365.25
+    a = 2 * np.pi * t_utc.timetuple().tm_yday / 365.25
     hour12 = 1.0 if 6 <= t_utc.hour < 18 else 0.0
     era = np.concatenate([e["u"], e["v"], e["T"], e["RH"]]).astype(np.float32)
     cond = np.concatenate([[st, np.sin(a), np.cos(a), hour12], era]).astype(np.float32)
@@ -112,7 +114,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     total = n if predicted else groups * M_CAL
     drv, drv_note = A["indices"].draws(t_utc, total, rng, expected=predicted)
     names = A["net"].names
-    cond = _core.feature_matrix(names, g["lat"][p], g["lon"][p], elev_grid, elev_grid, t_utc.day_of_year, sh, t_utc.year, drv[:, 0], drv[:, 3], drv[:, 1], drv[:, 2],
+    cond = _core.feature_matrix(names, g["lat"][p], g["lon"][p], elev_grid, elev_grid, t_utc.timetuple().tm_yday, sh, t_utc.year, drv[:, 0], drv[:, 3], drv[:, 1], drv[:, 2],
                                 gmst=A["indices"].gmst_at(t_utc) if "gmst" in names else None)
     if used == "past":
         store = era5_local.open_store(store_path)
@@ -139,7 +141,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     atm["w"] = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng) if A["head"] is not None else None
     atm["gust_mu"] = atm["gust_beta"] = None
     if A["gust"] is not None:
-        atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.day_of_year, sh)
+        atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, sh)
     src = ("ERA5 + learned balloon correction" if not predicted else "ERA5 value") if used == "past" else (
         "tempest generator (calibrated)" if not predicted else "tempest generator (predicted set, no range map)")
     info = dict(mode=used, source=src, quality=quality,
