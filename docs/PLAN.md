@@ -1010,3 +1010,6 @@ New, higher-probability ideas that came out of the measured results: the median 
 
 ### Usefulness goals added to the queue (2026-11-05)
 IL-31..IL-42 in `Code-Modifications/AUTOPILOT.md` (group U): an in-repo downstream rocket-ascent test that replaces the missing simulator test, downstream scores in the scorer, conditional sampling around known observations, tail-directed sampling with weights, hourly launch-window sequences, downrange spatial coherence, derived hazards with balloon checks, numeric targets for the shape gaps, export formats, Monte Carlo sample-size helper, per-query trust card, and an other-sites feasibility check.
+
+### Diagnostic metrics added (2026-11-05)
+M1-M18 and queue items IL-43..IL-45 in `Code-Modifications/AUTOPILOT.md`: PIT error, tail-weighted CRPS and tail exceedance rates, event-conditional coverage, bias by month/hour/year, spread-skill by regime, vertical correlation error, shear distribution distance, cross-variable consistency, calibration by ENSO/QBO regime, CRPS decomposition, Brier skill for decision events, a sim-free drift proxy, directional scores, seed stability, memorisation/novelty, driver response, temporal/spatial coherence, Monte Carlo efficiency. Items that need the flight simulator or its owner are sidelined (list at the end of that section).
