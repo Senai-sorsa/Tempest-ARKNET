@@ -1013,3 +1013,6 @@ IL-31..IL-42 in `Code-Modifications/AUTOPILOT.md` (group U): an in-repo downstre
 
 ### Diagnostic metrics added (2026-11-05)
 M1-M18 and queue items IL-43..IL-45 in `Code-Modifications/AUTOPILOT.md`: PIT error, tail-weighted CRPS and tail exceedance rates, event-conditional coverage, bias by month/hour/year, spread-skill by regime, vertical correlation error, shear distribution distance, cross-variable consistency, calibration by ENSO/QBO regime, CRPS decomposition, Brier skill for decision events, a sim-free drift proxy, directional scores, seed stability, memorisation/novelty, driver response, temporal/spatial coherence, Monte Carlo efficiency. Items that need the flight simulator or its owner are sidelined (list at the end of that section).
+
+### MAIN TARGET set by the user (2026-11-05): the whole distribution shape must match reality
+See the top of `Code-Modifications/AUTOPILOT.md`: measured status (PIT distance from flat 0.033 ERA5 / 0.050 balloons; coverage at 50/80/90 % off by 0.015; worst cells RH 5-12 km on balloons 0.131, T 5-12 km 0.063), shape targets S1-S8 and shape queue IL-43, IL-44, IL-46..IL-53. Every later item is judged on the shape numbers too. IL-8 (height tokens) was stopped at step 500 (1700 s per 500 steps, worse early validation) and deferred to a cheaper rerun.

@@ -3,11 +3,45 @@
 Goal: the user can walk away for hours or days. Nothing below needs the user. Every question that comes up is written to `Code-Modifications/ASK_LATER.md`
 (one line, with what was assumed) and work continues with the assumption. Never wait for an answer.
 
+## MAIN TARGET (set by the user 2026-11-05): the whole SHAPE of the distribution must match reality, not only ranges and means
+Everything else in this file is judged by whether it moves these numbers. When two items compete for the GPU, the one that moves a shape target goes first. Rule 4 below gets one more condition: **an item may not make any shape number worse** (beyond its noise), and a change that improves a shape number with the usual skill rule holding is kept even if the mean skill15 gain is below 0.001.
+
+Where the system stands (measured, p2f, 2024-25, ERA5 / balloons, from `models/generator_80_p2f_*_extras_{coverage,pit}.csv`, 2026-11-05):
+- Interior shape is decent: coverage at the 50 / 80 / 90 / 99 % levels is off by on average 0.015 / 0.015 / 0.015 / 0.003 on ERA5 and 0.016 / 0.015 / 0.013 / 0.004 on balloons (the middle of the distribution is slightly too wide in the low-level T, RH and surface cells, slightly too narrow in T 5-12 km and in v aloft).
+- Probability-integral-transform (PIT) histograms, as total-variation distance from flat (0 is perfect): mean 0.033 on ERA5, 0.050 on balloons; worst cells ERA5 T 5-12 km 0.063, T 0-5 km 0.052, t2m 0.048; balloons RH 5-12 km 0.131, RH 12-18 km 0.086, t2m 0.074, sp 0.069.
+- NOT yet measured: skewness and kurtosis of the predicted vs real distributions, shape by regime (season, hour, ENSO, QBO), the joint shape across heights and variables (vertical correlation, cross-variable closure), and the tails beyond the 99th percentile. The existing joint checks say: whole-profile 99 % band holds 0.903 of RH profiles (target 0.95), the variogram score is only compared between models.
+
+### Shape targets (the Shape Fidelity Index, SFI; each a number measured by `scripts/diagnose.py`, IL-43/44)
+| ID | Target | Now | Goal |
+|---|---|---|---|
+| S1 | Marginal PIT distance from flat, mean over cells (ERA5 / balloons) | 0.033 / 0.050 | <= 0.020 / <= 0.030; worst cell <= 0.05 |
+| S2 | Coverage error at the 10 / 25 / 50 / 75 / 80 / 90 / 95 / 99 % levels, mean abs | 0.015 at 50-90 | <= 0.008 at every level |
+| S3 | Skewness and excess kurtosis of the standardized outcome vs of the standardized sample, per cell (difference) | unmeasured | <= 0.15 and <= 0.4 |
+| S4 | Conditional shape: PIT distance by season x hour x ENSO x QBO regime, worst regime | unmeasured | <= 0.06 |
+| S5 | Joint shape: vertical correlation matrix error per variable (M6), multivariate rank histogram flatness, whole-profile 99 % coverage (T, RH) | RH 0.903 | T >= 0.95, RH >= 0.95 |
+| S6 | Tail shape: exceedance frequency at the 0.1 / 1 / 99 / 99.9 % climatological quantiles vs nominal, shear distribution KS (M2, M3, M7) | 99.9th shear 6-20 % low | within 20 % of nominal rate; shear KS <= 0.03 |
+| S7 | Group-distribution distance: Wasserstein-1 between the unknown-driver samples and the real 2024-25 outcomes of the same month x hour-bin group, divided by the climate spread | unmeasured | <= 0.05 |
+| S8 | Cross-variable shape: relation of the samples between variables (u-v direction spread, T-RH correlation, lapse rate vs RH) vs the same in ERA5 and balloons (M8) | unmeasured | correlation differences <= 0.05 |
+
+### Queue items aimed straight at shape (group SH; they run right after IL-8 and before everything else that does not target shape)
+| ID | Work | Why it should help shape | State |
+|---|---|---|---|
+| IL-43 | `metrics_ext.py` + `scripts/diagnose.py` with S1-S8 and M1-M18 (as listed in the metrics section) | cannot improve what is not measured | todo, first (CPU work, can be written while IL-8 trains) |
+| IL-44 | Run it on p2f (ERA5, balloons), publish the table, add one backlog row per weakest metric | focuses the work | todo (after IL-43) |
+| IL-46 | **Full PIT recalibration**: per variable x band, an isotonic fit of the PIT cumulative distribution on 2021-23, applied as a rank-preserving map over ALL probability levels (not only the range ends); optionally per season | repairs the interior shape directly (S1, S2); the present map mainly fixes the 99 % ends | todo |
+| IL-47 | **Shape-aware training loss**: variogram score over height pairs and a pinball loss on a grid of 9 quantile levels added to the CRPS terms, small weights, off by default | the loss decides the shape; CRPS with 4 samples is a weak signal for skew and kurtosis | todo |
+| IL-48 | **Larger loss sample m = 8** (the training loss uses 4 samples per row; more samples give a less noisy CRPS and energy score) | cleaner gradient for the distribution shape; costs about 2x time | todo |
+| IL-49 | **Distribution-matching auxiliary loss** (sliced Wasserstein or maximum mean discrepancy between the sample batch and the target batch per height) | targets marginal shape without needing a pointwise truth | todo |
+| IL-50 | **Skew-capable noise**: replace the Gaussian noise by a mixture (Gaussian plus a skewed or heavy-tailed component) as network input | the network's output shape inherits the noise shape; skewed variables (RH, wind speed, shear) may need it | todo |
+| IL-51 | **Regime-wise PIT recalibration**: separate PIT maps for ENSO phase and QBO phase (only if S4 shows regime effects) | conditional shape | todo (after IL-44) |
+| IL-52 | **Mixture-density head for the bounded variables** (RH near 0 and 100, wind speed >= 0): a point mass plus continuous part | the clipped RH ends are a shape feature the Gaussian-noise network handles crudely | todo |
+| IL-53 | **Copula check and repair for the vertical structure**: compare the sample copula with the ERA5 copula (rank correlation between heights); if different, a rank-reordering step (Schaake-shuffle style) using real ERA5 profiles as dependence templates | keeps marginals and puts the real joint shape back | todo |
+
 ## How a session wakes up and continues (read this first after any pause, summary or restart)
 1. Read this file; find the first row below with state `todo` or `running`. Check `data/` logs for its result files.
 2. If the item is `running`: look at its log; if finished, evaluate it (rule 4) and set it `done`/`discarded`/`blocked`; if the process is dead, relaunch the script (they resume).
 3. Launch the next `todo` item. GPU jobs: one at a time. While a GPU job runs, do CPU-side prep for the next one (code, tests, docs).
-4. Verdict rule for every item: run `scripts/compare_headline.py` on ERA5 and on balloons against the adopted model (p2f). **Keep** if the phase pass rule holds on both (mean skill15 not lower, no band worse with non-overlapping intervals, mean cov99 error not worse by more than 0.001) AND there is a real gain (mean skill15 up by more than 0.001, or mean cov99 error down by more than 0.0005 without a band getting worse). Otherwise **discard** (flag stays off; code stays; one `salvage` look: which bands gained, can a restricted version be queued once).
+4. Verdict rule for every item (shape rule from the MAIN TARGET section applies on top: no shape number may get worse, a shape gain is a gain): run `scripts/compare_headline.py` on ERA5 and on balloons against the adopted model (p2f). **Keep** if the phase pass rule holds on both (mean skill15 not lower, no band worse with non-overlapping intervals, mean cov99 error not worse by more than 0.001) AND there is a real gain (mean skill15 up by more than 0.001, or mean cov99 error down by more than 0.0005 without a band getting worse). Otherwise **discard** (flag stays off; code stays; one `salvage` look: which bands gained, can a restricted version be queued once).
 5. Log every item as a row in `docs/PLAN.md` (improvement-loop queue table plus a result line), commit locally (small commits, NO Claude attribution, never push, never `data/` or `models/`).
 6. Machine rules: 12 CPUs (`source scripts/cap_cpu.sh`), one GPU job, never edit a running script, never run pytest while a scoring job runs, 2026 Jan-Jun is only touched in the final test (E4).
 7. NO stop rule on failures (user decision 2026-11-05): a string of discarded items never ends the loop. Keep taking the next item. Group E starts only when the queue AND the idea backlog (below) hold no `todo` item that can run without the user; items waiting on user data stay `blocked-on-data` and are re-checked each tick.
@@ -17,7 +51,7 @@ Goal: the user can walk away for hours or days. Nothing below needs the user. Ev
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |
 |---|---|---|---|---|---|
-| IL-8 | G | Height-token generator (attention along the 44 heights) | new `tempest/generator/tokens.py` + config key `arch = "tokens"` (default `"mlp"`), `configs/generator_il8.toml`, train with `scripts/phase2_variant.sh VAR=il8 FEAT=base DS=pilot80_dpd`, then verdict vs p2f | GPU 1-2 h | running (started 10:14, log data/phase2_train_il8.log; checkpointing keeps it inside 12 GB) |
+| IL-8 | G | Height-token generator (attention along the 44 heights) | new `tempest/generator/tokens.py` + config key `arch = "tokens"` (default `"mlp"`), `configs/generator_il8.toml`, train with `scripts/phase2_variant.sh VAR=il8 FEAT=base DS=pilot80_dpd`, then verdict vs p2f | GPU 5.6 h | deferred 11:00: 1700 s per 500 steps (about 5.6 h for 6000 steps) and worse early validation (1.29 vs 1.08 at step 500). Restart later as `configs/generator_il8b.toml` with steps 3000, d 96 once the shape-group items ran. Code stays, flag off |
 | IL-10 | S | Trust layer refit on p2f, bands chosen on 2021-23 gain only, RH>=5 km and u/T aloft at zero | `python -m tempest.calibrate.trust ...` with a band mask option; `score --trust` | GPU 20 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
 | IL-11 | S | Seasonal factors for RH and surface groups only | mask `models/generator_80_p2f.seasonal2021.npz` (scale 1 elsewhere); `score --seasonal` | GPU 15 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
 | IL-12 | S | Shear patches at 5-12 km only | `shear_tail` with `sigma=[0,0,s,0]`, refit s; physics check + `score --shear-tail` | GPU 20 min | code done; run by `scripts/ap_s_chain.sh` (waits for IL-8, log data/ap_s.log, verdict text data/ap_s_verdicts.txt) |
