@@ -85,6 +85,7 @@ def _assets(path=None):
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
+             sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
@@ -135,6 +136,14 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     x[..., i:i + _core.NH] = np.clip(x[..., i:i + _core.NH], 0, 100)
     x = _core.calibrate(A["modep_calib"], x, clip=False).reshape(groups * M_CAL, -1)[:n]
     nh = _core.NH
+    pool = A.get("sfc_pool")
+    if pool is not None:                                           # F-12: surface values = ERA5 + a whole (t2m, sp, rh2m) residual row of the same station x season x launch hour (joint, empirical)
+        key = (st * 4 + (t_utc.month % 12) // 3) * 2 + int(hour12)
+        rows = pool["res"][pool["key"] == key]
+        if len(rows):
+            d = rows[rng.integers(0, len(rows), n)]
+            sfc = np.stack([e["t2m"] + d[:, 0], e["sp"] + d[:, 1], np.clip(e["rh2m"] + d[:, 2], 0, 100)], 1)
+            return np.concatenate([x, sfc], 1).astype(np.float32), e
     t2m = e["t2m"] + (x[:, 2 * nh] - e["T"][0])
     rh2m = np.clip(e["rh2m"] + (x[:, 3 * nh] - e["RH"][0]), 0, 100)
     return np.concatenate([x, t2m[:, None], np.full((n, 1), e["sp"]), rh2m[:, None]], 1).astype(np.float32), e
