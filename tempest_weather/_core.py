@@ -127,17 +127,52 @@ LAPSE, SHIFT_SCALE = 0.0065, 1500.0
 
 
 def site_shift(phys, dz):
-    """(n, 179) values at the grid elevation -> the site elevation `dz` metres higher (in place): sp hypsometric, t2m with the standard lapse rate, the temperature
-    profile with a shift that fades with height (-lapse * dz * exp(-z / 1500 m): no jump between 2 m and 10 m), humidity keeping its dew point where the shift acts."""
+    """(n, 179) values at the grid elevation -> the site elevation `dz` metres higher (in place; dz a number or one value per row): sp hypsometric, t2m with the standard
+    lapse rate, the temperature profile with a shift that fades with height (-lapse * dz * exp(-z / 1500 m): no jump between 2 m and 10 m), humidity keeping its dew point
+    where the shift acts."""
     nh = NH
-    t = phys[:, 4 * nh]
+    dz = np.broadcast_to(np.asarray(dz, np.float64), (len(phys),))
+    d2 = dz[:, None]
+    t = phys[:, 4 * nh].astype(np.float64)
     phys[:, 4 * nh + 1] *= np.exp(-G0 * dz / (RD * (t - LAPSE * dz / 2)))
     w = np.exp(-HEIGHTS / SHIFT_SCALE)
-    t_old = phys[:, 2 * nh:3 * nh].copy()
-    t_new = t_old - LAPSE * dz * w
+    t_old = phys[:, 2 * nh:3 * nh].astype(np.float64)
+    t_new = t_old - LAPSE * d2 * w
     rh = phys[:, 3 * nh:4 * nh]
     phys[:, 3 * nh:4 * nh] = np.clip(rh * es_liquid(t_old) / es_liquid(t_new) * w + rh * (1 - w), 0, 100)
     phys[:, 2 * nh:3 * nh] = t_new
     phys[:, 4 * nh + 2] = np.clip(phys[:, 4 * nh + 2] * es_liquid(t) / es_liquid(t - LAPSE * dz), 0, 100)
     phys[:, 4 * nh] = t - LAPSE * dz
     return phys
+
+
+def bilinear(grid_lat, grid_lon, lat, lon):
+    """The (up to) four grid points around (lat, lon) and their bilinear weights -> (point indices (k,), weights (k,)); a query on a grid point gives that point alone."""
+    ulat, ulon = np.unique(np.round(grid_lat, 4)), np.unique(np.round(grid_lon, 4))
+    index = {(round(float(a), 4), round(float(b), 4)): i for i, (a, b) in enumerate(zip(grid_lat, grid_lon))}
+
+    def axis(u, x):
+        j = int(np.clip(np.searchsorted(u, x, "right"), 1, len(u) - 1))
+        f = float(np.clip((x - u[j - 1]) / (u[j] - u[j - 1]), 0.0, 1.0))
+        return (u[j - 1], u[j]), (1.0 - f, f)
+    (la0, la1), (wa0, wa1) = axis(ulat, lat)
+    (lo0, lo1), (wo0, wo1) = axis(ulon, lon)
+    pts, wts = [], []
+    for la, wa in ((la0, wa0), (la1, wa1)):
+        for lo, wo in ((lo0, wo0), (lo1, wo1)):
+            if wa * wo > 1e-9:
+                pts.append(index[(round(float(la), 4), round(float(lo), 4))])
+                wts.append(wa * wo)
+    w = np.array(wts)
+    return np.array(pts), w / w.sum()
+
+
+def allocate(weights, blocks, rng):
+    """Whole blocks per point in proportion to the weights (largest remainder, ties by chance): [counts] summing to `blocks`."""
+    exact = np.asarray(weights) * blocks
+    c = np.floor(exact).astype(int)
+    rest = blocks - c.sum()
+    if rest:
+        order = np.argsort(-(exact - c) + 1e-9 * rng.random(len(c)))
+        c[order[:rest]] += 1
+    return c

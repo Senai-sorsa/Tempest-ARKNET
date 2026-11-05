@@ -24,11 +24,12 @@ import xarray as xr
 
 from tempest.calibrate import spread
 from tempest.generator import features as feat
+from tempest.generator import sample as sample_mod
 from tempest.generator.sample import Sampler
 from tempest.generator.train import load_npz
 from tempest.gust import model as gm
 from tempest.ingest import index_forecast, indices
-from tempest.output import coupled, soak
+from tempest.output import blend, coupled, soak
 from tempest.output.whead import head_inputs
 from tempest.profiles.to_heights import HEIGHTS
 
@@ -80,23 +81,27 @@ class Atmosphere:
         t_utc, sh = solar_time(when, lon)
         if not 6.0 <= sh <= 21.0:
             raise ValueError(f"solar time {sh:.1f} h is outside the trained 06-21 h window")
-        p = int(np.argmin((self.pt_lat - lat) ** 2 + (self.pt_lon - lon) ** 2))
-        elev = float(self.pt_elev[p])
+        p = int(np.argmin((self.pt_lat - lat) ** 2 + (self.pt_lon - lon) ** 2))      # nearest point, reported
+        pts, wts = blend.bilinear(self.pt_lat, self.pt_lon, lat, lon)                 # F-6: bilinear over the four surrounding points
+        elev = float(np.dot(wts, self.pt_elev[pts]))                                  # the site (bilinear grid elevation)
         groups = int(np.ceil(n / M_CAL))
         total = groups * M_CAL
+        row_pt = np.repeat(np.repeat(pts, blend.allocate(wts, groups, rng)), M_CAL)    # every range-map block comes from one point, blocks allocated by the weights
+        elev_row = self.pt_elev[row_pt].astype(float)
         drv, drv_note = self.drivers(t_utc, total, rng)
         doy = t_utc.dayofyear
         extras_kw = {}
         if "gmst" in feat.FEATURES:
             extras_kw = indices.feature_extras(feat.FEATURES, self.table, self.gm_table, pd.DatetimeIndex([t_utc]))
             extras_kw = {k: np.repeat(v, total) for k, v in extras_kw.items()}
-        cond = feat.features(self.pt_lat[p], self.pt_lon[p], elev, elev, doy, sh, t_utc.year, drv[:, 0], drv[:, 1], drv[:, 2], drv[:, 3], **extras_kw)
+        cond = feat.features(self.pt_lat[row_pt], self.pt_lon[row_pt], elev_row, elev_row, doy, sh, t_utc.year, drv[:, 0], drv[:, 1], drv[:, 2], drv[:, 3], **extras_kw)
         phys = spread.apply(self.cal, self.sampler.profiles(cond).reshape(groups, M_CAL, -1)).reshape(total, -1)[:n]
         cond = cond[:n]
         extras = {}
         notes = ["indices: " + drv_note]
         if self.head is not None:
             extras["w"] = self.head(head_inputs(cond, phys)).astype(np.float32)
+        phys = sample_mod.to_site(phys, elev_row[:n], elev)                              # temperature, pressure, humidity to the site (the w head above saw grid-elevation inputs)
         if self.gust is not None:
             u10, v10 = phys[:, 0], phys[:, len(HEIGHTS)]
             X = gm.design(np.hypot(u10, v10), np.full(n, doy), np.full(n, gm.utc_hour(t_utc)), station=np.full(n, gm.station_flag(lat, lon)))   # fitted with UTC hour and the nearer ASOS site

@@ -60,3 +60,42 @@ def test_site_shift_is_smooth_and_identity_at_zero():
     assert up[0, 2 * NH + 40] - phys[0, 2 * NH + 40] > -0.01                       # the shift has faded at 17 km
     assert (up[:, 3 * NH:4 * NH] <= 100).all() and (up[:, 4 * NH + 2] >= 40).all()   # colder, same dew point: RH rises
     _ = rng
+
+
+def test_bilinear_weights_and_allocation():
+    from tempest_weather import _core
+    lat = np.repeat(np.arange(31.0, 31.76, 0.25), 3)
+    lon = np.tile(np.array([-108.0, -107.75, -107.5]), 4)
+    pts, w = _core.bilinear(lat, lon, 31.0, -108.0)                      # on a grid point: that point alone
+    assert len(pts) == 1 and w[0] == 1.0
+    pts, w = _core.bilinear(lat, lon, 31.125, -107.875)                  # cell centre: four equal weights
+    assert len(pts) == 4 and np.allclose(w, 0.25)
+    pts, w = _core.bilinear(lat, lon, 31.0625, -107.9375)
+    assert np.isclose(w.sum(), 1.0) and w.max() > 0.5
+    rng = np.random.default_rng(0)
+    for blocks in (4, 6, 9):
+        c = _core.allocate(w, blocks, rng)
+        assert c.sum() == blocks and np.all(np.abs(c - w * blocks) < 1.0)
+
+
+def test_site_shift_accepts_one_shift_per_row():
+    from tempest_weather import _core
+    phys = np.zeros((2, 4 * NH + 3))
+    phys[:, 2 * NH:3 * NH] = 280.0
+    phys[:, 3 * NH:4 * NH] = 50.0
+    phys[:, 4 * NH] = 281.0
+    phys[:, 4 * NH + 1] = 80000.0
+    phys[:, 4 * NH + 2] = 40.0
+    out = _core.site_shift(phys.copy(), np.array([0.0, 200.0]))
+    assert np.allclose(out[0], phys[0]) and out[1, 4 * NH] == pytest.approx(281.0 - 1.3)
+
+
+def test_tempest_blend_matches_tool_blend():
+    from tempest.output import blend
+    from tempest_weather import _core
+    lat = np.repeat(np.arange(31.0, 31.76, 0.25), 3)
+    lon = np.tile(np.array([-108.0, -107.75, -107.5]), 4)
+    for q in ((31.0, -108.0), (31.1, -107.8), (31.6, -107.6)):
+        a, wa = blend.bilinear(lat, lon, *q)
+        b, wb = _core.bilinear(lat, lon, *q)
+        assert np.array_equal(a, b) and np.allclose(wa, wb)

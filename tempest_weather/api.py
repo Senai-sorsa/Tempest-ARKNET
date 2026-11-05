@@ -115,16 +115,25 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     avail = {"past"} if (store_path and A["modep"] is not None) else set()
     used, quality = modes.choose(modes.lead_days(t_utc, now), mode, avail)
     g = A["grid"]
-    p = int(np.argmin((g["lat"] - lat) ** 2 + (g["lon"] - lon) ** 2))
+    p = int(np.argmin((g["lat"] - lat) ** 2 + (g["lon"] - lon) ** 2))      # nearest grid point (reported; the mode P and past paths use the exact position)
+    pts, wts = _core.bilinear(g["lat"], g["lon"], lat, lon)             # the four points around the query and their bilinear weights (F-6)
     elev_grid = float(g["elev"][p])
-    elev = elev_grid if elevation is None else float(elevation)       # the site; the model is run at the grid elevation, then moved to the site
+    elev = float(np.dot(wts, g["elev"][pts])) if elevation is None else float(elevation)   # the site (bilinear grid elevation unless given); the model runs at each point's elevation, then moves to the site
     if used == "past" and predicted:
         quality = quality + ["past-without-model-error-is-the-ERA5-value"]
     groups = 1 if predicted else int(np.ceil(n / M_CAL))
     total = n if predicted else groups * M_CAL
     drv, drv_note = A["indices"].draws(t_utc, total, rng, expected=predicted)
     names = A["net"].names
-    cond = _core.feature_matrix(names, g["lat"][p], g["lon"][p], elev_grid, elev_grid, t_utc.timetuple().tm_yday, sh, t_utc.year, drv[:, 0], drv[:, 3], drv[:, 1], drv[:, 2],
+    # each block of M_CAL atmospheres (one range-map unit) comes from one of the four surrounding grid points, blocks allocated by the bilinear weights: smooth in space and every atmosphere stays whole
+    if used == "past" or len(pts) == 1:
+        row_pt = np.full(total, pts[int(np.argmax(wts))] if used != "past" else p)
+    elif predicted:
+        row_pt = rng.choice(pts, size=total, p=wts)
+    else:
+        row_pt = np.repeat(np.repeat(pts, _core.allocate(wts, groups, rng)), M_CAL)
+    elev_row = g["elev"][row_pt].astype(float)
+    cond = _core.feature_matrix(names, g["lat"][row_pt], g["lon"][row_pt], elev_row, elev_row, t_utc.timetuple().tm_yday, sh, t_utc.year, drv[:, 0], drv[:, 3], drv[:, 1], drv[:, 2],
                                 gmst=A["indices"].gmst_at(t_utc) if "gmst" in names else None)
     if used == "past":
         store = era5_local.open_store(store_path)
@@ -141,8 +150,9 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             cond = cond[:n]
     nh = _core.NH
     w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng) if A["head"] is not None else None   # the vertical-wind head saw grid-elevation inputs: sample BEFORE the site shift
-    if elev != elev_grid:                                             # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
-        _core.site_shift(phys, elev - elev_grid)
+    dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
+    if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
+        _core.site_shift(phys, dz_row)
     atm = dict(u=phys[:, :nh], v=phys[:, nh:2 * nh], T=phys[:, 2 * nh:3 * nh], RH=phys[:, 3 * nh:4 * nh], t2m=phys[:, 4 * nh], sp=phys[:, 4 * nh + 1], rh2m=phys[:, 4 * nh + 2])
     th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
     atm.update(p=th["p"], rho=th["rho"], a=th["a"])
@@ -153,7 +163,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     src = ("ERA5 + learned balloon correction" if not predicted else "ERA5 value") if used == "past" else (
         "tempest generator (calibrated)" if not predicted else "tempest generator (predicted set, no range map)")
     info = dict(mode=used, source=src, quality=quality,
-                valid_utc=str(t_utc), solar_hour=sh, grid_point=p, elevation_m=elev, grid_elevation_m=elev_grid, indices=drv_note, kind="predicted" if predicted else "uncertainty",
+                valid_utc=str(t_utc), solar_hour=sh, grid_point=p, spatial_blend=dict(points=[int(x) for x in pts], weights=[round(float(x), 4) for x in wts]), elevation_m=elev, grid_elevation_m=elev_grid, indices=drv_note, kind="predicted" if predicted else "uncertainty",
                 model=A["manifest"]["model_source"], n=n)
     if "fallback-mode" in quality:
         info["note"] = "the corrected-prediction source for this lead is not available; the climate generator answered"
