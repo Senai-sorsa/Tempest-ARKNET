@@ -116,7 +116,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out")
     ap.add_argument("--groups", type=int, default=4, choices=[4, 7], help="4 height bands (default) or 7 layer groups (IL-89)")
-    ap.add_argument("--full", action="store_true", help="IL-91: fit the whole shear distribution (2 % upward), not only above the median")
+    ap.add_argument("--full", action="store_true", help="IL-91: fit the whole shear distribution (2 %% upward), not only above the median")
     ap.add_argument("--shuffle", action="store_true", help="fit on samples that were Schaake-shuffled first (use with score --shuffle --shear-map)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
