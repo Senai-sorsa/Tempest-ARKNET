@@ -33,11 +33,12 @@ class Generator(nn.Module):
     memorises that month's weather (held-out error rose within one pass); a straight-line effect cannot."""
 
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
-                 linear_cols: list[int] | None = None):
+                 linear_cols: list[int] | None = None, interactions: bool = False):
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.keep_cols = [i for i in range(n_cond) if i not in self.linear_cols]
         self.noise_dim = noise_dim
+        self.interactions = interactions       # F-14: the slope network also sees the driver columns themselves, so a driver's effect can depend on the other drivers (ONI x QBO, ONI x WWV)
         n_in = len(self.keep_cols)
         emb = 128
         self.embed = nn.Sequential(nn.Linear(noise_dim, emb), nn.SiLU(), nn.Linear(emb, emb), nn.LayerNorm(emb))
@@ -45,15 +46,18 @@ class Generator(nn.Module):
         self.blocks = nn.ModuleList(Block(width, emb) for _ in range(depth))
         self.head = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, n_out))
         if self.linear_cols:
-            self.slope = nn.Sequential(nn.Linear(n_in, 128), nn.SiLU(), nn.Linear(128, n_out * len(self.linear_cols)))
+            self.slope = nn.Sequential(nn.Linear(n_cond if interactions else n_in, 128), nn.SiLU(), nn.Linear(128, n_out * len(self.linear_cols)))
             nn.init.zeros_(self.slope[-1].weight)  # start with no effect; training adds what the data supports
             nn.init.zeros_(self.slope[-1].bias)
 
     def forward(self, cond: torch.Tensor, m: int = 1) -> torch.Tensor:
         """cond (B, F) normalised -> m samples per row, (B, m, n_out) normalised."""
+        slope_in = cond
         if self.linear_cols:
             x = cond[:, self.linear_cols]
             cond = cond[:, self.keep_cols]
+            if not self.interactions:
+                slope_in = cond
         c = cond.unsqueeze(1).expand(-1, m, -1)
         eps = torch.randn(*c.shape[:2], self.noise_dim, device=cond.device, dtype=cond.dtype)
         z = self.embed(eps)
@@ -62,7 +66,7 @@ class Generator(nn.Module):
             h = blk(h, z)
         out = self.head(h)
         if self.linear_cols:
-            s = self.slope(cond).view(len(cond), len(self.linear_cols), -1)
+            s = self.slope(slope_in).view(len(cond), len(self.linear_cols), -1)
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
         return out
 

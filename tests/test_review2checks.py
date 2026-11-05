@@ -78,3 +78,50 @@ def test_order_statistic_interval_of_m199_holds_99_percent():
     y = rng.normal(size=200000)
     cov = ((y > x.min(1)) & (y < x.max(1))).mean()
     assert abs(cov - 0.99) < 0.001
+
+
+def test_training_runs_with_rh_loss_final_m_and_float32_storage():
+    from tempest.generator.train import train
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    rng = np.random.default_rng(0)
+    nh, n = len(HEIGHTS), 3000
+    y = np.zeros((n, 4 * nh + 3), np.float32)
+    first = {"u": 5.0, "v": 0.0, "T": 285.0, "RH": 1.5}
+    for i, v in enumerate(PROFILE):
+        y[:, i * nh] = first[v] + rng.normal(0, 1, n)
+        y[:, i * nh + 1:(i + 1) * nh] = rng.normal(0, 0.2, (n, nh - 1))
+    y[:, 4 * nh:] = [285.0, 85000.0, 40.0]
+    cond = rng.normal(size=(n, 2)).astype(np.float32)
+    cfg = dict(width=16, depth=2, noise_dim=2, batch=256, steps=60, eval_every=30, val_years=1, lr=1e-3, m_final=6, final_steps=20, rh_loss_weight=0.1, store_dtype="float32", linear_features=[])
+    ck = train(cond, y, np.repeat(np.arange(3), n // 3), cfg, device="cpu", log=lambda *_: None,
+               meta=dict(cond_names=["a", "b"], target_names=[f"{v}_{h:g}" for v in PROFILE for h in HEIGHTS] + ["t2m", "sp", "rh2m"], rh_target="dpd"))
+    assert ck["state"] is not None
+
+
+def test_training_refuses_to_save_when_validation_is_never_finite():
+    from tempest.generator.train import train
+    rng = np.random.default_rng(0)
+    cond = rng.normal(size=(600, 2)).astype(np.float32)
+    y = rng.normal(size=(600, 3)).astype(np.float32)
+    y[300:] = np.nan                                                         # the validation years carry only NaN
+    cfg = dict(width=8, depth=1, noise_dim=2, batch=64, steps=10, eval_every=5, val_years=1, linear_features=[])
+    with pytest.raises(Exception):
+        train(cond, y, np.repeat(np.arange(2), 300), cfg, device="cpu", log=lambda *_: None)
+
+
+def test_interaction_slope_lets_one_driver_change_anothers_effect():
+    import torch
+    from tempest.generator.model import Generator
+    torch.manual_seed(0)
+    g = Generator(4, 3, noise_dim=2, width=16, depth=1, linear_cols=[2, 3], interactions=True).eval()
+    for p in g.slope[-1].parameters():
+        torch.nn.init.normal_(p, std=0.5)
+    a = torch.tensor([[0.0, 0.0, 1.0, 0.0]])
+    b = torch.tensor([[0.0, 0.0, 1.0, 2.0]])                                   # same first driver, other driver changed
+    torch.manual_seed(1)
+    ya = g(a, 1)
+    torch.manual_seed(1)
+    yb = g(b, 1)
+    h = Generator(4, 3, noise_dim=2, width=16, depth=1, linear_cols=[2, 3], interactions=False)
+    assert ya.shape == (1, 1, 3) and not torch.allclose(ya, yb)
+    assert h.slope[0].in_features == 2 and g.slope[0].in_features == 4

@@ -40,6 +40,10 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 ema_decay=0.0,              # e.g. 0.999: evaluate and save an exponential moving average of the weights
                 superadiabatic_weight=0.0,  # e.g. 0.01: penalty on lapse rates above 9.8 K/km above 2 km
                 shear_tail_weight=0.0,      # e.g. 0.3: tail-weighted CRPS of the vector wind shear (strong-shear layers)
+                interactions=False,         # F-14: slope network sees the driver columns too (driver x driver effects); mlp arch only
+                m_final=0, final_steps=0,   # F-15: draw m_final samples per row (instead of m) for the last final_steps steps: less noisy pairwise-spread gradients where the shape is finished
+                rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
+                store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
                 shear_tail_q=0.9)           # shear above this quantile of the training rows (per layer) counts in that term
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
@@ -185,6 +189,16 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             return torch.relu(sh - shear_thr) / shear_scale
         return afcrps(f(samples), f(t), cfg["crps_alpha"])
 
+    rh_w = cfg["rh_loss_weight"] if (n_prof and (meta or {}).get("rh_target") == "dpd") else 0.0
+    iT_, iR_ = PROFILE.index("T") * len(HEIGHTS), PROFILE.index("RH") * len(HEIGHTS)
+
+    def rh_pct(x):  # normalised differences (..., D) -> relative humidity in per cent from T and the learned coordinate ln(T - Td + 1)
+        p = physical(x * ts_d + tm_d)
+        T, lnd = p[..., iT_:iT_ + len(HEIGHTS)], p[..., iR_:iR_ + len(HEIGHTS)]
+        td = T - torch.clamp(torch.expm1(torch.clamp(lnd, max=5.0)), min=0.0)
+        es = lambda q: torch.exp(17.502 * (q - 273.16) / (q - 32.19))
+        return 100.0 * es(td) / es(T)
+
     def score(samples, t):
         s, y = phys_std(samples), phys_std(t)
         loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
@@ -193,6 +207,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                 loss = loss + cfg["step_weight"] * stride_loss(samples, t)
             else:
                 loss = loss + cfg["step_weight"] * afcrps(samples[..., :n_prof], t[..., :n_prof], cfg["crps_alpha"])
+        if rh_w:
+            loss = loss + rh_w * afcrps(rh_pct(samples) / 25.0, rh_pct(t) / 25.0, cfg["crps_alpha"])
         if cfg["superadiabatic_weight"] and n_prof:
             loss = loss + cfg["superadiabatic_weight"] * superadiabatic(samples)
         if cfg["shear_tail_weight"] and n_prof:
@@ -228,7 +244,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     for k in range(members):
         torch.manual_seed(cfg["seed"] + k)
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
-                               linear_cols=linear_cols).to(device)
+                               linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {})).to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
@@ -246,7 +262,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
             c, t = Xc[idx].float(), Xt[idx].float()
             with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
-                s = model(c, cfg["m"])
+                s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
             loss = score(s.float(), t)
             M["opt"].zero_grad(set_to_none=True)
             loss.backward()
