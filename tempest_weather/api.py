@@ -52,6 +52,7 @@ def _assets(path=None):
              modef_bl=dict(ratio=z["modef_bl/ratio"], dpd_a=float(z["modef_bl/dpd_a"]), dpd_b=float(z["modef_bl/dpd_b"])) if manifest.get("modef_included") else None,
              modef_tpl={L: z[f"modef_tpl/L{L}"].astype(np.float32) for L in (1, 3, 5, 7)} if manifest.get("modef_included") else None,
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
+             wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
@@ -219,7 +220,14 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             phys = _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)).reshape(total, -1)[:n]
             cond = cond[:n]
     nh = _core.NH
-    w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng) if A["head"] is not None else None   # the vertical-wind head saw grid-elevation inputs: sample BEFORE the site shift
+    w_site = None
+    if A["head"] is not None:                                         # the vertical-wind head saw grid-elevation inputs: sample BEFORE the site shift
+        if A.get("wcalib") is not None and used == "ai" and not predicted:     # F-27: w range map fitted on generated profiles; needs whole blocks of M_CAL atmospheres (padded by cycling the rows)
+            pad = np.arange(total) % n
+            w_all = A["head"].sample(np.concatenate([cond[pad], phys[pad].astype(np.float32)], 1), rng)
+            w_site = _core.calibrate(A["wcalib"], w_all.reshape(groups, M_CAL, -1), clip=False).reshape(total, -1)[:n]
+        else:
+            w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng)
     dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
     if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
         _core.site_shift(phys, dz_row)

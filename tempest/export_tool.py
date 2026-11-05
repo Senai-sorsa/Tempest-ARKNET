@@ -44,6 +44,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--calib", required=True)
     ap.add_argument("--head")
+    ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
     ap.add_argument("--modep", help="past-date residual network (models/modeP.pt); its range map is read from the same name with .calib.npz")
     ap.add_argument("--modef", help="forecast-conditioned network (models/modeF_v2.pt); range map from the same name with .calib.npz")
@@ -63,6 +64,10 @@ def main():
             arrays[f"calib/{k}"] = cal[k]
     if a.head:
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
+    if a.wcalib:
+        wc = np.load(a.wcalib)
+        for k in ("qz", "qu", "m"):
+            arrays[f"wcalib/{k}"] = wc[k]
     if a.gust:
         g = np.load(a.gust)
         arrays["gust/theta"], arrays["gust/phi"] = g["wind_theta"], g["wind_phi"]
@@ -100,7 +105,7 @@ def main():
     files = ["model.npz", "indices.npz", "grid.npz"]
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
