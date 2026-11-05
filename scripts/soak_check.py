@@ -73,6 +73,13 @@ def main():
     phys = spread.apply(cal, sampler.profiles(np.repeat(cond[rows], a.m, 0)).reshape(n, a.m, -1))
     t_launch = phys[..., T2M_COL]
     hists = {name: np.stack([L.draw(p, u, t_launch[i], rng)[0] for i, (p, u) in enumerate(zip(point, utc))]) for name, L in libs.items()}
+    # F-25: wind-matched and wind-anchored library (the wind history is compared below)
+    w_launch = np.hypot(phys[..., 0], phys[..., 44])
+    fullw = np.hypot(surf["u10"].load().values, surf["v10"].load().values)
+    truth_wind = np.stack([fullw[p, t - soak.HOURS + 1:t + 1] for p, t in zip(point, tpos)])
+    winds = {"matched (T only)": np.stack([libs["matched"].draw(p, u, t_launch[i], rng)[2] for i, (p, u) in enumerate(zip(point, utc))]),
+             "matched (T + wind, anchored)": np.stack([libs["matched"].draw(p, u, t_launch[i], rng, wind_launch=w_launch[i])[2] for i, (p, u) in enumerate(zip(point, utc))])}
+    hists["matched (T + wind, anchored)"] = np.stack([libs["matched"].draw(p, u, t_launch[i], rng, wind_launch=w_launch[i])[0] for i, (p, u) in enumerate(zip(point, utc))])
     day = year[rows].astype(np.int64) * 1000 + utc.dayofyear.to_numpy()
     _, inv = np.unique(day, return_inverse=True)
     nd = inv.max() + 1
@@ -93,8 +100,11 @@ def main():
     for tau in a.taus:
         for name in libs:
             out.append(line(f"T_soak tau={tau:g}h", name, soak.t_soak(hists[name], tau), soak.t_soak(truth_hist, tau)))
-    for name in libs:
+    for name in hists:
         out.append(line("overnight min", name, hists[name].min(-1), truth_hist.min(-1)))
+    for name, w in winds.items():
+        out.append(line("wind mean T-6..T-1 h (m/s)", name, w[:, :, -7:-1].mean(-1), truth_wind[:, -7:-1].mean(-1)))
+        out.append(line("wind mean T-24..T-1 h (m/s)", name, w[:, :, :-1].mean(-1), truth_wind[:, :-1].mean(-1)))
     fmt = lambda t: f"{t[0]:.3f} [{t[1]:.3f}, {t[2]:.3f}]"
     t = pd.DataFrame([{k: (fmt(v) if isinstance(v, tuple) else v) for k, v in r.items()} for r in out])
     with pd.option_context("display.width", 200, "display.max_colwidth", 40):

@@ -42,19 +42,29 @@ class Library:
         i = self.index_of(pd.DatetimeIndex([b + d for b in base for d in days]))
         return i[(i >= HOURS) & (i < self.n)]
 
-    def draw(self, point, utc_time, t_launch, rng):
+    def draw(self, point, utc_time, t_launch, rng, wind_launch=None, wind_scale=2.0, anchor_hours=2.0):
         """t_launch (m,) samples of launch t2m (K) -> (t2m_hist, ssrd_hist, wind_hist), each (m, 24), oldest hour first,
-        the last column being the launch hour."""
+        the last column being the launch hour.
+        F-25 (default off): with `wind_launch` (m,) the 10 m wind speed (m/s) of each sample, candidate days are matched on temperature AND wind
+        (distance = |dT| / 1 K + |dwind| / wind_scale), and the wind history is anchored to the sample's wind with a blend that fades as
+        exp(-dt / anchor_hours) going back from the launch hour, so there is no step at T-0."""
         t_launch = np.asarray(t_launch)
         ci = self.candidates(utc_time)
         tl = self.t2m[point, ci]  # launch temperature of each candidate day
         k = min(self.k, len(ci))
-        near = np.argpartition(np.abs(tl[None, :] - t_launch[:, None]), k - 1, axis=1)[:, :k]
+        dist = np.abs(tl[None, :] - t_launch[:, None])
+        if wind_launch is not None:
+            dist = dist + np.abs(self.wind[point, ci][None, :] - np.asarray(wind_launch)[:, None]) / wind_scale
+        near = np.argpartition(dist, k - 1, axis=1)[:, :k]
         pick = ci[near[np.arange(len(t_launch)), rng.integers(0, k, len(t_launch))]]
         win = pick[:, None] + np.arange(-HOURS + 1, 1)[None, :]
         hist = self.t2m[point, win]
         hist = hist + (t_launch - hist[:, -1])[:, None]  # shift so the launch hour matches the sample
-        return hist, self.ssrd[point, win], self.wind[point, win]
+        wind = self.wind[point, win]
+        if wind_launch is not None:
+            fade = np.exp(-np.arange(HOURS - 1, -1, -1) / float(anchor_hours))[None, :]
+            wind = np.maximum(wind + (np.asarray(wind_launch) - wind[:, -1])[:, None] * fade, 0.0)
+        return hist, self.ssrd[point, win], wind
 
 
 def t_soak(t2m_hist, tau_hours):
