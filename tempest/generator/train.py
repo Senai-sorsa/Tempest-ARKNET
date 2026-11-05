@@ -27,11 +27,12 @@ import zipfile
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator, afcrps, energy_score
+from tempest.generator.model import Generator, afcrps, energy_score, make_generator
 from tempest.generator.sample import standard_pressure
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
 DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weight=0.1, step_weight=0.0, batch=4096, lr=1e-3, weight_decay=1e-4,
+                arch="mlp",              # "tokens": attention along the 44 heights (IL-8); "mlp" is the adopted generator
                 steps=20000, eval_every=500, patience=10, val_years=3, val_block_frac=0.0, val_rows=50000, seed=0,
                 linear_features=["year", "oni", "wwv", "qbo30", "qbo50"],
                 # Phase 2 keys, all off by default (see Code-Modifications/PHASED_PLAN.md):
@@ -221,8 +222,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     mem = []
     for k in range(members):
         torch.manual_seed(cfg["seed"] + k)
-        model = Generator(cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
-                          linear_cols=linear_cols).to(device)
+        model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
+                               linear_cols=linear_cols).to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows

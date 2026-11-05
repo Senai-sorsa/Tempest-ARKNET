@@ -66,6 +66,78 @@ class Generator(nn.Module):
         return out
 
 
+class TokBlock(nn.Module):
+    """Pre-norm transformer block over the height tokens; layer-norm scale/shift come from the noise embedding, as in Block."""
+
+    def __init__(self, d: int, heads: int, emb: int):
+        super().__init__()
+        self.n1 = nn.LayerNorm(d, elementwise_affine=False)
+        self.n2 = nn.LayerNorm(d, elementwise_affine=False)
+        self.film = nn.Linear(emb, 4 * d)
+        nn.init.zeros_(self.film.weight)
+        nn.init.zeros_(self.film.bias)
+        self.attn = nn.MultiheadAttention(d, heads, batch_first=True)
+        self.ff = nn.Sequential(nn.Linear(d, 4 * d), nn.SiLU(), nn.Linear(4 * d, d))
+
+    def forward(self, h, z):
+        s1, b1, s2, b2 = (t.unsqueeze(1) for t in self.film(z).chunk(4, dim=-1))
+        x = self.n1(h) * (1 + s1) + b1
+        h = h + self.attn(x, x, x, need_weights=False)[0]
+        return h + self.ff(self.n2(h) * (1 + s2) + b2)
+
+
+class TokenGenerator(nn.Module):
+    """Same inputs, noise and outputs as Generator, but the profile is built by attention along height (improvement-loop IL-8, idea from Chronos-2's
+    patch tokens): one token per height, carrying the context vector plus a learned height embedding; transformer blocks let every height look at every
+    other; each token emits its n_var values (u, v, T, RH). The columns after the n_var x n_height profile columns (surface fields, anything extra) come from
+    a linear head on the mean token. Output order is variable-major like the dataset's targets."""
+
+    def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
+                 linear_cols: list[int] | None = None, n_height: int = 44, n_var: int = 4, d: int = 192, heads: int = 6):
+        super().__init__()
+        self.linear_cols = list(linear_cols or [])
+        self.keep_cols = [i for i in range(n_cond) if i not in self.linear_cols]
+        self.noise_dim, self.n_out, self.nh, self.nv = noise_dim, n_out, n_height, n_var
+        assert n_out >= n_height * n_var
+        n_in = len(self.keep_cols)
+        emb = 128
+        self.embed = nn.Sequential(nn.Linear(noise_dim, emb), nn.SiLU(), nn.Linear(emb, emb), nn.LayerNorm(emb))
+        self.inp = nn.Sequential(nn.Linear(n_in + noise_dim, width), nn.SiLU(), nn.Linear(width, d))
+        self.height = nn.Parameter(torch.randn(n_height, d) * 0.02)
+        self.blocks = nn.ModuleList(TokBlock(d, heads, emb) for _ in range(depth))
+        self.norm = nn.LayerNorm(d)
+        self.tok_out = nn.Linear(d, n_var)
+        self.extra = nn.Linear(d, n_out - n_height * n_var) if n_out > n_height * n_var else None
+        if self.linear_cols:
+            self.slope = nn.Sequential(nn.Linear(n_in, 128), nn.SiLU(), nn.Linear(128, n_out * len(self.linear_cols)))
+            nn.init.zeros_(self.slope[-1].weight)
+            nn.init.zeros_(self.slope[-1].bias)
+
+    def forward(self, cond: torch.Tensor, m: int = 1) -> torch.Tensor:
+        if self.linear_cols:
+            x = cond[:, self.linear_cols]
+            cond = cond[:, self.keep_cols]
+        B = cond.shape[0]
+        c = cond.unsqueeze(1).expand(-1, m, -1)
+        eps = torch.randn(B, m, self.noise_dim, device=cond.device, dtype=cond.dtype)
+        z = self.embed(eps).reshape(B * m, -1)
+        h = self.inp(torch.cat([c, eps], dim=-1)).reshape(B * m, 1, -1) + self.height.unsqueeze(0)   # (B m, H, d)
+        for blk in self.blocks:
+            h = blk(h, z)
+        h = self.norm(h)
+        prof = self.tok_out(h).transpose(1, 2).reshape(B, m, self.nv * self.nh)                       # variable-major
+        out = prof if self.extra is None else torch.cat([prof, self.extra(h.mean(1)).reshape(B, m, -1)], -1)
+        if self.linear_cols:
+            s = self.slope(cond).view(len(cond), len(self.linear_cols), -1)
+            out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
+        return out
+
+
+def make_generator(arch, *args, **kw):
+    """arch "mlp" (default, the adopted model) or "tokens" (IL-8)."""
+    return (TokenGenerator if arch == "tokens" else Generator)(*args, **kw)
+
+
 def energy_score(samples: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Unbiased energy score, mean over the batch. samples (B, m, D) with m >= 2, y (B, D). Lower is better."""
     m = samples.shape[1]

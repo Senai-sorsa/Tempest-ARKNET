@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator
+from tempest.generator.model import Generator, make_generator
 from tempest.profiles.diff import from_diff
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -90,7 +90,7 @@ class Sampler:
         self.members = []
         for k in ckpt.get("members", [ckpt]):
             c = k["cfg"]
-            model = Generator(k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"))
+            model = make_generator(c.get("arch", "mlp"), k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"))
             model.load_state_dict(k["state"])
             self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
         self.sp_offset = ckpt.get("members", [ckpt])[0].get("sp_offset")
@@ -101,7 +101,8 @@ class Sampler:
         """cond (N, F) raw features, one row per sample (drivers already drawn) -> (N, D) raw targets.
         Row i goes to member i % K, so repeated rows (one query, many samples) are shared evenly."""
         c = torch.as_tensor(cond, dtype=torch.float32, device=self.device)
-        out = torch.empty(len(c), self.members[0][0].head[-1].out_features, device=self.device)
+        m0 = self.members[0][0]
+        out = torch.empty(len(c), getattr(m0, "n_out", None) or m0.head[-1].out_features, device=self.device)
         for i, (model, n) in enumerate(self.members):
             out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1)[:, 0] * n["ts"] + n["tm"]
         out = out.cpu().numpy()
