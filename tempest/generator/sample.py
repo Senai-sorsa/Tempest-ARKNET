@@ -61,7 +61,7 @@ class Sampler:
             self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
         self.sp_offset = ckpt.get("members", [ckpt])[0].get("sp_offset")  # [target col, cond col], or None (old files)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:
         """cond (N, F) raw features, one row per sample (drivers already drawn) -> (N, D) raw targets.
         Row i goes to member i % K, so repeated rows (one query, many samples) are shared evenly."""

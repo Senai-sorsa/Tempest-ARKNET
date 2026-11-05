@@ -76,8 +76,20 @@ def apply(table, samples):
     return clip_ranges((med + out * hw).astype(samples.dtype))
 
 
-def load(path):
-    return dict(np.load(path)) if path else None
+def model_hash(path):
+    import hashlib
+    with open(path, "rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()[:16]
+
+
+def load(path, model=None):
+    """Load a calibration file; refuse it if it records a different model than `model` (files without a hash load as before)."""
+    if not path:
+        return None
+    cal = dict(np.load(path))
+    if model and "model_sha" in cal and str(cal["model_sha"]) != model_hash(model):
+        raise SystemExit(f"{path} was fitted for a different model than {model}; refit it with tempest.calibrate.spread")
+    return cal
 
 
 def main():
@@ -95,6 +107,7 @@ def main():
                     "from earlier years' rows of the same place/month/hour group, as score's 'unknown' set and the tool use")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
+    torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
     ckpt = torch.load(a.model, map_location="cpu", weights_only=True)
     sampler = Sampler(ckpt, device=a.device)
     d = load_npz(a.data)
@@ -123,7 +136,7 @@ def main():
                    for i in range(0, len(rows), 1000)])
     t = table(np.concatenate(zs), np.concatenate(us))
     out = a.model.rsplit(".", 1)[0] + (f".calib{a.from_year}" if a.from_year else ".calib") + ("drawn" if a.drawn_drivers else "") + ".npz"
-    np.savez(out, **t, levels=LEVELS, fit_year=fy, m=a.m)
+    np.savez(out, **t, levels=LEVELS, fit_year=fy, m=a.m, model_sha=model_hash(a.model))
     print(f"fit on {len(rows):,} rows of {a.from_year or fy}-{fy}, m = {a.m}; 99 % range ends scale by median "
           f"{np.median(t['qu'][0] / t['qz'][0]):.2f} (low) / {np.median(t['qu'][-1] / t['qz'][-1]):.2f} (high); wrote {out}")
 

@@ -47,3 +47,26 @@ def at(table, times):
     """Index values for each timestamp's month -> (N, 4) array in column order oni, qbo30, qbo50, wwv."""
     months = pd.DatetimeIndex(times).to_period("M").to_timestamp()
     return table.reindex(months)[["oni", "qbo30", "qbo50", "wwv"]].to_numpy(np.float32)
+
+
+COLS = ["oni", "qbo30", "qbo50", "wwv"]
+
+
+def analog(table, times, lag_days, m, rng, before, k=8):
+    """Driver values for m samples per time when only values `lag_days` old are known (PLAN A6, option 5).
+    For each time, the k past months of the same calendar month (year < before) whose values lag_days earlier are
+    nearest (standardised) to this time's lag-day-old values; each sample takes one of them's own month values.
+    -> (N, m, 4) in COLS order (same as at()). Tested on 2024-25: beats random draws up to ~90 days, ties at 180."""
+    times = pd.DatetimeIndex(times)
+    lag = pd.Timedelta(days=lag_days)
+    sd = np.nanstd(table[COLS].to_numpy(np.float64), 0)
+    now = at(table, times - lag) / sd
+    out = np.full((len(times), m, len(COLS)), np.nan, np.float32)
+    for mo in np.unique(times.month):
+        r = np.flatnonzero(times.month == mo)
+        cand = table.index[(table.index.month == mo) & (table.index.year < before)]
+        cand = cand[np.isfinite(at(table, cand - lag)).all(1) & np.isfinite(at(table, cand)).all(1)]
+        kk = min(k, len(cand))
+        near = np.argsort(((now[r][:, None] - (at(table, cand - lag) / sd)[None]) ** 2).sum(-1), 1)[:, :kk]
+        out[r] = at(table, cand[near[np.arange(len(r))[:, None], rng.integers(0, kk, (len(r), m))].ravel()]).reshape(len(r), m, -1)
+    return out
