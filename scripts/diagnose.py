@@ -41,6 +41,7 @@ def main():
     ap.add_argument("--seasonal")
     ap.add_argument("--shear-map")
     ap.add_argument("--pooled-template", action="store_true", help="shuffle templates pooled over grid points (month x 2-hour bin), as shipped in the tool")
+    ap.add_argument("--template-cell", type=int, default=0, help="shuffle templates per block of N x N grid points (4 = 1 degree, 8 = 2 degrees) instead of per point")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
     ap.add_argument("--drivers", choices=["unknown", "known"], default="unknown", help="unknown (default, what a query for a future date gets): ONI/WWV/QBO copied together from a random "
                     "earlier-year row of the same grid point x month x hour bin; known: the observed target-month values (an upper bound, review 2.1)")
@@ -83,7 +84,7 @@ def main():
     preclip /= cnt
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
-        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template, cell=a.template_cell))
     if a.seasonal:
         from tempest.calibrate import seasonal
         x = seasonal.apply(dict(np.load(a.seasonal)), x, month)
