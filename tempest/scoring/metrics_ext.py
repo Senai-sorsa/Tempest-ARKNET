@@ -67,13 +67,17 @@ def standardized_moments(x, y):
 
 
 def tail_exceedance(x, y, clim, qs=(0.001, 0.01, 0.05, 0.95, 0.99, 0.999)):
-    """clim (K, D): climatological sample per column for the quantiles. Returns (len(qs), D) of observed frequency that the truth is beyond each
-    quantile (below for q < 0.5, above otherwise); nominal is q or 1 - q. Samples are not needed except for the shape check x.shape[2] == D."""
-    out = np.zeros((len(qs), y.shape[1]))
+    """clim (K, D): reference sample per column that defines the quantile thresholds. Returns (observed, predicted), each (len(qs), D): the frequency with which
+    the truth is beyond each threshold (below for q < 0.5, above otherwise) and the mean probability the samples assign to it. A calibrated forecast has
+    observed == predicted on average; both equal q (or 1 - q) only if the truth has the reference climate (a warmer year makes observed exceed it)."""
+    obs = np.zeros((len(qs), y.shape[1]))
+    pred = np.zeros_like(obs)
     for i, q in enumerate(qs):
         thr = np.quantile(clim, q, axis=0)
-        out[i] = (y < thr).mean(0) if q < 0.5 else (y > thr).mean(0)
-    return out
+        below = q < 0.5
+        obs[i] = (y < thr).mean(0) if below else (y > thr).mean(0)
+        pred[i] = (x < thr).mean((0, 1)) if below else (x > thr).mean((0, 1))
+    return obs, pred
 
 
 def event_conditional_coverage(x, y, clim, tail=0.01, rng=None):

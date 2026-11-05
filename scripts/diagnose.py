@@ -73,9 +73,9 @@ def main():
     levels = np.array([0.1, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95, 0.99])
     cov_err = np.abs(cov - levels[:, None])
     mom = M.standardized_moments(x, y)
-    tails = M.tail_exceedance(x, y, clim)
+    obs_t, pred_t = M.tail_exceedance(x, y, clim)
     nominal = np.array([0.001, 0.01, 0.05, 0.05, 0.01, 0.001])
-    tail_err = np.abs(tails / nominal[:, None] - 1.0)[[0, 1, 4, 5]].mean(0)
+    tail_err = (np.abs(obs_t - pred_t) / nominal[:, None])[[0, 1, 4, 5]].mean(0)   # observed vs predicted tail frequency, in units of the nominal rate
     inside, ideal, n_ext = M.event_conditional_coverage(x, y, clim, rng=rng)
     bias = M.bias_by_group(x, y, month)
     ss = M.spread_skill(x, y, (month - 1) // 3)

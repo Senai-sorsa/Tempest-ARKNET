@@ -37,8 +37,10 @@ def test_moments_detect_skew():
 def test_tail_and_event_conditional():
     x, y = _calibrated(n=6000)
     clim = y.copy()
-    ex = M.tail_exceedance(x, y, clim)
-    assert np.allclose(ex[1], 0.01, atol=0.004) and np.allclose(ex[4], 0.01, atol=0.004)
+    obs, pred = M.tail_exceedance(x, y, clim)
+    assert np.allclose(obs[1], 0.01, atol=0.004) and np.allclose(obs[4], 0.01, atol=0.004) and np.allclose(pred[1], obs[1], atol=0.006)
+    _, pred_narrow = M.tail_exceedance(x * 0.5 + x.mean(1, keepdims=True) * 0.5, y, clim)
+    assert pred_narrow[4].mean() < obs[4].mean() - 0.002                      # too-narrow samples predict too few tail events
     inside, ideal, n = M.event_conditional_coverage(x, y, clim)
     assert (n > 30).all() and abs(np.nanmean(inside) - np.nanmean(ideal)) < 0.12
     xn = x * 0.5 + x.mean(1, keepdims=True) * 0.5                   # too narrow: misses the extremes more than the ideal
