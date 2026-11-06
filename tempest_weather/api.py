@@ -97,6 +97,7 @@ def _assets(path=None):
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
              coherence=z["coherence/rho"] if manifest.get("coherence_included") else None,
+             coherence_regime=dict(rho=z["coherence/rho_regime"], edges=z["coherence/shear_edges"]) if "coherence/rho_regime" in z.files else None,
              coherence_dist=dict(rho=z["coherence_dist/rho"], km=z["coherence_dist/km"]) if manifest.get("coherence_dist_included") else None,
              coherence_kappa=z["coherence/kappa"] if (manifest.get("coherence_included") and "coherence/kappa" in z.files) else None,
              modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
@@ -355,7 +356,15 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     rho_full = np.concatenate([rho_s, sfc], 1)
     kap = A.get("coherence_kappa")
     kap_full = None if kap is None else np.concatenate([kap, [kap[2 * nh], kap[2 * nh], kap[3 * nh]]])
-    out = _coh.sequence(cols, list(offsets), rho_full, np.random.default_rng(seed + 7), kap_full)
+    reg_kw = {}
+    cr = A.get("coherence_regime")
+    if cr is not None:                                                             # C3: calm / middle / windy trajectories (terciles of the 0-3 km shear) have somewhat different time correlation
+        I3 = int(np.argmin(np.abs(_core.HEIGHTS - 3000)))
+        rr = cr["rho"][:, season]                                                  # (3, lags, 176)
+        sfc_r = np.stack([rr[:, :, 2 * nh], rr[:, :, 2 * nh], rr[:, :, 3 * nh]], 2)
+        reg_kw = dict(rho_regime=np.concatenate([rr, sfc_r], 2),
+                      regime_of=lambda x: np.digitize(np.hypot(x[:, I3] - x[:, 0], x[:, nh + I3] - x[:, nh]), cr["edges"]))
+    out = _coh.sequence(cols, list(offsets), rho_full, np.random.default_rng(seed + 7), kap_full, **reg_kw)
     elev = sets[0][1]["elevation_m"]
     for (atm, info), x in zip(sets, out):
         atm["u"], atm["v"], atm["T"], atm["RH"] = x[:, :nh], x[:, nh:2 * nh], x[:, 2 * nh:3 * nh], np.clip(x[:, 3 * nh:4 * nh], 0, 100)

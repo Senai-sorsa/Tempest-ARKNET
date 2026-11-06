@@ -41,13 +41,23 @@ def _chol_by_column(rho, offsets, kappa=None, rho_x=None):
     return np.linalg.cholesky(R + 1e-9 * np.eye(len(off))[None])
 
 
-def sequence(samples, offsets, rho, rng=None, kappa=None, rho_x=None):
+def sequence(samples, offsets, rho, rng=None, kappa=None, rho_x=None, rho_regime=None, regime_of=None):
     """samples: list of K arrays (n, D), the ensembles of the hours `offsets` (hours, K of them); rho (L, D). -> list of K arrays (n, D), sample j coherent over the K hours."""
     rng = rng or np.random.default_rng()
     K, (n, D) = len(samples), samples[0].shape
-    L = _chol_by_column(np.asarray(rho), offsets, kappa, rho_x)                          # (D, K, K)
-    e = np.stack([_scores(s[rng.permutation(n)]) for s in samples], 0)    # (K, n, D): one whole random sample of each hour's ensemble
-    z = np.einsum("dik,knd->ind", L, e)                                    # (K, n, D)
+    perms = [rng.permutation(n) for _ in samples]
+    e = np.stack([_scores(s[p]) for s, p in zip(samples, perms)], 0)      # (K, n, D): one whole random sample of each hour's ensemble
+    if rho_regime is None:
+        L = _chol_by_column(np.asarray(rho), offsets, kappa, rho_x)       # (D, K, K)
+        z = np.einsum("dik,knd->ind", L, e)                                # (K, n, D)
+    else:                                                                  # C3: the correlation depends on the weather regime of the trajectory (tercile of the 0-3 km shear of its first sample)
+        reg = np.asarray(regime_of(samples[0][perms[0]]))                  # (n,) 0 .. R-1
+        z = np.empty((len(samples), n, D))
+        for r in range(len(rho_regime)):
+            m = reg == r
+            if m.any():
+                Lr = _chol_by_column(np.asarray(rho_regime[r]), offsets, kappa, rho_x)
+                z[:, m] = np.einsum("dik,knd->ind", Lr, e[:, m])
     out = []
     srt = [np.sort(s, axis=0) for s in samples]
     pos = lambda u: np.clip(u * n - 0.5, 0, n - 1)

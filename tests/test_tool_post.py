@@ -103,3 +103,18 @@ def test_coherence_over_distance_uses_interpolated_rows():
     out = coherence.sequence(s, [0.0, 15.0, 60.0], rho, rng, rho_x=km)
     c = lambda i, k: np.corrcoef(norm_scores(out[i][:, 0]), norm_scores(out[k][:, 0]))[0, 1]
     assert abs(c(0, 1) - 0.95) < 0.04 and abs(c(0, 2) - 0.70) < 0.04 and abs(c(1, 2) - 0.8) < 0.04
+
+
+def test_regime_dependent_correlation_follows_the_trajectory_regime():
+    from tempest_weather import coherence
+    rng = np.random.default_rng(8)
+    n, D = 8000, 2
+    s = [rng.normal(0, 1, (n, D)) for _ in range(2)]
+    s[0][:, 1] = np.where(rng.random(n) < 0.5, 5.0, -5.0) + rng.normal(0, 0.01, n)          # column 1 of hour 0 tells the regime
+    rho_reg = np.stack([np.tile(np.array([1.0, 0.95])[:, None], (1, D)), np.tile(np.array([1.0, 0.5])[:, None], (1, D))])
+    out = coherence.sequence(s, [0, 1], np.ones((2, D)), rng, rho_regime=rho_reg, regime_of=lambda x: (x[:, 1] > 0).astype(int))
+    hi = out[0][:, 1] > 0
+    z = lambda x: norm_scores(x)
+    c_hi = np.corrcoef(z(out[0][hi, 0]), z(out[1][hi, 0]))[0, 1]
+    c_lo = np.corrcoef(z(out[0][~hi, 0]), z(out[1][~hi, 0]))[0, 1]
+    assert c_hi < 0.6 and c_lo > 0.85, (c_hi, c_lo)

@@ -61,6 +61,7 @@ def main():
     ap.add_argument("--modep-sta", help="F-11: station-correction map (models/station_map_mix.npz); with --modep, the columns where hybrid_use_network is False are served by the station correction instead of the network")
     ap.add_argument("--modep-sfc", help="F-12: surface residual pool for past dates (scripts/modeP_surface.py output); default off")
     ap.add_argument("--coherence", help="group C1: lag-correlation table (scripts/c1_fit_lagcorr.py output) for hourly coherence of sequences")
+    ap.add_argument("--coherence-regimes", help="group C3: per-regime lag tables (scripts/c3_regime.py output); sequences then use the table of each trajectory's shear regime")
     ap.add_argument("--coherence-dist", help="group C2: distance-correlation table (scripts/c2_fit_distcorr.py output) for downrange coherence")
     ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
@@ -144,6 +145,9 @@ def main():
         arrays["coherence/rho"] = ch["rho"]
         if "kappa" in ch.files:
             arrays["coherence/kappa"] = ch["kappa"]
+    if a.coherence_regimes:
+        cr = np.load(a.coherence_regimes)
+        arrays["coherence/rho_regime"], arrays["coherence/shear_edges"] = cr["lag"], cr["shear_edges"]
     if a.coherence_dist:
         cd = np.load(a.coherence_dist)
         arrays["coherence_dist/rho"], arrays["coherence_dist/km"] = cd["rho"], cd["km"]
