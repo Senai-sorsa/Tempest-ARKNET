@@ -40,6 +40,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 ema_decay=0.0,              # e.g. 0.999: evaluate and save an exponential moving average of the weights
                 superadiabatic_weight=0.0,  # e.g. 0.01: penalty on lapse rates above 9.8 K/km above 2 km
                 shear_tail_weight=0.0,      # e.g. 0.3: tail-weighted CRPS of the vector wind shear (strong-shear layers)
+                product_pairs=None,         # IL-97: e.g. [["oni", "qbo30"], ["oni", "qbo50"]]: products of two linear features as extra straight-line effects
                 interactions=False,         # F-14: slope network sees the driver columns too (driver x driver effects); mlp arch only
                 m_final=0, final_steps=0,   # F-15: draw m_final samples per row (instead of m) for the last final_steps steps: less noisy pairwise-spread gradients where the shape is finished
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
@@ -131,6 +132,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     tm, ts = tref.mean(0), safe(tref.std(0))
     norm = {k: torch.tensor(v, dtype=torch.float32) for k, v in dict(cm=cm, cs=cs, tm=tm, ts=ts).items()}
     linear_cols = [names.index(k) for k in cfg["linear_features"] if k in names]
+    lin_names = [names[i] for i in linear_cols]
+    pp = [[lin_names.index(a_), lin_names.index(b_)] for a_, b_ in (cfg["product_pairs"] or [])]
     n_prof = N_PROF if len((meta or {}).get("target_names", [])) == N_PROF + 3 else 0
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
@@ -248,7 +251,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     for k in range(members):
         torch.manual_seed(cfg["seed"] + k)
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
-                               linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {})).to(device)
+                               linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {}),
+                               **({"product_pairs": pp} if pp else {})).to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
@@ -312,7 +316,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         if bad_norm:
             raise RuntimeError(f"normalisation arrays {bad_norm} contain non-finite values; training data has NaN or inf columns")
     ckpts = [dict(state=M["best_state"], cfg={**cfg, "seed": M["seed"]}, norm=norm, n_cond=cond.shape[1],
-                  n_out=target.shape[1], linear_cols=linear_cols, sp_offset=sp_offset, val_loss=M["best"],
+                  n_out=target.shape[1], linear_cols=linear_cols, product_pairs=pp, sp_offset=sp_offset, val_loss=M["best"],
                   history=M["history"], train_years=[int(year[tr_idx].min()), int(year[tr_idx].max())], val_years_range=[int(year[va_idx].min()), int(year[va_idx].max())],
                   **(meta or {})) for M in mem]
     ckpt = ckpts[0] if members == 1 else dict(members=ckpts)

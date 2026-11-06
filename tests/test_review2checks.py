@@ -153,3 +153,19 @@ def test_station_blend_weights_and_correction():
     w, p12 = station.blend_weights(t, np.array([31.9, 31.9, 31.9]), np.array([-106.5, -104.4, -102.4]), np.array([6.0, 11.0, 18.0]))
     assert np.allclose(w.sum(1), 1) and w[0, 0] > w[0, 1] and w[2, 1] > w[2, 0] and abs(w[1, 0] - w[1, 1]) < 0.15
     assert p12[0] > 0.9 and abs(p12[1] - 0.5) < 0.1 and p12[2] == 0.0
+
+
+def test_product_pairs_add_straight_line_terms():
+    import torch
+    from tempest.generator.model import Generator
+    torch.manual_seed(0)
+    g = Generator(4, 3, noise_dim=2, width=16, depth=1, linear_cols=[2, 3], product_pairs=[(0, 1)]).eval()
+    for p in g.slope[-1].parameters():
+        torch.nn.init.normal_(p, std=0.5)
+    assert g.slope[-1].out_features == 3 * 3
+    a, b = torch.tensor([[0.0, 0, 1.0, 1.0]]), torch.tensor([[0.0, 0, 1.0, 3.0]])
+    torch.manual_seed(1)
+    ya = g(a, 1)
+    torch.manual_seed(1)
+    yb = g(b, 1)
+    assert not torch.allclose(ya, yb)
