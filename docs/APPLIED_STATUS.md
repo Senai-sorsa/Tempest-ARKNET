@@ -12,7 +12,8 @@
 | F-12 past-date surface spread (t2m, sp, rh2m) | CRPS t2m 1.16 -> 0.68 K, sp 48.8 -> 25.9 Pa, rh2m 3.75 -> 2.92 %, cov99 0.99-1.00 | tool asset `--modep-sfc`, not re-exported yet |
 | F-11 part 1 hybrid (station correction for RH 12-18 km in past mode) | test-year CRPS 3.70 vs 4.76 for the network (earlier measurement) | tool asset `--modep-sta`, not re-exported yet |
 | F-13 ridge drivers | code done; scoring running | scorer flag |
-| F-25, F-26 | no gain | discarded, flags off |
+| F-25, F-26, F-14, F-15, F-10, F-11 part 2, F-23 | no gain or worse (F-14 far worse, F-15 vertical correlation slightly worse, F-10 path reading worse, F-11 part 2 no gain, F-23 inside seed noise) | discarded / no change, flags off |
+| F-19, F-20, F-29, IL-97 | retrains running or queued (F-20 first run was invalid and is redone) | see AUTOPILOT.md |
 | F-7, F-7b split-window retrains | worse than p2f | discarded |
 | IL-10, IL-12, IL-13, IL-3, IL-54..57 | discarded by the rule | flags off |
 
