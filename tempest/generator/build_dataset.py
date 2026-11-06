@@ -123,8 +123,9 @@ def main():
     if a.sidecar:
         extra = dict(row_point=prov["point"][ok], row_time=prov["time"][ok], row_group=prov["group"][ok],
                      correction=np.array(f"station-map {os.path.basename(a.station_map or 'none')}, blend={a.station_blend}"))
-    np.savez(a.out, cond=cond[ok], target=target[ok], year=year[ok],
-             cond_names=np.array(FEATURES), target_names=np.array(target_names()), rh_target=np.array(a.rh_target), **extra)
+    with open(a.out, "wb") as fh:                      # a file object, so np.savez does not append ".npz" to a name like x.npz.part (that broke the F-20 rebuild's rename)
+      np.savez(fh, cond=cond[ok], target=target[ok], year=year[ok],
+               cond_names=np.array(FEATURES), target_names=np.array(target_names()), rh_target=np.array(a.rh_target), **extra)
     print(f"wrote {a.out}: {ok.sum():,} rows, {target.shape[1]} targets", flush=True)
 
 
