@@ -16,7 +16,10 @@ import xarray as xr
 
 URL = "ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 LEVELS = [975, 950, 900, 875, 825, 800, 775, 750]
-LAT, LON = (34.0, 31.0), (252.0, 259.0)          # N to S as in the CDS files; longitudes 0-360
+from tempest import region as _region  # noqa: E402
+
+_R = _region.load()
+LAT, LON = (_R.lat_north, _R.lat_south), _R.era5_lon360          # the box comes from configs/region.toml (N to S as in the CDS files; longitudes 0-360)
 VARS = {"u_component_of_wind": "u", "v_component_of_wind": "v", "temperature": "t", "geopotential": "z", "specific_humidity": "q"}
 T0, TICE = 273.16, 250.16
 EPS = 287.0597 / 461.5250

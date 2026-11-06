@@ -14,7 +14,10 @@ import numpy as np
 import xarray as xr
 
 URL = "weatherbench2/datasets/hres/2016-2022-0012-1440x721.zarr"
-LAT, LON = (31.0, 34.0), (252.0, 259.0)                      # HRES latitudes ascend; longitudes 0-360
+from tempest import region as _region  # noqa: E402
+
+_R = _region.load()
+LAT, LON = (_R.lat_south, _R.lat_north), _R.era5_lon360      # the box comes from configs/region.toml (HRES latitudes ascend; longitudes 0-360)
 UPPER = {"u_component_of_wind": "u", "v_component_of_wind": "v", "temperature": "t", "specific_humidity": "q", "geopotential": "z"}
 SURF = {"10m_u_component_of_wind": "u10", "10m_v_component_of_wind": "v10", "2m_temperature": "t2m", "surface_pressure": "sp"}
 
