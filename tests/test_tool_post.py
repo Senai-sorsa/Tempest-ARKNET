@@ -26,3 +26,17 @@ def test_rank_templates_equal_value_templates():
     tpl = rng.normal(size=(2, 40, 12))
     ranks = np.argsort(np.argsort(tpl, axis=1), axis=1).astype(np.uint8)
     assert np.array_equal(_core.shuffle_apply_ranks(x, ranks), _core.shuffle_apply(x, tpl))
+
+
+def test_bias_gate_and_wind_rescale():
+    from tempest_weather import bias
+    st = {"site": "x", "model": "m", "lat": 32.0, "lon": -102.0, "updated": "2026-01-01",
+          "temperature_2m": {"1": {"b": [1.0] * 24, "n": [30] * 12 + [5] * 12, "se": [0.1] * 24}},
+          "wind_speed_10m": {"1": {"b": [-1.0] * 24, "n": [30] * 24, "se": [0.1] * 12 + [5.0] * 12}}}
+    assert bias.correction(st, "temperature_2m", 1.2, 3) == 1.0                  # enough updates, bias well above its error
+    assert bias.correction(st, "temperature_2m", 1.2, 15) == 0.0                 # too few updates
+    assert bias.correction(st, "wind_speed_10m", 1.0, 20) == 0.0                 # bias inside two standard errors
+    f = dict(t2m=290.0, u10=3.0, v10=4.0)
+    dT, dW = bias.apply_to_fields(f, st, 1.0, 3)
+    assert abs(f["t2m"] - 289.0) < 1e-9 and abs(np.hypot(f["u10"], f["v10"]) - 6.0) < 1e-9 and abs(f["u10"] / f["v10"] - 0.75) < 1e-9
+    assert bias.find(None, 32.0, -102.0) is None

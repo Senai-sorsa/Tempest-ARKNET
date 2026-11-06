@@ -11,6 +11,7 @@
 | IL-11 seasonal widths (RH + surface) | ERA5 cov err 0.0034 -> 0.0025, balloons not scored | scorer flag; tool code path exists (`--post-seasonal`), not exported until the stack check (IL-16) passes |
 | F-12 past-date surface spread (t2m, sp, rh2m) | CRPS t2m 1.16 -> 0.68 K, sp 48.8 -> 25.9 Pa, rh2m 3.75 -> 2.92 %, cov99 0.99-1.00 | tool asset `--modep-sfc`, not re-exported yet |
 | F-11 part 1 hybrid (station correction for RH 12-18 km in past mode) | test-year CRPS 3.70 vs 4.76 for the network (earlier measurement) | tool asset `--modep-sta`, not re-exported yet |
+| IL-98 B online bias tracker for the live feed | surface MAE lower in nearly every lead/site/model/variable cell (temperature -0.04 to -0.41 K, wind up to -0.30 m/s), never worse | tool code + `update_bias.py`; opt-in (`bias_dir`), state built from Previous Runs + ASOS |
 | F-13 ridge drivers | code done; scoring running | scorer flag |
 | F-25, F-26, F-14, F-15, F-10, F-11 part 2, F-23 | no gain or worse (F-14 far worse, F-15 vertical correlation slightly worse, F-10 path reading worse, F-11 part 2 no gain, F-23 inside seed noise) | discarded / no change, flags off |
 | F-19, F-20, F-29, IL-97 | retrains running or queued (F-20 first run was invalid and is redone) | see AUTOPILOT.md |

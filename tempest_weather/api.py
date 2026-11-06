@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from tempest_weather import _core, coupling, distributions, forecast, modes, outputs, ranking, registry
+from tempest_weather import _core, bias as _bias, coupling, distributions, forecast, modes, outputs, ranking, registry
 from tempest_weather.engine import Net
 from tempest_weather.sources import era5_local, openmeteo
 from tempest_weather.sources.indices import Indices
@@ -177,13 +177,18 @@ FORECAST_LEAD = (0.75, 7.5)       # days: the leads mode F was tested at are 1, 
 FORECAST_SOLAR = (14.0, 20.0)     # hours of local solar time: the archived cases are all valid at 00 UTC, about 17 h solar in the box (AUTOPILOT F-8a)
 
 
-def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted):
+def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None):
     """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
     -> ((n, 179) physical, the forecast profile dict, quality flags)."""
     doc = (fetch or openmeteo.fetch)(lat, lon, t_utc.strftime("%Y-%m-%d"))
     fields = forecast.fields_from_openmeteo(doc, int(t_utc.hour))
-    prof = forecast.forecast_profile(fields, z_sfc, A["modef_bl"])
     flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
+    state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
+    if state is not None:                                          # IL-98 item B: the live feed's recent surface bias at this site (EWMA, gated), subtracted before the profile is built
+        dT, dW = _bias.apply_to_fields(fields, state, lead, t_utc.hour)
+        if dT or dW:
+            flag.append(f"surface-bias-corrected:dT={dT:+.2f}K,dWS={dW:+.2f}m/s(state-through-{state['updated']})")
+    prof = forecast.forecast_profile(fields, z_sfc, A["modef_bl"])
     if min(abs(lead - x) for x in (1, 3, 5, 7)) > 0.6:
         flag.append("lead-between-the-tested-1-3-5-7-day-leads")
     nh = _core.NH
@@ -208,7 +213,7 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted)
     return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
 
 
-def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None):
+def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None):
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
     A = _assets(assets)
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
@@ -267,7 +272,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
     elif used == "forecast":
         try:
-            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted)
+            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir)
             quality = quality + fflags
             cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
         except Exception as e:  # noqa: BLE001  (network, unexpected response: the climate generator answers, and says so)
