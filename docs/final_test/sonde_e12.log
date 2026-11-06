@@ -1,0 +1,186 @@
+USM00072364: 2 of 296 held-out 00Z soundings dropped as incomplete (shortcut: scored on complete ones only; per-height scoring would keep them)
+USM00072364: 294 complete held-out 00Z soundings 2026-2026, 7,277 training-year
+USM00072265: 10 of 279 held-out 00Z soundings dropped as incomplete (shortcut: scored on complete ones only; per-height scoring would keep them)
+USM00072265: 269 complete held-out 00Z soundings 2026-2026, 7,881 training-year
+563 balloon profiles scored, m = 199
+ var     band  crps_clim  crps_known  skill_gauss  skill_known  skill_unknown  cov90_known  cov90_clim  cov90_gauss  cov99_known  cov99_clim  cov99_gauss
+   u   0-1 km      2.569         NaN       -0.014          NaN         -0.019        0.802       0.898        0.906        0.887       0.988        0.986
+   u   1-5 km      3.149         NaN       -0.005          NaN         -0.041        0.828       0.914        0.918        0.891       0.993        0.992
+   u  5-12 km      6.437         NaN        0.001          NaN         -0.009        0.782       0.886        0.887        0.889       0.990        0.989
+   u 12-18 km      5.092         NaN        0.004          NaN          0.006        0.737       0.843        0.844        0.869       0.974        0.971
+   v   0-1 km      2.046         NaN       -0.007          NaN          0.004        0.830       0.909        0.919        0.887       0.990        0.989
+   v   1-5 km      2.933         NaN        0.001          NaN          0.002        0.825       0.918        0.918        0.887       0.991        0.991
+   v  5-12 km      6.114         NaN        0.007          NaN         -0.011        0.799       0.915        0.916        0.888       0.993        0.991
+   v 12-18 km      4.941         NaN        0.009          NaN         -0.017        0.738       0.835        0.838        0.864       0.973        0.975
+   T   0-1 km      2.823         NaN       -0.020          NaN          0.078        0.775       0.846        0.898        0.875       0.968        0.984
+   T   1-5 km      2.014         NaN       -0.015          NaN          0.093        0.773       0.834        0.874        0.872       0.955        0.979
+   T  5-12 km      1.762         NaN       -0.012          NaN          0.124        0.789       0.853        0.873        0.878       0.973        0.987
+   T 12-18 km      1.791         NaN       -0.000          NaN         -0.008        0.752       0.874        0.870        0.877       0.986        0.985
+  RH   0-1 km      8.872         NaN       -0.015          NaN         -0.002        0.825       0.912        0.907        0.885       0.991        0.975
+  RH   1-5 km     12.626         NaN       -0.008          NaN         -0.003        0.814       0.888        0.898        0.889       0.994        0.988
+  RH  5-12 km     14.538         NaN        0.022          NaN          0.029        0.772       0.850        0.811        0.885       0.971        0.949
+  RH 12-18 km      8.009         NaN        0.008          NaN         -0.033        0.704       0.853        0.842        0.848       0.966        0.930
+ t2m  surface      3.005         NaN       -0.023          NaN          0.071        0.716       0.829        0.890        0.861       0.964        0.982
+  sp  surface    209.870         NaN       -0.014          NaN         -0.018        0.829       0.929        0.927        0.893       0.993        0.989
+rh2m  surface      8.122         NaN       -0.048          NaN          0.011        0.790       0.906        0.918        0.888       0.995        0.970
+
+best-guess error (median of the samples vs the truth; physical units, lower is better):
+ var     band  mae_clim  mae_known  rmse_clim  rmse_known  mae_skill
+   u   0-1 km     3.597        NaN      4.733         NaN        NaN
+   u   1-5 km     4.424        NaN      5.829         NaN        NaN
+   u  5-12 km     9.075        NaN     11.953         NaN        NaN
+   u 12-18 km     7.072        NaN      9.469         NaN        NaN
+   v   0-1 km     2.886        NaN      3.752         NaN        NaN
+   v   1-5 km     4.086        NaN      5.568         NaN        NaN
+   v  5-12 km     8.661        NaN     11.453         NaN        NaN
+   v 12-18 km     6.921        NaN      9.215         NaN        NaN
+   T   0-1 km     3.963        NaN      5.134         NaN        NaN
+   T   1-5 km     2.780        NaN      3.663         NaN        NaN
+   T  5-12 km     2.462        NaN      3.147         NaN        NaN
+   T 12-18 km     2.540        NaN      3.203         NaN        NaN
+  RH   0-1 km    12.254        NaN     17.781         NaN        NaN
+  RH   1-5 km    18.152        NaN     24.028         NaN        NaN
+  RH  5-12 km    21.099        NaN     28.338         NaN        NaN
+  RH 12-18 km    11.045        NaN     17.033         NaN        NaN
+ t2m  surface     4.201        NaN      5.379         NaN        NaN
+  sp  surface   291.147        NaN    409.213         NaN        NaN
+rh2m  surface    10.879        NaN     17.055         NaN        NaN
+
+profile shape (variogram score, skill vs climatology):
+var  vs_clim  vs_gauss  vs_known  vs_unknown  vs_skill_gauss  vs_skill_known  vs_skill_unknown
+  u 1224.186  1225.979       NaN    1202.973          -0.001             NaN             0.017
+  v  960.700   960.820       NaN     974.287          -0.000             NaN            -0.014
+  T  172.704   173.303       NaN     164.503          -0.003             NaN             0.047
+ RH 3349.492  3264.787       NaN    3234.129           0.025             NaN             0.034
+
+whole-profile 99 % coverage (all 44 heights inside at once):  u 0.758 (clim 0.789)  v 0.716 (clim 0.778)  T 0.709 (clim 0.760)  RH 0.716 (clim 0.792)
+
+HEADLINE (95 % intervals from a day-block bootstrap; skill15 = vs climatology of the last 15 years before the test, i.e. with warming included; unknown = drivers the tool would not know):
+ var     band    skill_known           skill_unknown  skill15_known         skill15_unknown          cov99_known        cov99_unknown mae_clim mae_clim15 mae_known mae_unknown
+   u   0-1 km nan [nan, nan] -0.019 [-0.036, -0.003] nan [nan, nan]  -0.005 [-0.020, 0.009] 0.887 [0.850, 0.920] 0.988 [0.979, 0.995]    3.597      3.668       nan       3.691
+   u   1-5 km nan [nan, nan] -0.041 [-0.065, -0.019] nan [nan, nan]  -0.020 [-0.042, 0.001] 0.891 [0.853, 0.924] 0.997 [0.994, 0.999]    4.424      4.533       nan       4.637
+   u  5-12 km nan [nan, nan]  -0.009 [-0.036, 0.015] nan [nan, nan]   0.018 [-0.008, 0.040] 0.889 [0.851, 0.922] 0.997 [0.995, 0.999]    9.075      9.402       nan       9.262
+   u 12-18 km nan [nan, nan]   0.006 [-0.018, 0.032] nan [nan, nan]    0.025 [0.004, 0.048] 0.869 [0.831, 0.903] 0.986 [0.979, 0.991]    7.072      7.276       nan       7.081
+   v   0-1 km nan [nan, nan]   0.004 [-0.006, 0.014] nan [nan, nan]   0.003 [-0.008, 0.013] 0.887 [0.849, 0.920] 0.993 [0.988, 0.998]    2.886      2.854       nan       2.875
+   v   1-5 km nan [nan, nan]   0.002 [-0.015, 0.017] nan [nan, nan]  -0.001 [-0.016, 0.014] 0.887 [0.850, 0.920] 0.995 [0.990, 0.998]    4.086      4.067       nan       4.086
+   v  5-12 km nan [nan, nan]  -0.011 [-0.024, 0.003] nan [nan, nan]   0.001 [-0.014, 0.017] 0.888 [0.851, 0.921] 0.994 [0.990, 0.997]    8.661      8.806       nan       8.752
+   v 12-18 km nan [nan, nan] -0.017 [-0.028, -0.006] nan [nan, nan] -0.017 [-0.029, -0.004] 0.864 [0.826, 0.898] 0.975 [0.965, 0.983]    6.921      6.927       nan       7.049
+   T   0-1 km nan [nan, nan]    0.078 [0.048, 0.110] nan [nan, nan]    0.049 [0.021, 0.077] 0.875 [0.836, 0.908] 0.982 [0.970, 0.992]    3.963      3.844       nan       3.645
+   T   1-5 km nan [nan, nan]    0.093 [0.070, 0.115] nan [nan, nan]    0.047 [0.024, 0.068] 0.872 [0.832, 0.906] 0.987 [0.978, 0.994]    2.780      2.656       nan       2.547
+   T  5-12 km nan [nan, nan]    0.124 [0.098, 0.149] nan [nan, nan]    0.060 [0.032, 0.087] 0.878 [0.839, 0.910] 0.989 [0.984, 0.993]    2.462      2.307       nan       2.168
+   T 12-18 km nan [nan, nan]  -0.008 [-0.027, 0.011] nan [nan, nan] -0.036 [-0.056, -0.015] 0.877 [0.838, 0.910] 0.989 [0.985, 0.993]    2.540      2.472       nan       2.561
+  RH   0-1 km nan [nan, nan]  -0.002 [-0.021, 0.017] nan [nan, nan]   0.006 [-0.011, 0.022] 0.885 [0.848, 0.919] 0.993 [0.987, 0.998]   12.254     12.360       nan      12.091
+  RH   1-5 km nan [nan, nan]  -0.003 [-0.016, 0.009] nan [nan, nan]   0.007 [-0.007, 0.019] 0.889 [0.852, 0.922] 0.997 [0.995, 0.999]   18.152     18.317       nan      18.188
+  RH  5-12 km nan [nan, nan]    0.029 [0.013, 0.044] nan [nan, nan]    0.059 [0.042, 0.073] 0.885 [0.848, 0.917] 0.990 [0.986, 0.994]   21.099     21.724       nan      20.176
+  RH 12-18 km nan [nan, nan] -0.033 [-0.052, -0.017] nan [nan, nan]    0.076 [0.063, 0.088] 0.848 [0.811, 0.882] 0.955 [0.942, 0.967]   11.045     12.339       nan      11.127
+ t2m  surface nan [nan, nan]    0.071 [0.040, 0.103] nan [nan, nan]    0.034 [0.006, 0.062] 0.861 [0.821, 0.897] 0.982 [0.969, 0.993]    4.201      4.037       nan       3.899
+  sp  surface nan [nan, nan]  -0.018 [-0.042, 0.005] nan [nan, nan]  -0.013 [-0.037, 0.010] 0.893 [0.856, 0.926] 0.995 [0.988, 1.000]  291.147    291.036       nan     297.352
+rh2m  surface nan [nan, nan]   0.011 [-0.010, 0.034] nan [nan, nan]   0.012 [-0.011, 0.035] 0.888 [0.851, 0.921] 0.988 [0.975, 0.996]   10.879     10.878       nan      10.708
+
+DIAG (known drivers): bias, width (ss_ratio ~1 ideal) and which side of the 99 % range misses
+ var     band  bias  rmse  ss_ratio  miss_lo  miss_hi  pit_lo  pit_hi  worst_miss
+   u   0-1 km   NaN   NaN       NaN   0.0038   0.0022  0.0038  0.0022      0.0089
+   u   1-5 km   NaN   NaN       NaN   0.0016   0.0012  0.0016  0.0012      0.0036
+   u  5-12 km   NaN   NaN       NaN   0.0032   0.0015  0.0032  0.0015      0.0107
+   u 12-18 km   NaN   NaN       NaN   0.0193   0.0048  0.0193  0.0048      0.0391
+   v   0-1 km   NaN   NaN       NaN   0.0042   0.0022  0.0042  0.0022      0.0089
+   v   1-5 km   NaN   NaN       NaN   0.0018   0.0047  0.0018  0.0047      0.0107
+   v  5-12 km   NaN   NaN       NaN   0.0042   0.0010  0.0042  0.0010      0.0071
+   v 12-18 km   NaN   NaN       NaN   0.0242   0.0051  0.0242  0.0051      0.0373
+   T   0-1 km   NaN   NaN       NaN   0.0038   0.0149  0.0038  0.0149      0.0231
+   T   1-5 km   NaN   NaN       NaN   0.0008   0.0209  0.0008  0.0209      0.0391
+   T  5-12 km   NaN   NaN       NaN   0.0001   0.0157  0.0001  0.0157      0.0409
+   T 12-18 km   NaN   NaN       NaN   0.0145   0.0016  0.0145  0.0016      0.0302
+  RH   0-1 km   NaN   NaN       NaN   0.0047   0.0033  0.0047  0.0033      0.0107
+  RH   1-5 km   NaN   NaN       NaN   0.0014   0.0030  0.0014  0.0030      0.0089
+  RH  5-12 km   NaN   NaN       NaN   0.0001   0.0085  0.0001  0.0085      0.0284
+  RH 12-18 km   NaN   NaN       NaN   0.0001   0.0450  0.0001  0.0450      0.0657
+ t2m  surface   NaN   NaN       NaN   0.0036   0.0284  0.0036  0.0284      0.0320
+  sp  surface   NaN   NaN       NaN   0.0000   0.0000  0.0000  0.0000      0.0000
+rh2m  surface   NaN   NaN       NaN   0.0000   0.0053  0.0000  0.0053      0.0053
+
+DIAG worst 10 columns by 99 % miss rate (target 0.01):
+  column  bias  rmse  ss_ratio  miss_lo  miss_hi  pit_lo  pit_hi   miss
+RH_16500   NaN   NaN       NaN   0.0000   0.0657  0.0000  0.0657 0.0657
+RH_15500   NaN   NaN       NaN   0.0000   0.0604  0.0000  0.0604 0.0604
+RH_16000   NaN   NaN       NaN   0.0000   0.0604  0.0000  0.0604 0.0604
+RH_17000   NaN   NaN       NaN   0.0000   0.0568  0.0000  0.0568 0.0568
+RH_18000   NaN   NaN       NaN   0.0000   0.0568  0.0000  0.0568 0.0568
+RH_15000   NaN   NaN       NaN   0.0000   0.0551  0.0000  0.0551 0.0551
+RH_14500   NaN   NaN       NaN   0.0000   0.0497  0.0000  0.0497 0.0497
+RH_17500   NaN   NaN       NaN   0.0000   0.0497  0.0000  0.0497 0.0497
+  T_5000   NaN   NaN       NaN   0.0000   0.0409  0.0000  0.0409 0.0409
+  T_4500   NaN   NaN       NaN   0.0000   0.0391  0.0000  0.0391 0.0391
+
+DIAG 99 % coverage by month (rows: month, cols: variable):
+var       RH      T   rh2m     sp    t2m      u      v
+month                                                 
+1     0.9788 0.9892 0.9836 1.0000 0.9672 0.9970 0.9918
+2     0.9886 0.9808 1.0000 1.0000 0.9808 0.9978 0.9707
+3     0.9860 0.9035 1.0000 1.0000 0.7895 0.9705 0.9685
+4     0.9777 0.9948 1.0000 1.0000 1.0000 0.9904 0.9926
+5     0.9754 0.9985 0.9833 1.0000 0.9833 0.9905 0.9966
+6     0.9890 0.9866 1.0000 1.0000 0.9821 0.9976 0.9955
+7     0.9745 0.9734 1.0000 1.0000 1.0000 0.9741 0.9765
+8     0.9907 0.9981 1.0000 1.0000 1.0000 0.9958 0.9875
+9     0.9569 0.9996 0.9828 1.0000 0.9828 0.9847 0.9902
+10    0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000
+11    0.0000 0.0000 0.0000 0.0000 0.0000 0.0000 0.0000
+
+EXTRAS (unknown drivers): coverage at 50/80/90/99 % (targets 0.50/0.80/0.90/0.99)
+ var     band  cov50  cov80  cov90  cov99
+   u   0-1 km 0.5191 0.8139 0.9016 0.9885
+   u   1-5 km 0.5017 0.8153 0.9222 0.9966
+   u  5-12 km 0.4765 0.7778 0.8993 0.9975
+   u 12-18 km 0.4468 0.7474 0.8542 0.9855
+   v   0-1 km 0.5020 0.8213 0.9238 0.9929
+   v   1-5 km 0.5370 0.8259 0.9175 0.9947
+   v  5-12 km 0.4676 0.7844 0.9004 0.9937
+   v 12-18 km 0.4154 0.7080 0.8311 0.9747
+   T   0-1 km 0.4927 0.8135 0.8981 0.9822
+   T   1-5 km 0.4987 0.8064 0.9017 0.9872
+   T  5-12 km 0.4956 0.7988 0.8988 0.9888
+   T 12-18 km 0.4610 0.7685 0.8825 0.9892
+  RH   0-1 km 0.5992 0.8544 0.9256 0.9931
+  RH   1-5 km 0.4900 0.8072 0.9140 0.9968
+  RH  5-12 km 0.4899 0.7719 0.8665 0.9900
+  RH 12-18 km 0.3949 0.6445 0.7735 0.9549
+ t2m  surface 0.4476 0.7620 0.8650 0.9822
+  sp  surface 0.5542 0.8295 0.9218 0.9947
+rh2m  surface 0.6181 0.8561 0.9325 0.9876
+
+EXTRAS wind: error of the median wind
+    band  speed_mae  speed_rmse  vector_rmse  dir_mae_deg  dir_share_used
+  0-1 km     3.4221      4.3970       6.0856      53.0193          0.9076
+  1-5 km     4.1066      5.4144       8.2222      45.0024          0.9412
+ 5-12 km     8.1633     10.6663      16.7755      44.9201          0.9808
+12-18 km     6.5186      8.6168      13.3159      38.6450          0.9796
+
+EXTRAS worst 10 variable x band x month cells by distance of cov99 from 0.99:
+var     band  month  n  cov99    dev
+  u   0-1 km     11  8 0.8125 0.1775
+ RH 12-18 km     11  8 0.8365 0.1535
+ RH 12-18 km      9 58 0.8886 0.1014
+t2m  surface      3 57 0.8947 0.0953
+  T   0-1 km      3 57 0.9057 0.0843
+  T   1-5 km      3 57 0.9240 0.0660
+  v 12-18 km      3 57 0.9258 0.0642
+  u 12-18 km      3 57 0.9285 0.0615
+ RH 12-18 km      5 60 0.9346 0.0554
+ RH 12-18 km      4 52 0.9393 0.0507
+
+EXTRAS worst 10 columns:
+  column  cov99    dev
+RH_16000 0.9396 0.0504
+RH_15000 0.9432 0.0468
+RH_15500 0.9432 0.0468
+RH_17000 0.9467 0.0433
+RH_14500 0.9503 0.0397
+RH_17500 0.9503 0.0397
+RH_18000 0.9520 0.0380
+RH_16500 0.9538 0.0362
+RH_14000 0.9591 0.0309
+RH_12000 0.9645 0.0255
+DIAG station USM00072265: n=269 cov99=0.8782 cov90=0.7833
+DIAG station USM00072364: n=294 cov99=0.8791 cov90=0.7752
+wrote models/generator_80_b0smix_sonde_cal2021.score.csv and charts to models/generator_80_b0smix_sonde_cal2021_report/

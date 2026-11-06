@@ -299,6 +299,8 @@ Findings: trained and served area = pilot box only (other places are refused cle
 | E5 | Final report in `docs/FINAL_REPORT.md`: numbers with intervals, which years, every cell not clearly better, the Earth-GRAM-style table, what is open (ASK_LATER); plain language | |
 | E6 | Commit locally; list the open ASK_LATER items for the user | |
 
+**Group E status 2026-11-06:** E1 DONE (184 tests), E2 DONE (identical rescore), E3 DONE (`scripts/e3_checks.py`), E4 DONE 01:49 (`scripts/final_test.sh`, run once, lock `data/FINAL_TEST_DONE`; results in `docs/final_test/`), E5 DONE (`docs/FINAL_REPORT.md`), E6 DONE. Open ASK_LATER items are listed in section 8 of the report. Next: group C (coherence), then stage 6 after the user's approval.
+
 ## Group C: coherence add-on (user 2026-11-06: after group E, before stage 6)
 Sampling-time only: no retrain, the final model and its E4 numbers stay as they are. Fit and check on years up to 2025 only (2026 stays untouched).
 | ID | Step | How |

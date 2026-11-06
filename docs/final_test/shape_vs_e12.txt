@@ -1,0 +1,11 @@
+       metric   base    new   delta  tolerance   flag              worst_cell
+ cov_err_mean 0.0211 0.0219  0.0008     0.0021          RH/12-18 km (+0.0076)
+event_cov_gap 0.0809 0.0885  0.0076     0.0081           RH/5-12 km (+0.2630)
+    kurt_diff 0.3685 0.3787  0.0103     0.0368          RH/12-18 km (+0.1858)
+       pit_tv 0.0905 0.0924  0.0019     0.0091            T/5-12 km (+0.0059)
+ preclip_rate 0.0459 0.0285 -0.0175     0.0046 better rh2m/surface (+-0.0005)
+     shear_ks 0.0191 0.0274  0.0083     0.0019  WORSE shear/5-12 km (+0.0137)
+    skew_diff 0.1675 0.1664 -0.0011     0.0168          RH/12-18 km (+0.0819)
+tail_rate_err 2.0556 3.9476  1.8919     0.2056  WORSE  RH/12-18 km (+21.1140)
+    vcorr_err 0.0734 0.0606 -0.0127     0.0073 better     u/profile (+0.0028)
+SHAPE RESULT: FAIL (a shape metric got worse: shear_ks, tail_rate_err)
