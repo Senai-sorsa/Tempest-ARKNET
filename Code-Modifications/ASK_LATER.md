@@ -87,3 +87,9 @@ Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after ap
 - G4 global data needs more than the 100 GB `data/raw` cap (estimate in GLOBAL_PLAN G4): approve a higher cap or an external drive?
 - `data/train` holds 56 GB of npz copies of older variants; OK to prune the ones no adopted model uses?
 - G3 needs a WeatherBench-2 HRES pull for the new region (Colab, same notebook as before).
+
+### 12b. Data-cap headroom (2026-11-06, `docs/DATA_NEEDS.md`)
+`data/raw` is 80 GB of the 100 GB cap. Nothing is deleted unattended. Candidates, if you approve:
+- `data/raw/era5_em_denver` (1.3 GB, Denver 2016-23). `era5_em_denver_full` (1991-2025) supersedes it.
+- `data/raw/era5_em` (30 GB, the older 18-variable NM/TX store) vs `era5_em80` (32 GB): which one the current datasets are built from has to be checked before pruning.
+- New IGRA stations will be kept as converted profiles only (~9 MB per station), not as derived text files (~140 MB).

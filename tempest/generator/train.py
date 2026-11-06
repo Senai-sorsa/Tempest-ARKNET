@@ -362,11 +362,26 @@ def main():
     ap.add_argument("--config", default="configs/generator.toml")
     ap.add_argument("--max-year", type=int)
     ap.add_argument("--min-year", type=int, help="drop earlier years (same file, shorter history)")
+    ap.add_argument("--point-stride", type=int, default=1,
+                    help="data-needs test: keep grid points on a (0.25 x N)-degree lattice only (N=2: 1/4 of the points)")
+    ap.add_argument("--hour-cycle", type=int, default=1,
+                    help="data-needs test: keep 1 of every N hours, shifted by one hour each day (all hours still seen; "
+                         "N=16 on the 06-21 h pilot = one hour per day, the global plan's diurnal-cycled store)")
     a = ap.parse_args()
     with open(a.config, "rb") as f:
         cfg = tomllib.load(f)
     d = load_npz(a.data)
-    keep = np.flatnonzero((d["year"] <= (a.max_year or 9999)) & (d["year"] >= (a.min_year or 0)))
+    m = (d["year"] <= (a.max_year or 9999)) & (d["year"] >= (a.min_year or 0))
+    if a.point_stride > 1 or a.hour_cycle > 1:
+        n = [str(x) for x in d["cond_names"]]
+        c = lambda k: np.asarray(d["cond"][:, n.index(k)], dtype=np.float64)
+        on = lambda x: np.round(x / 0.25).astype(int) % a.point_stride == 0
+        hour = np.round(np.mod(np.arctan2(c("hour_sin"), c("hour_cos")) / (2 * np.pi) * 24, 24)).astype(int) % 24
+        doy = np.mod(np.arctan2(c("doy_sin"), c("doy_cos")) / (2 * np.pi) * 365.25, 365.25)
+        day = np.asarray(d["year"]).astype(int) * 366 + np.floor(doy + 1e-6).astype(int)
+        m &= on(c("lat")) & on(c("lon")) & ((hour + day) % a.hour_cycle == 0)
+        print(f"thinning: point stride {a.point_stride}, hour cycle {a.hour_cycle} -> {m.sum()} of {len(m)} rows", flush=True)
+    keep = np.flatnonzero(m)
     if len(keep) and keep[-1] - keep[0] + 1 == len(keep):  # contiguous years: a memory-mapped slice, no 6 GB RAM copy
         keep = slice(keep[0], keep[-1] + 1)
     cond, target, year = (d[k][keep] for k in ("cond", "target", "year"))
