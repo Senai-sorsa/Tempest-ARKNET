@@ -365,4 +365,5 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-4 siren | NM/TX + Denver zero-shot | **PASS** NM/TX (+0.0278 vs +0.0277), shape PASS; Denver -0.176 → -0.138 (22 % of gap; T 12-18 km worse) |
 | L3-10a sh10ctx | NM/TX | died at step 2000 (one-off cuBLAS error); sidelined, not retried |
 | Gemini review | triage `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` | Denver build dropped 23 % of rows (mountain columns) → `--fill-top`; new off-by-default options ctx_sep, SIREN w0, Student-t noise, jump head |
+| L3-25 Denver fill-top | `ap_l3_lean.sh` | done: p2f zero-shot -0.1764 → -0.1918 with the 23 % mountain rows kept (RH 12-18 km, rh2m worst); old Denver numbers optimistic; `ap_l3_fill.sh` rescores the candidates on it after the queue |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
