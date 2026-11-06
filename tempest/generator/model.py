@@ -139,7 +139,9 @@ class Generator(nn.Module):
         if self.noise_t:
             d, nu = int(self.noise_t["dims"]), float(self.noise_t["nu"])
             chi = torch.distributions.Chi2(torch.tensor(nu, device=cond.device)).sample((*c.shape[:2], d)).to(eps.dtype)
-            eps = torch.cat([eps[..., :d] / torch.sqrt(chi / nu) * math.sqrt((nu - 2) / nu), eps[..., d:]], -1)
+            # clamp: chi near 0 gives unbounded draws that, through the tail head, blew T up to inf/NaN (L3-26); |t| > 8 has p ~ 1e-4 at nu = 4
+            t = (eps[..., :d] / torch.sqrt(chi / nu) * math.sqrt((nu - 2) / nu)).clamp(-8.0, 8.0)
+            eps = torch.cat([t, eps[..., d:]], -1)
         z = self.embed(eps)
         zc = None
         if self.context_cols:
