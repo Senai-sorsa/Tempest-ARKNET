@@ -330,10 +330,11 @@ Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather
 | ID | Hybrid / alternative | Result | State |
 |---|---|---|---|
 | L2-H3 | Observed-spread widening for 2 m temperature (the IL-101 idea applied to temperature) | DONE 04:00, KEPT as opt-in (needs `bias_dir`): live tool spread vs ASOS 90 % interval (2025-26): leads 1-5 days already 0.90-0.94 (no change), 7 days 0.79-0.86 -> 0.89 with the observed sd. `bias.widen_temperature` (factor at most 1.6, fades with height), flag `temperature-widened-to-station-scale`; test | done |
-| L2-H4 | RH-in-loss 0.1 + last 1500 steps with m = 6 (milder F-19 + F-15) | GPU run `p2fmix` (scripts/ap_h4.sh) | relaunched 03:33 (first start hit a CUDA out-of-memory error at once; GPU was free afterwards) |
+| L2-H4 | RH-in-loss 0.1 + last 1500 steps with m = 6 (milder F-19 + F-15) | GPU run `p2fmix` (scripts/ap_h4.sh) | relaunched twice: m_final 6 + RH loss runs out of GPU memory when the last-steps phase starts (step 4500); third try uses m_final 5 |
 | L2-H1 | Damped PIT map (0.5) and/or seasonal widths for the RH profile only on top of the final stack A (c1 / c2 / c3) | CPU diagnostics (scripts/ap_h1.sh) | **c1 (stack A + PIT map at half strength) KEEP as opt-in `--pit-damp 0.5`**: shape rule PASS, 4 metrics better (coverage error 0.0123→0.0108, PIT distance 0.0372→0.0358, skew, tail-rate 2.90→2.44), none worse. c2 (RH-profile seasonal) and c3 (both) FAIL: event-coverage gap 0.071→0.083/0.081 (RH 0-1 km). Judged on 2024-25 only. Not default. |
 | L2-H2 | Mode F: mixture weight per lead and a third component | todo | todo |
 | L2-H5 | Shear map per season (IL-89 / IL-60) | todo | todo |
 | L2-A1 | IL-74 lead blending of mode F and the climate generator around 7.5 days | todo | todo |
 | L2-A2 | IL-79 mode F at any lead | todo | todo |
 | L2-A3 | IL-14 Chronos + ridge average for ONI / WWV | todo | todo |
+| L2-H2 | Mode F mixture: weights per mixture and a third component (HRES + error pool) | `scripts/il6_modeF.py` (H2 rows; `data/l2h2.log`) | **NO GAIN, not adopted.** CRPS skill vs climatology for 5 mixes is within 0.004 of the 50:50 network/ridge blend at every lead (e.g. 7 d: 0.201-0.207 vs 0.209); 99 % coverage error no better (0.003-0.006 for all). The fixed 50:50 stays. |

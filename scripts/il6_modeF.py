@@ -116,7 +116,11 @@ for i in range(len(truth)):
     ok = np.flatnonzero((dd <= 20) & (np.abs(tr["z_sfc"] - te["z_sfc"][i]) < 250))
     clim[i] = tro[rng.choice(ok if len(ok) > 30 else np.arange(len(tro)), m)]
 blend = np.where(rng.random((len(truth), m, 1)) < 0.5, x_shuf, lin).astype(np.float32)           # IL-80: 50/50 mixture of the network (shuffled) and the ridge predictive samples
-methods = {"blend: network + shuffle / ridge 50:50": blend, "climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network + range map + Schaake shuffle": x_shuf, "network + PIT recal + range map": x_pit, "network + PIT recal + range map + Schaake shuffle": x_pit_shuf, "network (raw)": x_net, "network + range map": x_cal}
+def _mix(wn, wr, _wp=None):                                                                    # loop 2 H2: network / ridge / HRES+error-pool mixture weights (same for all leads)
+    u = rng.random((len(truth), m, 1))
+    return np.where(u < wn, x_shuf, np.where(u < wn + wr, lin, x_pool)).astype(np.float32)
+H2 = {f"H2 mix net {wn:.2f} ridge {wr:.2f} pool {1 - wn - wr:.2f}": _mix(wn, wr, 1 - wn - wr) for wn, wr in ((0.75, 0.25), (0.25, 0.75), (0.34, 0.33), (0.4, 0.4), (0.5, 0.25))}
+methods = {**H2, "blend: network + shuffle / ridge 50:50": blend, "climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network + range map + Schaake shuffle": x_shuf, "network + PIT recal + range map": x_pit, "network + PIT recal + range map + Schaake shuffle": x_pit_shuf, "network (raw)": x_net, "network + range map": x_cal}
 bands = P.names()
 masks = np.stack([s for _, _, s in bands], 1).astype(float)
 masks /= masks.sum(0)
@@ -140,7 +144,7 @@ print("CRPS skill vs the short-record climatology")
 print((1 - pv["crps"] / base).round(3).to_string())
 print("MAE of the median")
 print(pv["mae"].round(3).to_string())
-cv = t[t.method.isin(["HRES + error pool", "ridge + error pool", "network (raw)", "network + range map", "blend: network + shuffle / ridge 50:50"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
+cv = t[t.method.isin([*H2, "HRES + error pool", "ridge + error pool", "network (raw)", "network + range map", "blend: network + shuffle / ridge 50:50"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
 print("mean |cov99 - 0.99|")
 print(cv.round(4).to_string())
 print("skill vs climatology by variable (network + range map), lead 1 / 3 / 5 / 7")
@@ -152,7 +156,7 @@ try:
     from tempest.profiles.to_heights import PROFILE as _PROF
     levels = np.array([0.1, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95, 0.99])
     srows = []
-    for name in ("blend: network + shuffle / ridge 50:50", "network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
+    for name in (*H2, "blend: network + shuffle / ridge 50:50", "network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
         x = methods[name]
         for L in (1, 3, 5, 7):
             k = te["lead_days"] == L

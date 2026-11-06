@@ -26,5 +26,5 @@ ema_decay = 0.999
 
 # ---- loop 2 H4: the two partial positives of F-15 (pre-clip rate) and F-19 (PIT) at a milder dose each
 rh_loss_weight = 0.1
-m_final = 6
+m_final = 5   # 6 ran out of GPU memory together with the RH loss (first two tries died at step 4500)
 final_steps = 1500
