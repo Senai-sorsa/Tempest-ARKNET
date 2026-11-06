@@ -55,6 +55,6 @@ from google.colab import drive; drive.mount('/content/drive')
 
 - **Skip it** if waiting 60-90 days for the logger is fine.
 - **First:** check the chunking of `ifs_ens` in Colab. With 50 members, the read per start is much larger than HRES.
-- **Download:** `--url <ifs_ens path> --levels 500 700 850`, 00Z every 4th day, leads 24-240 h every 24 h, 2016-2022.
-- **Size:** about 11 GB on disk (pilot + Denver, from the store layout), which fits under the 100 GB cap.
+- **Download:** `--url <ifs_ens path> --levels 500 700 850`, 00Z every 8th day, leads 24-168 h every 24 h, 2016-2024.
+- **Size:** about 5 GB on disk (pilot + Denver, from the store layout), which fits under the 100 GB cap.
 - **On your PC:** `data/raw/wb2_ifs_ens/`.

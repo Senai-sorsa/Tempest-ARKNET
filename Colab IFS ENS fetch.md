@@ -1,8 +1,8 @@
 # Colab: IFS ensemble (ifs_ens), 500/700/850 hPa, pilot + Denver box
 
 **What it does:** pulls the ECMWF IFS 50-member ensemble forecasts from WeatherBench2, cut to the pilot box and the Denver box:
-- 00 UTC starts, every 4th day, 2016-2022.
-- Leads 24, 48, ..., 240 h (valid 00 UTC, about 17 solar at the site).
+- 00 UTC starts, every 8th day, 2016-2024 (these dates are a subset of the HRES dates; 2023-2024 have no HRES, but give the fit/test years).
+- Leads 24, 48, ..., 168 h (days 1-7, matching the tool's 0.75-7.5 day range; valid 00 UTC, about 17 solar at the site).
 - Levels 500/700/850 hPa: u, v, t, q, z, plus u10, v10, t2m and msl. This store has no surface pressure.
 
 This is item C3 in `Colab downloads.md` (the early version of item C). It is the most optional pull, so skip it if waiting 60-90 days for the logger is fine.
@@ -20,21 +20,21 @@ This is item C3 in `Colab downloads.md` (the early version of item C). It is the
 - **What this means:**
   - You always read all 50 members, so taking fewer members saves nothing.
   - Each worker holds about 1.5-2 GB in memory, so `WORKERS` is 3. Colab has 12.7 GB.
-  - Per start: 10 leads × (5 × 620 + 4 × 210 MB) = **about 40 GB read** (inside Google, free, never on your connection).
+  - Per start: 7 leads × (5 × 620 + 4 × 210 MB) = **about 28 GB read** (inside Google, free, never on your connection).
 
 ## Size and time
 
 | | |
 |---|---|
-| Starts | about 640 (2016-2022) |
-| Read inside Google | about 25 TB in total (uncompressed size) |
-| Written to Drive | about 14 MB per start for pilot, 3 MB for Denver: **about 11 GB in total** |
-| Colab time | **measured by the test month (cell 3).** Expect tens of hours. Split it with `PARTS` (below) |
+| Starts | about 410 (2016-2024, every 8th day) |
+| Read inside Google | about 11 TB in total (uncompressed size) |
+| Written to Drive | about 10 MB per start for pilot, 2 MB for Denver: **about 5 GB in total** |
+| Colab time | **measured by the test month (cell 3).** Estimate from the HRES speed: about 8 h in one notebook, **about 2.5-3 h per part with 3 parts** |
 
 **To make it faster** (cell 2):
 - **`PARTS`: run several notebooks at the same time.** See "Running in parallel" below. With 3 sessions it finishes in about a third of the time.
-- **`EVERY_DAYS = 8`:** half the starts, half the time.
-- **`LEADS = [24, 72, 120, 168, 240]`:** half the leads, half the time.
+- **`EVERY_DAYS = 16`:** half the starts, half the time. (`4` doubles both. To add the in-between dates later, run with `EVERY_DAYS = 4` into a new `OUT` folder, because the month files here would be skipped.)
+- **`LEADS = [24, 72, 120, 168]`:** about half the time.
 
 ---
 
@@ -55,7 +55,7 @@ Free Colab allows only a few sessions at once per Google account. If a second on
 1. Go to https://colab.research.google.com, then **New notebook**, then **Runtime → Change runtime type → CPU**.
 2. Paste each cell below into its own code cell, in order.
 3. Run cells 1-2. If cell 2 prints `STOP`, send the output to Claude.
-4. Run cell 3 with `TEST_ONE_MONTH = True`, then cell 4. Note the `full run would take` line, and divide it by `PARTS`.
+4. Run cell 3 with `TEST_ONE_MONTH = True`, then cell 4. Note the `full run: about X h in one notebook` line, and divide it by `PARTS`.
 5. If cell 4 prints `OK`, set `TEST_ONE_MONTH = False` (and `PARTS` / `PART`). Rerun cell 2, then cell 3, and leave it running.
 6. **After a disconnect:** rerun cells 1, 2 and 3. Finished months are skipped.
 7. **If Colab says it ran out of memory:** set `WORKERS = 2` and rerun.
@@ -76,11 +76,11 @@ import os, time, glob
 import numpy as np, xarray as xr, fsspec, dask, psutil
 
 TEST_ONE_MONTH = True          # first run: only the first month, then set False
-PART, PARTS = 0, 1             # parallel notebooks: same PARTS in each, PART = 0 .. PARTS-1
+PART, PARTS = 0, 3             # 3 notebooks: PART = 0 in the first copy, 1 in the second, 2 in the third
 OUT = "/content/drive/MyDrive/tempest_wb2_ifs_ens"
-FIRST, LAST = 2016, 2022       # the store runs to 2024; 2016-2022 matches the HRES set
-EVERY_DAYS = 4
-LEADS = list(range(24, 241, 24))
+FIRST, LAST = 2016, 2024       # whole store; 2023-2024 give the fit/test years (HRES stops at 2022)
+EVERY_DAYS = 8                 # every 2nd HRES date, so each start also has an HRES forecast
+LEADS = list(range(24, 169, 24))   # days 1-7
 LEVELS = [500, 700, 850]
 WORKERS = 3                    # each worker holds one ~620 MB chunk plus its download (~1.5-2 GB); 2 if Colab runs out of memory
 
@@ -186,7 +186,7 @@ for b, (la, lo) in BOXES.items():
 print("OK" if bad == 0 else f"{bad} bad files: delete them and rerun cell 3")
 ```
 
-Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 3, 10 leads, 50 members.
+Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 3, 7 leads, 50 members.
 
 ---
 
@@ -203,4 +203,4 @@ Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 3, 10 l
 
 - **File format:** files are `<yyyymm>_00z.nc`, one per month, with a member dimension `number` (50). Load with `xr.open_mfdataset(sorted(glob(...)), combine="nested", concat_dim="time")`.
 - **Levels:** only 3, so these cannot feed the 13-level profile builder directly. Use them for the spread and calibration checks (IL-98 C style), or interpolate in log-p between the levels.
-- **Disk:** about 11 GB. `data/raw` is about 65 GB, so this fits under the 100 GB cap.
+- **Disk:** about 5 GB. `data/raw` is about 65 GB, so this fits under the 100 GB cap.
