@@ -362,4 +362,7 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | NM/TX seed tolerance | p2f s1/s2 vs p2f: skill15 -0.0006 / -0.0001 | done (tolerance 0.0006) |
 | L3-2 sh10 | NM/TX + Denver zero-shot | **FAIL**: NM/TX -0.0007 (at tolerance), shape FAIL (vcorr, shear); Denver -0.176 → -0.168 (4 % of gap), u 0-1 km still -1.77. Not kept |
 | L3-3 sh20 | NM/TX + Denver zero-shot | **FAIL**: NM/TX neutral, shape FAIL (vcorr 0.076 → 0.135); Denver -0.176 → -0.150 (14 % of gap). SH normalisation not queued (one box cannot teach place; see LOOP3 Results) |
-| L3-4 siren, L3-3 sh20, L3-4 siren, L3-10a sh10ctx (elevations via context FiLM), L3-12 w768 | NM/TX verdict + shape + Denver zero-shot | running in this order |
+| L3-4 siren | NM/TX + Denver zero-shot | **PASS** NM/TX (+0.0278 vs +0.0277), shape PASS; Denver -0.176 → -0.138 (22 % of gap; T 12-18 km worse) |
+| L3-10a sh10ctx | NM/TX | died at step 2000 (one-off cuBLAS error); sidelined, not retried |
+| Gemini review | triage `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` | Denver build dropped 23 % of rows (mountain columns) → `--fill-top`; new off-by-default options ctx_sep, SIREN w0, Student-t noise, jump head |
+| Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt → jump; rest sidelined (`SIDELINED.md`) |

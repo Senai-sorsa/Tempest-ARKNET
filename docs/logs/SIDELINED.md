@@ -139,3 +139,13 @@ The capped loop (user, 2026-11-05) keeps the 6 best items: IL-86 generator PIT r
 - IL-79 continuous lead: needs notebook rerun with more leads (data).
 - IL-14 Chronos+regression: tied in earlier bake-off, no effect on profile shape.
 
+
+## Loop 3 cut (2026-11-06)
+
+User: "reduce it so only a couple things overall are tried (only the very important things or what would take almost no time) + what gemini gave (the ideas)". Kept: Denver fill-top rescore, w768 (already trained), terrain (L3-5), Gemini fixes ctxsep/sirenw15, Gemini ideas studt/jump (`scripts/ap_l3_lean.sh`). Sidelined (rows stay in `LOOP3.md`, configs stay):
+- L3-6 clocks, L3-7 clim inputs, L3-10 ctxall (ctxsep covers it), L3-11 terrain head, sh10ctx retry
+- L3-8/9 SAMOS target space, L3-13 variogram loss, L3-14 coordinate-only baseline
+- L3-15..19 calibration transfer, spread-conditional calibrator, pooled balloon correction, pooled EGPD tail, DI test
+- L3-20/21 stacks (run by hand only if a kept row wins), L3-22 ONNX
+- D1-D7 data-need runs (`scripts/ap_l3_data.sh`)
+- Gemini idea 2 (Pairformer trunk): not built; see the Gemini triage

@@ -22,9 +22,9 @@ Every project document lives under `docs/`, one folder per kind. Start with **`.
 
 **specs/** — [atmosphere-outputs.md](specs/atmosphere-outputs.md) · [coupled-atmosphere.md](specs/coupled-atmosphere.md) · [operations.md](specs/operations.md)
 
-**reviews/external/** — [External review 2checks.md](reviews/external/External%20review%202checks.md) · [global-fixes.md](reviews/external/global-fixes.md) (global extension) · [GPT-suggestions.md](reviews/external/GPT-suggestions.md) · [suggestions-copoilet.md](reviews/external/suggestions-copoilet.md)
+**reviews/external/** — [External review 2checks.md](reviews/external/External%20review%202checks.md) · [global-fixes.md](reviews/external/global-fixes.md) (global extension) · [GPT-suggestions.md](reviews/external/GPT-suggestions.md) · [suggestions-copoilet.md](reviews/external/suggestions-copoilet.md) · [gemini-review.pdf](reviews/external/gemini-review.pdf)
 
-**reviews/triage/** — [GLOBAL_REVIEW_TRIAGE.md](reviews/triage/GLOBAL_REVIEW_TRIAGE.md) ← global-fixes · [review-triage.md](reviews/triage/review-triage.md) ← outside architecture review · [Strong improvment.md](reviews/triage/Strong%20improvment.md) ← AI-model comparison + Gemini audit
+**reviews/triage/** — [GLOBAL_REVIEW_TRIAGE.md](reviews/triage/GLOBAL_REVIEW_TRIAGE.md) ← global-fixes · [GEMINI_REVIEW_TRIAGE.md](reviews/triage/GEMINI_REVIEW_TRIAGE.md) ← gemini-review.pdf · [review-triage.md](reviews/triage/review-triage.md) ← outside architecture review · [Strong improvment.md](reviews/triage/Strong%20improvment.md) ← AI-model comparison + Gemini audit
 
 **reviews/internal/** — [claude-recommendations-v2.md](reviews/internal/claude-recommendations-v2.md)
 

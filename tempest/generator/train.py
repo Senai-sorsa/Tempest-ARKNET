@@ -50,7 +50,11 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
                 geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
                 context_inputs=[],          # L3: input names routed to the context FiLM instead of the input layer (model.Generator context_cols)
-                terrain_head_inputs=[])     # L3: input names for the altitude-decayed terrain head
+                context_film_sep=False,     # L3: the context gets its own FiLM per block instead of being added to the noise embedding (model ctx_sep)
+                geo_siren_w0=1.0,           # L3: SIREN first-layer frequency (1 = the scored L3-4 siren)
+                terrain_head_inputs=[],     # L3: input names for the altitude-decayed terrain head
+                noise_t_dims=0, noise_t_nu=4.0,   # Gemini idea 1: this many noise numbers are Student-t (model noise_t)
+                jump_k=0, jump_top=3000.0)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -158,12 +162,21 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     if cfg["geo_sh"]:
         assert not {"lat", "lon"} & set(cfg["ignore_inputs"]), "geo_sh drops lat/lon itself and needs their real scale; do not also ignore them"
         gc = [names.index("lat"), names.index("lon")]
-        model_kw["geo"] = dict(cols=gc, mu=[float(cm[i]) for i in gc], sd=[float(cs[i]) for i in gc], L=int(cfg["geo_sh"]), siren=int(cfg["geo_siren"]))
+        model_kw["geo"] = dict(cols=gc, mu=[float(cm[i]) for i in gc], sd=[float(cs[i]) for i in gc], L=int(cfg["geo_sh"]), siren=int(cfg["geo_siren"]),
+                               **({"w0": float(cfg["geo_siren_w0"])} if cfg["geo_siren_w0"] != 1.0 else {}))
     if cfg["context_inputs"]:
         model_kw["context_cols"] = [names.index(k) for k in cfg["context_inputs"]]
+        if cfg["context_film_sep"]:
+            model_kw["ctx_sep"] = True
     if cfg["terrain_head_inputs"]:
         hts = np.concatenate([np.tile(np.asarray(HEIGHTS, float), len(PROFILE)), np.zeros(target.shape[1] - N_PROF)]) if n_prof else np.zeros(target.shape[1])
         model_kw["terrain_head"] = dict(cols=[names.index(k) for k in cfg["terrain_head_inputs"]], height=hts.tolist())
+
+    if cfg["noise_t_dims"]:
+        model_kw["noise_t"] = dict(dims=int(cfg["noise_t_dims"]), nu=float(cfg["noise_t_nu"]))
+    if cfg["jump_k"] and n_prof:
+        model_kw["jump"] = dict(K=int(cfg["jump_k"]), top=float(cfg["jump_top"]), height=[float(x) for x in HEIGHTS], n_var=len(PROFILE),
+                                inv_ts=(1.0 / np.asarray(norm["ts"][:N_PROF], float)).tolist())   # model adds raw-unit jumps in normalised-target space
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:

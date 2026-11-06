@@ -75,6 +75,24 @@ def interp_columns(h, x, targets, log_below=None):
     return out
 
 
+def fill_top(x):
+    """(..., 44) profile -> copy whose NaN heights ABOVE the highest valid one take that value (u, v, RH constant, T
+    isothermal). Mountain columns (ground > ~2.6 km) put the 18 km-AGL top above the 50 hPa level, so these heights
+    were NaN and build_dataset dropped the whole row (Denver build: 934,359 of 4.0 M rows; Gemini review 2026-11-06).
+    shortcut: isothermal T is ~1 K/km too cold in the lower stratosphere (<= ~3 K at 18 km AGL over 5 km ground);
+    upgrade to a fitted stratospheric lapse rate if the global G4 upper-T bands show it."""
+    x = np.array(x, dtype=np.float32, copy=True)
+    ok = np.isfinite(x)
+    top = np.where(ok.any(-1), x.shape[-1] - 1 - np.argmax(ok[..., ::-1], -1), -1)    # index of the highest valid height
+    above = (np.arange(x.shape[-1]) > top[..., None]) & (top[..., None] >= 0)
+    val = np.take_along_axis(x, np.clip(top, 0, None)[..., None], -1)
+    return np.where(above, val, x)
+
+
+assert np.allclose(fill_top(np.array([[1, 2, np.nan, np.nan], [1, np.nan, 3, 4], [np.nan] * 4])),  # top filled; interior gap and all-NaN left alone
+                   [[1, 2, 2, 2], [1, np.nan, 3, 4], [np.nan] * 4], equal_nan=True)
+
+
 def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
     """Arrays (..., L) on pressure levels and (...) surface fields -> dict of (..., 44) profiles.
 

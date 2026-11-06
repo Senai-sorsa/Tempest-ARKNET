@@ -23,7 +23,7 @@ from tempest.generator.features import FEATURES, features
 from tempest.generator.sample import dpd_from_rh
 from tempest.ingest import indices
 from tempest.profiles.diff import from_diff, to_diff
-from tempest.profiles.to_heights import HEIGHTS, PROFILE
+from tempest.profiles.to_heights import HEIGHTS, PROFILE, fill_top
 
 SURFACE = ["t2m", "sp", "rh2m"]
 
@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--station-blend", action="store_true", help="F-20: draw the correcting station by inverse-distance weights and the launch class by a cosine ramp over 05-17 h solar "
                     "(no Voronoi seam, no 11:00 switch); default off = the hard nearest-station / 11:00 rule")
     ap.add_argument("--sidecar", action="store_true", help="F-35: also store row provenance (grid point, UTC time, correction group, correction version) in the npz")
+    ap.add_argument("--fill-top", action="store_true", help="keep mountain rows whose top heights lie above 50 hPa: those heights copy the highest valid one (to_heights.fill_top) instead of the row being dropped")
     a = ap.parse_args()
     if a.features == "p2":
         feat.set_active(feat.P2_FEATURES)
@@ -92,7 +93,7 @@ def main():
             continue
         b = ds.isel(time=slice(i0, i0 + block)).load()
         tt = times[i0 + t]
-        diffs = np.stack([to_diff(b[v].values[p, t]) for v in PROFILE], 1)  # (n, variable, height)
+        diffs = np.stack([to_diff(fill_top(b[v].values[p, t]) if a.fill_top else b[v].values[p, t]) for v in PROFILE], 1)  # (n, variable, height)
         gid = None
         if qm is not None:
             diffs, gid = station.correct(qm, diffs, lat[p], lon[p], tt.month.to_numpy(), sh[p, i0 + t], crng, blend=a.station_blend, return_group=True)
