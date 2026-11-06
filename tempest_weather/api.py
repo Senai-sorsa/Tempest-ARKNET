@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from tempest_weather import _core, bias as _bias, coupling, distributions, forecast, modes, outputs, ranking, registry
+from tempest_weather import _core, bias as _bias, coherence as _coh, coupling, distributions, forecast, modes, outputs, ranking, registry
 from tempest_weather.engine import Net
 from tempest_weather.sources import era5_local, openmeteo
 from tempest_weather.sources.indices import Indices
@@ -96,6 +96,8 @@ def _assets(path=None):
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
+             coherence=z["coherence/rho"] if manifest.get("coherence_included") else None,
+             coherence_kappa=z["coherence/kappa"] if (manifest.get("coherence_included") and "coherence/kappa" in z.files) else None,
              modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
              sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
              sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
@@ -327,6 +329,43 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     if "fallback-mode" in quality:
         info["note"] = "the corrected-prediction source for this lead is not available; the climate generator answered"
     return atm, info
+
+
+def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, **kw):
+    """Group C1: the same n atmospheres over several hours as ONE coherent sequence. `offsets` are hours relative to `when`; every hour is sampled by `atmosphere_set` (so each hour keeps its own
+    calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
+    -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (06-21 solar) raise like a normal query."""
+    A = _assets(assets)
+    table = rho if rho is not None else A.get("coherence")
+    if table is None:
+        raise ValueError("these assets carry no lag-correlation table (export with --coherence models/coherence_lagcorr.npz)")
+    t0, _ = _time(when, lon)
+    sets = []
+    for o in offsets:
+        t = t0 + timedelta(hours=float(o))
+        sets.append(atmosphere_set(lat, lon, t.replace(tzinfo=timezone.utc).isoformat(), n=n, seed=seed + 1000 + int(o), assets=assets, **kw))
+    season = ((t0.month % 12) // 3)
+    nh = _core.NH
+    def flat(a):
+        return np.concatenate([a["u"], a["v"], a["T"], a["RH"], a["t2m"][:, None], a["sp"][:, None], a["rh2m"][:, None]], 1)
+    cols = [flat(a) for a, _ in sets]
+    rho_s = np.asarray(table)[season]                                              # (lags, 176)
+    sfc = np.stack([rho_s[:, 2 * nh], rho_s[:, 2 * nh], rho_s[:, 3 * nh]], 1)      # t2m and sp follow the 10 m temperature, rh2m the 10 m humidity
+    rho_full = np.concatenate([rho_s, sfc], 1)
+    kap = A.get("coherence_kappa")
+    kap_full = None if kap is None else np.concatenate([kap, [kap[2 * nh], kap[2 * nh], kap[3 * nh]]])
+    out = _coh.sequence(cols, list(offsets), rho_full, np.random.default_rng(seed + 7), kap_full)
+    elev = sets[0][1]["elevation_m"]
+    for (atm, info), x in zip(sets, out):
+        atm["u"], atm["v"], atm["T"], atm["RH"] = x[:, :nh], x[:, nh:2 * nh], x[:, 2 * nh:3 * nh], np.clip(x[:, 3 * nh:4 * nh], 0, 100)
+        atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
+        th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
+        atm.update(p=th["p"], rho=th["rho"], a=th["a"])
+        if atm.get("gust_mu") is not None and A["gust"] is not None:
+            tt = datetime.fromisoformat(info["valid_utc"])
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
+        info["coherent_sequence_offsets_h"] = list(offsets)
+    return [a for a, _ in sets], [i for _, i in sets]
 
 
 def _need(variables):

@@ -60,6 +60,7 @@ def main():
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
     ap.add_argument("--modep-sta", help="F-11: station-correction map (models/station_map_mix.npz); with --modep, the columns where hybrid_use_network is False are served by the station correction instead of the network")
     ap.add_argument("--modep-sfc", help="F-12: surface residual pool for past dates (scripts/modeP_surface.py output); default off")
+    ap.add_argument("--coherence", help="group C1: lag-correlation table (scripts/c1_fit_lagcorr.py output) for hourly coherence of sequences")
     ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
     ap.add_argument("--modep", help="past-date residual network (models/modeP.pt); its range map is read from the same name with .calib.npz")
@@ -137,6 +138,11 @@ def main():
     if a.modep_sfc:
         sp_ = np.load(a.modep_sfc)
         arrays["modep_sfc/res"], arrays["modep_sfc/key"] = sp_["res"], sp_["key"]
+    if a.coherence:
+        ch = np.load(a.coherence)
+        arrays["coherence/rho"] = ch["rho"]
+        if "kappa" in ch.files:
+            arrays["coherence/kappa"] = ch["kappa"]
     if a.wcalib:
         wc = np.load(a.wcalib)
         for k in ("qz", "qu", "m"):
@@ -190,7 +196,7 @@ def main():
     files = ["model.npz", "indices.npz", "grid.npz"]
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

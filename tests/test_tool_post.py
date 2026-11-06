@@ -60,3 +60,34 @@ def test_wind_widening_scales_low_levels_only_and_keeps_ranks():
     assert np.array_equal(np.argsort(phys[:, 0]), np.argsort(before[:, 0])) or np.corrcoef(phys[:, 0], before[:, 0])[0, 1] > 0.999
     assert bias.widen_wind(phys.copy(), st, 2.0, 12, nh, heights=h) >= 1.0
     assert bias.widen_wind(before.copy(), {"wind_speed_10m": {"2": {"n": [5] * 24, "sd": [9.0] * 24}}}, 2.0, 12, nh, heights=h) == 1.0   # too few updates: nothing
+
+
+def test_hourly_coherence_keeps_marginals_and_hits_the_lag_correlation():
+    from tempest_weather import coherence
+    rng = np.random.default_rng(0)
+    n, D, offs = 4000, 6, [-3, 0, 1, 4]
+    rho = np.tile(np.array([1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3])[:, None], (1, D))
+    samples = [rng.normal(m, s, (n, D)) for m, s in ((0, 1), (5, 2), (-3, 0.5), (1, 3))]
+    out = coherence.sequence(samples, offs, rho, rng)
+    for s, o in zip(samples, out):
+        assert np.allclose(np.sort(s, 0).mean(0), np.sort(o, 0).mean(0), atol=0.05) and np.allclose(s.std(0), o.std(0), rtol=0.05)      # every hour keeps its marginal
+    for (i, a), (k, b) in (((0, offs[0]), (1, offs[1])), ((1, offs[1]), (2, offs[2])), ((0, offs[0]), (3, offs[3]))):
+        want = rho[abs(a - b), 0]
+        got = np.corrcoef(norm_scores(out[i][:, 0]), norm_scores(out[k][:, 0]))[0, 1]
+        assert abs(got - want) < 0.04, (a, b, got, want)
+
+
+def norm_scores(x):
+    from tempest_weather.distributions import norm_ppf
+    return norm_ppf((np.argsort(np.argsort(x)) + 0.5) / len(x))
+
+
+def test_coherence_nugget_lowers_the_correlation_between_hours_only():
+    from tempest_weather import coherence
+    rng = np.random.default_rng(5)
+    n, D = 6000, 3
+    rho = np.tile(np.array([1.0, 0.9, 0.8])[:, None], (1, D))
+    s = [rng.normal(0, 1, (n, D)) for _ in range(2)]
+    out = coherence.sequence(s, [0, 2], rho, rng, kappa=np.full(D, 0.8))
+    got = np.corrcoef(norm_scores(out[0][:, 0]), norm_scores(out[1][:, 0]))[0, 1]
+    assert abs(got - 0.8 * 0.8) < 0.04
