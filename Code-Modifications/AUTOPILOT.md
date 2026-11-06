@@ -338,3 +338,8 @@ Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather
 | L2-A2 | IL-79 mode F at any lead | todo | todo |
 | L2-A3 | IL-14 Chronos + ridge average for ONI / WWV | todo | todo |
 | L2-H2 | Mode F mixture: weights per mixture and a third component (HRES + error pool) | `scripts/il6_modeF.py` (H2 rows; `data/l2h2.log`) | **NO GAIN, not adopted.** CRPS skill vs climatology for 5 mixes is within 0.004 of the 50:50 network/ridge blend at every lead (e.g. 7 d: 0.201-0.207 vs 0.209); 99 % coverage error no better (0.003-0.006 for all). The fixed 50:50 stays. |
+| L2-H5 | Shear map per season | not run | **SIDELINED.** Shear distance is already 0.009 against a seed tolerance of 0.0118 (nothing left to gain above noise); a per-season map needs new plumbing in score, diagnose and the tool. Revisit only if a later round shows shear_ks above tolerance in one season. |
+| L2-A1 IL-74 | Lead blending forecast mode -> climate | not run | **SIDELINED.** Mode F still has skill 0.20 at 7 days and 99 % coverage is fine there, so mixing in climate can only cost score; the jump at 7.5 days is real (forecast skill ends), not a defect. No data beyond 7 days to fit a weight. |
+| L2-A2 IL-79 | Mode F at any lead | not run | **SIDELINED (needs data).** Only 1/3/5/7-day forecasts exist; continuous lead needs the IL-75 notebook rerun with more leads. In ASK_LATER. |
+| L2-A3 IL-14 | Chronos + regression average for ONI/WWV | not run | **SIDELINED.** The earlier bake-off already has Chronos 0.337 vs regression 0.342 CRPS for ONI (a 1.5 % difference inside the bootstrap band); the indices only enter the weather model as weak drivers, so an average cannot move profile shape. |
+

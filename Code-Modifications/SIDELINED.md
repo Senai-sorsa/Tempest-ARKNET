@@ -132,3 +132,10 @@ The capped loop (user, 2026-11-05) keeps the 6 best items: IL-86 generator PIT r
 - **Future climate (year/warming-conditioned climatology)**: to be tested for accuracy. Note: PLAN.md already keeps a learned year trend and dropped CMIP6 (scenarios don't diverge within 3 years, LOCA2 has no upper-air winds).
 - **Discarded**: vehicle-sensitivity training loss (IL-32), tail-directed importance sampling (IL-34), above-18 km extension, launch-window query layer (IL-37).
 - Pushing to GitHub after the push at 86baaf0: waits for your approval or the end.
+
+## Loop 2 sidelined
+- H5 shear map per season: shear distance already inside noise.
+- IL-74 lead blending: forecast mode still skilful at 7 d; no data beyond.
+- IL-79 continuous lead: needs notebook rerun with more leads (data).
+- IL-14 Chronos+regression: tied in earlier bake-off, no effect on profile shape.
+
