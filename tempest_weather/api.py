@@ -70,6 +70,31 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
     return x
 
 
+def regions(root=None):
+    """R-7: the asset sets next to this file (folders `assets*` with a manifest) and the area each one was trained for -> {folder name: {"lat": [lo, hi], "lon": [lo, hi]}}."""
+    root = root or HERE
+    out = {}
+    for name in sorted(os.listdir(root)):
+        mf = os.path.join(root, name, "manifest.json")
+        if name.startswith("assets") and os.path.exists(mf):
+            try:
+                out[name] = json.load(open(mf, encoding="utf-8"))["area"]
+            except (OSError, KeyError, ValueError):
+                continue
+    return out
+
+
+def region_assets(lat, lon, root=None):
+    """Folder of the asset set whose trained area contains (lat, lon); the default `assets` first, then the others alphabetically. None if no set covers the point."""
+    root = root or HERE
+    reg = regions(root)
+    for name in sorted(reg, key=lambda n: (n != "assets", n)):
+        a = reg[name]
+        if a["lat"][0] <= lat <= a["lat"][1] and a["lon"][0] <= lon <= a["lon"][1]:
+            return os.path.join(root, name)
+    return None
+
+
 def _assets(path=None):
     path = path or os.path.join(HERE, "assets")
     if path in _ASSETS:
@@ -229,10 +254,12 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
 
 def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None):
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
+    if assets is None:                                                   # R-7: the asset set that covers the place; none covers it -> the default set answers with its clear refusal
+        assets = region_assets(lat, lon)
     A = _assets(assets)
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
     if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
-        raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; other regions need their own assets (docs/REGION_PLAN.md)")
+        raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/REGION_PLAN.md)")
     rng = np.random.default_rng(seed)
     t_utc, sh = _time(when, lon)
     if not 6.0 <= sh <= 21.0:

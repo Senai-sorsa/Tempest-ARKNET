@@ -21,3 +21,16 @@ def test_another_box_changes_everything_consistently(tmp_path):
     r = region.load(str(f))
     assert (r.n_lat, r.n_lon, r.n_points) == (21, 21, 441) and r.era5_lon360 == (250.0, 260.0)
     assert r.point_index(40.0, -110.0) == 0 and r.point_index(30.0, -100.0) == 440
+
+
+def test_tool_picks_the_asset_set_by_location(tmp_path):
+    import json
+    from tempest_weather import api
+    for name, lat, lon in (("assets", [31.0, 34.0], [-108.0, -101.0]), ("assets_denver", [38.0, 40.0], [-106.0, -104.0]), ("not_assets", [0.0, 90.0], [-180.0, 180.0])):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "manifest.json").write_text(json.dumps({"area": {"lat": lat, "lon": lon}}))
+    assert api.regions(str(tmp_path)).keys() == {"assets", "assets_denver"}                 # only folders called assets*
+    assert api.region_assets(32.9, -106.9, str(tmp_path)).endswith("assets")
+    assert api.region_assets(39.7, -105.0, str(tmp_path)).endswith("assets_denver")
+    assert api.region_assets(45.0, -100.0, str(tmp_path)) is None

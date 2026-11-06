@@ -19,7 +19,8 @@ This is item C3 in `Colab downloads.md` (the early version of item C). It is the
   - about 210 MB per surface variable.
 - **What this means:**
   - You always read all 50 members, so taking fewer members saves nothing.
-  - Each worker holds about 1.5-2 GB in memory, so `WORKERS` is 3. Colab has 12.7 GB.
+  - Each read holds about 1.5 GB in memory, so `WORKERS` is 2. Colab has 12.7 GB.
+  - Cell 3 reads one start + one lead at a time. (The first version asked dask for a whole month in one go; dask merged many 620 MB chunks into single tasks and filled the RAM even with 1 worker.)
   - Per start: 7 leads × (5 × 620 + 4 × 210 MB) = **about 28 GB read** (inside Google, free, never on your connection).
 
 ## Size and time
@@ -58,7 +59,7 @@ Free Colab allows only a few sessions at once per Google account. If a second on
 4. Run cell 3 with `TEST_ONE_MONTH = True`, then cell 4. Note the `full run: about X h in one notebook` line, and divide it by `PARTS`.
 5. If cell 4 prints `OK`, set `TEST_ONE_MONTH = False` (and `PARTS` / `PART`). Rerun cell 2, then cell 3, and leave it running.
 6. **After a disconnect:** rerun cells 1, 2 and 3. Finished months are skipped.
-7. **If Colab says it ran out of memory:** set `WORKERS = 2` and rerun.
+7. **If Colab says it ran out of memory:** set `WORKERS = 1` and rerun cells 2 and 3.
 8. At `ALL DONE` (in every part), run cell 4 once, then follow the copy step.
 
 ### Cell 1: install and mount Drive
@@ -82,7 +83,7 @@ FIRST, LAST = 2016, 2024       # whole store; 2023-2024 give the fit/test years 
 EVERY_DAYS = 8                 # every 2nd HRES date, so each start also has an HRES forecast
 LEADS = list(range(24, 169, 24))   # days 1-7
 LEVELS = [500, 700, 850]
-WORKERS = 3                    # each worker holds one ~620 MB chunk plus its download (~1.5-2 GB); 2 if Colab runs out of memory
+WORKERS = 2                    # reads at once; each holds one ~620 MB chunk (~1.5 GB peak). Try 3 if RAM stays under ~50%
 
 URL = "gs://weatherbench2/datasets/ifs_ens/2016-2024-1440x721.zarr"
 UNION = ((31.0, 40.0), (252.0, 259.0))
@@ -94,7 +95,7 @@ SURF = {"10m_u_component_of_wind": "u10", "10m_v_component_of_wind": "v10",
         "2m_temperature": "t2m", "mean_sea_level_pressure": "msl"}
 MEM = "number"
 
-ds = xr.open_zarr(fsspec.get_mapper(URL, token="anon"), consolidated=True)
+ds = xr.open_zarr(fsspec.get_mapper(URL, token="anon"), consolidated=True, chunks=None)   # no dask: each read touches only the chunks it needs
 lead_has = (ds.prediction_timedelta.values / np.timedelta64(1, "h")).astype(int) \
            if ds.prediction_timedelta.dtype.kind == "m" else ds.prediction_timedelta.values.astype(int)
 lat_up = bool(ds.latitude[1] > ds.latitude[0])
@@ -142,15 +143,28 @@ for b in BOXES:
 
 ```python
 import gc, ctypes
+from concurrent.futures import ThreadPoolExecutor
+VARS = list(UPPER) + list(SURF)
+LEAD_KEYS = lead_index(LEADS)
+
+def one_read(t, L):
+    # scalar time + lead = one chunk per variable, so memory stays at about one chunk per worker
+    return ds[VARS].sel(time=t, prediction_timedelta=L, level=LEVELS,
+                        latitude=lat_slice(UNION[0]), longitude=slice(*UNION[1])).load()
+
 todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]
 print(len(todo), "months to do in this part")
 t_start, n = time.time(), 0
 for (y, m) in todo:
     sel = starts(y, m)
     t0 = time.time()
-    with dask.config.set(scheduler="threads", num_workers=WORKERS):
-        sub = subset(sel).load()
-    sub = sub.rename({**UPPER, **SURF}).astype("float32")
+    jobs = [(t, L) for t in sel for L in LEAD_KEYS]
+    with ThreadPoolExecutor(WORKERS) as pool:
+        parts = list(pool.map(lambda a: one_read(*a), jobs))
+    k = len(LEAD_KEYS)
+    sub = xr.concat([xr.concat(parts[i * k:(i + 1) * k], dim="prediction_timedelta") for i in range(len(sel))], dim="time")
+    sub = sub.transpose(*ds["temperature"].dims).rename({**UPPER, **SURF}).astype("float32")
+    del parts
     for b, (la, lo) in BOXES.items():
         p = f"{OUT}/{b}/{y}{m:02d}_00z.nc"
         sub.sel(latitude=lat_slice(la), longitude=slice(*lo)).to_netcdf(p + ".part")
