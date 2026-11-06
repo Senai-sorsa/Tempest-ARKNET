@@ -354,7 +354,9 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 
 | Row | What | Status |
 |---|---|---|
-| L3-0a | Denver data 1991-2025 | running |
-| L3-0b | B-raw: p2f zero-shot at Denver (baseline) | queued (needs L3-0a) |
+| L3-0a | Denver data 1991-2025 | done (3.07M rows, 81 points) |
+| L3-0b | B-raw: p2f zero-shot at Denver (baseline) | done: mean skill15 **-0.176** vs Denver climatology (u 0-1 km -1.76, rh2m -0.28, RH 12-18 km -0.28); cov99 0.950 at u 0-1 km |
+| L3-0c | B-local: p2f config trained on Denver | done: mean skill15 **+0.016**, all bands >= -0.003, cov99 >= 0.983. Gap B-raw to B-local = 0.193 (G1-a needs >= 50 % closed) |
+| L3-0d | Denver seed tolerance (blocal_s1) | first train hit a transient CUBLAS_STATUS_EXECUTION_FAILED; the runner retries it before the next queue row |
 | NM/TX seed tolerance | p2f s1/s2 vs p2f: skill15 -0.0006 / -0.0001 | done (tolerance 0.0006) |
 | L3-1 nolatlon, L3-2 sh10, L3-3 sh20, L3-4 siren, L3-10a sh10ctx (elevations via context FiLM), L3-12 w768 | NM/TX verdict + shape + Denver zero-shot | running in this order |

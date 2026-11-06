@@ -6,7 +6,7 @@ Reads the Earthmover *spatial* group (one global field per chunk). The temporal 
 for points scattered over the globe it would move ~10x more bytes (every tile's full hourly record); here each step costs
 one global field per variable, whatever the number of points.
 Points: every IGRA station reporting in 2020 or later (nearest 0.25 deg grid point) + a Fibonacci (equal-area) lattice
-up to 6,000, minus everything within radius_deg of configs/global_holdout.toml (the 4 sites + 1 IGRA station per WMO
+up to 6,000, + 1,500 terrain points (local relief > 300 m, area-weighted, 0.5 deg apart), minus everything within radius_deg of configs/global_holdout.toml (the 4 sites + 1 IGRA station per WMO
 region). Steps: one per day 1991-2025, UTC hour = day index mod 24 (cycles through the diurnal cycle; each longitude
 sees every local hour). 2026 is never read. Values are stored as int16 with a per-variable scale/offset (in the file).
 One file per month (<out>/YYYY-MM.npz, .part then rename), so a rerun resumes. Months 2011-2025 come first, then
@@ -29,7 +29,7 @@ SINGLE = ["u10", "v10", "u100", "v100", "t2m", "d2m", "sp"]
 CODE = {"u": (0.01, 0), "v": (0.01, 0), "t": (0.01, 200), "r": (0.01, 0), "z": (10.0, 0),
         "u10": (0.01, 0), "v10": (0.01, 0), "u100": (0.01, 0), "v100": (0.01, 0),
         "t2m": (0.01, 200), "d2m": (0.01, 200), "sp": (2.0, 80000)}
-N_POINTS, DAY0 = 6000, np.datetime64("1991-01-01")
+N_POINTS, N_TERRAIN, DAY0 = 6000, 1500, np.datetime64("1991-01-01")
 IGRA_LIST = "data/raw/igra_list/igra2-station-list.txt"
 HOLDOUT = "configs/global_holdout.toml"
 
@@ -79,8 +79,27 @@ def to_grid(lat, lon):
     return np.round((90 - np.asarray(lat)) / 0.25).astype(int), np.round(np.mod(lon, 360) / 0.25).astype(int) % 1440
 
 
-def points():
-    """dict of point arrays: lat, lon, ilat, ilon, igra id ('' for lattice points); holdouts removed."""
+def terrain_weights(store):
+    """Per grid cell weight for extra terrain points: elevation + local relief, from the mean of 24 sp fields (2015).
+
+    The store has no orography field, so elevation comes from sp (z ~ 8 km * ln(101325 / sp)); weather noise on a 24-field
+    mean is ~ +-50 m, small next to the 500+ m relief this targets. Loop-3 L3-0b: a box with unseen terrain (Denver) is
+    far worse than climatology, so the global store over-samples mountains.
+    """
+    ds = xr.open_zarr(store, group="single/spatial", zarr_format=3, chunks={})
+    t = np.datetime64("2015-01-01T00") + np.arange(24) * np.timedelta64(365, "h")  # spread over 2015, all hours
+    sp = ds["sp"].isel(valid_time=np.searchsorted(ds.valid_time.values, t)).mean("valid_time").values
+    z = 8000 * np.log(101325 / sp)
+    pad = np.pad(z, ((2, 2), (0, 0)), mode="edge")
+    pad = np.concatenate([pad[:, -2:], pad, pad[:, :2]], axis=1)
+    win = np.lib.stride_tricks.sliding_window_view(pad, (5, 5))  # 1.25 deg window
+    relief = win.max(axis=(-1, -2)) - win.min(axis=(-1, -2))
+    w = (relief + np.clip(z, 0, None) / 4) * np.cos(np.radians(90 - np.arange(721) * 0.25))[:, None]  # per unit area
+    return np.where(relief > 300, np.clip(w, 0, None), 0)  # relief, not height: the flat polar plateau is not "terrain"
+
+
+def points(store=None):
+    """dict of point arrays: lat, lon, ilat, ilon, igra id ('' for lattice, 'T' for terrain points); holdouts removed."""
     h = tomllib.load(open(HOLDOUT, "rb"))
     st = igra_stations()
     held = h.get("igra") or pick_igra_holdouts(st, h["seed"])
@@ -97,6 +116,14 @@ def points():
     for i, j in zip(*to_grid(flat, flon)):
         if (i, j) not in seen:
             seen.add((i, j)); ids.append(""); ii.append(i); jj.append(j)
+    if store is not None and N_TERRAIN:
+        w = terrain_weights(store)
+        w[list(zip(*seen))[0], list(zip(*seen))[1]] = 0
+        rng, coarse = np.random.default_rng(h["seed"]), {(a // 2, b // 2) for a, b in seen}  # 0.5 deg spacing
+        for c in rng.choice(w.size, N_TERRAIN * 3, replace=False, p=w.ravel() / w.sum()):
+            i, j = divmod(int(c), 1440)
+            if (i // 2, j // 2) not in coarse and len(ids) < N_POINTS + N_TERRAIN:
+                coarse.add((i // 2, j // 2)); seen.add((i, j)); ids.append("T"); ii.append(i); jj.append(j)
     ii, jj = np.array(ii), np.array(jj)
     lat, lon = 90 - ii * 0.25, np.where(jj * 0.25 > 180, jj * 0.25 - 360, jj * 0.25)
     ok = np.ones(len(ii), bool)
@@ -149,12 +176,12 @@ def main():
     ap.add_argument("--test", action="store_true", help="fetch 2 days of one month into <out>/test and check the decoding")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
+    store = open_store()
     pf = os.path.join(a.out, "points.npz")
     if not os.path.exists(pf):
-        np.savez(pf, **points(), code=np.array([f"{k} {s} {o}" for k, (s, o) in CODE.items()]))
+        np.savez(pf, **points(store), code=np.array([f"{k} {s} {o}" for k, (s, o) in CODE.items()]))
     pts = dict(np.load(pf))
-    print(f"{len(pts['lat'])} points ({(pts['igra'] != '').sum()} at IGRA stations), IGRA holdouts {list(pts['held_igra'])}", flush=True)
-    store = open_store()
+    print(f"{len(pts['lat'])} points ({((pts['igra'] != '') & (pts['igra'] != 'T')).sum()} at IGRA stations, {(pts['igra'] == 'T').sum()} terrain), IGRA holdouts {list(pts['held_igra'])}", flush=True)
     groups = [(xr.open_zarr(store, group="pressure/spatial", zarr_format=3, chunks={}), PRESSURE),
               (xr.open_zarr(store, group="single/spatial", zarr_format=3, chunks={}), SINGLE)]
     with dask.config.set(scheduler="threads", num_workers=a.workers):
