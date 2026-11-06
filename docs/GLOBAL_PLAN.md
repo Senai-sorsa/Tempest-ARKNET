@@ -42,7 +42,7 @@ How to read the Gemini numbers: both reports quote many literature figures (Ruß
 1. **The final test window is already used.** Group E ran the one-time 2026 Jan-Jun test (`data/FINAL_TEST_DONE`). The global AI needs its own untouched test. **Locked now:** (a) time window **2026-07-01 → the latest ERA5 day available when G6 runs**; (b) **held-out places never used for training, tuning or calibration**. Denver cannot be one (G1 trains on it), so the locked spatial set is **Wallops (37.9 N, 75.5 W), Kwajalein (8.7 N, 167.7 E), Esrange (67.9 N, 21.1 E), Woomera (31.2 S, 136.8 E)** (from D) plus **one IGRA station per WMO region** chosen by a fixed random seed at G0 and written to `configs/global_holdout.toml`. No script may read these places or that window before G6 (enforced by a loader check, like the 2026 check in E3).
 2. **Night hours** (R-8): the pilot data only holds solar hours 06-21. The global store is built for all hours from the start (diurnal-cycled sampling), so R-8 is solved as a side effect for the global model.
 3. **Disk.** `data/raw` is 66 GB of the 100 GB cap. The global store (~12-15 GB compressed) + 8 boxes (~3 GB) + IGRA (~2 GB) fit, but the hourly pilot store must not be duplicated. Pilot float64 profile caches outside `data/raw` (the 6 GB `data/train/*.npz` copies) are the first thing to prune if space runs short (asked in ASK_LATER, not deleted unattended).
-4. **Colab.** Global ERA5 for 6,000 points is ~500 Earthmover tiles; from this laptop each tile-variable takes ~2-5 s, so the whole pull is ~6-10 h locally (no Colab needed; run it at low priority overnight). WeatherBench2 HRES (global Mode F) is the one part that needs a Colab pull (ASK_LATER 9).
+4. **Download (measured 2026-11-06, replaces the old "~500 tiles, 6-10 h" estimate, which was wrong).** The Earthmover *temporal* group is chunked 1 year × 3°×3°, so a scattered point set must pull every tile's full hourly record: Denver (4 tiles) took 39 min, so ~6,000 scattered points would be ~3,000+ tiles, ~18 TB, weeks. The *spatial* group (one global field per chunk, ~2 MB) costs the same whatever the point count: 12,784 diurnal-cycled steps × 72 fields ≈ 920k fields ≈ 1.9 TB transferred, bandwidth-bound at ~7-10 fields/s from this laptop (16 vs 64 concurrent requests made no difference). `tempest/ingest/fetch_global.py` (launcher `scripts/fetch_global.sh`, log `data/global_fetch.log`) does this, started 2026-11-06: 5,978 points (987 IGRA sites active ≥ 2020 + Fibonacci lattice, holdouts removed), int16 store ≈ 8-10 GB, months 2011-2025 first. WeatherBench2 HRES (global Mode F) still needs a Colab pull (ASK_LATER 9). A Colab pull of the same script would be far faster, since a Colab VM's bandwidth is much higher than the home link.
 5. **What stays per-region.** Group C coherence tables, the gust model and ASOS station-scale widening were fitted at the pilot; they are refitted as functions of latitude band, terrain and regime at G3, and until then the tool marks them "pilot-fitted" outside NM/TX.
 6. **Verdict rules stay.** Headline (skill15, 99 % coverage), shape rule, seed tolerances. New places need their own seed tolerance: two seeds of the baseline at each new test site, computed once (G1-0).
 
@@ -84,7 +84,7 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 - Refit group C coherence (lag and distance correlation) as a function of latitude band + regime.
 - **Gates:** 1,000 km spatial block CV with 30 % of the IGRA stations held out: unseen-station CRPS within 0.08 K (T) / 0.15 m/s (wind) of seen stations (B); **seam test** along 125→75 W and along the old NM/TX border 108→101 W: no step in median, spread or 99th shear larger than the seed tolerance; continental Mode F beats the per-box Mode F at NM/TX (and at Denver once Denver HRES exists) at 1-7 days.
 
-### G4. Global (data ~15 GB compressed, GPU ~3-4 days for 3-5 seeds)
+### G4. Global (data ~8-16 GB, user approved 16 GB on 2026-11-06, GPU ~3-4 days for 3-5 seeds)
 - Points: §2 design (HEALPix nside=16 backbone + stratified + all IGRA sites with ≥ 10 years), all hours, 1991-2025.
 - Global climatology anchor on a 1° grid (12 months × diurnal harmonics × 12 EOFs, ~38 MB, D).
 - Global covariate balloon correction over ~600-800 IGRA stations; global pooled EGPD tail; DI-gated shrinkage of the boundary-layer bias toward zero outside the area of applicability (B).
@@ -129,6 +129,6 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 | G1 | Denver 1991-2025 (~1 GB) + 15 IGRA stations (~0.5 GB) | ~12 h loop | no |
 | G2 | 6 boxes (~3 GB) | ~1 day | no |
 | G3 | NA lattice (~5 GB) + WB2 HRES NA (Colab) | ~1-2 days | the Colab pull |
-| G4 | global (~15 GB) | ~3-4 days | approval of the disk use (66 + ~25 GB of the 100 GB cap) |
+| G4 | global (~8-10 GB int16, 16 GB approved; fetch running since 2026-11-06) | ~3-4 days | approved 2026-11-06; `data/raw` was 80 GB, so later stages need ASK_LATER 12 pruning |
 | G5 | none | ~1 day | no |
 | G6 | 2026-07 → latest ERA5 at the holdouts (~1 GB) | < 1 h | no (once) |

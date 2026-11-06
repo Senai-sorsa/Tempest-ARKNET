@@ -55,4 +55,5 @@ How to read them: a "PASS"/within-tolerance result means that slice of data can 
 |---|---|---|
 | 2026-11-06 | Keep 1991 as the earliest year; no pre-1991 data | P3-5 |
 | 2026-11-06 | IGRA kept as processed profiles at our heights only, raw derived files deleted after conversion (for new stations; the 2 existing stay) | 140 MB/station measured |
+| 2026-11-06 | **User approved the 16 GB global store.** Fetch from the Earthmover *spatial* group (`fetch_global.py`): 5,978 points, one step per day (UTC hour cycles), int16 ≈ 8-10 GB, ~1.9 TB transferred, 2011-2025 first | the temporal group would need ~18 TB for scattered points (Denver: 4 tiles in 39 min) |
 | 2026-11-06 | G2 boxes: hourly does not fit (56 GB); fetch diurnal-cycled **if D3 holds**, else every 4th hour (D4, ~14 GB) | 212 B/point-hour measured |
