@@ -51,8 +51,10 @@ from google.colab import drive; drive.mount('/content/drive')
 
 ## C3. IFS ensemble, 500/700/850 hPa (the early version of item C) — most optional
 
+**Ready-to-run, self-contained notebook: `Colab IFS ENS fetch.md`.** It needs no repo code changes, and cell 2 measures the chunking and read size before anything downloads. The notes below are background.
+
 - **Skip it** if waiting 60-90 days for the logger is fine.
 - **First:** check the chunking of `ifs_ens` in Colab. With 50 members, the read per start is much larger than HRES.
 - **Download:** `--url <ifs_ens path> --levels 500 700 850`, 00Z every 4th day, leads 24-240 h every 24 h, 2016-2022.
-- **Size:** about 25 GB on disk, which does not fit the cap unless something is cleared first.
+- **Size:** about 11 GB on disk (pilot + Denver, from the store layout), which fits under the 100 GB cap.
 - **On your PC:** `data/raw/wb2_ifs_ens/`.

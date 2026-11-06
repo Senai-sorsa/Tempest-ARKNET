@@ -58,7 +58,7 @@ None of this has been started. It is a plan only, and it does not overlap the wo
 - **How:**
   1. `tempest/ingest/wb2_fetch.py` already takes `--leads` and `--every-days`. Add an `--hours 0 12` option for the start hours. The `year()` signature currently assumes 00Z only.
   2. Write to a **new** folder, `data/raw/wb2_hres_v2`, so the current training set stays untouched.
-  3. Check the size on one year first and keep under the 50 GB cap. Crop to the 13x29 box and the 13 levels at fetch time, as now.
+  3. Check the size on one year first and keep under the 100 GB cap. Crop to the 13x29 box and the 13 levels at fetch time, as now.
   4. Retrain mode F with the lead as a continuous input (IL-79) and a solar-hour input.
   5. Widen `FORECAST_LEAD` and `FORECAST_SOLAR` only for the ranges where the new model beats climate on the rule.
 - **Judge:** skill at 1/3/5/7 d against r1, plus new 0.5/1.5/2.5 d and 8/9/10 d rows. A PIT check by solar hour.
@@ -174,7 +174,7 @@ None of this has been started. It is a plan only, and it does not overlap the wo
 | Train on the AIFS / WN2 live 15 d ensembles | no history yet | Open-Meteo Ensemble is live-only; the logger began 2026-11-05. WN2 does have an Earth Engine/BigQuery archive (research-notes l.97-100), but check its levels and terms before planning on it |
 | Mode M from EC46 | mostly unsupported | EC46 via Open-Meteo is surface-only; the persistence correlation in HANDOVER is small |
 | Open-Meteo pressure-level lead history | does not exist | Phase 4 probe: Previous Runs is surface-only |
-| GEFS reforecast | too large | over the 50 GB cap |
+| GEFS reforecast | too large | over the 100 GB cap |
 | The "30-60 % RMSE", "5.6 h → 14 min" style numbers | unsourced | judge everything with the rule instead |
 
 ---
@@ -194,7 +194,7 @@ None of this has been started. It is a plan only, and it does not overlap the wo
 
 **Rule from the user:** download nothing beyond what is already downloading. That removes A, E, F and the WB2 `ifs_ens` part of C. It also removes parts 1-2 of D, which need A.
 
-**Data on disk (checked 2026-11-05, `data/raw`, about 65 GB, already over the 50 GB cap):**
+**Data on disk (checked 2026-11-05, `data/raw`, about 65 GB, under the 100 GB cap (raised from 50 GB on 2026-11-05)):**
 
 | Folder | Size | State |
 |---|---|---|

@@ -212,7 +212,7 @@ Licence and limits:
 | GEFS operational archive (AWS) | about 2020 on | 31 members, 16-35 days | same approach |
 | WeatherNext 2 archive (Earth Engine / BigQuery) | 2022 on | the model the tool uses | needs a Google account and terms acceptance: **ASK_LATER** |
 
-Stay within a **50 GB total disk cap** for all Phase 4 data. Check sizes before any bulk fetch.
+Stay within a **100 GB total disk cap** (raised from 50 GB on 2026-11-05) for all Phase 4 data. Check sizes before any bulk fetch.
 
 ### 5.4 Points
 
@@ -323,7 +323,7 @@ Order: highest value first, and work that needs only local data before work that
 |---|---|---|---|---|---|
 | **4.0** | **Probe** (results written into section 13):<br>• pressure levels in Previous Runs / Single Runs (IFS, GFS);<br>• real history start of each API;<br>• EC46 ensemble-mean history length and its upper-air variables;<br>• call weights;<br>• GEFS reforecast years, members, 35-day runs, `.idx` per-point fetch size | `scripts/p4_probe.py` | — | output saved to `data/p4/probe.json` | ½ day, no GPU |
 | **4.1** | Open-Meteo client: one function per API, parquet cache, retry with backoff, rate limit, resume | `tempest/ingest/openmeteo.py` | — | `tests/test_p4_openmeteo.py` using recorded JSON fixtures (no network in tests) | ½-1 day |
-| **4.2** | Start background fetches: F history, then F2, then EC46 mean | `scripts/p4_fetch.py` | — | resume test; size check under 50 GB | runs about 4-7 days unattended |
+| **4.2** | Start background fetches: F history, then F2, then EC46 mean | `scripts/p4_fetch.py` | — | resume test; size check under 100 GB | runs about 4-7 days unattended |
 | **4.3** | Extra logger (separate from the running one): EC46 ensemble mean and spread daily + GEFS 35-day members at the same sites, so the M archive grows | `scripts/p4_logger.py`, `configs/p4_sites.toml` | — | validation like `tempest.ops.logger` | ½ day |
 | **4.4** | **Mode P:** pair each balloon launch with ERA5 at that hour and grid point. Train `gen_P`, calibrate, score on balloons 2024-25 | `tempest/forecast/{model,build,train}.py`, `tempest/past/` | `--guess` | `tests/test_p4_model.py`: untrained model returns the guess; feature shapes | 1-2 days, about 15 min GPU per run |
 | **4.5** | Scenario picker `scenarios(samples, outcome_fn, pcts)` | `tempest/forecast/scenarios.py` | — | `tests/test_p4_scenarios.py`: picked outcomes equal `np.percentile` | 2 h |
@@ -382,7 +382,7 @@ Tell the user plainly that weeks 3-6 will be close to E12. The gain there is a s
 | Short ECMWF history (from 2024) | wide intervals, stated; GEFS-reforecast pre-training |
 | WeatherNext 2 archive needs an account and accepted terms | ASK_LATER; never create accounts or accept terms |
 | Collision with the Phases 1-3 session | section 3 rules; GPU check before every job |
-| Disk | 50 GB cap for Phase 4 data; check before every bulk fetch |
+| Disk | 100 GB cap for Phase 4 data; check before every bulk fetch |
 | Heat | HANDOVER §4 limits; fetchers at low priority |
 
 ---

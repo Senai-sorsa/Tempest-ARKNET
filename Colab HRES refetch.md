@@ -22,7 +22,12 @@
 | Colab time | about 5-20 h per year, about 35-140 h in total, across many sessions. It resumes per month |
 | Output on Drive | about 4 GB pilot + about 1 GB Denver |
 
-If that is too long, set `EVERY_DAYS = 8` in cell 2. That halves everything.
+**To make it faster:**
+- **Several notebooks at once (the big speed-up):** set `PARTS = 3` in cell 2. Open the notebook 3 times with `PART = 0`, `1` and `2`, and run them at the same time. Each takes every 3rd month-hour, and they write to the same Drive folder without clashing. With 3 parts it takes about a third of the time.
+  - Free Colab allows only a few sessions per Google account. If one is refused, use a second account and download from both Drives.
+  - Keep `PARTS` the same in every copy.
+- **`WORKERS = 24`** (the default). Each chunk is one whole globe (about 54 MB), so speed comes from how many are fetched at once. 64 ran out of the 12.7 GB RAM. Cell 3 prints the RAM use after each month: if it stays under 50%, try 32. If Colab crashes, go back to 16.
+- **`EVERY_DAYS = 8`:** half the starts, half the time.
 
 ---
 
@@ -34,7 +39,7 @@ If that is too long, set `EVERY_DAYS = 8` in cell 2. That halves everything.
 4. Run cells 1-2, then cell 3 with `TEST_ONE_MONTH = True`, then cell 4 (the check).
 5. If the check prints `OK`, set `TEST_ONE_MONTH = False` in cell 2, run cell 2 again, then run cell 3 and leave it running.
 6. **When Colab disconnects** (it will: free sessions end after up to about 12 h, or about 90 min idle): reconnect, then run cells 1, 2 and 3 again. Finished months are skipped automatically. Keep the browser tab open, and don't let the PC sleep.
-7. When cell 3 prints `ALL DONE`, run cell 4 once more, then do the copy step at the end.
+7. When cell 3 prints `ALL DONE` (in every part), run cell 4 once more, then do the copy step at the end.
 
 ### Cell 1: install and mount Drive
 
@@ -48,16 +53,17 @@ drive.mount('/content/drive')
 
 ```python
 import os, time
-import numpy as np, xarray as xr, fsspec, dask
+import numpy as np, xarray as xr, fsspec, dask, psutil
 
 TEST_ONE_MONTH = True          # first run: only 2016-01, then set False
+PART, PARTS = 0, 1             # parallel notebooks: same PARTS in each, PART = 0 .. PARTS-1
 OUT = "/content/drive/MyDrive/tempest_wb2_v2"
 FIRST, LAST = 2016, 2022       # this store ends 2023-01; do not go past 2022
 EVERY_DAYS = 4                 # 00Z and 12Z each every 4th day (12Z offset by 2 days)
 HOURS = [0, 12]
 MAX_LEAD = 240                 # hours
 KEEP_VALID = {12, 18, 0}       # UTC valid hours kept (~05, ~11, ~17 solar); 06Z (~23 solar, night) skipped
-WORKERS = 32
+WORKERS = 24                   # each worker holds one ~54 MB globe chunk plus its download (~200 MB); 64 ran out of 12.7 GB RAM
 
 URL = "gs://weatherbench2/datasets/hres/2016-2022-0012-1440x721.zarr"
 UNION = dict(latitude=slice(31.0, 40.0), longitude=slice(252.0, 259.0))   # latitudes ascend, longitudes 0-360
@@ -95,9 +101,11 @@ print("leads 12Z:", leads_for(12))
 
 ```python
 months = [(2016, 1)] if TEST_ONE_MONTH else [(y, m) for y in range(FIRST, LAST + 1) for m in range(1, 13)]
-todo = [(y, m, h) for (y, m) in months for h in HOURS
+mine = [(y, m, h) for (y, m) in months for h in HOURS]
+mine = mine if TEST_ONE_MONTH else mine[PART::PARTS]
+todo = [(y, m, h) for (y, m, h) in mine
         if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_{h:02d}z.nc") for b in BOXES)]
-print(len(todo), "month-hour files to do")
+print(len(todo), "month-hour files to do in this part")
 t_start, n = time.time(), 0
 for (y, m, h) in todo:
     sel = starts(y, m, h)
@@ -114,8 +122,8 @@ for (y, m, h) in todo:
         os.replace(p + ".part", p)            # only complete files get the final name
     n += 1
     eta_h = (time.time() - t_start) / n * (len(todo) - n) / 3600
-    print(f"{y}-{m:02d} {h:02d}Z: {len(sel)} starts in {time.time() - t0:.0f} s; about {eta_h:.1f} h left", flush=True)
-print("ALL DONE" if not TEST_ONE_MONTH else "TEST DONE: run cell 4")
+    print(f"{y}-{m:02d} {h:02d}Z: {len(sel)} starts in {time.time() - t0:.0f} s; about {eta_h:.1f} h left; RAM use {psutil.virtual_memory().percent:.0f}%", flush=True)
+print("ALL DONE (this part)" if not TEST_ONE_MONTH else "TEST DONE: run cell 4")
 ```
 
 ### Cell 4: check
@@ -163,4 +171,4 @@ Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 13, 30 
   - The 00Z and 12Z files have different lead sets, so keep them as two datasets or align them on valid time.
 - **Leads in hours:** `tempest/forecast/modeF.py:load_year` turns leads into whole days (`// NS_DAY`) and matches valid times to days. It must keep hours, use the solar hour as an input, and match the ERA5 truth at the hourly valid time.
 - **Next steps:** retrain mode F (lead + solar hour inputs), judge with the usual rule, and widen `FORECAST_LEAD` / `FORECAST_SOLAR` in `tempest_weather/api.py` only where it wins. See item A in `Strong improvment.md`.
-- **Disk:** `data/raw` is already over the 50 GB cap. This adds about 5 GB.
+- **Disk:** `data/raw` is about 65 GB. This adds about 5 GB, under the 100 GB cap.

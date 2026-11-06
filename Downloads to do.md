@@ -8,7 +8,7 @@ Only downloads that a script on this PC can do unattended. The WB2 pulls that ne
 - `era5_cds` is still downloading: leave it alone.
 - Another Claude session may be training, so don't compete with it. Run downloads at low priority, one at a time.
 - Write to new folders; never overwrite existing `data/raw/` folders.
-- `data/raw` is at about 65 GB (2026-11-05), over the 50 GB cap. Everything below except A4 is tiny.
+- `data/raw` is at about 65 GB (2026-11-05), under the 100 GB cap (raised from 50 GB on 2026-11-05). Everything below except A4 is tiny.
 
 ---
 
