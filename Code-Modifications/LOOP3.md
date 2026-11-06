@@ -32,7 +32,7 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 | L3-0c | baseline | **B-local**: same config trained on Denver 1991-2020 (upper bound) | — | train + spread (2021-23) + score on Denver | todo |
 | L3-0d | baseline | Denver seed tolerance: B-local seed 1 vs seed 0 | — | second train, `compare_headline` | todo |
 | L3-0e | baseline | **B-clim / B-gauss** at Denver (come with every `score` run) | — | read from L3-0b | todo |
-| L3-1 | slight | Drop raw lat/lon (keep elevations, time, drivers) | p2f retrained on NM/TX with the same code path (L3-1r) | new `--features` option `nolatlon` | todo |
+| L3-1 | slight | Drop raw lat/lon (keep elevations, time, drivers) | p2f retrained on NM/TX with the same code path (L3-1r) | new `--features` option `nolatlon` | done: FAIL (NM/TX -0.010; Denver +0.034, T 12-18 km breaks) |
 | L3-2 | slight | Spherical harmonics L = 10 in place of lat/lon | L3-1r | `tempest/geo/sh.py`, features `sh10` | todo |
 | L3-3 | slight | SH L = 20 | L3-2 | features `sh20` | todo |
 | L3-4 | structural | SH L = 10 through a 2-layer SIREN (64 units) before the network | L3-2 | model option `siren` | todo |
@@ -62,7 +62,8 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 (one line per row: the zero-shot and no-regression numbers, verdict, kept or not)
 - **L3-0b B-raw** (p2f zero-shot at Denver, 2024-25): mean skill15 **-0.1764** vs Denver climatology, all 19 bands negative except v 5-12 km. Worst: u 0-1 km -1.76 (MAE 8.2 vs 2.9 m/s local), RH 12-18 km -0.28, rh2m -0.28, sp -0.11, T 0-1 km -0.11; cov99 down to 0.950. The low levels and the surface fail most, i.e. the 1.4-3.0 km terrain (NM/TX tops out lower) is what the model has never seen.
 - **L3-0c B-local** (same config trained on Denver 1991-2023): mean skill15 **+0.0162**, worst band -0.0028, cov99 0.983-0.996. The architecture target: close >= 50 % of the 0.193 gap without losing NM/TX.
-- L3-0d: blocal_s1 crashed once (transient cuBLAS execution failure at ~2 min, not OOM: 6.5 GB host RAM free); `ap_l3.sh` reruns it before the next row.
+- L3-0d: blocal_s1 crashed once (transient cuBLAS execution failure at ~2 min, not OOM: 6.5 GB host RAM free); `ap_l3.sh` reruns it before the next row. Retry trained cleanly (15.3 min, 12:14); calibration and score running.
+- **L3-1 nolatlon**: NM/TX **FAIL** (skill15 +0.0277 → +0.0179, -0.0098 = 16× the seed tolerance; u/v 0-1 km -0.018; coverage PASS, shape PASS with 4 metrics better). Denver zero-shot skill15 -0.1764 → **-0.1425** (closes 18 % of the 0.193 gap; target 50 %): u 0-1 km -1.76 → -0.14 (the lat/lon extrapolation was the main u failure), but T 12-18 km -0.006 → -0.57, T 5-12 km -0.15, t2m -0.23, cov99 down to 0.908. Lat/lon was carrying the stratospheric T climate and surface temperature; dropping it fixes the low wind and breaks the upper T. **Not kept alone**; it is the base the SH rows (sh10/sh20) replace lat/lon with, so their Denver T 12-18 km is the number to watch.
 
 ### Run notes (2026-11-06)
 - Runner `scripts/ap_l3.sh` (resume wrapper `scripts/ap_l3_resume.sh`). Model files `models/l3_<v>.pt`, configs `configs/generator_l3_<v>.toml` = p2f + the row's keys. Queue: nolatlon (L3-1), sh10 (L3-2), sh20 (L3-3), siren (L3-4), sh10ctx (L3-10a: elevations through the context FiLM), w768 (L3-12), terrain (L3-5), clocks (L3-6), clim (L3-7), ctxall (L3-10: elevations + terrain + climatology through the context FiLM), thead (L3-11).
