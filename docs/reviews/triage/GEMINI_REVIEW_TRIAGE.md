@@ -31,7 +31,9 @@ All code changes are **options that are off by default**. The running loop-3 que
 
 The cited 2026 papers (NAGO arXiv:2610.38273, "Triangle Multiplication Is All You Need" listed as Dec 2025 under an Oct-2025 arXiv number, S³-TIR IJCAI 2026) have **not been checked**. One date is inconsistent; treat them as possibly invented until found.
 
-### Idea 1: heavy-tailed noise. **Score 5/10 as given → 6.5/10 improved; being tested (L3-26 studt)**
+### Idea 1: heavy-tailed noise. **Score 5/10 as given → 6.5/10 improved; tested (L3-26 studt): rejected**
+**Result (17:29):** NM/TX neutral (+0.0273 vs +0.0277) but shape FAIL: vcorr_err 0.076 → 0.109 and event_cov_gap 0.059 → 0.070, i.e. worse on the metric it targeted. The tail head decorrelates the column instead of fattening the right tails.
+
 Gemini's version adds Student-t noise numbers (heavy tails) plus a 44-height correlated noise field.
 
 What we learned that changes it:
