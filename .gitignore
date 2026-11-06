@@ -15,3 +15,4 @@ models/
 out/
 tempest_weather/assets/
 tempest_weather/assets_*/
+!docs/data/

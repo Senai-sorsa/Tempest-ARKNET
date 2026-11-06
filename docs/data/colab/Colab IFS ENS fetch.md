@@ -183,6 +183,62 @@ for (y, m) in todo:
 print("ALL DONE (this part)" if not TEST_ONE_MONTH else "TEST DONE: run cell 4")
 ```
 
+### Cell 3 (patch instead): re-read only the holes in the first run's files
+
+The first run (into `tempest_wb2_ifs_ens`) saved complete files, but about 20% of each file was empty (failed chunk reads that came back as NaN). This cell keeps everything that is fine and re-reads only the empty pieces, one variable at a time, about 5x less reading than a full rerun. It writes the repaired files to `OUT` (`tempest_wb2_ifs_ens_v2`); the old folder is only read.
+
+- Use the same `PART` / `PARTS` as in the first run, on the same account, so the old files for this part's months are on this Drive.
+- Run cell 2 first (with `OUT = ".../tempest_wb2_ifs_ens_v2"`), then this cell instead of cell 3, then cell 4.
+
+```python
+import gc, ctypes
+from concurrent.futures import ThreadPoolExecutor
+OLD = "/content/drive/MyDrive/tempest_wb2_ifs_ens"   # the first run's files (complete, but with holes)
+LONG = {v: k for k, v in {**UPPER, **SURF}.items()}   # short name -> store name
+
+def read_var(short, t, L):
+    # one variable, one start, one lead = one chunk; a failed read comes back as NaN, so check and retry
+    for k in range(6):
+        a = ds[LONG[short]].sel(time=t, prediction_timedelta=L, latitude=lat_slice(UNION[0]), longitude=slice(*UNION[1]))
+        a = (a.sel(level=LEVELS) if "level" in a.dims else a).load()
+        if np.isfinite(a.values).all():
+            return a.astype("float32")
+        time.sleep(10 * (k + 1))
+    raise RuntimeError(f"still NaN after 6 tries: {short}, start {t}, lead {L}. Send this to Claude")
+
+todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]
+print(len(todo), "months to patch in this part")
+t_start, n, reads = time.time(), 0, 0
+for (y, m) in todo:
+    t0 = time.time()
+    old = {b: xr.load_dataset(f"{OLD}/{b}/{y}{m:02d}_00z.nc") for b in BOXES}
+    holes = set()                                       # (variable, start index, lead index) with any NaN, in either box
+    for x in old.values():
+        for v in x.data_vars:
+            bad = x[v].isnull().any([d for d in x[v].dims if d not in ("time", "prediction_timedelta")])
+            holes |= {(v, i, j) for i, j in zip(*np.nonzero(bad.transpose("time", "prediction_timedelta").values))}
+    T_, L_ = old["pilot"].time.values, old["pilot"].prediction_timedelta.values
+    jobs = sorted(holes)
+    with ThreadPoolExecutor(WORKERS) as pool:
+        got = list(pool.map(lambda h: read_var(h[0], T_[h[1]], L_[h[2]]), jobs))
+    for (v, i, j), a in zip(jobs, got):
+        for b, (la, lo) in BOXES.items():
+            x = old[b]
+            piece = a.sel(latitude=lat_slice(la), longitude=slice(*lo))
+            x[v][dict(time=i, prediction_timedelta=j)] = piece.transpose(*[d for d in x[v].dims if d in piece.dims]).values
+    for b, x in old.items():
+        left = [v for v in x.data_vars if x[v].isnull().any()]
+        assert not left, f"{y}-{m:02d} {b}: still NaN in {left}"
+        p = f"{OUT}/{b}/{y}{m:02d}_00z.nc"
+        x.to_netcdf(p + ".part")
+        os.replace(p + ".part", p)
+    del old, got; gc.collect(); ctypes.CDLL("libc.so.6").malloc_trim(0)
+    n += 1; reads += len(jobs)
+    per = (time.time() - t_start) / n
+    print(f"{y}-{m:02d}: {len(jobs)} holes re-read in {time.time() - t0:.0f} s; about {per * (len(todo) - n) / 3600:.1f} h left; RAM use {psutil.virtual_memory().percent:.0f}%", flush=True)
+print("ALL DONE (this part)" if not TEST_ONE_MONTH else "TEST DONE: run cell 4")
+```
+
 ### Cell 4: check (checks every file in the folder, from all parts)
 
 ```python
