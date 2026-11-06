@@ -27,7 +27,7 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 ## Rows
 | ID | Kind | Change | Baseline | How | State |
 |---|---|---|---|---|---|
-| L3-0a | data | Denver ERA5 1991-2025 (13 levels + surface + w extras), profiles, dataset (dpd humidity, base features), Denver IGRA to 2025, Denver station map fitted 2016-2020 | — | `scripts/l3_0_data.sh` (fetch_earthmover / to_heights / fetch_igra / calibrate.station / build_dataset with `TEMPEST_REGION=configs/region_denver.toml`) | todo |
+| L3-0a | data | Denver ERA5 1991-2025 (13 levels + surface + w extras), profiles, dataset (dpd humidity, base features), Denver IGRA to 2025, Denver station map fitted 2016-2020 | — | `scripts/l3_0_data.sh` (fetch_earthmover / to_heights / fetch_igra / calibrate.station / build_dataset with `TEMPEST_REGION=configs/region_denver.toml`) | **done** 11:01: `denver_full_dpd.npz` 3,066,271 rows, 81 points (38-40N, 104-106W, elev 1395-2984 m), 1991-2025, same 13 cond and 179 target columns as NM/TX; station map `models/station_map_denver_full.npz` |
 | L3-0b | baseline | **B-raw**: adopted p2f (NM/TX-trained) asked at Denver with raw lat/lon | — | `score` on the Denver dataset with the p2f range map | todo |
 | L3-0c | baseline | **B-local**: same config trained on Denver 1991-2020 (upper bound) | — | train + spread (2021-23) + score on Denver | todo |
 | L3-0d | baseline | Denver seed tolerance: B-local seed 1 vs seed 0 | — | second train, `compare_headline` | todo |

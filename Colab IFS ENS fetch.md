@@ -78,7 +78,7 @@ import numpy as np, xarray as xr, fsspec, dask, psutil
 
 TEST_ONE_MONTH = True          # first run: only the first month, then set False
 PART, PARTS = 0, 3             # 3 notebooks: PART = 0 in the first copy, 1 in the second, 2 in the third
-OUT = "/content/drive/MyDrive/tempest_wb2_ifs_ens"
+OUT = "/content/drive/MyDrive/tempest_wb2_ifs_ens_v2"   # new folder: the first run's files have NaN holes
 FIRST, LAST = 2016, 2024       # whole store; 2023-2024 give the fit/test years (HRES stops at 2022)
 EVERY_DAYS = 8                 # every 2nd HRES date, so each start also has an HRES forecast
 LEADS = list(range(24, 169, 24))   # days 1-7
@@ -148,9 +148,15 @@ VARS = list(UPPER) + list(SURF)
 LEAD_KEYS = lead_index(LEADS)
 
 def one_read(t, L):
-    # scalar time + lead = one chunk per variable, so memory stays at about one chunk per worker
-    return ds[VARS].sel(time=t, prediction_timedelta=L, level=LEVELS,
-                        latitude=lat_slice(UNION[0]), longitude=slice(*UNION[1])).load()
+    # scalar time + lead = one chunk per variable, so memory stays at about one chunk per worker.
+    # A chunk read that fails comes back as all-NaN instead of an error, so check and retry.
+    for k in range(6):
+        r = ds[VARS].sel(time=t, prediction_timedelta=L, level=LEVELS,
+                         latitude=lat_slice(UNION[0]), longitude=slice(*UNION[1])).load()
+        if all(np.isfinite(r[v].values).all() for v in VARS):
+            return r
+        time.sleep(10 * (k + 1))
+    raise RuntimeError(f"still NaN after 6 tries: start {t}, lead {L}. Send this to Claude")
 
 todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]
 print(len(todo), "months to do in this part")
@@ -209,8 +215,8 @@ Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 3, 7 le
 1. Wait for `ALL DONE` in every part, and for cell 4 to print `OK` with all files present.
 2. In Google Drive (web), right-click `tempest_wb2_ifs_ens` and choose **Download** (from each account if you used more than one).
 3. Unzip into **new** folders:
-   - `tempest_wb2_ifs_ens/pilot/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens\`
-   - `tempest_wb2_ifs_ens/denver/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens_denver\`
+   - `tempest_wb2_ifs_ens_v2/pilot/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens\`
+   - `tempest_wb2_ifs_ens_v2/denver/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens_denver\`
 4. Tell Claude it is there.
 
 ## What the code side then needs (not part of the download)
