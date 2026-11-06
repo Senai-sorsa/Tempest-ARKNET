@@ -81,4 +81,4 @@ Plan file: C:\Users\Senai\Downloads\tempest_arknet_flight_sim_expansion_blueprin
 ## 11. Needs the user: GitHub
 Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after approval or at the very end). Local commits continue. Ask at the end: push all.
 - (loop 2) IL-79: if you want forecasts at 2/4/6 days, the IL-75 Colab notebook needs rerunning with those leads.
-
+- (loop 2) Turn on the H1b post-processing (half-strength PIT map + RH seasonal widths above 1 km) in `scripts/export_final.sh`? It passes shape (4 better, none worse) and the ERA5 headline (skill15 +0.0209 to +0.0276, 99 % coverage error 0.0049 to 0.0020), balloons neutral; judged on 2024-25 only, not on the already-used 2026 test.

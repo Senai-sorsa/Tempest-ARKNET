@@ -41,6 +41,8 @@ def _load_post(z, manifest):
         post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
     if "post/seasonal" in z.files:
         post["seasonal"] = z["post/seasonal"]
+    if "post/pit_ginv" in z.files:
+        post["pit"] = (z["post/pit_ginv"], z["post/pit_groups"], float(z["post/pit_damp"]))
     return post
 
 
@@ -50,6 +52,8 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
     if not post:
         return x
     month, hb = int(doy / 365.25 * 12) % 12, int(sh / 2) % 12
+    if "pit" in post:                                                    # loop 2 H1 (opt-in asset): PIT recalibration at a damped strength, right after the range map
+        x = _core.pit_apply(post["pit"][0], post["pit"][1], x, post["pit"][2])
     if "seasonal" in post:
         x = _core.seasonal_apply(post["seasonal"], x, np.full(len(x), month + 1))
     if "rank" in post and pts is not None:                           # templates per block of grid points (IL-95): each range-map block comes from one point, so it gets its block's ranks

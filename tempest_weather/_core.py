@@ -179,6 +179,27 @@ def allocate(weights, blocks, rng):
 
 
 # ---- shape post-processing (copied from tempest/calibrate/{seasonal,shuffle,shear_map}.py; optional assets, absent = skipped) ----
+# ---- loop 2 H1: PIT recalibration at a damped strength (copied from tempest/calibrate/pit_recal.py apply) ----
+PIT_GRID = np.linspace(0.0, 1.0, 201)
+
+
+def pit_apply(ginv, groups, x, damp=1.0):
+    """x (N, m, D) -> samples read at the recalibrated quantile levels (sorted along m); damp 1 = full correction, 0.5 = half way. ginv (G, 201), groups (D,)."""
+    m = x.shape[1]
+    lev = (np.arange(m) + 0.5) / m
+    xs = np.sort(x, axis=1)
+    out = np.empty_like(xs)
+    groups = np.asarray(groups)
+    for g in range(ginv.shape[0]):
+        pos = np.clip(np.interp(lev, PIT_GRID, ginv[g]) * m - 0.5, 0, m - 1)
+        i0 = np.floor(pos).astype(int)
+        i1 = np.minimum(i0 + 1, m - 1)
+        w = (pos - i0)[None, :, None]
+        cols = groups == g
+        out[:, :, cols] = xs[:, i0][:, :, cols] * (1 - w) + xs[:, i1][:, :, cols] * w
+    return (xs + damp * (out - xs) if damp != 1.0 else out).astype(x.dtype)
+
+
 def seasonal_apply(scale, x, month):
     """x (N, m, D), month (N,) 1..12, scale (12, D) -> widened copy about each row's median (ranks kept)."""
     s = np.asarray(scale)[np.asarray(month, int) - 1][:, None, :]

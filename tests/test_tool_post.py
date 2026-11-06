@@ -134,3 +134,16 @@ def test_temperature_widening_only_when_the_observed_spread_is_larger():
     k = bias.widen_temperature(phys, st(3.0), 7.0, 12, nh, heights=h)
     assert 1.4 < k <= 1.6 and phys[:, 4 * nh].std() > 1.4 * before[:, 4 * nh].std()
     assert abs(phys[:, 3 * nh - 1].std() - before[:, 3 * nh - 1].std()) < 0.05 * before[:, 3 * nh - 1].std() + 1e-6      # 18 km nearly unchanged
+
+
+def test_pit_apply_matches_training_code_and_damp_is_half_way():
+    from tempest.calibrate import pit_recal
+    from tempest_weather import _core
+    rng = np.random.default_rng(3)
+    x = rng.standard_normal((4, 199, 7)).astype(np.float32)
+    y = rng.standard_normal((4000, 7)) * 1.3
+    tab = pit_recal.fit(rng.standard_normal((4000, 199, 7)).astype(np.float32), y.astype(np.float32), np.array([0, 0, 0, 1, 1, 1, 1]))
+    for d in (1.0, 0.5):
+        assert np.allclose(_core.pit_apply(tab["ginv"], tab["groups"], x, d), pit_recal.apply(tab, x, d), atol=1e-5)
+    full, half = _core.pit_apply(tab["ginv"], tab["groups"], x, 1.0), _core.pit_apply(tab["ginv"], tab["groups"], x, 0.5)
+    assert np.allclose(half, 0.5 * (np.sort(x, 1) + full), atol=1e-5)

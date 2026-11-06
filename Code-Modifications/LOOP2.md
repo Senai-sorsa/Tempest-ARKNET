@@ -33,3 +33,5 @@ H4 (GPU, running), H1 / H1b (diagnostics, CPU), H3 (backtest, CPU), H2 (mode F, 
 - H1b (c4) beat c1 and c2/c3: seasonal widths work for RH above 1 km, fail only at 0-1 km. Next: **H1c** dose response of the PIT damp (0.75, 1.0 with the same seasonal) to see whether the gain keeps growing; **H1d** seasonal widths for T and wind profiles above 1 km (stack B only tried RH).
 - H2 gave nothing; mode F is at its ceiling for mixing. No further mixtures.
 - H4 (running/evaluating): if the milder RH loss improves PIT but not pre-clip, try RH loss weight 0.05 + 0.1 only in the last steps.
+
+Round 2 results (04:55): H1b keep (opt-in); H4 rejected; H2 no gain; H5/IL-74/IL-79/IL-14 sidelined. Next candidates: H1c PIT-damp dose (0.75, 1.0) with the same seasonal; H1d seasonal widths for T and wind above 1 km.
