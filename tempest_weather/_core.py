@@ -192,6 +192,11 @@ def shuffle_apply(x, template):
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
 
 
+def shuffle_apply_ranks(x, ranks):
+    """Same as shuffle_apply with the template given as per-column ranks along the sample axis (uint8, as stored in the assets)."""
+    return np.take_along_axis(np.sort(x, axis=1), np.asarray(ranks, np.int64), axis=1)
+
+
 def _uniform_filter_nearest(a, size):
     """scipy.ndimage.uniform_filter1d(a, size, axis=-1, mode='nearest') in numpy (odd or even size, origin 0)."""
     lo = size // 2

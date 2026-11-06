@@ -43,6 +43,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 interactions=False,         # F-14: slope network sees the driver columns too (driver x driver effects); mlp arch only
                 m_final=0, final_steps=0,   # F-15: draw m_final samples per row (instead of m) for the last final_steps steps: less noisy pairwise-spread gradients where the shape is finished
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
+                train_rows=0,               # F-29: use a random subset of this many training rows (0 = all); lets the float32-storage comparison fit in GPU memory
                 store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
                 shear_tail_q=0.9)           # shear above this quantile of the training rows (per layer) counts in that term
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
@@ -107,6 +108,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     tr_idx, va_idx = np.flatnonzero(tr), np.flatnonzero(val)
     if len(tr_idx) == 0 or len(va_idx) == 0:
         raise ValueError("need both training and validation years; check val_years and the year array")
+    if cfg["train_rows"] and len(tr_idx) > cfg["train_rows"]:
+        tr_idx = np.sort(np.random.default_rng(777).choice(tr_idx, cfg["train_rows"], replace=False))
     va_idx = rng.choice(va_idx, min(len(va_idx), cfg["val_rows"]), replace=False)
 
     # Normalisation from training rows only, so validation stays unseen.

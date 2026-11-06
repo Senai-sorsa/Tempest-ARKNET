@@ -14,6 +14,13 @@ def apply(x, template):
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
 
 
+def cell_keys(keys, cell, n_lon=29):
+    """Scoring-group keys (point id x 144 + month x 12 + hour bin; point ids run n_lon per latitude row, southern row first) -> keys of block x month x hour bin, blocks of cell x cell points."""
+    k_ = np.asarray(keys)
+    pid = k_ // 144
+    return ((pid // n_lon // cell) * 100 + (pid % n_lon) // cell) * 144 + k_ % 144
+
+
 def group_template(target, keys, year, idx, m, rng, before_year, pooled=False, cell=0):
     """Real profiles as dependence template: for each row idx, m training-year rows (year < before_year) of the same scoring group (grid point x month x hour bin).
     target: dataset target array, keys: group keys for all rows, year: year per row. Returns (len(idx), m, D) physical profiles."""
@@ -21,9 +28,7 @@ def group_template(target, keys, year, idx, m, rng, before_year, pooled=False, c
     if pooled:                                           # IL-94: templates by month x 2-hour bin only (all grid points together): small enough to ship with the tool
         keys = np.asarray(keys) % 144
     elif cell:                                           # IL-95: templates per block of `cell` x `cell` grid points (0.25 degree steps; point ids run 29 per row of latitude) x month x 2-hour bin
-        k_ = np.asarray(keys)
-        pid = k_ // 144
-        keys = ((pid // 29 // cell) * 100 + (pid % 29) // cell) * 144 + k_ % 144
+        keys = cell_keys(keys, cell)
     tr = np.flatnonzero(year < before_year)
     tr = tr[np.argsort(keys[tr], kind="stable")]
     lo, hi = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")

@@ -7,7 +7,7 @@
 | F-1, F-2, F-3, F-4, F-5, F-6, F-18, F-21, F-22, F-28 (review bug fixes) | fixed, tests | code default (tool and main package) |
 | F-8 forecast mode in the tool | done, end-to-end tests | tool default for 0.75-7.5 days at 14-20 h solar |
 | F-27 w-head range map | cov99 0.984 -> 0.990, CRPS equal | tool asset, **export flag** `--wcalib`; bundled assets not yet re-exported (done once at the end) |
-| IL-91 / F-16 shuffle + whole-distribution shear map | vertical corr 0.08 -> 0.03, shear KS 0.044 -> 0.010, skill +0.0001, cov err 0.0034 -> 0.0031 | scorer flags; **tool**: code and export (`--post-templates --post-smap`) added 2026-11-05 with pooled templates, being verified (IL-94); bundled assets not yet re-exported |
+| IL-91 / F-16 shuffle + whole-distribution shear map | vertical corr 0.08 -> 0.03, shear KS 0.044 -> 0.010, skill +0.0001, cov err 0.0034 -> 0.0031 | scorer flags; **tool**: code and export (`--post-templates --post-smap`) added 2026-11-05 templates per 2 degree block (IL-94/IL-95: pooled keeps half the gain, 2 degree blocks nearly all); bundled assets not yet re-exported |
 | IL-11 seasonal widths (RH + surface) | ERA5 cov err 0.0034 -> 0.0025, balloons not scored | scorer flag; tool code path exists (`--post-seasonal`), not exported until the stack check (IL-16) passes |
 | F-12 past-date surface spread (t2m, sp, rh2m) | CRPS t2m 1.16 -> 0.68 K, sp 48.8 -> 25.9 Pa, rh2m 3.75 -> 2.92 %, cov99 0.99-1.00 | tool asset `--modep-sfc`, not re-exported yet |
 | F-11 part 1 hybrid (station correction for RH 12-18 km in past mode) | test-year CRPS 3.70 vs 4.76 for the network (earlier measurement) | tool asset `--modep-sta`, not re-exported yet |

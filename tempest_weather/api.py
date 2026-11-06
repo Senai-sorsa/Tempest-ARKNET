@@ -35,6 +35,8 @@ def _load_post(z, manifest):
     post = {}
     if "post/tpl" in z.files:
         post["tpl"] = z["post/tpl"]
+    if "post/rank" in z.files:
+        post["rank"], post["cell"] = z["post/rank"], int(z["post/cell"])
     if "post/smap_grid" in z.files:
         post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
     if "post/seasonal" in z.files:
@@ -42,7 +44,7 @@ def _load_post(z, manifest):
     return post
 
 
-def _post_process(A, x, doy, sh):
+def _post_process(A, x, doy, sh, pts=None, grid=None):
     """x (groups, M_CAL, D) range-calibrated samples -> seasonal widths, then the shuffle with the template of the query's month x 2-hour bin, then the shear map (the order the scorer uses)."""
     post = A.get("post")
     if not post:
@@ -50,6 +52,15 @@ def _post_process(A, x, doy, sh):
     month, hb = int(doy / 365.25 * 12) % 12, int(sh / 2) % 12
     if "seasonal" in post:
         x = _core.seasonal_apply(post["seasonal"], x, np.full(len(x), month + 1))
+    if "rank" in post and pts is not None:                           # templates per block of grid points (IL-95): each range-map block comes from one point, so it gets its block's ranks
+        ncol = -(-29 // post["cell"])
+        lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / 0.25).astype(int) // post["cell"]
+        lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / 0.25).astype(int) // post["cell"]
+        r = post["rank"][lat_i * ncol + lon_i, month * 12 + hb]               # (groups, 199, 179)
+        ok = r.max(axis=(1, 2)) > 0
+        if ok.any():
+            x = x.copy()
+            x[ok] = _core.shuffle_apply_ranks(x[ok], r[ok])
     if "tpl" in post:
         tpl = post["tpl"][month * 12 + hb].astype(np.float32)
         if np.any(tpl):                                                  # an empty bin (no training rows) leaves the order as it is
@@ -267,7 +278,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     if phys is None:
         phys = A["net"].profiles(cond, rng)
         if not predicted:
-            phys = _post_process(A, _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)), t_utc.timetuple().tm_yday, sh).reshape(total, -1)[:n]
+            phys = _post_process(A, _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)), t_utc.timetuple().tm_yday, sh, row_pt[::M_CAL], g).reshape(total, -1)[:n]
             cond = cond[:n]
     nh = _core.NH
     w_site = None

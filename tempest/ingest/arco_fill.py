@@ -41,14 +41,14 @@ def open_arco(source="gs"):
         m = __import__("fsspec").get_mapper("gs://gcp-public-data-arco-era5/" + URL, token="anon")
     else:
         m = __import__("fsspec").get_mapper("https://storage.googleapis.com/gcp-public-data-arco-era5/" + URL)
-    return xr.open_zarr(m, consolidated=True, chunks={"time": 1})
+    return xr.open_zarr(m, consolidated=True, chunks=None)   # chunks={"time": 1} here builds dask arrays for all 273 variables: 5.9 GB before any read
 
 
 def month(ds, yyyymm, workers):
     import dask
     t0 = np.datetime64(f"{yyyymm[:4]}-{yyyymm[4:]}-01")
     t1 = (t0.astype("datetime64[M]") + 1).astype("datetime64[h]")
-    sub = ds[list(VARS)].sel(time=slice(t0, t1 - np.timedelta64(1, "h")), level=LEVELS, latitude=slice(*LAT), longitude=slice(*LON))
+    sub = ds[list(VARS)].sel(time=slice(t0, t1 - np.timedelta64(1, "h")), level=LEVELS, latitude=slice(*LAT), longitude=slice(*LON)).chunk({"time": 1})
     with dask.config.set(scheduler="threads", num_workers=workers):
         sub = sub.load()
     sub = sub.rename(VARS).rename(level="isobaricInhPa")

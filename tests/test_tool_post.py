@@ -17,3 +17,12 @@ def test_post_process_keeps_marginals_and_skips_without_assets():
     assert not np.array_equal(y, x)
     empty = api._post_process({"post": {"tpl": np.zeros((144, 30, 179), np.float16)}}, x, 190, 15.0)
     assert np.array_equal(empty, x)                                                   # an empty template bin changes nothing
+
+
+def test_rank_templates_equal_value_templates():
+    from tempest_weather import _core
+    rng = np.random.default_rng(3)
+    x = rng.normal(size=(2, 40, 12))
+    tpl = rng.normal(size=(2, 40, 12))
+    ranks = np.argsort(np.argsort(tpl, axis=1), axis=1).astype(np.uint8)
+    assert np.array_equal(_core.shuffle_apply_ranks(x, ranks), _core.shuffle_apply(x, tpl))

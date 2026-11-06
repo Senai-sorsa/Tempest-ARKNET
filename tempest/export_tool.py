@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--calib", required=True)
     ap.add_argument("--head")
     ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
+    ap.add_argument("--post-cell", type=int, default=0, help="with --post-templates: one template set per block of N x N grid points (8 = 2 degrees; stored as uint8 ranks) instead of one for the whole box")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
     ap.add_argument("--modep-sta", help="F-11: station-correction map (models/station_map_mix.npz); with --modep, the columns where hybrid_use_network is False are served by the station correction instead of the network")
@@ -81,21 +82,40 @@ def main():
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
     post = bool(a.post_templates or a.post_smap or a.post_seasonal)
     if a.post_templates:
+        from tempest.calibrate.shuffle import cell_keys
         from tempest.generator.sample import to_physical
         from tempest.generator.train import load_npz
         from tempest.scoring.score import group_keys
         dd = load_npz(a.post_templates)
-        keys, yr = group_keys(np.asarray(dd["cond"])) % 144, np.asarray(dd["year"])
+        k_all, yr = group_keys(np.asarray(dd["cond"])), np.asarray(dd["year"])
+        keys = cell_keys(k_all, a.post_cell) if a.post_cell else k_all % 144
+        ukeys = np.unique(keys[yr < 2021])
         rng_t = np.random.default_rng(0)
         first_test = 2021                                                          # templates from training years only (<= 2020)
-        tpl = np.zeros((144, 199, 179), np.float16)
         tr = np.flatnonzero(yr < first_test)
-        for k in range(144):
-            r = tr[keys[tr] == k]
-            if len(r):
-                pick = np.sort(rng_t.choice(r, 199, replace=len(r) < 199))
-                tpl[k] = to_physical(np.asarray(dd["target"][pick])).astype(np.float16)
-        arrays["post/tpl"] = tpl
+        if a.post_cell:
+            cells = np.unique(ukeys // 144)
+            ncol = -(-29 // a.post_cell)
+            lat_i, lon_i = cells // 100, cells % 100
+            cid = lat_i * ncol + lon_i
+            tpl = np.zeros((int(cid.max()) + 1, 144, 199, 179), np.uint8)
+            for c, k0 in zip(cid, cells):
+                for b in range(144):
+                    r = tr[keys[tr] == k0 * 144 + b]
+                    if len(r):
+                        pick = np.sort(rng_t.choice(r, 199, replace=len(r) < 199))
+                        x_ = to_physical(np.asarray(dd["target"][pick]))
+                        tpl[c, b] = np.argsort(np.argsort(x_, axis=0), axis=0).astype(np.uint8)
+            arrays["post/rank"] = tpl
+            arrays["post/cell"] = np.array(a.post_cell)
+        else:
+            tpl = np.zeros((144, 199, 179), np.float16)
+            for k in range(144):
+                r = tr[keys[tr] == k]
+                if len(r):
+                    pick = np.sort(rng_t.choice(r, 199, replace=len(r) < 199))
+                    tpl[k] = to_physical(np.asarray(dd["target"][pick])).astype(np.float16)
+            arrays["post/tpl"] = tpl
     if a.post_smap:
         sm = np.load(a.post_smap)
         arrays["post/smap_grid"], arrays["post/smap_gain"] = sm["grid"], sm["gain"]
