@@ -368,4 +368,5 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-25 Denver fill-top | `ap_l3_lean.sh` | done: p2f zero-shot -0.1764 → -0.1918 with the 23 % mountain rows kept (RH 12-18 km, rh2m worst); old Denver numbers optimistic; `ap_l3_fill.sh` rescores the candidates on it after the queue |
 | L3-12 w768 | `ap_l3_lean.sh` | **rejected**: NM/TX +0.0275 vs +0.0277 (neutral), shape FAIL (event_cov_gap +0.023), Denver -0.203 vs -0.176 (u/T 0-1 km worse) |
 | L3-5 terrain | `ap_l3_lean.sh` | NM/TX neutral (+0.0275), shape FAIL (event_cov_gap, shear_ks); Denver overlay failed on the old set (dropped mountain rows) → rescored on the fill-top set by `ap_l3_fill.sh` |
+| L3-23 ctxsep | `ap_l3_lean.sh` | **rejected for NM/TX**: +0.0250 vs +0.0277 (sp/t2m surface worse), shape FAIL (RH 1-5 km tails, pit_tv); Denver overlay failed on the old set → fill-top rescore by `ap_l3_fill.sh` |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
