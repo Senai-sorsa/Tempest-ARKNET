@@ -35,3 +35,6 @@ H4 (GPU, running), H1 / H1b (diagnostics, CPU), H3 (backtest, CPU), H2 (mode F, 
 - H4 (running/evaluating): if the milder RH loss improves PIT but not pre-clip, try RH loss weight 0.05 + 0.1 only in the last steps.
 
 Round 2 results (04:55): H1b keep (opt-in); H4 rejected; H2 no gain; H5/IL-74/IL-79/IL-14 sidelined. Next candidates: H1c PIT-damp dose (0.75, 1.0) with the same seasonal; H1d seasonal widths for T and wind above 1 km.
+
+## Round 3 close (2026-11-06 06:15)
+H1 family closed with c4 kept; H6 monthly T shift: no gain. Gains in distribution shape from loop 2 are now saturating: every remaining hybrid moves metrics by less than the seed spread. What is left needs data or a retrain (F-17 CDS levels, R-8 night hours, R-3 more stations, IL-79 more forecast leads). The loop keeps harvesting after each of those lands.
