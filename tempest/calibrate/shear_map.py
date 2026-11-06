@@ -118,6 +118,7 @@ def main():
     ap.add_argument("--groups", type=int, default=4, choices=[4, 7], help="4 height bands (default) or 7 layer groups (IL-89)")
     ap.add_argument("--full", action="store_true", help="IL-91: fit the whole shear distribution (2 %% upward), not only above the median")
     ap.add_argument("--shuffle", action="store_true", help="fit on samples that were Schaake-shuffled first (use with score --shuffle --shear-map)")
+    ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: templates per block of N x N grid points (8 = 2 degrees, as shipped in the tool) instead of per point")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)
@@ -135,7 +136,7 @@ def main():
         from tempest.calibrate import shuffle as shuf_mod
         from tempest.scoring.score import group_keys
         keys = group_keys(np.asarray(d["cond"]))
-        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year, cell=a.template_cell))
     table = fit(x, truth, edges=EDGES7 if a.groups == 7 else None, full=a.full)
     out = a.out or a.model.rsplit(".", 1)[0] + f".shearmap{a.from_year}.npz"
     np.savez(out, grid=table["grid"], gain=table["gain"], **({"edges": table["edges"]} if "edges" in table else {}), fit_from=a.from_year, fit_to=a.year, m=a.m, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
