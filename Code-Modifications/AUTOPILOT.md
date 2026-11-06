@@ -348,3 +348,13 @@ Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather
 | L2-H1c | PIT-damp dose response with the 1 km seasonal widths: c5 = 0.75, c6 = 1.0 (c4 = 0.5 passed) | `scripts/ap_h1e.sh` (CPU, shape vs stack A) | **done: 0.5 stays.** 0.75 passes (tail-rate 1.86, skew better) but loses the PIT-distance gain (0.0373 vs 0.0361 at 0.5); 1.0 FAILS (PIT distance 0.0387 worse, shear 0.0137). |
 | L2-H1d | Seasonal widths for more variables above 1 km, all with PIT damp 0.5: c7 = u, v, T, RH profile; c8 = T and RH profile | `scripts/ap_h1f.sh` (CPU, shape vs stack A) | **done, neither beats c4.** c7 FAILS (coverage error, event gap, PIT distance and shear all worse: wind widths hurt). c8 passes but is weaker than c4 (T 12-18 km widths worsen cov error/PIT there). c4 stays the pick. c9 (T widths 1-12 km + RH above 1 km) passes but is weaker than c4 (cov err 0.0118 vs 0.0106). **H1 family closed: c4 is the kept stack.** |
 | L2-H6 | Monthly median shift for T (3-month smoothed, shrunk by half), fitted 2021-23 on top of c4: the harvest of IL-70 (monthly bias 0.46 sd at T 12-18 km) and IL-13 (one global shift did nothing) | `tempest/calibrate/shift.py --by-month --shrink --vars`, `scripts/ap_h6.sh` (ERA5 headline vs c4) | **NO GAIN, not adopted (flags stay, off).** mean skill15 +0.0276→+0.0278 (inside the 0.0006 seed tolerance), coverage error 0.0020→0.0024, T 12-18 km skill falls 0.0473→0.0431. The monthly shifts are small (±0.3-0.7 K at most) and do not carry from 2021-23 to 2024-25. |
+
+## Improvement loop 3 (user 2026-11-06; global-scaling plan in `docs/GLOBAL_PLAN.md`, rows and harvest in `Code-Modifications/LOOP3.md`)
+Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, scored at Denver 2024-25 with the NM/TX range calibration. Runner `scripts/ap_l3.sh` (resumes; one GPU job at a time); data `scripts/l3_0_data.sh` (CPU, Denver ERA5 1991-2025). Verdicts in `data/l3_verdicts.txt`. Pre-check: `tests/test_flags_off.py` 3 passed on an idle GPU (clears the old todo); new options in `tests/test_l3_options.py` (all off by default, default network unchanged).
+
+| Row | What | Status |
+|---|---|---|
+| L3-0a | Denver data 1991-2025 | running |
+| L3-0b | B-raw: p2f zero-shot at Denver (baseline) | queued (needs L3-0a) |
+| NM/TX seed tolerance | p2f s1/s2 vs p2f: skill15 -0.0006 / -0.0001 | done (tolerance 0.0006) |
+| L3-1 nolatlon, L3-2 sh10, L3-3 sh20, L3-4 siren, L3-10a sh10ctx (elevations via context FiLM), L3-12 w768 | NM/TX verdict + shape + Denver zero-shot | running in this order |

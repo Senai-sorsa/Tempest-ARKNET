@@ -111,7 +111,7 @@ class Sampler:
         self.members = []
         for k in ckpt.get("members", [ckpt]):
             c = k["cfg"]
-            model = make_generator(c.get("arch", "mlp"), k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"), **({"interactions": True} if c.get("interactions") else {}), **({"product_pairs": k["product_pairs"]} if k.get("product_pairs") else {}))
+            model = make_generator(c.get("arch", "mlp"), k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"), **({"interactions": True} if c.get("interactions") else {}), **({"product_pairs": k["product_pairs"]} if k.get("product_pairs") else {}), **k.get("model_kw", {}))
             model.load_state_dict(k["state"])
             self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
         k0 = ckpt.get("members", [ckpt])[0]

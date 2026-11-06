@@ -46,7 +46,11 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
                 train_rows=0,               # F-29: use a random subset of this many training rows (0 = all); lets the float32-storage comparison fit in GPU memory
                 store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
-                shear_tail_q=0.9)           # shear above this quantile of the training rows (per layer) counts in that term
+                shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
+                ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
+                geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
+                context_inputs=[],          # L3: input names routed to the context FiLM instead of the input layer (model.Generator context_cols)
+                terrain_head_inputs=[])     # L3: input names for the altitude-decayed terrain head
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -63,7 +67,20 @@ def load_npz(path):
 
 def _load(path):
     """Uncompressed .npz (np.savez) -> dict of read-only memory maps. np.load ignores mmap_mode for .npz and
-    would read all 6 GB into RAM; here rows are read from disk when indexed. Compressed files fall back to np.load."""
+    would read all 6 GB into RAM; here rows are read from disk when indexed. Compressed files fall back to np.load.
+    An overlay file (loop 3) holds `base_npz` = the path of a full dataset plus the arrays it replaces (e.g. a wider
+    `cond` and its `cond_names`); the result is the base dataset with those arrays swapped in."""
+    out = _load_one(path)
+    if "base_npz" in out:
+        base = _load_one(str(np.asarray(out.pop("base_npz"))))
+        if len(base["year"]) != len(out.get("cond", base["cond"])):
+            raise ValueError(f"overlay {path} does not match its base dataset (row counts differ)")
+        base.update(out)
+        out = base
+    return out
+
+
+def _load_one(path):
     out = {}
     with zipfile.ZipFile(path) as z, open(path, "rb") as f:
         for i in z.infolist():
@@ -128,6 +145,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
 
     ref = np.sort(rng.choice(tr_idx, min(len(tr_idx), 1_000_000), replace=False))  # stats from 1M rows: avoids copying the full set
     cm, cs = cond[ref].mean(0), safe(cond[ref].std(0))
+    for k in cfg["ignore_inputs"]:  # L3: a huge scale makes the normalised column 0 everywhere (training and Sampler alike)
+        cs[names.index(k)] = 1e30
     tref = targets(ref)
     tm, ts = tref.mean(0), safe(tref.std(0))
     norm = {k: torch.tensor(v, dtype=torch.float32) for k, v in dict(cm=cm, cs=cs, tm=tm, ts=ts).items()}
@@ -135,6 +154,16 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     lin_names = [names[i] for i in linear_cols]
     pp = [[lin_names.index(a_), lin_names.index(b_)] for a_, b_ in (cfg["product_pairs"] or [])]
     n_prof = N_PROF if len((meta or {}).get("target_names", [])) == N_PROF + 3 else 0
+    model_kw = {}                                     # L3 options; empty = the adopted network
+    if cfg["geo_sh"]:
+        assert not {"lat", "lon"} & set(cfg["ignore_inputs"]), "geo_sh drops lat/lon itself and needs their real scale; do not also ignore them"
+        gc = [names.index("lat"), names.index("lon")]
+        model_kw["geo"] = dict(cols=gc, mu=[float(cm[i]) for i in gc], sd=[float(cs[i]) for i in gc], L=int(cfg["geo_sh"]), siren=int(cfg["geo_siren"]))
+    if cfg["context_inputs"]:
+        model_kw["context_cols"] = [names.index(k) for k in cfg["context_inputs"]]
+    if cfg["terrain_head_inputs"]:
+        hts = np.concatenate([np.tile(np.asarray(HEIGHTS, float), len(PROFILE)), np.zeros(target.shape[1] - N_PROF)]) if n_prof else np.zeros(target.shape[1])
+        model_kw["terrain_head"] = dict(cols=[names.index(k) for k in cfg["terrain_head_inputs"]], height=hts.tolist())
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:
@@ -252,7 +281,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         torch.manual_seed(cfg["seed"] + k)
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
                                linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {}),
-                               **({"product_pairs": pp} if pp else {})).to(device)
+                               **({"product_pairs": pp} if pp else {}), **model_kw).to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
@@ -317,6 +346,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             raise RuntimeError(f"normalisation arrays {bad_norm} contain non-finite values; training data has NaN or inf columns")
     ckpts = [dict(state=M["best_state"], cfg={**cfg, "seed": M["seed"]}, norm=norm, n_cond=cond.shape[1],
                   n_out=target.shape[1], linear_cols=linear_cols, product_pairs=pp, sp_offset=sp_offset, val_loss=M["best"],
+                  **({"model_kw": model_kw} if model_kw else {}),
                   history=M["history"], train_years=[int(year[tr_idx].min()), int(year[tr_idx].max())], val_years_range=[int(year[va_idx].min()), int(year[va_idx].max())],
                   **(meta or {})) for M in mem]
     ckpt = ckpts[0] if members == 1 else dict(members=ckpts)

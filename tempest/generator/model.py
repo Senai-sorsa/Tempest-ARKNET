@@ -4,6 +4,8 @@ Layout follows the ML weather ensembles (ECMWF AIFS-CRPS arXiv 2412.15832, DeepM
 residual blocks whose layer norms are shifted and scaled by an embedding of one low-dimensional noise vector, so
 every layer sees the same random draw; trained on the per-value almost-fair CRPS.
 """
+import math
+
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -33,45 +35,94 @@ class Generator(nn.Module):
     memorises that month's weather (held-out error rose within one pass); a straight-line effect cannot."""
 
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
-                 linear_cols: list[int] | None = None, interactions: bool = False, product_pairs: list | None = None):
+                 linear_cols: list[int] | None = None, interactions: bool = False, product_pairs: list | None = None,
+                 geo: dict | None = None, context_cols: list[int] | None = None, terrain_head: dict | None = None):
+        """Loop-3 options, all off by default (= the adopted network, same parameters and outputs):
+        geo = dict(cols=[lat, lon positions], mu=[..], sd=[..], L=10, siren=0): spherical harmonics of the real
+          lat/lon (un-normalised with mu/sd) replace the two raw columns; siren > 0 passes them through a 2-layer
+          sine network of that width first.
+        context_cols: positions of place inputs (terrain, climatology; plus the geo encoding when geo is set) that
+          go through a context network whose output joins the noise embedding in every block's FiLM, instead of
+          being concatenated at the input.
+        terrain_head = dict(cols=[...], height=[n_out metres]): output += exp(-height / H) * MLP(terrain), H learned."""
         super().__init__()
         self.linear_cols = list(linear_cols or [])
-        self.keep_cols = [i for i in range(n_cond) if i not in self.linear_cols]
+        self.geo = dict(geo) if geo else None
+        self.context_cols = list(context_cols or [])
+        drop = set(self.linear_cols) | set(self.geo["cols"] if self.geo else []) | set(self.context_cols)
+        self.keep_cols = [i for i in range(n_cond) if i not in drop]
         self.noise_dim = noise_dim
         self.product_pairs = [tuple(p) for p in (product_pairs or [])]     # IL-97: pairs of POSITIONS in linear_cols whose product is one more straight-line effect (ONI x QBO ...)
         self.interactions = interactions       # F-14: the slope network also sees the driver columns themselves, so a driver's effect can depend on the other drivers (ONI x QBO, ONI x WWV)
-        n_in = len(self.keep_cols)
+        n_geo = 0
+        if self.geo:
+            self.register_buffer("geo_mu", torch.tensor(self.geo["mu"], dtype=torch.float32))
+            self.register_buffer("geo_sd", torch.tensor(self.geo["sd"], dtype=torch.float32))
+            n_geo = (self.geo["L"] + 1) ** 2
+            if self.geo.get("siren"):
+                w = self.geo["siren"]
+                self.siren = nn.ModuleList([nn.Linear(n_geo, w), nn.Linear(w, w)])
+                for lin in self.siren:
+                    nn.init.uniform_(lin.weight, -math.sqrt(6 / lin.in_features), math.sqrt(6 / lin.in_features))
+                n_geo = w
+        n_in = len(self.keep_cols) + (0 if self.context_cols else n_geo)
         emb = 128
         self.embed = nn.Sequential(nn.Linear(noise_dim, emb), nn.SiLU(), nn.Linear(emb, emb), nn.LayerNorm(emb))
+        if self.context_cols:
+            self.ctx = nn.Sequential(nn.Linear(len(self.context_cols) + n_geo, emb), nn.SiLU(), nn.Linear(emb, emb), nn.LayerNorm(emb))
         self.inp = nn.Linear(n_in + noise_dim, width)
         self.blocks = nn.ModuleList(Block(width, emb) for _ in range(depth))
         self.head = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, n_out))
+        self.th = dict(terrain_head) if terrain_head else None
+        if self.th:
+            self.th_net = nn.Sequential(nn.Linear(len(self.th["cols"]), 64), nn.SiLU(), nn.Linear(64, n_out))
+            nn.init.zeros_(self.th_net[-1].weight)   # starts with no effect
+            nn.init.zeros_(self.th_net[-1].bias)
+            self.register_buffer("th_height", torch.tensor(self.th["height"], dtype=torch.float32))
+            self.th_logH = nn.Parameter(torch.tensor(math.log(1000.0)))
+        n_slope = len(self.keep_cols) + len(self.context_cols) + n_geo   # the slope network still sees the whole place
         if self.linear_cols:
-            self.slope = nn.Sequential(nn.Linear(n_cond if interactions else n_in, 128), nn.SiLU(), nn.Linear(128, n_out * (len(self.linear_cols) + len(self.product_pairs))))
+            self.slope = nn.Sequential(nn.Linear(n_cond if interactions else n_slope, 128), nn.SiLU(), nn.Linear(128, n_out * (len(self.linear_cols) + len(self.product_pairs))))
             nn.init.zeros_(self.slope[-1].weight)  # start with no effect; training adds what the data supports
             nn.init.zeros_(self.slope[-1].bias)
 
     def forward(self, cond: torch.Tensor, m: int = 1) -> torch.Tensor:
         """cond (B, F) normalised -> m samples per row, (B, m, n_out) normalised."""
-        slope_in = cond
+        full = slope_in = cond
+        g = self._geo(full) if self.geo else None
+        place = ([full[:, self.context_cols]] if self.context_cols else []) + ([g] if g is not None else [])
         if self.linear_cols:
-            x = cond[:, self.linear_cols]
-            cond = cond[:, self.keep_cols]
-            if not self.interactions:
-                slope_in = cond
+            x = full[:, self.linear_cols]
+        cond = full[:, self.keep_cols]
+        if g is not None and not self.context_cols:
+            cond = torch.cat([cond, g], -1)
+        if self.linear_cols and not self.interactions:
+            slope_in = torch.cat([full[:, self.keep_cols]] + place, -1) if place else cond
         c = cond.unsqueeze(1).expand(-1, m, -1)
         eps = torch.randn(*c.shape[:2], self.noise_dim, device=cond.device, dtype=cond.dtype)
         z = self.embed(eps)
+        if self.context_cols:
+            z = z + self.ctx(torch.cat(place, -1)).unsqueeze(1)
         h = self.inp(torch.cat([c, eps], dim=-1))
         for blk in self.blocks:
             h = blk(h, z)
         out = self.head(h)
+        if self.th:
+            out = out + (torch.exp(-self.th_height / torch.exp(self.th_logH)) * self.th_net(full[:, self.th["cols"]])).unsqueeze(1)
         if self.linear_cols:
             if self.product_pairs:
                 x = torch.cat([x, torch.stack([x[:, a] * x[:, b] for a, b in self.product_pairs], 1)], 1)
             s = self.slope(slope_in).view(len(cond), x.shape[1], -1)
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
         return out
+
+    def _geo(self, full):
+        from tempest.geo.sh import sh
+        raw = full[:, self.geo["cols"]].float() * self.geo_sd + self.geo_mu      # back to degrees
+        y = sh(raw[:, 0], raw[:, 1], self.geo["L"]).to(full.dtype)
+        if self.geo.get("siren"):
+            y = torch.sin(self.siren[1](torch.sin(self.siren[0](y))))
+        return y
 
 
 class TokBlock(nn.Module):
