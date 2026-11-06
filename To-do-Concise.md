@@ -11,7 +11,7 @@
 - Global store 7,483 pts (`data/global_fetch.log`) → ~Nov 7 06:00.
 - Global ASOS gusts, 200 stations 2016-25 (`data/asos_global.log`) → ~Nov 7 morning.
 - Chain after global store (`data/fetch_chain.log`): extras w/gust/BLH/CAPE/cloud/precip (~5 h) → IGRA plain files 987 stns (~1 h, ~25 GB) → 6 G2 boxes hourly (~4 h, ~32 GB) → ~Nov 7 evening.
-- Loop 3 lean queue (`scripts/ap_l3_lean.sh`): (w768 rejected; terrain NM/TX neutral + shape FAIL, Denver waits for the fill-top rescore) → ctxsep → sirenw15 → studt (Gemini idea 1, improved). Everything else in loop 3 is sidelined (`docs/logs/SIDELINED.md`). Then `scripts/ap_l3_fill.sh` rescores the candidates on the fill-top Denver set (L3-25: p2f zero-shot -0.18 → -0.19 with mountain rows kept; old Denver numbers were optimistic).
+- Loop 3 lean queue (`scripts/ap_l3_lean.sh`): (w768 rejected; terrain NM/TX neutral + shape FAIL, Denver waits for the fill-top rescore) → ctxsep (trained, scoring) → sirenw15 → studt (Gemini idea 1, improved). Everything else in loop 3 is sidelined (`docs/logs/SIDELINED.md`). Then `scripts/ap_l3_fill.sh` rescores the candidates on the fill-top Denver set (L3-25: p2f zero-shot -0.18 → -0.19 with mountain rows kept; old Denver numbers were optimistic).
 
 ## Automatic — next
 - Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md.
