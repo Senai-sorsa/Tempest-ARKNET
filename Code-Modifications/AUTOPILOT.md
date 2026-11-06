@@ -104,6 +104,8 @@ Review items judged intentional design (no change): separate slope head for year
 
 | IL-97 | S | Salvage of F-14: a restricted interaction, only ONI x QBO30/QBO50 and ONI x season (explicit product columns fed to the linear branch, no learned interaction network), with a ridge penalty on those weights | new linear columns `oni*qbo30`, `oni*qbo50` as dataset features (p2 feature list variant) or product terms in the model; judge with seed spread | GPU 25 min | code DONE (product_pairs), run queued in scripts/ap_il97.sh at the end of the GPU queue |
 
+| IL-98 | S | Plan file `Strong improvment.md` (written by another session, 2026-11-05; priority list A-M): take the no-download items (B online bias tracker, C wire the near-term ensemble + EMOS, G observe(), H sample-derived lapse rate in to_site, I spread-conditioned width, K Haar/DCT vertical CRPS term, M evaluation hygiene) after the BLOCK 0 retrains finish; A, D, E, F need new downloads and stay in ASK_LATER | read the file, split into IL rows, test each with the seed-spread rule | mixed | todo |
+
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |
 |---|---|---|---|---|---|
