@@ -110,7 +110,7 @@ Review items judged intentional design (no change): separate slope head for year
 
 | IL-100 | G | Dynamic balloon leftover in the training loop (the unfinished half of F-24): store a + b ERA5 as the target and draw the leftover profile per step from the group's pool | low expected value (see F-20) | GPU | todo, low priority |
 
-| IL-101 | S | Station-scale widening of the 10 m wind: the tool's grid-cell wind spread is ~40 % narrower than the spread of forecast-minus-ASOS at the sites; test a representativeness term (extra variance by lead, from `models/bias_backtest.csv`-type error tables) added to the 10 m wind and to the first levels consistently (so the profile stays coherent), judged on ASOS wind CRPS/coverage | needs ASOS + Previous Runs (have), coupled with the gust model | CPU | todo |
+| IL-101 | S | Station-scale widening of the 10 m wind (capped loop 2/6) | DONE 23:50, KEPT as opt-in (needs the bias state, `bias_dir`): 90 % interval of station wind (ASOS, ECMWF Previous Runs, 17 h solar, 2025-26, bias-corrected) covers only 59-80 % with the tool's typical sd (1.1-1.6 m/s) and 88-89 % when the sd is raised to the observed forecast-error sd of that lead and hour (past-only estimate); factor 1.4-2.2. `bias.widen_wind` scales u, v deviations by k(z) = 1 + (k0-1) exp(-z/150 m), ranks kept, profile fades back aloft; flag `wind-widened-to-station-scale:xK` | done |
 
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |

@@ -57,7 +57,7 @@ def main():
                 E = df.pivot_table(index="day", columns="hour", values="err").reindex(columns=range(24))
                 E = E.reindex(pd.date_range(E.index.min(), E.index.max()))
                 B, V, N = bb.track(E)
-                state[var][str(D)] = dict(b=[float(x) for x in B.iloc[-1]], n=[int(x) for x in N.iloc[-1]], se=[float(np.sqrt(v / (2 / bb.ALPHA - 1))) for v in V.iloc[-1]])
+                state[var][str(D)] = dict(b=[float(x) for x in B.iloc[-1]], n=[int(x) for x in N.iloc[-1]], se=[float(np.sqrt(v / (2 / bb.ALPHA - 1))) for v in V.iloc[-1]], sd=[float(np.sqrt(v)) for v in V.iloc[-1]])
         state["updated"] = str(E.index.max().date())
         with open(os.path.join(a.out, f"{site['name']}_{a.model}.json"), "w", encoding="utf-8") as f:
             json.dump(state, f)

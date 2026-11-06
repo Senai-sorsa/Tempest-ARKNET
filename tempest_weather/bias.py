@@ -58,3 +58,27 @@ def apply_to_fields(fields, state, lead_days, hour_utc):
         new = max(ws - dW, 0.0)
         fields["u10"], fields["v10"] = fields["u10"] * new / ws, fields["v10"] * new / ws
     return dT, dW
+
+
+def widen_wind(phys, state, lead_days, hour_utc, nh, max_factor=2.2, scale_m=150.0, heights=None):
+    """IL-101: station-scale widening of the 10 m wind. If the forecast-minus-observation spread at the site (state sd, same lead and hour) is larger than the spread of the sampled
+    10 m wind speed, scale the deviations of u and v from their sample medians by k(z) = 1 + (k0 - 1) exp(-z / scale_m) with k0 = sd_obs / sd_samples (at most max_factor), so the
+    lowest levels widen coherently and the profile fades back to the unchanged samples aloft. Ranks are kept. -> k0 applied (1.0 if nothing was done). phys (n, >= 2 nh) in place."""
+    if state is None or "wind_speed_10m" not in state:
+        return 1.0
+    e = state["wind_speed_10m"].get(str(int(np.clip(round(lead_days), 1, 7))))
+    if e is None or e["n"][int(hour_utc) % 24] < MIN_N:
+        return 1.0
+    sd_obs = float(e.get("sd", [0.0] * 24)[int(hour_utc) % 24])
+    ws = np.hypot(phys[:, 0], phys[:, nh])
+    sd_s = float(ws.std())
+    if sd_s < 1e-6 or sd_obs <= sd_s:
+        return 1.0
+    k0 = min(sd_obs / sd_s, max_factor)
+    z = np.asarray(heights if heights is not None else np.arange(nh), float)
+    k = 1.0 + (k0 - 1.0) * np.exp(-z / scale_m)
+    for off in (0, nh):
+        blk = phys[:, off:off + nh]
+        med = np.median(blk, axis=0, keepdims=True)
+        phys[:, off:off + nh] = med + (blk - med) * k[None, :]
+    return float(k0)

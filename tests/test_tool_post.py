@@ -40,3 +40,23 @@ def test_bias_gate_and_wind_rescale():
     dT, dW = bias.apply_to_fields(f, st, 1.0, 3)
     assert abs(f["t2m"] - 289.0) < 1e-9 and abs(np.hypot(f["u10"], f["v10"]) - 6.0) < 1e-9 and abs(f["u10"] / f["v10"] - 0.75) < 1e-9
     assert bias.find(None, 32.0, -102.0) is None
+
+
+def test_wind_widening_scales_low_levels_only_and_keeps_ranks():
+    from tempest_weather import bias
+    rng = np.random.default_rng(0)
+    nh = 44
+    h = np.r_[10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000, np.arange(2500, 18001, 500)].astype(float)
+    phys = np.zeros((500, 4 * nh + 3))
+    phys[:, :nh] = 5 + rng.normal(0, 1.0, (500, 1)) * np.ones(nh)
+    phys[:, nh:2 * nh] = 2 + rng.normal(0, 1.0, (500, 1)) * np.ones(nh)
+    before = phys.copy()
+    st = {"wind_speed_10m": {"2": {"b": [0.0] * 24, "n": [40] * 24, "se": [0.1] * 24, "sd": [2.5] * 24}}}
+    k0 = bias.widen_wind(phys, st, 2.0, 12, nh, heights=h)
+    assert 1.5 < k0 <= 2.2
+    assert phys[:, 0].std() > 1.5 * before[:, 0].std()                             # 10 m widened
+    assert np.allclose(phys[:, -8:-3], before[:, -8:-3])                           # nothing but the wind blocks touched
+    assert abs(phys[:, nh - 1].std() - before[:, nh - 1].std()) < 0.01 * before[:, nh - 1].std() + 1e-6      # 18 km unchanged
+    assert np.array_equal(np.argsort(phys[:, 0]), np.argsort(before[:, 0])) or np.corrcoef(phys[:, 0], before[:, 0])[0, 1] > 0.999
+    assert bias.widen_wind(phys.copy(), st, 2.0, 12, nh, heights=h) >= 1.0
+    assert bias.widen_wind(before.copy(), {"wind_speed_10m": {"2": {"n": [5] * 24, "sd": [9.0] * 24}}}, 2.0, 12, nh, heights=h) == 1.0   # too few updates: nothing

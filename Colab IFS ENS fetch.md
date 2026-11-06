@@ -141,6 +141,7 @@ for b in BOXES:
 ### Cell 3: the download (leave running)
 
 ```python
+import gc, ctypes
 todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]
 print(len(todo), "months to do in this part")
 t_start, n = time.time(), 0
@@ -154,6 +155,7 @@ for (y, m) in todo:
         p = f"{OUT}/{b}/{y}{m:02d}_00z.nc"
         sub.sel(latitude=lat_slice(la), longitude=slice(*lo)).to_netcdf(p + ".part")
         os.replace(p + ".part", p)            # only complete files get the final name
+    del sub; gc.collect(); ctypes.CDLL("libc.so.6").malloc_trim(0)   # hand freed chunk buffers back to the OS, else RAM creeps up month by month
     n += 1
     per = (time.time() - t_start) / n
     print(f"{y}-{m:02d}: {len(sel)} starts in {time.time() - t0:.0f} s; about {per * (len(todo) - n) / 3600:.1f} h left; RAM use {psutil.virtual_memory().percent:.0f}%"

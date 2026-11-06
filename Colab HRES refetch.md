@@ -26,7 +26,7 @@
 - **Several notebooks at once (the big speed-up):** set `PARTS = 3` in cell 2. Open the notebook 3 times with `PART = 0`, `1` and `2`, and run them at the same time. Each takes every 3rd month-hour, and they write to the same Drive folder without clashing. With 3 parts it takes about a third of the time.
   - Free Colab allows only a few sessions per Google account. If one is refused, use a second account and download from both Drives.
   - Keep `PARTS` the same in every copy.
-- **`WORKERS = 24`** (the default). Each chunk is one whole globe (about 54 MB), so speed comes from how many are fetched at once. 64 ran out of the 12.7 GB RAM. Cell 3 prints the RAM use after each month: if it stays under 50%, try 32. If Colab crashes, go back to 16.
+- **`WORKERS = 16`** (the default). 64 and 24 crashed the 12.7 GB runtime. Cell 3 prints the RAM use after each month: if it stays under about 40%, you can try 24.
 - **`EVERY_DAYS = 8`:** half the starts, half the time.
 
 ---
@@ -63,7 +63,7 @@ EVERY_DAYS = 4                 # 00Z and 12Z each every 4th day (12Z offset by 2
 HOURS = [0, 12]
 MAX_LEAD = 240                 # hours
 KEEP_VALID = {12, 18, 0}       # UTC valid hours kept (~05, ~11, ~17 solar); 06Z (~23 solar, night) skipped
-WORKERS = 24                   # each worker holds one ~54 MB globe chunk plus its download (~200 MB); 64 ran out of 12.7 GB RAM
+WORKERS = 16                   # each worker holds one ~54 MB globe chunk plus its download; 64 and 24 crashed the 12.7 GB runtime
 
 URL = "gs://weatherbench2/datasets/hres/2016-2022-0012-1440x721.zarr"
 UNION = dict(latitude=slice(31.0, 40.0), longitude=slice(252.0, 259.0))   # latitudes ascend, longitudes 0-360
@@ -100,6 +100,7 @@ print("leads 12Z:", leads_for(12))
 ### Cell 3: the download (leave running)
 
 ```python
+import gc, ctypes
 months = [(2016, 1)] if TEST_ONE_MONTH else [(y, m) for y in range(FIRST, LAST + 1) for m in range(1, 13)]
 mine = [(y, m, h) for (y, m) in months for h in HOURS]
 mine = mine if TEST_ONE_MONTH else mine[PART::PARTS]
@@ -120,6 +121,7 @@ for (y, m, h) in todo:
         p = f"{OUT}/{b}/{y}{m:02d}_{h:02d}z.nc"
         sub.sel(latitude=slice(*la), longitude=slice(*lo)).to_netcdf(p + ".part")
         os.replace(p + ".part", p)            # only complete files get the final name
+    del sub; gc.collect(); ctypes.CDLL("libc.so.6").malloc_trim(0)   # hand freed chunk buffers back to the OS, else RAM creeps up month by month
     n += 1
     eta_h = (time.time() - t_start) / n * (len(todo) - n) / 3600
     print(f"{y}-{m:02d} {h:02d}Z: {len(sel)} starts in {time.time() - t0:.0f} s; about {eta_h:.1f} h left; RAM use {psutil.virtual_memory().percent:.0f}%", flush=True)
