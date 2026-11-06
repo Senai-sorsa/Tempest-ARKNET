@@ -1,6 +1,6 @@
 # Final report: Tempest-ARKNET pilot-box system (2026-11-06)
 
-Plain-language summary of the finished system, the single 2026 January-June test and what is still open. All numbers are from files in the repo (`docs/final_test/`, `docs/APPLIED_STATUS.md`, `Code-Modifications/AUTOPILOT.md`).
+Plain-language summary of the finished system, the single 2026 January-June test and what is still open. All numbers are from files in the repo (`docs/final_test/`, `docs/results/APPLIED_STATUS.md`, `docs/logs/AUTOPILOT.md`).
 
 ## 1. What the system is
 A probabilistic atmosphere generator for the pilot box (31-34 N, 108-101 W). For a date, hour and place it returns many whole, physically coherent profiles (wind u/v, temperature, humidity at 44 heights up to 18 km, plus 2 m temperature, surface pressure and 2 m humidity) whose ranges are calibrated so that a 99 % range holds about 99 % of outcomes. Three sources are blended by lead time: the climate generator (any date to 2100), a forecast-conditioned network on the live ECMWF forecast (about 0.75-7.5 days, afternoon and evening hours), and a past-date mode (ERA5 plus learned balloon corrections). Hours served: 06-21 local solar time. Other places are refused.
@@ -41,13 +41,13 @@ CRPS skill vs a short-record climatology at 1 / 3 / 5 / 7 days: raw HRES profile
 Surface values with spread for past dates (CRPS 2 m temperature 1.16 -> 0.68 K, surface pressure 48.8 -> 25.9 Pa); calibrated vertical wind (99 % coverage 0.984 -> 0.991); station-correction hybrid for humidity at 12-18 km in past mode; online bias tracker for the live feed (MAE lower in almost every site / lead / variable cell, never worse); station-scale widening of the 10 m wind (90 % interval of station wind 59-80 % -> 88-89 %); shape stack in the tool.
 
 ## 7. What was tried and did not help (kept off, code stays)
-Seasonal width factors beyond RH/surface (event-coverage gap worse), median shifts (IL-13, IL-72), trust layer, shear patches, shear-loss variants, 8-seed ensembles, token generator (too slow), driver interactions (F-14, IL-97: far worse), final-m=8 and RH-in-loss training (F-15, F-19), trajectory-aware first guess (F-10), post-2022 indicator (F-11 part 2), split validation windows (F-7, F-7b), gust stability inputs and soak-library wind matching (F-25, F-26), station-blend dataset (F-20), PIT recalibration alone (IL-86: mixed), Chronos-2 for the climate indices. Full list: `Code-Modifications/SIDELINED.md` and `AUTOPILOT.md`.
+Seasonal width factors beyond RH/surface (event-coverage gap worse), median shifts (IL-13, IL-72), trust layer, shear patches, shear-loss variants, 8-seed ensembles, token generator (too slow), driver interactions (F-14, IL-97: far worse), final-m=8 and RH-in-loss training (F-15, F-19), trajectory-aware first guess (F-10), post-2022 indicator (F-11 part 2), split validation windows (F-7, F-7b), gust stability inputs and soak-library wind matching (F-25, F-26), station-blend dataset (F-20), PIT recalibration alone (IL-86: mixed), Chronos-2 for the climate indices. Full list: `docs/logs/SIDELINED.md` and `AUTOPILOT.md`.
 
 ## 8. What is open
-- **Needs you** (`Code-Modifications/ASK_LATER.md`): pushing the latest local commits to GitHub; the Colab pulls (forecast archive with 00Z and 12Z starts, IFS ensemble, optional ARCO) for night hours, 8-10 day forecasts and ensemble calibration; North America (data and compute); real Earth-GRAM; stage 6 (tools for the flight simulator only).
+- **Needs you** (`docs/agent/ASK_LATER.md`): pushing the latest local commits to GitHub; the Colab pulls (forecast archive with 00Z and 12Z starts, IFS ensemble, optional ARCO) for night hours, 8-10 day forecasts and ensemble calibration; North America (data and compute); real Earth-GRAM; stage 6 (tools for the flight simulator only).
 - **Waiting on data:** the 8 near-ground ERA5 levels (CDS download in progress) and the retrain on them; the daily ensemble logger needs 60-90 days.
 - **Group C (next):** hourly and downrange coherence, then stage 6.
-- **Sidelined ideas:** `Code-Modifications/SIDELINED.md`.
+- **Sidelined ideas:** `docs/logs/SIDELINED.md`.
 
 ## 9. Bottom line
 A well-verified pilot-box system whose calibrated ranges hold on an untouched half-year and which clearly beats an Earth-GRAM-style dispersion for temperature and surface fields, but only ties it for wind. It does not clearly beat the previous model E12 in skill; its gains over E12 are in vertical coherence, shear distribution, surface spread, forecast blending and the tool, not in per-variable CRPS. Skill over a recent climatology is small (about +0.02 on 2026).

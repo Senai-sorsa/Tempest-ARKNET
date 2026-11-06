@@ -28,7 +28,7 @@ Found by searching for the box, the grid shape (13 x 29 = 377 points) and the tw
 | Forecast mode F | trained for the pilot box, 17 h solar | retrain with the forecast archive over the new region (WeatherBench2 HRES is global: one pull, box = the region) and the diurnal pull (ASK_LATER 8) |
 | Tool assets | one set (75 MB) | one asset set per region or one set for the lattice; the tool picks the region from the query location and refuses outside all of them |
 
-## 4. Plan (group R in `Code-Modifications/AUTOPILOT.md`)
+## 4. Plan (group R in `docs/logs/AUTOPILOT.md`)
 R-1 region file (done) -> R-2 move the remaining constants onto it -> R-3 station correction for many stations with distance blending -> R-4 region-parameterised extractors and notebooks -> **R-5 portability dry run**: a small second box (2 x 2 degrees, two years, tiny model) built end to end with only `configs/region.toml` changed, then asked through the tool; it proves the pipeline is adjustable -> R-6 the North America plan (lattice choice, data pulls, training, held-out-region tests): needs the user for the Colab data pulls, so it is listed in ASK_LATER and not started unattended -> R-7 tool region registry (several asset sets, pick by location, refuse outside) -> R-8 night hours: build the dataset for all solar hours and retrain (the 22-05 h refusal goes away) -> R-9 flag and bound the far-future trend (a hinge or a damped trend, tested against the CMIP-style warming rate), instead of the straight line.
 
 ## 5. Portability dry run (R-5, 2026-11-05): a second box built end to end by changing only the region file

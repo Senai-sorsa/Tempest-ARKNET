@@ -1,4 +1,4 @@
-"""Loop 3 options (docs/GLOBAL_PLAN.md G1): spherical harmonics, context FiLM, terrain head, ignore_inputs, overlay files.
+"""Loop 3 options (docs/plans/GLOBAL_PLAN.md G1): spherical harmonics, context FiLM, terrain head, ignore_inputs, overlay files.
 All off by default; these check the new paths work and that the default network is unchanged."""
 import numpy as np
 import torch

@@ -24,5 +24,5 @@ shear_tail_q = 0.9
 # ---- p2f: P2-e + EMA of the weights (2.5 alone)
 ema_decay = 0.999
 
-# ---- loop 3 (nolatlon, Code-Modifications/LOOP3.md)
+# ---- loop 3 (nolatlon, docs/logs/LOOP3.md)
 ignore_inputs = ["lat", "lon"]

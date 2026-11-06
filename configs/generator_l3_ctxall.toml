@@ -24,6 +24,6 @@ shear_tail_q = 0.9
 # ---- p2f: P2-e + EMA of the weights (2.5 alone)
 ema_decay = 0.999
 
-# ---- loop 3 (ctxall, Code-Modifications/LOOP3.md)
+# ---- loop 3 (ctxall, docs/logs/LOOP3.md)
 # l3-data: l3x
 context_inputs = ["elev_site", "elev_grid", "tpi", "slope_ns", "slope_ew", "rough", "clim_t2m", "clim_rh2m", "clim_T_d3000", "clim_RH_d3000", "clim_u_d5000", "clim_v_d5000"]

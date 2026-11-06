@@ -58,7 +58,7 @@ Stage names are **G0-G6** so they do not clash with AUTOPILOT's flight-tool "sta
 - Spherical-harmonic encoder `tempest/geo/sh.py` (real SH up to L via associated Legendre recursion; numpy and torch; test: orthonormality on a HEALPix grid, values at the poles finite).
 - Harmonic climatology fitter `tempest/geo/clim.py`: per point, per height and variable, μ and σ as annual (3 harmonics) × diurnal (2 harmonics) Fourier series fitted on the training years only; the global version on a 1° grid with 12 EOFs (D) at G4.
 
-### G1. Denver: the architecture test bed (GPU + CPU, the 12-hour loop L3 in `Code-Modifications/LOOP3.md`)
+### G1. Denver: the architecture test bed (GPU + CPU, the 12-hour loop L3 in `docs/logs/LOOP3.md`)
 Question: **which input encoding, target space and conditioning lets a model trained on NM/TX predict Denver it has never seen, without losing anything at NM/TX?**
 - Data: Denver ERA5 1991-2025 (the R-5 store only covers 2016-23), profiles, dataset with the pilot builder; Denver IGRA USM00072469 to 2025; ~15 western-US IGRA stations + their ERA5 columns (for the calibration-transfer test).
 - Baselines: **B-raw** (the adopted p2f model, NM/TX-trained, queried at Denver with raw lat/lon extrapolation: the "no architecture work" answer), **B-local** (same config trained on Denver 1991-2020: the "own box" upper bound), **B-clim** (Denver ERA5 climatology), **B-gauss** (Earth-GRAM-style proxy). The gap B-raw − B-local is what the architecture must close.

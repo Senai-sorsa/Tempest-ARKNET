@@ -1,6 +1,6 @@
 # Phase 4: Forecast and past-date correction system
 
-Written 2026-11-04. Status: **STARTED 2026-11-05** (Phases 1-3 finished; hold ended). Progress in docs/PHASE4_LOG.md. Original note: ON HOLD until Phases 1-3 are finished (user's decision, 2026-11-04).
+Written 2026-11-04. Status: **STARTED 2026-11-05** (Phases 1-3 finished; hold ended). Progress in docs/logs/PHASE4_LOG.md. Original note: ON HOLD until Phases 1-3 are finished (user's decision, 2026-11-04).
 
 Phase 4 is a **separate system** from Phases 1-3 (`PHASED_PLAN.md`). Another session is already working on Phases 1-3. Phase 4 has its own session, its own files and its own experiment log. It shares the machine, the data and the rules, and it must never break the Phases 1-3 work (section 3).
 
@@ -12,7 +12,7 @@ What Phase 4 covers:
 
 Beyond 46 days the Phases 1-3 climate model is used unchanged (today that is E12).
 
-It **replaces** steps T2, T3 and T4/T4b in `PHASED_PLAN.md` §4 and modes 1-3 in `docs/TOOL_PLAN.md`. The Phases 1-3 session builds T1 (the tool skeleton), T5 and mode 4. Phase 4 plugs its modes into that skeleton (4.9).
+It **replaces** steps T2, T3 and T4/T4b in `PHASED_PLAN.md` §4 and modes 1-3 in `docs/plans/TOOL_PLAN.md`. The Phases 1-3 session builds T1 (the tool skeleton), T5 and mode 4. Phase 4 plugs its modes into that skeleton (4.9).
 
 ---
 
@@ -44,9 +44,9 @@ correction system. Another session is running Phases 1-3 on the same machine at 
 memory of earlier sessions; the files are your context.
 
 STEP 0
-1. Read Code-Modifications/PHASE4_FORECAST.md in full. It is your plan.
-2. Read Code-Modifications/HANDOVER.md sections 2-4 and 6: the user, hard rules, machine limits and metrics.
-3. Read docs/TOOL_PLAN.md, which you are taking modes 1-3 over from.
+1. Read docs/plans/PHASE4_FORECAST.md in full. It is your plan.
+2. Read docs/agent/HANDOVER.md sections 2-4 and 6: the user, hard rules, machine limits and metrics.
+3. Read docs/plans/TOOL_PLAN.md, which you are taking modes 1-3 over from.
 4. Save the hard rules and PHASE4_FORECAST.md section 3 (separation rules) as memory notes.
 
 PHASE A: planning (the only time you talk to me first)
@@ -56,8 +56,8 @@ Then wait for my approval.
 PHASE B: after approval, work on your own to the very end.
 - Never stop to ask again. If something breaks, diagnose it, fix it and keep going.
 - Follow section 3 strictly. The other session's work must never break.
-- Log every experiment in docs/PHASE4_LOG.md.
-- Risky items go to Code-Modifications/ASK_LATER.md under a "Phase 4" heading. Then carry on with the rest.
+- Log every experiment in docs/logs/PHASE4_LOG.md.
+- Risky items go to docs/agent/ASK_LATER.md under a "Phase 4" heading. Then carry on with the rest.
 - At the end:
   - run the full double-check (step 4.11);
   - run the single 2026 H1 final test;
@@ -124,7 +124,7 @@ These rules exist because two sessions share one laptop, one GPU and one repo.
 | tests | `tests/test_p4_*.py` |
 | models | `models/p4/` |
 | data | `data/p4/`, `data/openmeteo/` (API cache) |
-| experiment log | `docs/PHASE4_LOG.md`, **not** `docs/PLAN.md`, so the two sessions never edit the same log |
+| experiment log | `docs/logs/PHASE4_LOG.md`, **not** `docs/plans/PLAN.md`, so the two sessions never edit the same log |
 | plan | this file |
 
 ### 3.2 Files Phase 4 must NOT edit
@@ -133,7 +133,7 @@ These rules exist because two sessions share one laptop, one GPU and one repo.
   - Import and reuse them; never change them.
   - If Phase 4 needs a change there, subclass or wrap the code inside `tempest/forecast/`.
   - Example: `GuessGenerator(Generator)` adds the residual skip without touching `model.py`.
-- `docs/PLAN.md`, `Code-Modifications/PHASED_PLAN.md`, `HANDOVER.md`, `START_PROMPT.md`: these belong to the other session. Exception: the one-line pointers already there.
+- `docs/plans/PLAN.md`, `docs/plans/PHASED_PLAN.md`, `HANDOVER.md`, `START_PROMPT.md`: these belong to the other session. Exception: the one-line pointers already there.
 - `configs/sites.toml` and the running logger (`tempest.ops.logger --loop 12`): read only.
   - If Phase 4 needs more logged sites or models (step 4.3), write a separate logger config or script under `scripts/p4_*`.
 - The running CDS download (`tempest.ingest.fetch_cds`) and `pipeline4.sh`: never stop or edit them.
@@ -333,7 +333,7 @@ Order: highest value first, and work that needs only local data before work that
 | **4.9** | Lead blending and tuning of the mode boundaries. Plot MAE, CRPS and coverage against lead, −30 to +46 days. If a seam is bad, add a mixture weight w(lead) learned on validation | `tempest/forecast/router.py` | — | seam test (G4.5) | 1 day |
 | **4.10** | Tool hook: plug P, P0, F, F2 and M into the T1 skeleton from the Phases 1-3 session (`tempest_weather/`) as numpy-exported models. Live fetch with cache; fall back to C if the API fails; report mode, source and tested error | `tempest_weather/modes_p4/` (new subfolder only) | per-mode switch | parity test 1e-5; fault-injection test (API down) | 1-2 days; needs T1 done first |
 | **4.11** | **Double-check:**<br>• full pytest (when the other session is idle);<br>• rescore every kept model;<br>• check that the calibration and model hashes match;<br>• leak audit;<br>• confirm E12 and the Phases 1-3 outputs are unchanged.<br>Fix anything found, even if that means retraining | — | — | — | ½ day |
-| **4.12** | **Final test on 2026 H1, once per mode.** Plain-language report: a table per mode with intervals. Then the improvement loop | `docs/PHASE4_LOG.md` | — | — | ½ day |
+| **4.12** | **Final test on 2026 H1, once per mode.** Plain-language report: a table per mode with intervals. Then the improvement loop | `docs/logs/PHASE4_LOG.md` | — | — | ½ day |
 
 Critical path: 4.0 → 4.1 → 4.2 (fetching runs in the background while 4.4 and 4.5 run) → 4.7 → 4.9 → 4.10 → 4.11 → 4.12.
 
@@ -387,7 +387,7 @@ Tell the user plainly that weeks 3-6 will be close to E12. The gain there is a s
 
 ---
 
-## 13. Open questions answered by the 4.0 probe (filled in 2026-11-05; details in docs/PHASE4_LOG.md)
+## 13. Open questions answered by the 4.0 probe (filled in 2026-11-05; details in docs/logs/PHASE4_LOG.md)
 
 - Pressure-level history of past forecasts at a lead: **not available from Open-Meteo** (Previous Runs is surface-only; Historical Forecast is a stitched best-estimate series, GFS from 2021-06, IFS from ~2024; Single Runs only the newest runs).
 - EC46: surface daily variables only, 51 members, archive from 2025-09-01.

@@ -1,4 +1,4 @@
-# G2 box (docs/GLOBAL_PLAN.md G2): Wasatch / Salt Lake UT, valley and mountain waves. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
+# G2 box (docs/plans/GLOBAL_PLAN.md G2): Wasatch / Salt Lake UT, valley and mountain waves. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
 # Used with TEMPEST_REGION=configs/region_g2_saltlake.toml (scripts/fetch_chain.sh fetches it into data/raw/era5_g2_saltlake).
 name = "g2_saltlake"
 lat_north = 42.0

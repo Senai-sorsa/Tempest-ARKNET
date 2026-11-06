@@ -5,16 +5,16 @@ previous session's memory files, scratchpad or chat. Everything it needs is in t
 
 **Read in this order:**
 1. This file, all of it.
-2. `Code-Modifications/PHASED_PLAN.md`, the work plan: 3 phases, with a test at the end of each phase.
-   - **Phase 4** (forecast and past-date correction) is a separate system with its own session and plan: `Code-Modifications/PHASE4_FORECAST.md`.
+2. `docs/plans/PHASED_PLAN.md`, the work plan: 3 phases, with a test at the end of each phase.
+   - **Phase 4** (forecast and past-date correction) is a separate system with its own session and plan: `docs/plans/PHASE4_FORECAST.md`.
    - Its section 0 is the start prompt.
    - Its section 3 says which files belong to it.
-3. `docs/PLAN.md`, the project's full history:
+3. `docs/plans/PLAN.md`, the project's full history:
    - the improvement log (rows 1-22, then E1-E13);
    - the "A6 and other drivers" section;
    - the blueprint review;
    - the evaluation review.
-4. `docs/TOOL_PLAN.md` (the planned query tool) and `docs/FUTURE_OPTIONS.md` (ideas parked as "mediocre").
+4. `docs/plans/TOOL_PLAN.md` (the planned query tool) and `docs/research/FUTURE_OPTIONS.md` (ideas parked as "mediocre").
 5. Only when an item needs them: the other files in `Code-Modifications/`, which are the sources of the phased plan.
    - `review-triage.md`
    - `claude-recommendations-v2.md`
@@ -276,7 +276,7 @@ Weakest cells:
 
 ## 7. Experiment verdicts: don't redo these blindly
 
-Full details, with numbers, are in the `docs/PLAN.md` improvement log.
+Full details, with numbers, are in the `docs/plans/PLAN.md` improvement log.
 
 ### Kept
 - 1: surface pressure as a departure from standard pressure.
@@ -343,7 +343,7 @@ The log is `data/pipeline.log`.
 
 - **When it finishes:**
   1. Compare `generator_pilot` (21 levels) with E12 (13 levels) using the phase-end test in `PHASED_PLAN.md` §0.3.
-  2. Log the result as a new row in `docs/PLAN.md`.
+  2. Log the result as a new row in `docs/plans/PLAN.md`.
   3. Adopt it as the new baseline only if it passes.
 - **Restarting the old copy:** the running copy lives in the old session's scratchpad and calls the scratchpad's `mixmap.py`. If that folder disappears before the station step, the old copy will fail with "FAILED: station" (exit 6). Then relaunch the handover copy (section 1, step 3); it resumes from what exists.
 - **Timing:** CDS has 394 months left at about 40 min each, with several requests queued, so expect several days. Phase 1 of the plan needs no retrain and can run meanwhile.
@@ -356,7 +356,7 @@ The log is `data/pipeline.log`.
 
 - **Branch `main`** is at `ba2e2df`, the same as `origin/main`.
 - **Uncommitted, on purpose** (the user didn't ask for a commit yet):
-  - `docs/PLAN.md`, `docs/TOOL_PLAN.md`;
+  - `docs/plans/PLAN.md`, `docs/plans/TOOL_PLAN.md`;
   - `tempest/calibrate/spread.py`, `tempest/generator/sample.py`, `tempest/ingest/indices.py`;
   - `tempest/scoring/score.py`, `tempest/scoring/sonde.py`;
   - `tests/test_calibrate.py`, `tests/test_data_pipeline.py`;
@@ -379,7 +379,7 @@ The log is `data/pipeline.log`.
 
 1. **Section 1 checks.**
 2. **Keep the improvement loop going.** It was a standing `/loop` in the old session. Re-create it with the user's wording:
-   > Continuous Tempest improvement loop: read the latest diagnostics (data/*.log, models/*_diag*.csv, training 'val by var' lines), find where 99%-range coverage or CRPS skill underperforms (ERA5 and balloons, 2024-2025 test years), research and try one improvement at a time, verify it genuinely improves held-out accuracy before keeping structural changes, keep only one GPU/training job at a time (check Win32_Process for orphans), log results in docs/PLAN.md. Never stop or ask questions.
+   > Continuous Tempest improvement loop: read the latest diagnostics (data/*.log, models/*_diag*.csv, training 'val by var' lines), find where 99%-range coverage or CRPS skill underperforms (ERA5 and balloons, 2024-2025 test years), research and try one improvement at a time, verify it genuinely improves held-out accuracy before keeping structural changes, keep only one GPU/training job at a time (check Win32_Process for orphans), log results in docs/plans/PLAN.md. Never stop or ask questions.
 
    About 30 min between checks is fine.
 3. **Work through `PHASED_PLAN.md`**, Phase 1 → Phase 2 → Phase 3:
@@ -399,8 +399,8 @@ The log is `data/pipeline.log`.
    - "recent-days tuning": the past 7 days plus the next 7 forecast days, extended to day 30, with the window to be experimented with;
    - `distribution(kind='predicted'|'uncertainty')`.
 
-   They are in `docs/TOOL_PLAN.md` as the query tool (modes past / 0-15 d / 15-60 d / AI; build order T1-T5). **Plan only.**
-6. **Logging:** every experiment gets a numbered row in `docs/PLAN.md` with:
+   They are in `docs/plans/TOOL_PLAN.md` as the query tool (modes past / 0-15 d / 15-60 d / AI; build order T1-T5). **Plan only.**
+6. **Logging:** every experiment gets a numbered row in `docs/plans/PLAN.md` with:
    - what changed;
    - what it was tested on;
    - the numbers with intervals;

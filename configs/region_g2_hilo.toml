@@ -1,4 +1,4 @@
-# G2 box (docs/GLOBAL_PLAN.md G2): Hilo HI, trade-wind inversion. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
+# G2 box (docs/plans/GLOBAL_PLAN.md G2): Hilo HI, trade-wind inversion. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
 # Used with TEMPEST_REGION=configs/region_g2_hilo.toml (scripts/fetch_chain.sh fetches it into data/raw/era5_g2_hilo).
 name = "g2_hilo"
 lat_north = 20.5

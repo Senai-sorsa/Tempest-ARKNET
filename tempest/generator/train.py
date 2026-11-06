@@ -35,7 +35,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 arch="mlp",              # "tokens": attention along the 44 heights (IL-8); "mlp" is the adopted generator
                 steps=20000, eval_every=500, patience=10, val_years=3, val_block_frac=0.0, val_rows=50000, seed=0,
                 linear_features=["year", "oni", "wwv", "qbo30", "qbo50"],
-                # Phase 2 keys, all off by default (see Code-Modifications/PHASED_PLAN.md):
+                # Phase 2 keys, all off by default (see docs/plans/PHASED_PLAN.md):
                 step_strides=None,          # e.g. [1, 2, 4, 8, 16]: CRPS on sums of that many height steps; weights share step_weight
                 ema_decay=0.0,              # e.g. 0.999: evaluate and save an exponential moving average of the weights
                 superadiabatic_weight=0.0,  # e.g. 0.01: penalty on lapse rates above 9.8 K/km above 2 km

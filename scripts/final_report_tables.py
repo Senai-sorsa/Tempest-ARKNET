@@ -1,4 +1,4 @@
-"""E5 helper: tables for docs/FINAL_REPORT.md from the final-test outputs (docs/final_test) and the development-year backups.
+"""E5 helper: tables for docs/results/FINAL_REPORT.md from the final-test outputs (docs/final_test) and the development-year backups.
     PYTHONPATH=. python scripts/final_report_tables.py > docs/final_test/tables.md"""
 import numpy as np
 import pandas as pd

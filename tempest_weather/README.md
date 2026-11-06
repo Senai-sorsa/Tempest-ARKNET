@@ -59,5 +59,5 @@ settings with error add the balloon-fitted ERA5 error; without error the answer 
 - Outside the pilot box the calls raise an error; they never extrapolate.
 - Month-ahead weather is not predictable: `ai` mode is a calibrated climate-with-trend distribution, not a forecast.
 - Flight-score weights, the 100 m wind as the single wind, and gust profile above 10 m are placeholders/choices, marked in the code.
-- Soak history and thermals (`w_sigma`, `w_turb`) are not included here (soak needs a large hourly library; thermals need sensible heat flux data), see `Code-Modifications/ASK_LATER.md` in the main repo.
+- Soak history and thermals (`w_sigma`, `w_turb`) are not included here (soak needs a large hourly library; thermals need sensible heat flux data), see `docs/agent/ASK_LATER.md` in the main repo.
 - Everything was tested on 2024-25 ("development" years, used for many decisions); the final test is 2026 January-June.

@@ -1,6 +1,6 @@
 # Query tool plan: `tempest_weather/` (portable folder, two functions)
 
-> **Modes 1-3 (past, 0-15 days, weeks 3-6) moved to Phase 4**, a separate system: `Code-Modifications/PHASE4_FORECAST.md`. This file still covers the tool skeleton, mode 4 and the layout.
+> **Modes 1-3 (past, 0-15 days, weeks 3-6) moved to Phase 4**, a separate system: `docs/plans/PHASE4_FORECAST.md`. This file still covers the tool skeleton, mode 4 and the layout.
 
 Status: planned 2026-11-04, not built. It turns the trained model into a tool someone can copy into another repo.
 The tool takes only a location, date and time, chooses the right source by itself, and fetches everything else

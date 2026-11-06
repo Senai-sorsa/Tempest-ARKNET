@@ -1,6 +1,6 @@
 # Improvement loop 2 (user, 2026-11-06): synthesise hybrids from partial positives, test the best, keep going
 
-Rule from the user: scrape the useful part out of past tests that had something positive but needed fine-tuning, combine or restrict them into better ideas, test the best of these together with the best of the existing not-yet-tested alternatives, and keep this as a standing loop. Same verdict rules as before (headline rule + shape rule with the seed spread as tolerance, `docs/APPLIED_STATUS.md`); every kept item stays an opt-in flag until the end; nothing touches 2026 January-June again (the final test is done; new keeps are judged on 2024-25 and described as such).
+Rule from the user: scrape the useful part out of past tests that had something positive but needed fine-tuning, combine or restrict them into better ideas, test the best of these together with the best of the existing not-yet-tested alternatives, and keep this as a standing loop. Same verdict rules as before (headline rule + shape rule with the seed spread as tolerance, `docs/results/APPLIED_STATUS.md`); every kept item stays an opt-in flag until the end; nothing touches 2026 January-June again (the final test is done; new keeps are judged on 2024-25 and described as such).
 
 ## How a round works
 1. **Harvest:** list every earlier result with at least one clearly positive number (a metric better than the seed spread) next to a negative one.

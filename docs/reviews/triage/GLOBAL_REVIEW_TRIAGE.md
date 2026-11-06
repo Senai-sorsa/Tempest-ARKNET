@@ -32,5 +32,5 @@ Each claim was checked against the code and the data on disk. Verdicts: **wrong*
 - 11.4 / 11.5 terrain-point choice with a proxy elevation and a grid-space window: it only decides *which* points are fetched (now frozen, half downloaded); the points are good (median 1,085 m vs 0 m for the lattice). The training inputs use the real orography.
 - 2.3 / 2.4 refill after holdout removal: the count is recorded; a few dozen fewer points near 11 holdouts does not bias anything measurable.
 - 2.6 / 2.7 WMO region by id block: holdouts are a fixed, written list; "one per region" is a spread device, not a claim. IDs exist (the fetch resolved all of them).
-- 5.5 signed unlock artefact, 7.x statistical framework: the gates, block CV and seed tolerance are already in `docs/GLOBAL_PLAN.md`; confidence intervals by block bootstrap are added when G3/G4 scoring is written.
+- 5.5 signed unlock artefact, 7.x statistical framework: the gates, block CV and seed tolerance are already in `docs/plans/GLOBAL_PLAN.md`; confidence intervals by block bootstrap are added when G3/G4 scoring is written.
 - 8.4 memory: measured, the monthly fetch runs at ~2-7 GB.

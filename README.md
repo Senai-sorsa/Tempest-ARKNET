@@ -22,8 +22,8 @@ samples file.
 - **Past dates (mode P).** ERA5 for the exact hour, corrected by a residual network trained against balloons: median error 6 % below raw ERA5, CRPS 5.5 % below the older station correction.
 - **Extra outputs.** Pressure, density and speed of sound derived from each sample, vertical wind (w-head), 10 m gusts, 24 h soak history, thermal scaling (physics only), joint 99 % band, coupled sample files.
 - **Forecast modes (Phase 4)** are built up to the data limits: the ensemble-to-heights converter, router and clients exist; calibration waits on the daily logger archive (started 2026-11-05).
-- **Tool (Phase 5).** Plan in `Code-Modifications/PHASE5_TOOL.md`.
-- Full history, every experiment and its numbers with intervals: [docs/PLAN.md](docs/PLAN.md); Phase 4 log: [docs/PHASE4_LOG.md](docs/PHASE4_LOG.md); work plan: `Code-Modifications/PHASED_PLAN.md`.
+- **Tool (Phase 5).** Plan in `docs/plans/PHASE5_TOOL.md`.
+- Full history, every experiment and its numbers with intervals: [docs/plans/PLAN.md](docs/plans/PLAN.md); Phase 4 log: [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md); work plan: `docs/plans/PHASED_PLAN.md`.
   The 2024-25 years are "development" years (used for many decisions); 2026 January-June is the untouched final test.
 
 ## Run
@@ -49,8 +49,8 @@ Cap long jobs at 12 of the 20 CPU threads (`source scripts/cap_cpu.sh` first). C
 
 ## Docs
 
-[docs/PLAN.md](docs/PLAN.md) (plan and results), [docs/PHASE4_LOG.md](docs/PHASE4_LOG.md), [docs/TOOL_PLAN.md](docs/TOOL_PLAN.md) (older tool plan),
-[docs/research-notes.md](docs/research-notes.md), `Code-Modifications/` (phased plan, Phase 4 and 5 plans, handover, ASK_LATER.md = items waiting for the user).
+[docs/plans/PLAN.md](docs/plans/PLAN.md) (plan and results), [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md), [docs/plans/TOOL_PLAN.md](docs/plans/TOOL_PLAN.md) (older tool plan),
+[docs/research/research-notes.md](docs/research/research-notes.md), [docs/agent/ASK_LATER.md](docs/agent/ASK_LATER.md) (items waiting for the user). **All documents, by kind: [docs/README.md](docs/README.md).**
 
 ## License
 

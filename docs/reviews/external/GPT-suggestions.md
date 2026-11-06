@@ -1,8 +1,8 @@
 # GPT accuracy suggestions
 
 These are suggestions to raise the **accuracy and honesty** of the Tempest-ARKNET
-system, grounded in the current [docs/PLAN.md](docs/PLAN.md),
-[docs/PHASE1.md](docs/PHASE1.md), [docs/research-notes.md](docs/research-notes.md),
+system, grounded in the current [docs/plans/PLAN.md](../../plans/PLAN.md),
+[docs/plans/PHASE1.md](../../plans/PHASE1.md), [docs/research/research-notes.md](../../research/research-notes.md),
 and the code in `tempest/generator/`. They are meant to complement, not repeat,
 [suggestions-copoilet.md](suggestions-copoilet.md): where that file covers the
 validation protocol and the ship-gate philosophy well, this file focuses on
@@ -668,7 +668,7 @@ Part 4B items 156–158 and 160, 162, 163 are the biggest wall-clock wins and ca
 no accuracy risk; item 159 (bfloat16) is the only one that must be gated on a
 calibration check before it ships.
 
-This section reviews the new improvement log and changes in `docs/PLAN.md`,
+This section reviews the new improvement log and changes in `docs/plans/PLAN.md`,
 `tempest/calibrate/`, `tempest/generator/`, `tempest/profiles/`,
 `tempest/scoring/`, and the associated tests. These findings are separate from
 Part 1 and focus on risks introduced by pressure-offset learning, liquid-water

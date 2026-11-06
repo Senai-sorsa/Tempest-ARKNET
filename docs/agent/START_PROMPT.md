@@ -1,8 +1,8 @@
 You are taking over the Tempest-ARKNET project (C:\Users\Senai\Tempest-ARKNET) from another Claude session. You have none of its memory, so the files are your only context.
 
 STEP 0: GET CONTEXT (do this before anything else)
-1. Read Code-Modifications/HANDOVER.md in full. It covers the rules, the machine limits, current state and past results.
-2. Then read Code-Modifications/PHASED_PLAN.md and docs/PLAN.md. Read the other files they point to as needed.
+1. Read docs/agent/HANDOVER.md in full. It covers the rules, the machine limits, current state and past results.
+2. Then read docs/plans/PHASED_PLAN.md and docs/plans/PLAN.md. Read the other files they point to as needed.
 3. Run the "first 15 minutes" checklist in HANDOVER.md section 1:
    - running jobs;
    - the pipeline;
@@ -14,7 +14,7 @@ STEP 0: GET CONTEXT (do this before anything else)
 THE GOALS (what "done" means)
 Tempest is a probabilistic atmosphere-profile generator for the pilot box (31-34 N, 108-101 W): wind u/v, temperature and RH at 44 heights, plus t2m, surface pressure and rh2m. The only inputs at query time are location, time and date, plus public climate indices known at that time.
 
-Not yours: Phase 4 (forecast and past-date correction, Code-Modifications/PHASE4_FORECAST.md) is a separate system. It is on hold until Phases 1-3 are done; the user starts it later.
+Not yours: Phase 4 (forecast and past-date correction, docs/plans/PHASE4_FORECAST.md) is a separate system. It is on hold until Phases 1-3 are done; the user starts it later.
 - Skip TOOL_PLAN steps T2, T3 and T4/T4b.
 - Don't edit Phase 4's files (its section 3).
 - Share the GPU: one job on the machine at a time.
@@ -42,7 +42,7 @@ Goal 4. Finish every item in PHASED_PLAN.md:
 - Phases 1, 2 and 3;
 - §4: tool T1-T5, operations O2-O8, flight-sim C3-C6;
 - §5: all leftovers.
-Then build the query tool in docs/TOOL_PLAN.md, so the user has a usable values()/distribution() tool.
+Then build the query tool in docs/plans/TOOL_PLAN.md, so the user has a usable values()/distribution() tool.
 
 Goal 5. Honest numbers.
 - Every claim comes with intervals and states which years it was tested on. Call 2024-25 "development".
@@ -66,14 +66,14 @@ Phase A. Planning (the only phase where you talk to me first).
 Phase B. After I approve: work fully on your own until the very end. Then keep optimizing for as long as there are improvements to find.
 - Never stop to ask a question or for approval again. If something breaks, diagnose it, fix it and keep going: low-memory kills, crashes, bad results, slow downloads.
 - Test only at the end of each phase, as PHASED_PLAN says. Keep a change only if it verifiably improves held-out accuracy. If a phase fails, switch off half of its flags, retest and find the culprit.
-- Log every experiment as a numbered row in docs/PLAN.md:
+- Log every experiment as a numbered row in docs/plans/PLAN.md:
   - what changed;
   - what it was tested on;
   - the numbers with intervals;
   - kept or rejected.
 - Risky or dangerous items: think them through and test them safely first, on a copy or behind a flag.
   - If one is clearly very beneficial and the test shows it is safe, use it.
-  - If it is really risky, don't do it. Put it in Code-Modifications/ASK_LATER.md with the reason, the evidence and the exact command or change. Then carry on with everything else.
+  - If it is really risky, don't do it. Put it in docs/agent/ASK_LATER.md with the reason, the evidence and the exact command or change. Then carry on with everything else.
   - "Really risky" covers: deleting data or models, rewriting git history, anything that could destroy work, spending money.
 - When the plan is finished, run a full double-check:
   - pytest;

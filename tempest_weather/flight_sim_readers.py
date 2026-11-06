@@ -6,7 +6,7 @@
 
 `samples` is the dict/npz written by tempest.output.coupled / tempest_weather (arrays with the sample index first). Nothing from flight_sim is imported, so
 the folder stays standalone; the classes are duck-typed to match (world frame (up, east, north) as in flight_sim.utilities.dcm.world_direction).
-Rules (Code-Modifications/coupled-atmosphere.md 2a): linear interpolation in height; below the first height (10 m above ground) the 10 m value; above the top
+Rules (docs/specs/coupled-atmosphere.md 2a): linear interpolation in height; below the first height (10 m above ground) the 10 m value; above the top
 height (18 km) wind is held at its top value (the written "blend to zero" would mean calm air at 20 km, which is unphysical, so it is not done) and temperature and
 pressure continue along the US Standard Atmosphere 1976 lapse rates from the top values (no jump). Temperature is interpolated linearly, pressure in log space,
 and density and speed of sound are RECOMPUTED from the interpolated temperature, pressure and humidity, so the four stay consistent between grid heights.

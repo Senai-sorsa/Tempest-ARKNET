@@ -263,7 +263,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     A = _assets(assets)
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
     if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
-        raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/REGION_PLAN.md)")
+        raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/plans/REGION_PLAN.md)")
     rng = np.random.default_rng(seed)
     t_utc, sh = _time(when, lon)
     if not 6.0 <= sh <= 21.0:

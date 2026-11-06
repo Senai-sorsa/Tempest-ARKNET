@@ -1,6 +1,6 @@
 # AUTOPILOT: the work queue that runs without the user (created 2026-11-05)
 
-Goal: the user can walk away for hours or days. Nothing below needs the user. Every question that comes up is written to `Code-Modifications/ASK_LATER.md`
+Goal: the user can walk away for hours or days. Nothing below needs the user. Every question that comes up is written to `docs/agent/ASK_LATER.md`
 (one line, with what was assumed) and work continues with the assumption. Never wait for an answer.
 
 ## MAIN TARGET (set by the user 2026-11-05): the whole SHAPE of the distribution must match reality, not only ranges and means
@@ -86,8 +86,8 @@ Review items judged intentional design (no change): separate slope head for year
 2. If the item is `running`: look at its log; if finished, evaluate it (rule 4) and set it `done`/`discarded`/`blocked`; if the process is dead, relaunch the script (they resume).
 3. Launch the next `todo` item. GPU jobs: one at a time. While a GPU job runs, do CPU-side prep for the next one (code, tests, docs).
 4. Verdict rule for every item (shape rule from the MAIN TARGET section applies on top: no shape number may get worse, a shape gain is a gain): run `scripts/compare_headline.py` on ERA5 and on balloons against the adopted model (p2f). **Keep** if the phase pass rule holds on both (mean skill15 not lower, no band worse with non-overlapping intervals, mean cov99 error not worse by more than 0.001) AND there is a real gain (mean skill15 up by more than 0.001, or mean cov99 error down by more than 0.0005 without a band getting worse). Otherwise **discard** (flag stays off; code stays; one `salvage` look: which bands gained, can a restricted version be queued once).
-4b. **Shape half of the verdict (2026-11-05):** also run `scripts/shape_verdict.sh VAR` (diagnose + `compare_shape.py`, tolerance = seed spread of p2f from IL-92). A candidate is kept only if neither the headline rule nor the shape rule fails; a shape gain beyond the seed spread is a gain even when skill ties. Details: `docs/APPLIED_STATUS.md`.
-5. Log every item as a row in `docs/PLAN.md` (improvement-loop queue table plus a result line), commit locally (small commits, NO Claude attribution, never `data/` or `models/`). **Push policy (user 2026-11-05): do NOT push to GitHub until the user approves or at the very end of all the work.**
+4b. **Shape half of the verdict (2026-11-05):** also run `scripts/shape_verdict.sh VAR` (diagnose + `compare_shape.py`, tolerance = seed spread of p2f from IL-92). A candidate is kept only if neither the headline rule nor the shape rule fails; a shape gain beyond the seed spread is a gain even when skill ties. Details: `docs/results/APPLIED_STATUS.md`.
+5. Log every item as a row in `docs/plans/PLAN.md` (improvement-loop queue table plus a result line), commit locally (small commits, NO Claude attribution, never `data/` or `models/`). **Push policy (user 2026-11-05): do NOT push to GitHub until the user approves or at the very end of all the work.**
 5b. **Stage 6 (user 2026-11-05):** after BLOCK 0, the improvement loop, the final model (every modification tested) and group C (coherence, user 2026-11-06) comes stage 6 = tools for the flight simulator (USER 2026-11-06: start it yourself once everything before it is complete, no permission needed; tools only, no model changes; the push policy is unchanged), formerly only after the user approves. Plan file `C:\Users\Senai\Downloads\tempest_arknet_flight_sim_expansion_blueprint.md`: do NOT read it before the final model is built; then adjust and improve it. Anything that needs the user's permission is sidelined (ASK_LATER) and asked at the very end; do not stop to ask during the improvement loop.
 5c. **GPU hygiene (found 2026-11-05):** never run pytest or scripts that touch CUDA while a GPU job runs (two crashes with 'CUDA out of memory' at launch); CPU-only checks use `CUDA_VISIBLE_DEVICES=""` and deselect `tests/test_flags_off.py` (its golden numbers are for the GPU).
 6. Machine rules: 12 CPUs (`source scripts/cap_cpu.sh`), one GPU job, never edit a running script, never run pytest while a scoring job runs, 2026 Jan-Jun is only touched in the final test (E4).
@@ -162,7 +162,7 @@ work and beyond, each with a measurable target. They are queue items (group U); 
 | IL-39 | **Export formats and examples.** One call writes samples as CSV, NetCDF and JSON, plus a worked example for each and a numpy-only reader (tool-specific layouts such as OpenRocket or RASAero are sidelined, see below) | Removes friction: any simulator can read it without custom code | round-trip test (write, read, compare) | todo |
 | IL-40 | **How many samples do I need?** A helper and a printed statement with every output: Monte Carlo standard error for the mean, a quantile and a tail probability at the chosen N; plus a throughput figure (atmospheres per second) | Prevents misreading Monte Carlo noise as real differences | helper agrees with bootstrap; throughput >= 1,000 atmospheres per second on the laptop CPU (numpy engine) | todo |
 | IL-41 | **Plain-language trust card per query.** Each output carries, per variable and height band, the measured 2024-25 coverage and skill of the mode used and a one-line caution (for example "winds above 12 km: calibrated; thermals: physics only, unverified; forecast modes: uncalibrated") | The user always sees what to rely on | present in `atmosphere()` output and the CLI; unit test that every flag exists | todo |
-| IL-42 | **Other sites inside CONUS (long term).** Same generator for another launch site (the plan's phase 8): needs the CDS/ARCO levels, new station map and training; first only a feasibility check of data size and the transfer test of the pilot model to a neighbouring box | The tool is useful beyond the pilot box | feasibility note in `docs/PLAN.md`; transfer score of the pilot model on a held-out box | sidelined (feasibility note only, see Sidelined) |
+| IL-42 | **Other sites inside CONUS (long term).** Same generator for another launch site (the plan's phase 8): needs the CDS/ARCO levels, new station map and training; first only a feasibility check of data size and the transfer test of the pilot model to a neighbouring box | The tool is useful beyond the pilot box | feasibility note in `docs/plans/PLAN.md`; transfer score of the pilot model on a held-out box | sidelined (feasibility note only, see Sidelined) |
 
 ## Diagnostic metrics (added 2026-11-05): 18 new measurements, all computable offline from the scorer's samples and truth (no simulator)
 Why: today the headline table (skill15, cov99, MAE) says whether a change helps, not WHERE the system is weak. These metrics locate weaknesses and each one can turn into a backlog idea.
@@ -194,7 +194,7 @@ Rule: from IL-44 on, every experiment is also run through `diagnose.py`; the wea
 | ID | Work | State |
 |---|---|---|
 | IL-43 | Write `tempest/scoring/metrics_ext.py` (M1-M16 now, M17 after IL-35/36, M18 after IL-33/34) with unit tests on synthetic data; `scripts/diagnose.py` | todo |
-| IL-44 | Run `diagnose.py` on p2f (ERA5 and balloons, 2024-25), publish the table and the weakest ten in `docs/PLAN.md`, add one backlog row per weak metric | todo (after IL-43) |
+| IL-44 | Run `diagnose.py` on p2f (ERA5 and balloons, 2024-25), publish the table and the weakest ten in `docs/plans/PLAN.md`, add one backlog row per weak metric | todo (after IL-43) |
 | IL-45 | Add the diagnostics to the E12 and Earth-GRAM-style (gauss) baselines for the final comparison table | todo (after IL-44) |
 
 ## Sidelined (need the flight simulator, its owner, or outside tools; stay out of the queue until the user brings them)
@@ -275,7 +275,7 @@ Automated: `PYTHONPATH=. python scripts/pitfall_check.py MODEL CALIB DATA --aux 
 | 22 | Mixed-unit averages (m/s, K and % averaged into one number) | always report per variable; the mean over cells is dominated by RH (errors of 10-20 %) | by procedure |
 Extra check after every phase: `pytest` (nothing else running), `git status` clean apart from data/models, the PLAN row exists with numbers and intervals.
 
-## Group R: adjustable region and dates (user 2026-11-05: check that the system can give data for any place in North America and any future date; findings in `docs/REGION_PLAN.md`)
+## Group R: adjustable region and dates (user 2026-11-05: check that the system can give data for any place in North America and any future date; findings in `docs/plans/REGION_PLAN.md`)
 Findings: trained and served area = pilot box only (other places are refused clearly); future dates work to 2100 with flags beyond 5 years; hours limited to 06-21 solar.
 | ID | Work | State |
 |---|---|---|
@@ -296,10 +296,10 @@ Findings: trained and served area = pilot box only (other places are refused cle
 | E2 | Rescore the final model files on 2024-25 once with the final flag set; compare with the logged numbers (must match within noise) | `score` / `sonde` |
 | E3 | Hash checks: model, calibration, trust/seasonal/shift files carry matching `model_sha`; no `data/` or `models/` in git; no 2026 rows in training or calibration | `git ls-files`, loaders, tests |
 | E4 | The single 2026 Jan-Jun test: pull the missing 2026 data (surface and w extras via `fetch_earthmover --last 2026-06-30`), score the final system ONCE (`--first-test-year 2026 --last-test-year 2026`), plus the E12 baseline and the gauss (Earth-GRAM-style) baseline with the same code | write `scripts/final_test.sh` first |
-| E5 | Final report in `docs/FINAL_REPORT.md`: numbers with intervals, which years, every cell not clearly better, the Earth-GRAM-style table, what is open (ASK_LATER); plain language | |
+| E5 | Final report in `docs/results/FINAL_REPORT.md`: numbers with intervals, which years, every cell not clearly better, the Earth-GRAM-style table, what is open (ASK_LATER); plain language | |
 | E6 | Commit locally; list the open ASK_LATER items for the user | |
 
-**Group E status 2026-11-06:** E1 DONE (184 tests), E2 DONE (identical rescore), E3 DONE (`scripts/e3_checks.py`), E4 DONE 01:49 (`scripts/final_test.sh`, run once, lock `data/FINAL_TEST_DONE`; results in `docs/final_test/`), E5 DONE (`docs/FINAL_REPORT.md`), E6 DONE. Open ASK_LATER items are listed in section 8 of the report. Final tool assets exported 02:30 (`scripts/export_final.sh`: clean w head + range map, shape stack with 2 degree templates, surface pool, station hybrid, mode F with ridge mixture; backup of the old assets in the job tmp dir; not in git). Next: group C (coherence), then stage 6 after the user's approval.
+**Group E status 2026-11-06:** E1 DONE (184 tests), E2 DONE (identical rescore), E3 DONE (`scripts/e3_checks.py`), E4 DONE 01:49 (`scripts/final_test.sh`, run once, lock `data/FINAL_TEST_DONE`; results in `docs/final_test/`), E5 DONE (`docs/results/FINAL_REPORT.md`), E6 DONE. Open ASK_LATER items are listed in section 8 of the report. Final tool assets exported 02:30 (`scripts/export_final.sh`: clean w head + range map, shape stack with 2 degree templates, surface pool, station hybrid, mode F with ridge mixture; backup of the old assets in the job tmp dir; not in git). Next: group C (coherence), then stage 6 after the user's approval.
 
 ## Group C: coherence add-on (user 2026-11-06: after group E, before stage 6)
 Sampling-time only: no retrain, the final model and its E4 numbers stay as they are. Fit and check on years up to 2025 only (2026 stays untouched).
@@ -319,14 +319,14 @@ Sampling-time only: no retrain, the final model and its E4 numbers stay as they 
 
 ## Pre-loop checks (user 2026-11-05) - results
 1. **Bug sweep** (CPU-only full test run, GPU job running): 157 passed, 2 failed after the review fixes: (a) `test_to_site_moves_surface_only` expected the old surface-only behaviour (updated to the new smooth site shift, F-22), (b) `test_block_split_keeps_a_gap` failed because a mode P / mode F Sampler re-activated its own input-name list as the global generator feature list (a bug introduced by F-4; fixed: only generator checkpoints with the standard input names are activated). The golden flags-off test (`tests/test_flags_off.py`) failed twice but both runs overlapped a GPU training job; it must be rerun on an idle GPU after the F-7 chain (todo, `CUDA_VISIBLE_DEVICES` unset). Two GPU jobs crashed with 'CUDA out of memory' at launch because of overlapping jobs (fixed by running them one at a time).
-2. **Scope** (`scripts/check_scope.py`, `docs/REGION_PLAN.md`): only the pilot box is served, other places are refused clearly; future dates work to 2100 with flags beyond 5 years; hours 06-21 solar only. Group R above makes the pipeline adjustable and plans the extension.
+2. **Scope** (`scripts/check_scope.py`, `docs/plans/REGION_PLAN.md`): only the pilot box is served, other places are refused clearly; future dates work to 2100 with flags beyond 5 years; hours 06-21 solar only. Group R above makes the pipeline adjustable and plans the extension.
 
 
 ## Stage 6 status (started 2026-11-06 without asking, as the user allowed)
-Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather/flight/` (numpy only, tests green): module 1 Sobol/eigen sampler, module 2 measurement conditioning (Schur, validated on 100 held-out balloons: CRPS -6 to -20 % above the measured part, 90 % coverage 0.89-0.92; pool weighting collapses), module 3 Dryden turbulence + 1-cos gust, module 4 acoustic rays, module 5 altimeter bias + radio refractivity; one-call `sample_sobol_batch`. Not done (stated in the plan): ITU-R P.676 attenuation, validation against flight data, combination with the group C sequences. Next for the loop: a final full test run, a local commit, and the end-of-work list for the user (push approval, Colab pulls, North America, real Earth-GRAM).
+Plan and results: `docs/plans/STAGE6_PLAN.md`. Built in `tempest_weather/flight/` (numpy only, tests green): module 1 Sobol/eigen sampler, module 2 measurement conditioning (Schur, validated on 100 held-out balloons: CRPS -6 to -20 % above the measured part, 90 % coverage 0.89-0.92; pool weighting collapses), module 3 Dryden turbulence + 1-cos gust, module 4 acoustic rays, module 5 altimeter bias + radio refractivity; one-call `sample_sobol_batch`. Not done (stated in the plan): ITU-R P.676 attenuation, validation against flight data, combination with the group C sequences. Next for the loop: a final full test run, a local commit, and the end-of-work list for the user (push approval, Colab pulls, North America, real Earth-GRAM).
 
 
-## Improvement loop 2 (user 2026-11-06; plan and harvest in `Code-Modifications/LOOP2.md`)
+## Improvement loop 2 (user 2026-11-06; plan and harvest in `docs/logs/LOOP2.md`)
 | ID | Hybrid / alternative | Result | State |
 |---|---|---|---|
 | L2-H3 | Observed-spread widening for 2 m temperature (the IL-101 idea applied to temperature) | DONE 04:00, KEPT as opt-in (needs `bias_dir`): live tool spread vs ASOS 90 % interval (2025-26): leads 1-5 days already 0.90-0.94 (no change), 7 days 0.79-0.86 -> 0.89 with the observed sd. `bias.widen_temperature` (factor at most 1.6, fades with height), flag `temperature-widened-to-station-scale`; test | done |
@@ -349,7 +349,7 @@ Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather
 | L2-H1d | Seasonal widths for more variables above 1 km, all with PIT damp 0.5: c7 = u, v, T, RH profile; c8 = T and RH profile | `scripts/ap_h1f.sh` (CPU, shape vs stack A) | **done, neither beats c4.** c7 FAILS (coverage error, event gap, PIT distance and shear all worse: wind widths hurt). c8 passes but is weaker than c4 (T 12-18 km widths worsen cov error/PIT there). c4 stays the pick. c9 (T widths 1-12 km + RH above 1 km) passes but is weaker than c4 (cov err 0.0118 vs 0.0106). **H1 family closed: c4 is the kept stack.** |
 | L2-H6 | Monthly median shift for T (3-month smoothed, shrunk by half), fitted 2021-23 on top of c4: the harvest of IL-70 (monthly bias 0.46 sd at T 12-18 km) and IL-13 (one global shift did nothing) | `tempest/calibrate/shift.py --by-month --shrink --vars`, `scripts/ap_h6.sh` (ERA5 headline vs c4) | **NO GAIN, not adopted (flags stay, off).** mean skill15 +0.0276→+0.0278 (inside the 0.0006 seed tolerance), coverage error 0.0020→0.0024, T 12-18 km skill falls 0.0473→0.0431. The monthly shifts are small (±0.3-0.7 K at most) and do not carry from 2021-23 to 2024-25. |
 
-## Improvement loop 3 (user 2026-11-06; global-scaling plan in `docs/GLOBAL_PLAN.md`, rows and harvest in `Code-Modifications/LOOP3.md`)
+## Improvement loop 3 (user 2026-11-06; global-scaling plan in `docs/plans/GLOBAL_PLAN.md`, rows and harvest in `docs/logs/LOOP3.md`)
 Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, scored at Denver 2024-25 with the NM/TX range calibration. Runner `scripts/ap_l3.sh` (resumes; one GPU job at a time); data `scripts/l3_0_data.sh` (CPU, Denver ERA5 1991-2025). Verdicts in `data/l3_verdicts.txt`. Pre-check: `tests/test_flags_off.py` 3 passed on an idle GPU (clears the old todo); new options in `tests/test_l3_options.py` (all off by default, default network unchanged).
 
 | Row | What | Status |

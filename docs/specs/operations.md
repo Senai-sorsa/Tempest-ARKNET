@@ -1,6 +1,6 @@
 # Operations: running Tempest as a long-term tool
 
-Spec, 2026-11-04, against commit `ba2e2df`. Extends `docs/TOOL_PLAN.md`. The tool as planned fetches everything
+Spec, 2026-11-04, against commit `ba2e2df`. Extends `docs/plans/TOOL_PLAN.md`. The tool as planned fetches everything
 live at query time. That works for a demo, but over years it breaks for these reasons:
 - sources change or disappear;
 - forecast models are upgraded silently;

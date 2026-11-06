@@ -2,7 +2,7 @@
 
 Replaces `claude-recommendations.md`. Based on the repo at commit `ba2e2df` ("Honest evaluation, faster
 training, experiment log") and a review session the same day. **Every item must be tested, not assumed.** Each goes
-through the gate in [docs/PLAN.md](docs/PLAN.md): it ships only if it beats what it replaces on held-out years, and
+through the gate in [docs/plans/PLAN.md](../../plans/PLAN.md): it ships only if it beats what it replaces on held-out years, and
 every result, including failures, goes in the PLAN.md improvement log.
 
 Two phases. **Phase A** is lower risk: cheap, reversible, mostly outside the trained network. **Phase B** is higher
@@ -18,7 +18,7 @@ risk: new training setups, new data plumbing, weeks of work.
 - Audit (log item 18): no overfitting; validation is flat after ~1,500 steps. **The model is input-limited.** Bigger
   gains need new information, not a bigger network.
 - The user-facing tool (`values()`, `distribution(kind="predicted" | "uncertainty")`, four modes) is planned in
-  `docs/TOOL_PLAN.md`, not built.
+  `docs/plans/TOOL_PLAN.md`, not built.
 
 ## Ground rules (every item)
 

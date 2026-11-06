@@ -23,4 +23,4 @@ $PY -W ignore -u -m tempest.scoring.sonde --model models/generator_80_b0smix.pt 
 $PY -W ignore scripts/diagnose.py $M $C $D --first-year 2026 --last-year 2026 $SHAPE_FLAGS --out $OUT/final_shape > $OUT/shape_final.log 2>&1
 echo "finished $(date '+%F %T')" >> data/FINAL_TEST_DONE
 mkdir -p $OUT/final_headlines; cp models/generator_80_p2f*_headline.csv models/generator_80_b0smix*_headline.csv $OUT/final_headlines/
-echo "logs in $OUT; the 2026 headline tables are in $OUT/final_headlines (the 2024-25 ones in $OUT/dev_backup). Now write docs/FINAL_REPORT.md (E5)."
+echo "logs in $OUT; the 2026 headline tables are in $OUT/final_headlines (the 2024-25 ones in $OUT/dev_backup). Now write docs/results/FINAL_REPORT.md (E5)."

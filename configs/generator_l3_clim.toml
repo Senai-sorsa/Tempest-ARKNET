@@ -24,6 +24,6 @@ shear_tail_q = 0.9
 # ---- p2f: P2-e + EMA of the weights (2.5 alone)
 ema_decay = 0.999
 
-# ---- loop 3 (clim, Code-Modifications/LOOP3.md)
+# ---- loop 3 (clim, docs/logs/LOOP3.md)
 # l3-data: l3x
 ignore_inputs = ["tpi", "slope_ns", "slope_ew", "rough", "cosz", "daylen"]

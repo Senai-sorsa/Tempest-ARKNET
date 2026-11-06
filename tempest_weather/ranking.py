@@ -6,7 +6,7 @@
         largest wind-vector shear 0-5 km  reference 10 m/s per km  weight 0.5   (loads, weathercocking)
         peak gust at 10 m               reference 5 m/s       weight 0.5   (rail departure)
         low air density                 (1.225 - rho_sfc) / 0.1  weight 0.25  (thinner air = less stability and more altitude)
-These weights are placeholders for the user's own go/no-go limits (Code-Modifications/ASK_LATER.md item 3); `atmosphere(..., score_fn=...)` takes any function of the
+These weights are placeholders for the user's own go/no-go limits (docs/agent/ASK_LATER.md item 3); `atmosphere(..., score_fn=...)` takes any function of the
 atmosphere arrays. `pick(order, p)` : p = 0 is the worst atmosphere of the set, p = 100 the best, so p = 15 is a bad but plausible day and p = 85 a good one.
 Ranking uses the whole sample, never a variable on its own, so the picked atmosphere is internally consistent.
 """

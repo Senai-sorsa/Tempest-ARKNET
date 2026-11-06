@@ -4,13 +4,13 @@ Per sample: boundary-layer height zi (ERA5 blh) and surface sensible heat flux H
 convective velocity scale  w* = (g / T * H / (rho cp) * zi)^(1/3)  (0 when H <= 0: stable air, no thermals), and the
 standard deviation of vertical wind through the layer follows Lenschow et al. (1980):
     sigma_w^2 = 1.8 w*^2 (z/zi)^(2/3) (1 - 0.8 z/zi)^2     for 0 < z < zi.
-NOTE: Code-Modifications/atmosphere-outputs.md writes this as sigma_w = w* * 1.8 * ..., which drops the square root
+NOTE: docs/specs/atmosphere-outputs.md writes this as sigma_w = w* * 1.8 * ..., which drops the square root
 (sigma_w = w* sqrt(1.8) ...); with it, thermals come out 34 % too strong. The variance form is used here.
 Thermals are skewed (narrow strong updrafts, broad weak downdrafts) and span the layer, so each sample gets ONE thermal
 regime (updraft with probability `updraft_area`, else downdraft) and one standard-normal draw shared by all heights,
 plus a small per-height part (`z_corr` = correlation between heights).
 STATUS: the physics is unit-tested; the coefficients still have to be checked against high-resolution balloon rise
-rates (not downloaded yet, see Code-Modifications/ASK_LATER.md) and sshf (ERA5 sensible heat) is not in the Earthmover
+rates (not downloaded yet, see docs/agent/ASK_LATER.md) and sshf (ERA5 sensible heat) is not in the Earthmover
 store, it needs a CDS pull. Until then the module is off by default everywhere.
 """
 import numpy as np

@@ -1,8 +1,8 @@
 # Accuracy-focused suggestions
 
 These recommendations are based on the design and evidence recorded in
-[docs/PLAN.md](docs/PLAN.md), [docs/PHASE1.md](docs/PHASE1.md),
-[docs/research-notes.md](docs/research-notes.md), and the current generator code.
+[docs/plans/PLAN.md](../../plans/PLAN.md), [docs/plans/PHASE1.md](../../plans/PHASE1.md),
+[docs/research/research-notes.md](../../research/research-notes.md), and the current generator code.
 They address forecast and profile accuracy only; operational and infrastructure
 suggestions are intentionally excluded. Items marked **Planned** are already in
 the project design and are collected here as accuracy priorities. Items marked

@@ -1,4 +1,4 @@
-"""Stage 6: tools for a flight simulator, built on the finished weather system (Code-Modifications/STAGE6_PLAN.md). Nothing here changes the weather model and nothing is
+"""Stage 6: tools for a flight simulator, built on the finished weather system (docs/plans/STAGE6_PLAN.md). Nothing here changes the weather model and nothing is
 vehicle-specific. numpy only, like the rest of tempest_weather.
 
     from tempest_weather.flight import TempestFlightSimEngine

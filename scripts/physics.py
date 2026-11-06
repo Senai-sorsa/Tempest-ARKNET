@@ -4,7 +4,7 @@
     PYTHONPATH=. python scripts/physics.py MODEL.pt CALIB.npz DATA.npz [--rows 4000] [--seed 0] [--first-year 2024]
                                            [--out table.csv]
 
-Reproduces the A3 table in docs/PLAN.md for E12 (m = 199, 4000 rows, seed 0). Shear is in m/s per km, lapse in K/km.
+Reproduces the A3 table in docs/plans/PLAN.md for E12 (m = 199, 4000 rows, seed 0). Shear is in m/s per km, lapse in K/km.
 Needs the GPU only for speed; pass --device cpu to run without it.
 """
 import argparse

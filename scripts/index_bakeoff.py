@@ -12,7 +12,7 @@ h = 1..12 months with
   analog (K = 8)   the tool's current draw: past years' months whose recent values resemble the present ones.
 Scores: CRPS per horizon (lower is better) with 95 % intervals from a bootstrap over origin years, for each index.
 Chronos-2 and CPC/IRI/NMME forecasts from the written plan need an external model download / archive and are not part of
-this run (Code-Modifications/ASK_LATER.md).
+this run (docs/agent/ASK_LATER.md).
 """
 import argparse
 

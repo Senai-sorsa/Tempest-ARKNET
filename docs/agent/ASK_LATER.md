@@ -72,7 +72,7 @@ Copy the outputs to `data/raw/era5_cds/` and `data/raw/wb2_hres/`, then tell Cla
 The archived HRES cases are 00 UTC starts at whole-day leads, so every valid time is 00 UTC (about 17:00 local solar time in the box). Mode F is therefore only trained for the late afternoon; the tool uses it only between 14 and 20 solar hours and falls back to the climate generator otherwise (flagged).
 To cover 06-21 h: in `notebooks/wb2_colab.md` change `--leads` to `30 36 42 54 60 66 78 84 90 102 108 114 126 132 138 150 156 162` (valid times 06, 12, 18 UTC) and rerun the cell with `--out .../tempest_wb2_diurnal`; copy the files to `data/raw/wb2_hres_diurnal/` (about 100 MB). Then mode F can be trained with the hour of day as an input.
 
-## 9. Needs the user, asked at the very end: North America (docs/REGION_PLAN.md, R-6)
+## 9. Needs the user, asked at the very end: North America (docs/plans/REGION_PLAN.md, R-6)
 Serving places outside the pilot box needs new training data over the target region. The unattended part (region file, many-station correction, a small portability dry run) is done or queued; the data pulls for a continental lattice need Colab runs (ARCO-ERA5 in Google's network, about 25 TB read for 6-hourly 1991-2025) and the choice of the region and lattice spacing (1 or 2 degrees). Decision for the user: how far (CONUS only, or Canada and Mexico), what spacing, and whether to run the Colab pulls.
 
 ## 10. Stage 6 (tools for the flight simulator only, no changes to the weather model): RESOLVED 2026-11-06, the user said to start it without asking once all tasks are complete
@@ -83,12 +83,12 @@ Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after ap
 - (loop 2) IL-79: if you want forecasts at 2/4/6 days, the IL-75 Colab notebook needs rerunning with those leads.
 - (loop 2) Turn on the H1b post-processing (half-strength PIT map + RH seasonal widths above 1 km) in `scripts/export_final.sh`? It passes shape (4 better, none worse) and the ERA5 headline (skill15 +0.0209 to +0.0276, 99 % coverage error 0.0049 to 0.0020), balloons neutral; judged on 2024-25 only, not on the already-used 2026 test.
 
-## 12. Loop 3 / global scaling (docs/GLOBAL_PLAN.md)
+## 12. Loop 3 / global scaling (docs/plans/GLOBAL_PLAN.md)
 - G4 global data needs more than the 100 GB `data/raw` cap (estimate in GLOBAL_PLAN G4): approve a higher cap or an external drive?
 - `data/train` holds 56 GB of npz copies of older variants; OK to prune the ones no adopted model uses?
 - G3 needs a WeatherBench-2 HRES pull for the new region (Colab, same notebook as before).
 
-### 12b. Data-cap headroom (2026-11-06, `docs/DATA_NEEDS.md`)
+### 12b. Data-cap headroom (2026-11-06, `docs/data/DATA_NEEDS.md`)
 `data/raw` is 80 GB of the 100 GB cap. Nothing is deleted unattended. Candidates, if you approve:
 - `data/raw/era5_em_denver` (1.3 GB, Denver 2016-23). `era5_em_denver_full` (1991-2025) supersedes it.
 - `data/raw/era5_em` (30 GB, the older 18-variable NM/TX store) vs `era5_em80` (32 GB): which one the current datasets are built from has to be checked before pruning.

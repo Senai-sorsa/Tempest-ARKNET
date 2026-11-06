@@ -1,4 +1,4 @@
-"""Coupled atmosphere files (Code-Modifications/coupled-atmosphere.md, Part 1).
+"""Coupled atmosphere files (docs/specs/coupled-atmosphere.md, Part 1).
 
     from tempest.output.coupled import build, write
     arrays, meta = build(phys, elev_site, drivers, query=dict(...), member=member)   # phys (n, 179) physical samples

@@ -3,7 +3,7 @@
 Ideas that are sound but not worth doing yet: small or unproven accuracy gain, a lot of code, or they need data we
 do not have. Try them if coverage or skill needs more. Sources: the two Argon "99 % past-weather" blueprints
 (reviewed 2026-11-04) and GPT-suggestions.md parts 2-4 (reviewed 2026-11-04). Adopted and rejected items are logged
-in `docs/PLAN.md` (improvement log and blueprint review); discarded ideas are at the end of this file.
+in `docs/plans/PLAN.md` (improvement log and blueprint review); discarded ideas are at the end of this file.
 
 ## Accuracy: data and physics
 

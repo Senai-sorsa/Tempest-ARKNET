@@ -1,7 +1,7 @@
 # Phases 1–2: build spec
 
 What to build first, in order, with the exact sources, requests and checks. Facts checked 2026-11-04.
-The plan this implements is [PLAN.md](PLAN.md).
+The plan this implements is [PLAN.md](../plans/PLAN.md).
 
 ## Day-one checklist
 

@@ -3,7 +3,7 @@
     from tempest.profiles.thermo import column
     out = column(HEIGHTS, T, RH, sp, t2m, rh2m, z_sfc)   # dict of p (Pa), rho (kg/m3), a (m/s), q (kg/kg), tv (K)
 
-Decision (docs/PLAN.md): pressure is derived by hypsometric integration of the sampled T and RH, so a sampled
+Decision (docs/plans/PLAN.md): pressure is derived by hypsometric integration of the sampled T and RH, so a sampled
 profile is hydrostatically consistent by construction. The generator does not learn pressure aloft.
 Layer by layer from the surface: ln p_top = ln p_bottom - g dz / (Rd Tv), with Tv the mean virtual temperature of the
 layer and g(z) = g0 (R/(R+z))^2 at the layer mid-height above sea level. Humidity needs p, and p needs Tv, so

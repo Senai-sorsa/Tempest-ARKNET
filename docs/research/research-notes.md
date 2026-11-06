@@ -1,7 +1,7 @@
 # Research notes for plan v2
 
 How the Argon report *Tempest-ARKNET Probabilistic Weather Architecture* was used, and the facts checked
-while writing [PLAN.md](PLAN.md). Checked 2026-11-03.
+while writing [PLAN.md](../plans/PLAN.md). Checked 2026-11-03.
 
 ## Kept from the report
 

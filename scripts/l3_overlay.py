@@ -1,4 +1,4 @@
-"""Loop-3 input overlay (Code-Modifications/LOOP3.md L3-5/6/7): base cond + 12 new place/time columns, written as an
+"""Loop-3 input overlay (docs/logs/LOOP3.md L3-5/6/7): base cond + 12 new place/time columns, written as an
 overlay npz (train._load merges it with the base file; target and year are not copied).
 
     python scripts/l3_overlay.py data/train/pilot80_dpd.npz data/train/pilot80_dpd_l3x.npz

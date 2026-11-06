@@ -1,6 +1,6 @@
 # Improvement loop 3: the global architecture tried on Denver (user 2026-11-06, ~12 hours)
 
-Purpose: stage **G1** of `docs/GLOBAL_PLAN.md`. Every feature, slight change and structural change the two Gemini reports propose for a global model is tried here at small scale: **train on NM/TX only, ask about Denver (never seen), and check that NM/TX does not get worse.** Then the best changes are stacked, and the stack is trained on NM/TX + Denver together.
+Purpose: stage **G1** of `docs/plans/GLOBAL_PLAN.md`. Every feature, slight change and structural change the two Gemini reports propose for a global model is tried here at small scale: **train on NM/TX only, ask about Denver (never seen), and check that NM/TX does not get worse.** Then the best changes are stacked, and the stack is trained on NM/TX + Denver together.
 
 The adopted pilot model and its tool assets are not touched: every run writes new files `models/l3_<id>*`, all new code is behind new options whose default is the old behaviour, `tests/test_flags_off.py` must stay green.
 

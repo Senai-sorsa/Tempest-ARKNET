@@ -1,4 +1,4 @@
-"""Soak history (PHASED_PLAN 3.4, Code-Modifications/atmosphere-outputs.md section 4): pad weather for the 24 h before launch.
+"""Soak history (PHASED_PLAN 3.4, docs/specs/atmosphere-outputs.md section 4): pad weather for the 24 h before launch.
 
 The generator gives only the launch hour. A diurnal library supplies the rest: for a sample with launch 2 m temperature
 t, take REAL ERA5 24 h histories from the same grid point, the same UTC launch hour, within +/- `window` days of the

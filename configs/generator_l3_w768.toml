@@ -1,7 +1,7 @@
 # Generator (option 3A) training settings. Read by tempest/generator/train.py; unset keys use its DEFAULTS.
 noise_dim = 32      # random numbers per sample; fed in with the inputs and into every block's layer norm
-width = 512         # hidden units per layer
-depth = 4           # residual blocks (about 2.8 M parameters)
+# width = 512 -> overridden below (w768); TOML forbids duplicate keys
+# depth = 4 -> overridden below (w768)
 m = 4               # samples per row for the loss (ECMWF trains AIFS-CRPS with 4)
 crps_alpha = 0.95   # almost-fair CRPS: 1 = fair (degenerate optimum), lower = more like plain CRPS
 es_weight = 0.1     # share of the joint energy score next to the per-value CRPS
@@ -24,6 +24,6 @@ shear_tail_q = 0.9
 # ---- p2f: P2-e + EMA of the weights (2.5 alone)
 ema_decay = 0.999
 
-# ---- loop 3 (w768, Code-Modifications/LOOP3.md)
+# ---- loop 3 (w768, docs/logs/LOOP3.md)
 width = 768
 depth = 6

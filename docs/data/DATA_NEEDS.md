@@ -1,6 +1,6 @@
 # What data the system needs, and how much (living document, updated by the loop-3 check-ins)
 
-Goal: the **smallest realistic data set** that keeps the model working, at each stage of `docs/GLOBAL_PLAN.md`.
+Goal: the **smallest realistic data set** that keeps the model working, at each stage of `docs/plans/GLOBAL_PLAN.md`.
 Every number below is marked **measured** (from files on disk or a run) or **estimate** (to be replaced by a measurement).
 The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`, after the loop-3 queue) answer the open questions.
 
@@ -16,8 +16,8 @@ The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`, after the loop-3 queue) answ
 ## 2. What the model needs (known)
 - **Variables**: u, v, T, RH on 13 pressure levels → 44 heights to 18 km (above 18 km dropped), plus t2m, sp, rh2m, 10/100 m wind. z can be rebuilt hydrostatically from T, RH and sp (saves ~16 % of a store; only worth doing for the global store).
 - **Hours**: all 24 for the global store (night hours are R-8; the pilot only has solar hours 06-21).
-- **Years**: 1991-2025 is enough. P3-5 tested 1980-2023 against 1991-2023: **no skill gain** (`docs/PLAN.md` P3-5). Whether *fewer* years are enough is D1/D2.
-- **Test and lock**: 2026 and the holdout places (`docs/GLOBAL_PLAN.md` §3.1) are never fetched into training stores.
+- **Years**: 1991-2025 is enough. P3-5 tested 1980-2023 against 1991-2023: **no skill gain** (`docs/plans/PLAN.md` P3-5). Whether *fewer* years are enough is D1/D2.
+- **Test and lock**: 2026 and the holdout places (`docs/plans/GLOBAL_PLAN.md` §3.1) are never fetched into training stores.
 - **Statics**: ERA5 invariants (z, lsm, sdor, slor, anor, isor) are one 2-D field each, < 100 MB worldwide.
 
 ## 3. What each stage needs (realistic sizes)

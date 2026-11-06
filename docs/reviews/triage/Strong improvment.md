@@ -1,6 +1,6 @@
 # Strong improvements
 
-Filtered from `C:\Users\Senai\Downloads\tempest_arknet_ai_weather_models_comparison.md` and the Gemini audit, then checked against `docs/APPLIED_STATUS.md`, `docs/FUTURE_OPTIONS.md`, `docs/PLAN.md` (IL log), `docs/PHASE4_LOG.md` and `Code-Modifications/AUTOPILOT.md`.
+Filtered from `C:\Users\Senai\Downloads\tempest_arknet_ai_weather_models_comparison.md` and the Gemini audit, then checked against `docs/results/APPLIED_STATUS.md`, `docs/research/FUTURE_OPTIONS.md`, `docs/plans/PLAN.md` (IL log), `docs/logs/PHASE4_LOG.md` and `docs/logs/AUTOPILOT.md`.
 
 **How to judge every item:** use the usual rule. Run `compare_headline.py` and then `compare_shape.py` against the seed spread (IL-92: skill15 spread 0.0006 on ERA5, 0.0013 on balloons). A gain smaller than the seed spread counts as no gain. Mode F items are scored at the 1/3/5/7 d skill (r1 = 0.690/0.537/0.347/0.196; ridge = 0.679/0.524/0.332/0.191).
 
@@ -230,11 +230,11 @@ Paste this section into a new Claude session (or give it to the current one once
 - Do not touch `scripts/f20_seam.py`, `ap_f19b.sh`, `ap_f20b.sh` or the IL-97 run. They belong to the queue.
 - **No new downloads.** Do not run `wb2_fetch.py`, CDS, or Open-Meteo history pulls. `era5_cds` is still downloading: leave it alone and treat it as incomplete.
 - Thermal limits: at most 12 CPU threads and low priority (memory `thermal-limits`). GPU work only when the queue's GPU job is done.
-- Every change goes behind a new config flag, default off, so current results are unchanged ("Dont break anything"). Log each item as a new IL row in `docs/PLAN.md` and its outcome in `docs/APPLIED_STATUS.md`.
+- Every change goes behind a new config flag, default off, so current results are unchanged ("Dont break anything"). Log each item as a new IL row in `docs/plans/PLAN.md` and its outcome in `docs/results/APPLIED_STATUS.md`.
 - Judge with `compare_headline.py` then `compare_shape.py` against the seed spread (IL-92). Adopt only what clears it on the locked test year.
 
 **Step 1: M, evaluation hygiene (CPU, about half a day)**
-1. Pick the locked test year (2022 suggested; it is in `wb2_hres`, ERA5 and IGRA). Write it into `docs/PLAN.md` as "never used for selection". Add an exclusion check in the split code (`tempest/generator/split`, and the mode F loader `tempest/forecast/load_pairs`) that raises if that year is in train or validation.
+1. Pick the locked test year (2022 suggested; it is in `wb2_hres`, ERA5 and IGRA). Write it into `docs/plans/PLAN.md` as "never used for selection". Add an exclusion check in the split code (`tempest/generator/split`, and the mode F loader `tempest/forecast/load_pairs`) that raises if that year is in train or validation.
 2. Add year-block CV for mode F (leave one year out over 2016-2021). Report the mean and the number of folds won.
 3. Add the date-block bootstrap (5-day blocks) to the rule output (IL-87).
 4. Analog baseline: new `scripts/analog_baseline.py`. Standardise the `wb2_hres` first-guess features, find the K = 20 nearest past cases (same lead, ±45 days of season, other years only), and use their verifying ERA5 profiles as members. Score with `tempest/scoring/crps_ensemble`. Mode F must beat this.
@@ -260,4 +260,4 @@ Paste this section into a new Claude session (or give it to the current one once
 
 **Later (when the logger has about 60-90 days):** C (EMOS on `nearterm/ensemble.py` through `router.py`), then I (spread-scaled width). See section 2.
 
-**When done:** update this file's section 0 table with the outcome of each item, and add one line per item to `docs/APPLIED_STATUS.md`.
+**When done:** update this file's section 0 table with the outcome of each item, and add one line per item to `docs/results/APPLIED_STATUS.md`.

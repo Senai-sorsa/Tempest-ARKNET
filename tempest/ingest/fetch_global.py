@@ -1,4 +1,4 @@
-"""Global ERA5 point store for stage G4 (docs/GLOBAL_PLAN.md, docs/DATA_NEEDS.md): ~6,000 points, one hour per day.
+"""Global ERA5 point store for stage G4 (docs/plans/GLOBAL_PLAN.md, docs/data/DATA_NEEDS.md): ~6,000 points, one hour per day.
 
     python -m tempest.ingest.fetch_global [--out data/raw/era5_global] [--test]
 

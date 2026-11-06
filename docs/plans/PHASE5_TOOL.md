@@ -1,8 +1,8 @@
 # Phase 5: the query tool (`tempest_weather/`), reworked from the user's vision
 
-Written 2026-11-05. Source of the requirements: the user's own note, copied unchanged to `Code-Modifications/phase5_inputs/original_tool_plan_from_downloads.md`
+Written 2026-11-05. Source of the requirements: the user's own note, copied unchanged to `docs/plans/phase5_inputs/original_tool_plan_from_downloads.md`
 (it describes the vision in plain words). This file adjusts it to the system as it now stands and keeps the user-facing calls as written.
-It replaces `docs/TOOL_PLAN.md` for modes 1-3 and for the build order; steps T1, T5, O2-O8 and C3-C6 of PHASED_PLAN section 4 are folded in below.
+It replaces `docs/plans/TOOL_PLAN.md` for modes 1-3 and for the build order; steps T1, T5, O2-O8 and C3-C6 of PHASED_PLAN section 4 are folded in below.
 
 ## 1. What the user asked for (their words, condensed)
 

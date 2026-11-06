@@ -3,11 +3,11 @@
 Weather for **Monte Carlo flight simulation** at any place in the contiguous US, any day, 08:00–20:00
 local time, from tomorrow to about three years ahead. Past dates are handled too.
 
-Status (2026-11-05): the pilot-box system is built and scored (see the improvement log, the Phase 1-3 results and `docs/PHASE4_LOG.md` below); the original plan text that follows is kept as written.
+Status (2026-11-05): the pilot-box system is built and scored (see the improvement log, the Phase 1-3 results and `docs/logs/PHASE4_LOG.md` below); the original plan text that follows is kept as written.
 The flight sim (FS / JARVIS, in the `dynamics` repo) is **not** changed by this work; its side comes later.
 
 v2 rewrites v1 using the research report *Tempest-ARKNET Probabilistic Weather Architecture* (Nov 2026).
-What was kept from it, what was cut, and why: [research-notes.md](research-notes.md).
+What was kept from it, what was cut, and why: [research-notes.md](../research/research-notes.md).
 
 ## What changed from v1, in one paragraph
 
@@ -492,7 +492,7 @@ station; training logs per-variable validation CRPS, spread/skill, bias, gradien
 | 6b | station line fit on recent years only (2005+ / 2013+, newer radiosondes) | same | **rejected**: worse 5-13 km (bias +2..+5 %), better only 13-18 km |
 | 7 | station correction leftovers drawn from soundings with similar ERA5 moisture (tercile of RH 5-13 km) | balloons 2023-25, fit 1991-2022 | **kept**: RH CRPS 9-13 km 5.78 -> 5.34, 13-18 km 4.17 -> 3.84, v 9-13 km -1 %, others equal; 99 % coverage -0.001..-0.003 (range calibration absorbs it). Applies from the next station-map fit (full-data pipeline) |
 | 8 | range calibration split by season, or by spread tercile (instead of one global map) | ERA5 fit 2019-23, test 2024-25, 5k rows, m=199 | **rejected**: mean cov99 global 0.992 / season 0.990 / spread 0.991; worst band 0.973 / 0.967 / 0.970; CRPS +0.2 % / +0.1 %. Splitting thins each map's 99 % tail more than regimes differ |
-| 9 | GPT-suggestions parts 2-4: fixed validation noise (same noise at every early-stop check, training RNG untouched); calibration file refuses a different member count, score/sonde default --m to the calibration's m; liquid-RH continuity test | - | **added**: val noise moved the val loss by ~0.002 between checks (same size as real gains), so early stopping partly picked lucky checkpoints; effect shows at the next training. Rest triaged into docs/FUTURE_OPTIONS.md |
+| 9 | GPT-suggestions parts 2-4: fixed validation noise (same noise at every early-stop check, training RNG untouched); calibration file refuses a different member count, score/sonde default --m to the calibration's m; liquid-RH continuity test | - | **added**: val noise moved the val loss by ~0.002 between checks (same size as real gains), so early stopping partly picked lucky checkpoints; effect shows at the next training. Rest triaged into docs/research/FUTURE_OPTIONS.md |
 | 10 | baseline retrained without station correction (generator_pilot13sp, same settings/sp fix) vs st2 | ERA5 + balloons 2023-25, m=50, uncalibrated | **st2 kept**: vs ERA5 the plain model is level or slightly better (skill RH 0.018 vs 0.011, T 0.076 vs 0.068), but vs balloons it loses badly (RH skill -0.28 vs 0.00, T 0.041 vs 0.057): the station correction is worth far more than its small ERA5 cost |
 | 10b | bug: station `apply` gathered a whole leftover pool per row (369 GB on the pilot build) | build_dataset with the moisture map | **fixed**: gather one drawn profile per row; same draws, tiny memory. Would also have crashed the full-data pipeline build |
 | 11 | moisture-tercile station leftovers (item 7, generator_pilot_mt, fixed val noise) vs st2, both with the 2019-23 range calibration | ERA5 + balloons 2024-25, m=199, calibrated | **rejected, st2 kept**: balloons upper RH improves (5-12 km miss 0.92 -> 0.53 %, 12-18 km 1.56 -> 1.24 %) but balloon mean miss gets worse (0.94 -> 1.10 %, t2m and upper wind worse), ERA5 RH 15-18 km low-side misses jump to 3-4 % per column, and mean CRPS skill drops slightly on both (ERA5 -0.0121 -> -0.0135, balloons -0.0136 -> -0.0141). The split pools are thinner and add noise; code stays (old one-pool maps still load) |
@@ -663,7 +663,7 @@ Helpful, adopted:
 - Separate past-weather mode that uses the known synoptic state: already the plan (Past dates: the actual ERA5
   profile at that hour); the generator stays for unknown-weather dates.
 
-Mediocre: moved to `docs/FUTURE_OPTIONS.md` (one list with GPT-suggestions parts 2-4, plus discarded items).
+Mediocre: moved to `docs/research/FUTURE_OPTIONS.md` (one list with GPT-suggestions parts 2-4, plus discarded items).
 
 Discarded:
 - "50 samples cap coverage at 96 %": already solved (order statistics, m = 199).
@@ -947,7 +947,7 @@ ridge forecast (9 months ahead), range-calibrated samples, vertical wind from th
 plausible: t2m 306.9 K (sd 3.6), surface pressure 848 hPa, air density 0.96 kg/m3, 10 m wind mean 5.1 / 99th pct 11.2 m/s, gust location 5.3 m/s + scale 2.2 (mean gust about 6.5 m/s),
 w at 1 km sd 3.1 cm/s, T_soak (tau 6 h) 302.8 K, 24 h t2m range 14 K. Still NaN: `w_sigma`, `w_turb` (needs sshf), gust parameters above 10 m.
 
-## Phase 5 results (the tool, `tempest_weather/`; 2026-11-05; plan: Code-Modifications/PHASE5_TOOL.md)
+## Phase 5 results (the tool, `tempest_weather/`; 2026-11-05; plan: docs/plans/PHASE5_TOOL.md)
 
 | # | Step | What exists and what was measured | Verdict |
 |---|---|---|---|
@@ -1009,13 +1009,13 @@ Method: for each rejected item, look at WHERE it gained and WHERE it lost, and k
 New, higher-probability ideas that came out of the measured results: the median bias shift (IL-13: the model is still 0.36-0.46 K cold at 0-12 km after all the work, a plain shift is the most direct fix and improves MAE/RMSE directly), and applying a rank-preserving blend only where it was proven (IL-10).
 
 ### Usefulness goals added to the queue (2026-11-05)
-IL-31..IL-42 in `Code-Modifications/AUTOPILOT.md` (group U): an in-repo downstream rocket-ascent test that replaces the missing simulator test, downstream scores in the scorer, conditional sampling around known observations, tail-directed sampling with weights, hourly launch-window sequences, downrange spatial coherence, derived hazards with balloon checks, numeric targets for the shape gaps, export formats, Monte Carlo sample-size helper, per-query trust card, and an other-sites feasibility check.
+IL-31..IL-42 in `docs/logs/AUTOPILOT.md` (group U): an in-repo downstream rocket-ascent test that replaces the missing simulator test, downstream scores in the scorer, conditional sampling around known observations, tail-directed sampling with weights, hourly launch-window sequences, downrange spatial coherence, derived hazards with balloon checks, numeric targets for the shape gaps, export formats, Monte Carlo sample-size helper, per-query trust card, and an other-sites feasibility check.
 
 ### Diagnostic metrics added (2026-11-05)
-M1-M18 and queue items IL-43..IL-45 in `Code-Modifications/AUTOPILOT.md`: PIT error, tail-weighted CRPS and tail exceedance rates, event-conditional coverage, bias by month/hour/year, spread-skill by regime, vertical correlation error, shear distribution distance, cross-variable consistency, calibration by ENSO/QBO regime, CRPS decomposition, Brier skill for decision events, a sim-free drift proxy, directional scores, seed stability, memorisation/novelty, driver response, temporal/spatial coherence, Monte Carlo efficiency. Items that need the flight simulator or its owner are sidelined (list at the end of that section).
+M1-M18 and queue items IL-43..IL-45 in `docs/logs/AUTOPILOT.md`: PIT error, tail-weighted CRPS and tail exceedance rates, event-conditional coverage, bias by month/hour/year, spread-skill by regime, vertical correlation error, shear distribution distance, cross-variable consistency, calibration by ENSO/QBO regime, CRPS decomposition, Brier skill for decision events, a sim-free drift proxy, directional scores, seed stability, memorisation/novelty, driver response, temporal/spatial coherence, Monte Carlo efficiency. Items that need the flight simulator or its owner are sidelined (list at the end of that section).
 
 ### MAIN TARGET set by the user (2026-11-05): the whole distribution shape must match reality
-See the top of `Code-Modifications/AUTOPILOT.md`: measured status (PIT distance from flat 0.033 ERA5 / 0.050 balloons; coverage at 50/80/90 % off by 0.015; worst cells RH 5-12 km on balloons 0.131, T 5-12 km 0.063), shape targets S1-S8 and shape queue IL-43, IL-44, IL-46..IL-53. Every later item is judged on the shape numbers too. IL-8 (height tokens) was stopped at step 500 (1700 s per 500 steps, worse early validation) and deferred to a cheaper rerun.
+See the top of `docs/logs/AUTOPILOT.md`: measured status (PIT distance from flat 0.033 ERA5 / 0.050 balloons; coverage at 50/80/90 % off by 0.015; worst cells RH 5-12 km on balloons 0.131, T 5-12 km 0.063), shape targets S1-S8 and shape queue IL-43, IL-44, IL-46..IL-53. Every later item is judged on the shape numbers too. IL-8 (height tokens) was stopped at step 500 (1700 s per 500 steps, worse early validation) and deferred to a cheaper rerun.
 
 ### Autopilot results, group S (2026-11-05, vs p2f, 2024-25, seed 0, m=199)
 | ID | Result | Verdict |
@@ -1096,6 +1096,6 @@ Vertical correlation error (goal 0.05) of the network + range map: u 0.30 / 0.31
 The 99th percentile is within 5 % almost everywhere (0.93-1.08). The gap is a feature of the middle atmosphere (1-15 km), strongest in winter, and the four-band map already removes about half of it. p2i (step weight 1.0) was discarded: ERA5 +0.0277 -> +0.0280, balloons +0.0083 -> +0.0069.
 
 ### External code review received (2026-11-05): all points checked, fixes scheduled as BLOCK 0
-Confirmed in the code: the dead string filter `!= "wind_dir@x"` in `api.values`, `wind_dir` in the Gaussian copula as a linear scalar, top-level dask/xarray imports in `to_heights.py`, global feature / humidity-target state, `liquid_rh` imported but never applied in `nearterm/ensemble.py`, mode P hybrid (RH 12-18 km) not exported to the tool, sp without spread in `_past_phys`, tool modes recent / week / medium falling back to the climate generator. Accepted as change requests: bilinear spatial blending, trajectory-aware ERA5 first guess for mode P, post-2022 indicator, surface outputs in mode P, forecast-model boundary-layer ratios, ridge drivers in the scorers, driver interaction term, larger loss sample, validation / calibration split. Known already: IL-76, IL-48, IL-83, IL-64. Details and execution order in `Code-Modifications/AUTOPILOT.md` BLOCK 0 (F-1 ... F-17). Idea tests that were queued behind it (IL-89) are paused.
+Confirmed in the code: the dead string filter `!= "wind_dir@x"` in `api.values`, `wind_dir` in the Gaussian copula as a linear scalar, top-level dask/xarray imports in `to_heights.py`, global feature / humidity-target state, `liquid_rh` imported but never applied in `nearterm/ensemble.py`, mode P hybrid (RH 12-18 km) not exported to the tool, sp without spread in `_past_phys`, tool modes recent / week / medium falling back to the climate generator. Accepted as change requests: bilinear spatial blending, trajectory-aware ERA5 first guess for mode P, post-2022 indicator, surface outputs in mode P, forecast-model boundary-layer ratios, ridge drivers in the scorers, driver interaction term, larger loss sample, validation / calibration split. Known already: IL-76, IL-48, IL-83, IL-64. Details and execution order in `docs/logs/AUTOPILOT.md` BLOCK 0 (F-1 ... F-17). Idea tests that were queued behind it (IL-89) are paused.
 
 - IL-91 (2026-11-05 15:34): Schaake shuffle + whole-distribution shear map on p2f. Vertical correlation error u/v/T/RH 0.046/0.023/0.035/0.035 (was 0.056-0.099), shear KS 0.007-0.018 (goal 0.03), ERA5 skill15 +0.0277 -> +0.0278, mean cov99 error 0.0034 -> 0.0031, no band worse. Kept as flags (default off). Balloon score and tool export of the templates still to do (F-16).

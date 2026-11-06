@@ -3,7 +3,8 @@
 ## You
 - Colab: WB2 HRES pull (ASK_LATER 9) — needed for global Mode F only, not urgent.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
-- Optional: read `docs/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
+- Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
+- Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running
 - Global store 7,483 pts (`data/global_fetch.log`) → ~Nov 7 06:00.
