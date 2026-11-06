@@ -22,6 +22,8 @@ Do these after the other session's queue is idle. They are additive: the default
 
 ## C1. HRES refetch: 00Z + 12Z starts (item A; enables E and D parts 1-2) — highest value
 
+**The one to do. Ready-to-run, self-contained instructions are in `Colab HRES refetch.md`.** It needs no repo code changes, which makes the code-change list above optional. The rest of this section is background.
+
 | Option | Starts | Leads | Local disk (7 yrs) | Read in Google per yr | Colab time per yr |
 |---|---|---|---|---|---|
 | **Recommended** | 00+12Z, every 2nd day | 12, 24, …, 240 h (20) | about 5 GB | about 600 GB | about 7-30 h (resumes per month) |
