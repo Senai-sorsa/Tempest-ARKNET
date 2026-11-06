@@ -130,6 +130,7 @@ def main():
     ap.add_argument("--driver-lead", type=int, default=6, help="lead in months for --driver-mode ridge")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
+    ap.add_argument("--mc", action="store_true", help="also write the Monte Carlo checks of GLOBAL_PLAN §9 (tempest.scoring.mc) to <stem>_mc.csv")
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
                     "(<stem>_stress.csv) and print the worst cells; read-only")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
@@ -303,6 +304,9 @@ def main():
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag
         extras.write(stem, unknown, truth, band_masks(), (keys[va] // 12) % 12 + 1, physical_names(), "unknown")
+    if a.mc:
+        from tempest.scoring import mc  # late import, only for the flag
+        mc.write(stem, unknown, clim15, truth, cond[va], list(FEATURES), band_masks())
     if a.stress:
         from tempest.scoring import stress  # late import, only for the flag
         stress.write(stem, unknown, clim15, truth, cond[va], list(FEATURES), band_masks())
