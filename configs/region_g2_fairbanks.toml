@@ -1,0 +1,11 @@
+# G2 box (docs/GLOBAL_PLAN.md G2): Fairbanks / Poker Flat AK, arctic inversions. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
+# Used with TEMPEST_REGION=configs/region_g2_fairbanks.toml (scripts/fetch_chain.sh fetches it into data/raw/era5_g2_fairbanks).
+name = "g2_fairbanks"
+lat_north = 66.0
+lat_south = 64.0
+lon_west = -149.0
+lon_east = -147.0
+step = 0.25
+
+[stations]
+USM00070261 = [64.8161, -147.8766, 133.7]   # Fairbanks
