@@ -38,6 +38,28 @@ denver() {  # denver V MODEL CALIB: zero-shot Denver score of an NM/TX model (co
   { echo "== $(date '+%F %T') DENVER $1 vs B-raw (p2f zero-shot)"; $PY scripts/compare_headline.py models/l3_braw_cal2021_headline.csv ${DM%.pt}_cal2021_headline.csv; } >> $VLOG 2>&1
 }
 
+blocal() {  # L3-0c/0d: p2f config trained, calibrated and scored on Denver itself (upper bound) + seed 100 (Denver tolerance)
+  [ -f $DEN0 ] || return 0
+  braw; local V
+  for V in blocal blocal_s1; do
+    local M=models/l3_$V.pt C=models/l3_$V.calib2021.npz H=models/l3_${V}_cal2021_headline.csv
+    [ -f $H ] && continue
+    log $V start
+    if [ ! -f $M ]; then
+      wait_gpu
+      $PY -u -m tempest.generator.train --data $DEN0 --out $M.part --max-year 2023 --min-year 1991 --config configs/generator_l3_$V.toml > data/l3_train_$V.log 2>&1 && mv $M.part $M || { log $V "FAILED train"; return; }
+    fi
+    if [ ! -f $C ]; then
+      wait_gpu
+      $PY -W ignore -u -m tempest.calibrate.spread --model $M --data $DEN0 --year 2023 --from-year 2021 --rows 60000 --m 199 >> data/l3_calib_$V.log 2>&1 || { log $V "FAILED spread"; return; }
+    fi
+    score $M $C $DEN0 $V || { log $V "FAILED score"; return; }
+    log $V "denver scored"
+  done
+  { echo "== $(date '+%F %T') DENVER B-local vs B-raw"; $PY scripts/compare_headline.py models/l3_braw_cal2021_headline.csv models/l3_blocal_cal2021_headline.csv
+    echo "== DENVER seed tolerance blocal_s1 vs blocal"; $PY scripts/compare_headline.py models/l3_blocal_cal2021_headline.csv models/l3_blocal_s1_cal2021_headline.csv; } >> $VLOG 2>&1
+}
+
 run() {  # run V: one NM/TX variant
   local V=$1 M=models/l3_$1.pt C=models/l3_$1.calib2021.npz CFG=configs/generator_l3_$1.toml
   [ -f $CFG ] || { log $V "no config $CFG"; return; }
@@ -70,10 +92,10 @@ if [ ! -f $VLOG ]; then  # once: the NM/TX seed tolerance (p2f s1/s2 vs p2f)
 fi
 
 Q=${*:-nolatlon sh10 sh20 siren sh10ctx w768 terrain clocks clim ctxall thead}
-for V in $Q; do run $V; done
+for V in $Q; do blocal; run $V; done
 
 # Denver baselines + zero-shot scores of everything above, once the Denver dataset exists (data pipeline: scripts/l3_0_data.sh)
 while [ ! -f $DEN0 ]; do sleep 300; done
-braw
+blocal
 for V in $Q; do grep -q '^# l3-data: l3x' configs/generator_l3_$V.toml && X=l3x || X=; denver $V models/l3_$V.pt models/l3_$V.calib2021.npz $X; done
 log all "queue done"
