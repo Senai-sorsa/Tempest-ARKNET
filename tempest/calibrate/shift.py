@@ -64,7 +64,7 @@ def main():
     from tempest.scoring.score import band_masks, group_keys
     if a.by_month:
         from tempest.calibrate.seasonal import smooth_months
-        mon = (group_keys(cond)[idx] // 12) % 12
+        mon = (group_keys(np.asarray(d["cond"]))[idx] // 12) % 12
         shift = smooth_months(np.stack([fit(med[mon == k], truth[mon == k], a.shrink) for k in range(12)]))
     else:
         shift = fit(med, truth, a.shrink)
