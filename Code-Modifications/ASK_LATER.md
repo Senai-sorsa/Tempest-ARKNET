@@ -75,7 +75,7 @@ To cover 06-21 h: in `notebooks/wb2_colab.md` change `--leads` to `30 36 42 54 6
 ## 9. Needs the user, asked at the very end: North America (docs/REGION_PLAN.md, R-6)
 Serving places outside the pilot box needs new training data over the target region. The unattended part (region file, many-station correction, a small portability dry run) is done or queued; the data pulls for a continental lattice need Colab runs (ARCO-ERA5 in Google's network, about 25 TB read for 6-hourly 1991-2025) and the choice of the region and lattice spacing (1 or 2 degrees). Decision for the user: how far (CONUS only, or Canada and Mexico), what spacing, and whether to run the Colab pulls.
 
-## 10. Needs the user, asked at the very end: stage 6 (flight-simulator add-on features)
+## 10. Needs the user, asked at the very end: stage 6 (tools for the flight simulator only, per the user: no changes to the weather model itself)
 Plan file: C:\Users\Senai\Downloads\tempest_arknet_flight_sim_expansion_blueprint.md (not read yet by design). Starts only after the user approves, after the final model is built.
 
 ## 11. Needs the user: GitHub
