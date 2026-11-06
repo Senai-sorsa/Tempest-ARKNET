@@ -115,7 +115,8 @@ for i in range(len(truth)):
     dd = np.abs(((tr["doy"] - te["doy"][i] + 183) % 366) - 183)
     ok = np.flatnonzero((dd <= 20) & (np.abs(tr["z_sfc"] - te["z_sfc"][i]) < 250))
     clim[i] = tro[rng.choice(ok if len(ok) > 30 else np.arange(len(tro)), m)]
-methods = {"climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network + range map + Schaake shuffle": x_shuf, "network + PIT recal + range map": x_pit, "network + PIT recal + range map + Schaake shuffle": x_pit_shuf, "network (raw)": x_net, "network + range map": x_cal}
+blend = np.where(rng.random((len(truth), m, 1)) < 0.5, x_shuf, lin).astype(np.float32)           # IL-80: 50/50 mixture of the network (shuffled) and the ridge predictive samples
+methods = {"blend: network + shuffle / ridge 50:50": blend, "climatology (2016-20 pool)": clim, "raw HRES profile": np.repeat(hres[:, None], 2, 1), "HRES + error pool": x_pool, "ridge + error pool": lin, "network + range map + Schaake shuffle": x_shuf, "network + PIT recal + range map": x_pit, "network + PIT recal + range map + Schaake shuffle": x_pit_shuf, "network (raw)": x_net, "network + range map": x_cal}
 bands = P.names()
 masks = np.stack([s for _, _, s in bands], 1).astype(float)
 masks /= masks.sum(0)

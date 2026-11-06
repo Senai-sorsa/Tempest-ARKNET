@@ -52,6 +52,8 @@ def main():
                     "(default: just that year); one year's quirks did not carry over")
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
                     "samples toward the dataset's 15-year climatology before they are moved to the launch site (outputs get a _trust suffix)")
+    ap.add_argument("--offset-from-year", type=int, help="IL-72: fit a median offset per variable x band on the balloons of offset-from-year..offset-to-year and apply it (outputs get an _off suffix)")
+    ap.add_argument("--offset-to-year", type=int)
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib), applied at grid level; outputs get a _shift suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib), applied at grid level; outputs get a _smap suffix")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
@@ -165,6 +167,17 @@ def main():
     truth, years = np.concatenate(truth), np.concatenate(years)
     sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]
     months, sids = np.concatenate(months), np.concatenate(sids)
+    if a.offset_from_year:  # IL-72: median offset per variable x height band from the balloons of the fit years only (e.g. 2022-23, after the sensor change); applied to every sounding
+        from tempest.generator.sample import clip_ranges
+        f = (years >= a.offset_from_year) & (years <= a.offset_to_year)
+        assert a.offset_to_year < held_from, "the offset must be fitted on years before the scored years"
+        kn = dict(sets)["known"]
+        resid = truth[f] - np.median(kn[f], axis=1)
+        shift = np.zeros(truth.shape[1])
+        for _, _, sel in band_masks():
+            shift[sel] = np.median(resid[:, sel])
+        sets = [(k, clip_ranges((x + shift[None, None, :]).astype(x.dtype)) if k in ("known", "unknown") else x) for k, x in sets]
+        print(f"balloon offset fitted on {int(f.sum())} soundings of {a.offset_from_year}-{a.offset_to_year}: median shift T {np.median(shift[2 * len(HEIGHTS):3 * len(HEIGHTS)]):+.2f} K, RH {np.median(shift[3 * len(HEIGHTS):4 * len(HEIGHTS)]):+.1f} %", flush=True)
     if scal:  # balloon calibration: fit on the fit year, apply to all, then keep only the scored years
         f = (years >= sfrom) & (years <= scal)
         groups = np.zeros(truth.shape[1], int)
@@ -195,7 +208,7 @@ def main():
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
