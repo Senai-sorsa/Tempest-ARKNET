@@ -4,6 +4,8 @@ Filtered from `C:\Users\Senai\Downloads\tempest_arknet_ai_weather_models_compari
 
 **How to judge every item:** use the usual rule. Run `compare_headline.py` and then `compare_shape.py` against the seed spread (IL-92: skill15 spread 0.0006 on ERA5, 0.0013 on balloons). A gain smaller than the seed spread counts as no gain. Mode F items are scored at the 1/3/5/7 d skill (r1 = 0.690/0.537/0.347/0.196; ridge = 0.679/0.524/0.332/0.191).
 
+**Downloads:** automatic ones are in `Downloads to do.md`; the WB2 pulls that need Colab are in `Colab downloads.md`.
+
 **No-download constraint (user, 2026-11-05):** follow section 5 and the instructions in section 6. Items A, E and F (and part of C) stay here for later, if downloading is allowed again.
 
 None of this has been started. It is a plan only, and it does not overlap the work the other session is running right now.

@@ -106,6 +106,8 @@ Review items judged intentional design (no change): separate slope head for year
 
 | IL-98 | S | Plan file `Strong improvment.md` (written by another session, 2026-11-05; priority list A-M): take the no-download items (B online bias tracker, C wire the near-term ensemble + EMOS, G observe(), H sample-derived lapse rate in to_site, I spread-conditioned width, K Haar/DCT vertical CRPS term, M evaluation hygiene) after the BLOCK 0 retrains finish; A, D, E, F need new downloads and stay in ASK_LATER | read the file, split into IL rows, test each with the seed-spread rule | mixed | todo |
 
+| IL-99 | D | Automatic downloads from `Downloads to do.md` (user 2026-11-05): A2 ASOS 2024-2026, A3 IGRA refresh (pilot stations + Denver), A1 Open-Meteo Previous Runs surface lead history at the sites (`scripts/fetch_previous_runs.py`); A4 (GFS on AWS, about 160 GB) NOT run | `scripts/ap_downloads.sh`, log `data/ap_downloads.log`, new folders `data/raw/asos_2026`, `igra_2026`, `igra_denver_2026`, `om_previous_runs` | network, few hundred MB | running |
+
 ## Queue (state: todo / running / done / discarded / blocked-on-data)
 | ID | Group | Item | Command / work | Needs | State |
 |---|---|---|---|---|---|
