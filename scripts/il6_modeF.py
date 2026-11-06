@@ -140,7 +140,7 @@ print("CRPS skill vs the short-record climatology")
 print((1 - pv["crps"] / base).round(3).to_string())
 print("MAE of the median")
 print(pv["mae"].round(3).to_string())
-cv = t[t.method.isin(["HRES + error pool", "ridge + error pool", "network (raw)", "network + range map"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
+cv = t[t.method.isin(["HRES + error pool", "ridge + error pool", "network (raw)", "network + range map", "blend: network + shuffle / ridge 50:50"])].groupby(["method", "lead"]).cov99.apply(lambda c: (c - 0.99).abs().mean()).unstack("lead")
 print("mean |cov99 - 0.99|")
 print(cv.round(4).to_string())
 print("skill vs climatology by variable (network + range map), lead 1 / 3 / 5 / 7")
@@ -152,7 +152,7 @@ try:
     from tempest.profiles.to_heights import PROFILE as _PROF
     levels = np.array([0.1, 0.25, 0.5, 0.75, 0.8, 0.9, 0.95, 0.99])
     srows = []
-    for name in ("network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
+    for name in ("blend: network + shuffle / ridge 50:50", "network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
         x = methods[name]
         for L in (1, 3, 5, 7):
             k = te["lead_days"] == L

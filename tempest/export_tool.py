@@ -66,6 +66,7 @@ def main():
     ap.add_argument("--modef", help="forecast-conditioned network (models/modeF_v2.pt); range map from the same name with .calib.npz")
     ap.add_argument("--modef-bl", default="models/modeF_bl.npz", help="boundary-layer tables fitted with the forecast converter")
     ap.add_argument("--modef-rows", default="data/modeF", help="training rows (per-year npz) from which the error-profile templates of the Schaake shuffle are taken")
+    ap.add_argument("--modef-ridge", action="store_true", help="IL-80: also store the per-lead ridge regression (and a pool of its residuals) so forecast mode can mix the network 50:50 with the ridge")
     ap.add_argument("--modef-coarse", type=int, default=4, help="every k-th height of the forecast profile is a network input")
     ap.add_argument("--indices", default="data/raw/indices")
     ap.add_argument("--profiles", default="data/pilot/profiles80.zarr", help="for the grid points and their elevations")
@@ -164,6 +165,18 @@ def main():
         for L in (1, 3, 5, 7):
             idx = rng.choice(np.flatnonzero(lead == L), 1500, replace=False)
             arrays[f"modef_tpl/L{L}"] = err[idx].astype(np.float16)                                  # real forecast-error profiles: the dependence template of the shuffle
+        if a.modef_ridge:
+            h_all = np.concatenate([r["hres"].reshape(len(r["obs"]), -1) for r in rows]).astype(np.float64)
+            o_all = np.concatenate([r["obs"].reshape(len(r["obs"]), -1) for r in rows]).astype(np.float64)
+            for L in (1, 3, 5, 7):
+                k = lead == L
+                mu, sd = h_all[k].mean(0), h_all[k].std(0) + 1e-6
+                Z = np.concatenate([(h_all[k] - mu) / sd, np.ones((k.sum(), 1))], 1)
+                W = np.linalg.solve(Z.T @ Z + 200.0 * np.eye(Z.shape[1]), Z.T @ o_all[k])                 # same ridge as scripts/il6_modeF.py (lambda 200)
+                res = o_all[k] - Z @ W
+                pick = rng.choice(len(res), min(3000, len(res)), replace=False)
+                arrays[f"modef_ridge/L{L}/mu"], arrays[f"modef_ridge/L{L}/sd"], arrays[f"modef_ridge/L{L}/W"] = mu.astype(np.float32), sd.astype(np.float32), W.astype(np.float32)
+                arrays[f"modef_ridge/L{L}/res"] = res[pick].astype(np.float16)
     np.savez(os.path.join(a.out, "model.npz"), **arrays)
     tab = indices.load(a.indices).dropna(subset=["oni", "qbo30", "qbo50", "wwv"])
     gm = indices.gmst_table(a.indices)
@@ -177,7 +190,7 @@ def main():
     files = ["model.npz", "indices.npz", "grid.npz"]
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), modep_post2022=_has_post2022(a.modep), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

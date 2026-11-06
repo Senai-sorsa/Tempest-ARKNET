@@ -123,4 +123,12 @@ The capped loop (user, 2026-11-05) keeps the 6 best items: IL-86 generator PIT r
 - Real Earth-GRAM: needs NASA; the Gaussian proxy is scored instead.
 - North America build (R-6), second HRES diurnal pull (ASK_LATER 8), ARCO/CDS 21-level retrain (blocked on data).
 - Stage 6 flight-simulator tools: only after the final model and your approval (tools only, no model changes).
+
+## User decisions 2026-11-06 ("what would make it innovative")
+
+- **Tempest stays a standalone weather tool, fully separate from the rocket.** Nothing vehicle-specific gets trained into the model.
+- **Stage 6 gets IL-33 + G (`observe()`)**: condition samples on day-of observations (partial sounding, surface obs, forecast values) by weighting and resampling a large pool. It works at sampling time, with no retrain, so it fits the "no model changes" rule.
+- **IL-35 + IL-36 scheduled before stage 6** (AUTOPILOT group C, after group E): time and downrange coherence via a fitted copula, regime check, learned version only as a fallback. Not a balloon-drift correction (F-10 tested that).
+- **Future climate (year/warming-conditioned climatology)**: to be tested for accuracy. Note: PLAN.md already keeps a learned year trend and dropped CMIP6 (scenarios don't diverge within 3 years, LOCA2 has no upper-air winds).
+- **Discarded**: vehicle-sensitivity training loss (IL-32), tail-directed importance sampling (IL-34), above-18 km extension, launch-window query layer (IL-37).
 - Pushing to GitHub after the push at 86baaf0: waits for your approval or the end.

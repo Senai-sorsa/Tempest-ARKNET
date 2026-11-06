@@ -96,6 +96,7 @@ def _assets(path=None):
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
+             modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
              sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
              sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
              gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
@@ -208,6 +209,14 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     ranks = np.argsort(np.argsort(tpl[rng.integers(0, len(tpl), (groups, M_CAL))], axis=1), axis=1)
     x = np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1)[:n]
     x[:, i:i + nh] = np.clip(x[:, i:i + nh], 0, 100)
+    if A.get("modef_ridge") is not None:                          # IL-80: half of the samples (per row, at random) from the per-lead ridge + its own residual pool: CRPS skill +0.005 / +0.005 / +0.007 / +0.015 at 1 / 3 / 5 / 7 d
+        r = A["modef_ridge"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]
+        pred = np.concatenate([(base - r["mu"]) / r["sd"], [1.0]]) @ r["W"]
+        lin = pred[None, :] + r["res"][rng.integers(0, len(r["res"]), n)].astype(np.float64)
+        lin[:, i:i + nh] = np.clip(lin[:, i:i + nh], 0, 100)
+        use = rng.random(n) < 0.5
+        x[use] = lin[use].astype(x.dtype)
+        flag = flag + ["forecast-mixture:network-and-ridge-50-50"]
     t2m = prof["t2m"] + (x[:, 2 * nh] - prof["T"][0])
     rh2m = np.clip(prof["rh2m"] + (x[:, 3 * nh] - prof["RH"][0]), 0, 100)
     return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
