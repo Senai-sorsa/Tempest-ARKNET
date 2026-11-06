@@ -211,7 +211,8 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     x[:, i:i + nh] = np.clip(x[:, i:i + nh], 0, 100)
     if A.get("modef_ridge") is not None:                          # IL-80: half of the samples (per row, at random) from the per-lead ridge + its own residual pool: CRPS skill +0.005 / +0.005 / +0.007 / +0.015 at 1 / 3 / 5 / 7 d
         r = A["modef_ridge"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]
-        pred = np.concatenate([(base - r["mu"]) / r["sd"], [1.0]]) @ r["W"]
+        b_in = np.where(np.isfinite(base), base, r["mu"])                 # a level the converter could not fill (below ground, odd input) counts as "average", it must not turn the whole ridge row into NaN
+        pred = np.concatenate([(b_in - r["mu"]) / r["sd"], [1.0]]) @ r["W"]
         lin = pred[None, :] + r["res"][rng.integers(0, len(r["res"]), n)].astype(np.float64)
         lin[:, i:i + nh] = np.clip(lin[:, i:i + nh], 0, 100)
         use = rng.random(n) < 0.5
