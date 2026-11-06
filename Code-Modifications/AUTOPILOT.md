@@ -324,3 +324,16 @@ Sampling-time only: no retrain, the final model and its E4 numbers stay as they 
 
 ## Stage 6 status (started 2026-11-06 without asking, as the user allowed)
 Plan and results: `Code-Modifications/STAGE6_PLAN.md`. Built in `tempest_weather/flight/` (numpy only, tests green): module 1 Sobol/eigen sampler, module 2 measurement conditioning (Schur, validated on 100 held-out balloons: CRPS -6 to -20 % above the measured part, 90 % coverage 0.89-0.92; pool weighting collapses), module 3 Dryden turbulence + 1-cos gust, module 4 acoustic rays, module 5 altimeter bias + radio refractivity; one-call `sample_sobol_batch`. Not done (stated in the plan): ITU-R P.676 attenuation, validation against flight data, combination with the group C sequences. Next for the loop: a final full test run, a local commit, and the end-of-work list for the user (push approval, Colab pulls, North America, real Earth-GRAM).
+
+
+## Improvement loop 2 (user 2026-11-06; plan and harvest in `Code-Modifications/LOOP2.md`)
+| ID | Hybrid / alternative | Result | State |
+|---|---|---|---|
+| L2-H3 | Observed-spread widening for 2 m temperature (the IL-101 idea applied to temperature) | DONE 04:00, KEPT as opt-in (needs `bias_dir`): live tool spread vs ASOS 90 % interval (2025-26): leads 1-5 days already 0.90-0.94 (no change), 7 days 0.79-0.86 -> 0.89 with the observed sd. `bias.widen_temperature` (factor at most 1.6, fades with height), flag `temperature-widened-to-station-scale`; test | done |
+| L2-H4 | RH-in-loss 0.1 + last 1500 steps with m = 6 (milder F-19 + F-15) | GPU run `p2fmix` (scripts/ap_h4.sh) | running |
+| L2-H1 | Damped PIT map (0.5) and/or seasonal widths for the RH profile only on top of the final stack A (c1 / c2 / c3) | CPU diagnostics (scripts/ap_h1.sh) | running |
+| L2-H2 | Mode F: mixture weight per lead and a third component | todo | todo |
+| L2-H5 | Shear map per season (IL-89 / IL-60) | todo | todo |
+| L2-A1 | IL-74 lead blending of mode F and the climate generator around 7.5 days | todo | todo |
+| L2-A2 | IL-79 mode F at any lead | todo | todo |
+| L2-A3 | IL-14 Chronos + ridge average for ONI / WWV | todo | todo |

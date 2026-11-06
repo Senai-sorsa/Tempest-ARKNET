@@ -319,6 +319,9 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
                 k0 = _bias.widen_wind(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)
                 if k0 > 1.0:
                     fflags = fflags + [f"wind-widened-to-station-scale:x{k0:.2f}"]
+                kt = _bias.widen_temperature(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)
+                if kt > 1.0:
+                    fflags = fflags + [f"temperature-widened-to-station-scale:x{kt:.2f}"]
             quality = quality + fflags
             cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
         except Exception as e:  # noqa: BLE001  (network, unexpected response: the climate generator answers, and says so)

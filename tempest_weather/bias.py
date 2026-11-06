@@ -82,3 +82,27 @@ def widen_wind(phys, state, lead_days, hour_utc, nh, max_factor=2.2, scale_m=150
         med = np.median(blk, axis=0, keepdims=True)
         phys[:, off:off + nh] = med + (blk - med) * k[None, :]
     return float(k0)
+
+
+def widen_temperature(phys, state, lead_days, hour_utc, nh, max_factor=1.6, scale_m=500.0, heights=None, i_t=2):
+    """Loop 2 H3: the same observed-spread widening for the temperature profile near the ground and 2 m temperature (index 4 nh of phys). The check (2025-26 ASOS, Midland and Spaceport) showed
+    the tool's 2 m temperature interval is right at leads 1-5 days (90 % holds 90-94 %) and too narrow at 7 days (79-86 %); the observed forecast-error sd restores 89 %. Only acts when the
+    observed sd is larger than the sampled sd. -> factor applied (1.0 if none)."""
+    if state is None or "temperature_2m" not in state:
+        return 1.0
+    e = state["temperature_2m"].get(str(int(np.clip(round(lead_days), 1, 7))))
+    h = int(hour_utc) % 24
+    if e is None or e["n"][h] < MIN_N:
+        return 1.0
+    sd_obs, sd_s = float(e.get("sd", [0.0] * 24)[h]), float(phys[:, 4 * nh].std())
+    if sd_s < 1e-6 or sd_obs <= sd_s:
+        return 1.0
+    k0 = min(sd_obs / sd_s, max_factor)
+    z = np.asarray(heights if heights is not None else np.arange(nh), float)
+    k = 1.0 + (k0 - 1.0) * np.exp(-z / scale_m)
+    blk = phys[:, i_t * nh:(i_t + 1) * nh]
+    med = np.median(blk, axis=0, keepdims=True)
+    phys[:, i_t * nh:(i_t + 1) * nh] = med + (blk - med) * k[None, :]
+    m2 = np.median(phys[:, 4 * nh])
+    phys[:, 4 * nh] = m2 + (phys[:, 4 * nh] - m2) * k0
+    return float(k0)

@@ -118,3 +118,19 @@ def test_regime_dependent_correlation_follows_the_trajectory_regime():
     c_hi = np.corrcoef(z(out[0][hi, 0]), z(out[1][hi, 0]))[0, 1]
     c_lo = np.corrcoef(z(out[0][~hi, 0]), z(out[1][~hi, 0]))[0, 1]
     assert c_hi < 0.6 and c_lo > 0.85, (c_hi, c_lo)
+
+
+def test_temperature_widening_only_when_the_observed_spread_is_larger():
+    from tempest_weather import bias
+    rng = np.random.default_rng(1)
+    nh = 44
+    h = np.r_[10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000, np.arange(2500, 18001, 500)].astype(float)
+    phys = np.zeros((600, 4 * nh + 3))
+    phys[:, 2 * nh:3 * nh] = 280 + 2.0 * rng.normal(size=(600, 1))
+    phys[:, 4 * nh] = 281 + 2.0 * rng.normal(size=600)
+    st = lambda sd: {"temperature_2m": {"7": {"b": [0.0] * 24, "n": [40] * 24, "se": [0.1] * 24, "sd": [sd] * 24}}}
+    before = phys.copy()
+    assert bias.widen_temperature(phys.copy(), st(1.5), 7.0, 12, nh, heights=h) == 1.0                    # observed sd smaller: nothing
+    k = bias.widen_temperature(phys, st(3.0), 7.0, 12, nh, heights=h)
+    assert 1.4 < k <= 1.6 and phys[:, 4 * nh].std() > 1.4 * before[:, 4 * nh].std()
+    assert abs(phys[:, 3 * nh - 1].std() - before[:, 3 * nh - 1].std()) < 0.05 * before[:, 3 * nh - 1].std() + 1e-6      # 18 km nearly unchanged

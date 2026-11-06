@@ -116,6 +116,7 @@ def main():
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib); outputs get a _seas suffix")
     ap.add_argument("--pooled-template", action="store_true", help="with --shuffle: dependence templates pooled over grid points (month x 2-hour bin) instead of the same grid point")
+    ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
@@ -199,7 +200,7 @@ def main():
     if a.pit_recal:
         from tempest.calibrate import pit_recal
         pt = dict(np.load(a.pit_recal))
-        known, unknown = pit_recal.apply(pt, known), pit_recal.apply(pt, unknown)
+        known, unknown = pit_recal.apply(pt, known, a.pit_damp), pit_recal.apply(pt, unknown, a.pit_damp)
     if a.seasonal:
         if not cal:
             raise SystemExit("--seasonal needs --calib")
