@@ -148,4 +148,5 @@ User: "reduce it so only a couple things overall are tried (only the very import
 - L3-15..19 calibration transfer, spread-conditional calibrator, pooled balloon correction, pooled EGPD tail, DI test
 - L3-20/21 stacks (run by hand only if a kept row wins), L3-22 ONNX
 - D1-D7 data-need runs (`scripts/ap_l3_data.sh`)
-- Gemini idea 2 (Pairformer trunk): not built; see the Gemini triage
+- Gemini idea 2 (Pairformer trunk): removed (user, 2026-11-06)
+- Gemini idea 3 (jump head, L3-27): waits for the IGRA balloon targets (`configs/generator_l3_jump_igra.toml`)

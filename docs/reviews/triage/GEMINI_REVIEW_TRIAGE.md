@@ -31,34 +31,41 @@ All code changes are **options that are off by default**. The running loop-3 que
 
 The cited 2026 papers (NAGO arXiv:2610.38273, "Triangle Multiplication Is All You Need" listed as Dec 2025 under an Oct-2025 arXiv number, S³-TIR IJCAI 2026) have **not been checked**. One date is inconsistent; treat them as possibly invented until found.
 
-### Idea 1: Structured vertical noise prior (multi-scale correlated + heavy-tailed noise). **Score 5/10; cheap part worth a test**
-- What it is: replace the 32 white-Gaussian noise numbers with noise that already has the boundary-layer and free-troposphere vertical correlation lengths and heavy-tailed innovations.
-- Reality check:
-  - Engression feeds the noise through the network, so any smooth transform of the noise can already be learned. A pre-shaped prior is a reparametrisation, not new capacity.
-  - Our shape metrics already pass (vcorr_err 0.075, shear_ks 0.019). The claim that it "eliminates shear_tail.py" is unlikely.
-- What is worth testing: **heavy-tailed noise** (Student-t, ν≈4, on a few of the 32 dims). Heavy tails are hard to make from a Gaussian with a smooth MLP, and the shear tail is our weakest shape metric (event_cov_gap). It is a 3-line option.
-- Verdict: the Student-t part is being tested now as **L3-26 studt** (`noise_t_dims = 8`, ν = 4). The 44-height correlated-GP part is skipped.
+### Idea 1: heavy-tailed noise. **Score 5/10 as given → 6.5/10 improved; being tested (L3-26 studt)**
+Gemini's version adds Student-t noise numbers (heavy tails) plus a 44-height correlated noise field.
 
-### Idea 2: Pairformer trunk with "hydrostatic triangle updates". **Score 2/10; not worth building**
-- The pair features it wants (Δθ_ij, Δu_ij, Ri_ij) are properties of the **output** profile, which does not exist yet at generation time. It only works inside an iterative or diffusion sampler, which our single-pass, <250 ms design rules out.
-- The "exact additive triangle consistency" (Δθ_ij = Δθ_ik + Δθ_kj) is already automatic in our parametrisation: steps plus cumulative sum. There is nothing left to learn.
-- Our own attention-over-heights try (IL-8 TokenGenerator) was slower (1,700 s per 500 steps) and worse.
-- **Not built** (it cannot run single-pass; our IL-8 attention-over-heights test already covers the closest buildable version). It will be built only if you still want it after reading this.
-- The one useful part is clamping a partial observation (a balloon or surface reading) at inference. That is Stage 6 `observe()`, and conditioning or reweighting the samples does it without a new trunk.
+What we learned that changes it:
+- **The layer norms erase the tails.** The noise reaches the output only through two layer norms: the end of the noise embedding, and just before the output head. Both rescale the vector, so an extreme draw loses most of its size. Student-t inputs alone would mostly be wasted.
+- **The tail problem sits at jet level.** The worst shape metric is the tail metric: event_cov_gap is 0.059 for p2f and 0.077 for siren, worst at u 5-12 km, and shear_ks is worst in shear 5-12 km. The targets are height steps, so a tail term on the outputs lands directly on shear.
+- **The correlated-noise part adds nothing.** vcorr already passes (0.075), so it is dropped.
+- **The existing tail loss pushes the same way.** p2f already trains with `shear_tail_weight` (q 0.9), which rewards a head that can produce rare large steps.
 
-### Idea 3: Jump primitives for inversions and jet shear sheets (tanh × generalised-exponential bumps). **Score 4/10 now, 6/10 once trained on balloon-resolution targets**
-- The physics is right: profiles are smooth layers with sharp inversions and shear sheets.
-- But our training targets are ERA5 interpolated to 44 heights, 500 m apart above 2.5 km. The targets themselves contain no jumps sharper than ERA5's levels, so the primitives would have nothing sharper to learn, and a jump thinner than 250 m is invisible on the grid anyway.
-- It becomes useful when targets carry balloon detail: the IGRA plain files for 987 stations are downloading now (fetch_chain).
-- Tested now anyway (user asked for the ideas to be tried), on ERA5 targets: **L3-27 jump** (`jump_k = 2`, below 3 km). Expect little until IGRA targets; rerun it then.
-- Cheapest test then: K = 2 zero-initialised tanh-step bases added to the output in the 0-3 km band (dense heights), scored on IGRA-corrected rows with the shear_ks / event_cov_gap metrics.
+The improved version (`noise_t_dims = 8`, `noise_t_head = 4`): 8 of the 32 noise numbers are Student-t (ν = 4, unit variance). The first 4 also scale a zero-initialised output head *after* the last layer norm: out += Σ t_k·g_k(h). Because the network sees those same t values in its input, it can decide which columns a rare draw moves, e.g. a jet core with its shear. At the start it equals the p2f network exactly, so it can only drift from p2f as far as the data supports.
+
+Why only 6.5: engression is already near the shape tolerance, and the spread calibration after training may absorb part of any gain. A heavier tail also risks cov99 over-coverage. Score it on event_cov_gap / shear_ks, then cov99.
+
+### Idea 2: Pairformer trunk. **Removed (user, 2026-11-06).**
+
+### Idea 3: Jump primitives for inversions and jets. **Score 4/10 as given → 7/10 improved, once the balloon data is in. Not run until then (user).**
+The physics is right, but the ERA5 targets on 44 heights (500 m apart above 2.5 km) contain no jumps sharper than ERA5's own levels. The code exists (`jump_k`, off); the config waits as `configs/generator_l3_jump_igra.toml`.
+
+What we learned that changes it:
+- **Few balloons, so freeze the base.** IGRA rows are ~2 per day per station, so a whole-network retrain would overfit. Freeze p2f and fit only the zero-initialised jump head on IGRA-matched rows. It starts at p2f exactly, so it cannot lose skill at the start, and it is cheap (minutes).
+- **Two shapes, not one.**
+  - Inversions are steps (tanh). Their centre prior is the boundary-layer top: ERA5 BLH is in the extras download, and it can become a generated output that the jump uses as its centre, so the two stay consistent.
+  - The tropopause is a *kink* in T, a lapse-rate change, not a step. Use a softplus basis with the climatological tropopause (already in the L3-7 climatology data) as the centre prior. That band is our worst Denver band: T 12-18 km, siren -0.30.
+  - A kink is visible even at 500 m spacing.
+- **Score on what it targets.** Use event_cov_gap T/0-1 km (the worst band of sh20), shear_ks, and inversion strength / tropopause-height error against IGRA, besides skill15.
+- **Balloons vs ERA5.** Earlier balloon work (IL-72 offsets, L3-17 pooled correction) showed systematic balloon-ERA5 differences. Fit the jump head on balloon targets *after* the offset correction, so it learns sharpness, not bias.
+
+Why 7: it is the one idea that adds something the network cannot learn from ERA5 targets, and the cost is small. It depends on the IGRA processing working and on enough stations near the test sites.
 
 ## 4. Applied now
 - `tempest/profiles/to_heights.py`: `fill_top` (+ assert self-check).
 - `tempest/generator/build_dataset.py`: `--fill-top`.
 - `tempest/generator/model.py`: `ctx_sep`, `geo["w0"]`.
-- `tempest/generator/model.py`: `noise_t` (idea 1), `jump` (idea 3).
-- `tempest/generator/train.py`: `context_film_sep`, `geo_siren_w0`, `noise_t_dims`/`noise_t_nu`, `jump_k`/`jump_top`.
-- `configs/generator_l3_ctxsep.toml`, `configs/generator_l3_sirenw15.toml`, `configs/generator_l3_studt.toml`, `configs/generator_l3_jump.toml`.
-- `scripts/ap_l3_lean.sh` (the loop-3 queue was cut to this, see LOOP3): Denver fill-top rebuild + p2f rescore → w768 → terrain → ctxsep → sirenw15 → studt → jump.
+- `tempest/generator/model.py`: `noise_t` + its tail head (idea 1), `jump` (idea 3, waits for IGRA).
+- `tempest/generator/train.py`: `context_film_sep`, `geo_siren_w0`, `noise_t_dims`/`noise_t_nu`/`noise_t_head`, `jump_k`/`jump_top`.
+- `configs/generator_l3_ctxsep.toml`, `configs/generator_l3_sirenw15.toml`, `configs/generator_l3_studt.toml`, `configs/generator_l3_jump_igra.toml` (not queued).
+- `scripts/ap_l3_lean.sh` (the loop-3 queue was cut to this, see LOOP3): Denver fill-top rebuild + p2f rescore → w768 → terrain → ctxsep → sirenw15 → studt.
 - Checked: a CPU forward/backward pass of every option combination; jump steps add up to the tanh profile (assert); the default network is unchanged; existing checkpoints load; the scripts and configs parse.

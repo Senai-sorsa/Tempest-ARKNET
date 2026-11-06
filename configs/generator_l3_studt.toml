@@ -23,6 +23,7 @@ shear_tail_q = 0.9
 
 # ---- p2f: P2-e + EMA of the weights (2.5 alone)
 ema_decay = 0.999
-# ---- loop 3 (studt = p2f + Student-t noise, Gemini idea 1)
+# ---- loop 3 (studt = p2f + Student-t noise + tail head past the layer norms, Gemini idea 1 improved)
 noise_t_dims = 8
 noise_t_nu = 4.0
+noise_t_head = 4      # the first 4 t numbers scale a zero-init output head: the layer norms otherwise erase an extreme draw's size

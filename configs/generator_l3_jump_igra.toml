@@ -26,3 +26,6 @@ ema_decay = 0.999
 # ---- loop 3 (jump = p2f + 2 learned tanh jumps below 3 km, Gemini idea 3)
 jump_k = 2
 jump_top = 3000.0
+# WAITS FOR IGRA (user 2026-11-06): train on balloon-resolution targets, not ERA5. Plan (docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md, idea 3):
+# freeze the base, fit only the jump head on IGRA-matched rows; T tropopause as a kink (softplus) with the climatological
+# tropopause as centre prior; inversion centre prior from ERA5 BLH (extras download); score with shear_ks / event_cov_gap.

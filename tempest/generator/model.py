@@ -58,6 +58,8 @@ class Generator(nn.Module):
           added to the noise embedding), so place shifts and noise spread are modulated separately (Gemini review).
         noise_t = dict(dims=8, nu=4): the first `dims` noise numbers are Student-t (unit variance) instead of Gaussian, so heavy
           tails (shear sheets) need not be built from Gaussian noise by the network (Gemini idea 1, the cheap part).
+          noise_t["head"] = K (<= dims): out += sum_k t_k * g_k(h), g zero-initialised, after the head's layer norm. The embedding's
+          and the head's layer norms rescale away most of an extreme draw's size, so without this the t tails barely reach the output.
         jump = dict(K=2, top=3000, height=[n_h], n_var=4, inv_ts=[n_var*n_h]): K sharp steps per sample, each with its centre
           (0..top m), width and per-variable size, added to the profile as tanh steps (= bumps in the step targets); sizes start
           at 0 (Gemini idea 3: inversions and shear sheets as explicit jumps)."""
@@ -94,6 +96,11 @@ class Generator(nn.Module):
         self.blocks = nn.ModuleList(Block(width, emb, self.ctx_sep) for _ in range(depth))
         self.head = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, n_out))
         self.noise_t = dict(noise_t) if noise_t else None
+        if self.noise_t and self.noise_t.get("head"):
+            assert self.noise_t["head"] <= self.noise_t["dims"]
+            self.tail = nn.Linear(width, int(self.noise_t["head"]) * n_out)
+            nn.init.zeros_(self.tail.weight)         # starts with no effect
+            nn.init.zeros_(self.tail.bias)
         self.jump = dict(jump) if jump else None
         if self.jump:
             K, nv = int(self.jump["K"]), int(self.jump["n_var"])
@@ -142,7 +149,11 @@ class Generator(nn.Module):
         h = self.inp(torch.cat([c, eps], dim=-1))
         for blk in self.blocks:
             h = blk(h, z, zc)
-        out = self.head(h)
+        hn = self.head[0](h)
+        out = self.head[1](hn)
+        if self.noise_t and self.noise_t.get("head"):
+            K = int(self.noise_t["head"])
+            out = out + torch.einsum("bmk,bmkd->bmd", eps[..., :K], self.tail(hn).view(*hn.shape[:-1], K, -1))
         if self.jump:
             out = out + self._jumps(h, out.shape[-1])
         if self.th:

@@ -2,7 +2,7 @@
 
 Goal: the **smallest realistic data set** that keeps the model working, at each stage of `docs/plans/GLOBAL_PLAN.md`.
 Every number below is marked **measured** (from files on disk or a run) or **estimate** (to be replaced by a measurement).
-The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`, after the loop-3 queue) answer the open questions.
+The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) would answer the open questions; **sidelined 2026-11-06** (user cut loop 3 to a lean queue). Until they run, keep the defaults below: all 1991-2025 years, hourly, full space.
 
 ## 1. Where we stand (measured 2026-11-06)
 | Item | Size | Note |
