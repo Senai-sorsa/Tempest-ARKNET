@@ -14,3 +14,4 @@ models/
 .pytest_cache/
 out/
 tempest_weather/assets/
+tempest_weather/assets_*/
