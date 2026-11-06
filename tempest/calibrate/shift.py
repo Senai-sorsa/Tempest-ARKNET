@@ -16,10 +16,12 @@ from tempest.calibrate import spread
 from tempest.calibrate.trust import file_sha
 
 
-def apply(table, x):
-    """x (N, m, D) -> x + shift per column, kept inside the physical ranges."""
+def apply(table, x, month=None):
+    """x (N, m, D) -> x + shift per column, kept inside the physical ranges. A (12, D) table (loop 2 H6, --by-month) needs month (N,) 1..12."""
     from tempest.generator.sample import clip_ranges
-    return clip_ranges((x + table["shift"][None, None, :]).astype(x.dtype))
+    sh = np.asarray(table["shift"])
+    sh = sh[None, None, :] if sh.ndim == 1 else sh[np.asarray(month, int) - 1][:, None, :]
+    return clip_ranges((x + sh).astype(x.dtype))
 
 
 def fit(med, truth, shrink=0.0):
@@ -41,6 +43,9 @@ def main():
     ap.add_argument("--m", type=int, default=199)
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--by-month", action="store_true", help="loop 2 H6: one shift per calendar month (circular 3-month smoothing) instead of one for the whole year; file gets a _bymonth suffix")
+    ap.add_argument("--shrink", type=float, default=0.0, help="shrink the shift toward 0 by this share")
+    ap.add_argument("--vars", nargs="*", help="only these variables get a shift (names as in score.band_masks, e.g. T); others 0")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)
@@ -56,12 +61,23 @@ def main():
         x = spread.apply(cal, sampler.profiles(np.repeat(cond[sl], a.m, axis=0)).reshape(len(cond[sl]), a.m, -1))
         med[sl] = np.median(x, 1)
         print(f"{min(i + 400, len(idx)):,}/{len(idx):,} rows", flush=True)
-    shift = fit(med, truth)
-    out = a.model.rsplit(".", 1)[0] + f".shift{a.from_year}.npz"
+    from tempest.scoring.score import band_masks, group_keys
+    if a.by_month:
+        from tempest.calibrate.seasonal import smooth_months
+        mon = (group_keys(cond)[idx] // 12) % 12
+        shift = smooth_months(np.stack([fit(med[mon == k], truth[mon == k], a.shrink) for k in range(12)]))
+    else:
+        shift = fit(med, truth, a.shrink)
+    if a.vars:
+        keep = np.zeros(truth.shape[1], bool)
+        for v, _, sel in band_masks():
+            keep |= sel & (v in a.vars)
+        shift = shift * keep
+    out = a.model.rsplit(".", 1)[0] + f".shift{a.from_year}" + ("_bymonth" if a.by_month else "") + ".npz"
     np.savez(out, shift=shift.astype(np.float32), fit_from=a.from_year, fit_to=a.year, m=a.m, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
     from tempest.scoring.score import band_masks
     for v, b, sel in band_masks():
-        print(f"{v:<5}{b:<10} median shift {shift[sel].mean():+.3f}")
+        print(f"{v:<5}{b:<10} median shift {shift[..., sel].mean():+.3f}" + (f"  (monthly range {shift[:, sel].mean(1).min():+.3f} .. {shift[:, sel].mean(1).max():+.3f})" if shift.ndim == 2 else ""))
     print(f"wrote {out}")
 
 

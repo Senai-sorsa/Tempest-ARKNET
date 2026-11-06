@@ -227,7 +227,8 @@ def main():
             raise SystemExit("--shift needs --calib")
         from tempest.calibrate import shift as shift_mod
         sh = dict(np.load(a.shift))
-        known, unknown = shift_mod.apply(sh, known), shift_mod.apply(sh, unknown)
+        mon_s = (keys[va] // 12) % 12 + 1
+        known, unknown = shift_mod.apply(sh, known, mon_s), shift_mod.apply(sh, unknown, mon_s)
     if a.shear_tail:
         if not cal:
             raise SystemExit("--shear-tail needs --calib")
