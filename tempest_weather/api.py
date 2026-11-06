@@ -97,6 +97,7 @@ def _assets(path=None):
              wcalib=dict(qz=z["wcalib/qz"], qu=z["wcalib/qu"], m=z["wcalib/m"]) if manifest.get("wcalib_included") else None,
              post=_load_post(z, manifest),
              coherence=z["coherence/rho"] if manifest.get("coherence_included") else None,
+             coherence_dist=dict(rho=z["coherence_dist/rho"], km=z["coherence_dist/km"]) if manifest.get("coherence_dist_included") else None,
              coherence_kappa=z["coherence/kappa"] if (manifest.get("coherence_included") and "coherence/kappa" in z.files) else None,
              modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
              sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
@@ -365,6 +366,40 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
             tt = datetime.fromisoformat(info["valid_utc"])
             atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
         info["coherent_sequence_offsets_h"] = list(offsets)
+    return [a for a, _ in sets], [i for _, i in sets]
+
+
+def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 20, 30, 40, 50, 60), n=1024, seed=0, assets=None, **kw):
+    """Group C2: the same n atmospheres at several points along a line from (lat, lon) in direction `bearing_deg` (0 = north, 90 = east), `distances_km` away, as ONE coherent set (sample j is the same
+    weather system at every point). Each point is sampled by `atmosphere_set` (own bilinear blend and site elevation), then tied with a Gaussian copula in distance (lag table of ERA5 anomalies by
+    distance and season, with the nugget kappa of the time table: ERA5 is smoother than the real atmosphere). Every point must lie inside the trained box.
+    -> (list of atm dicts, list of info dicts) in the order of `distances_km`."""
+    A = _assets(assets)
+    if A.get("coherence_dist") is None:
+        raise ValueError("these assets carry no distance-correlation table (export with --coherence-dist models/coherence_distcorr.npz)")
+    t_utc, _ = _time(when, lon)
+    th_, nh = np.radians(bearing_deg), _core.NH
+    sets = []
+    for d in distances_km:
+        la = lat + d * np.cos(th_) / 111.0
+        lo = lon + d * np.sin(th_) / (111.0 * np.cos(np.radians(lat)))
+        sets.append(atmosphere_set(la, lo, when, n=n, seed=seed + 2000 + int(d), assets=assets, **kw))
+    season = (t_utc.month % 12) // 3
+    flat = lambda a: np.concatenate([a["u"], a["v"], a["T"], a["RH"], a["t2m"][:, None], a["sp"][:, None], a["rh2m"][:, None]], 1)
+    rho = A["coherence_dist"]["rho"][season]
+    rho = np.nan_to_num(rho, nan=1.0)
+    rho_full = np.concatenate([rho, np.stack([rho[:, 2 * nh], rho[:, 2 * nh], rho[:, 3 * nh]], 1)], 1)
+    kap = A.get("coherence_kappa")
+    kap_full = None if kap is None else np.concatenate([kap, [kap[2 * nh], kap[2 * nh], kap[3 * nh]]])
+    out = _coh.sequence([flat(a) for a, _ in sets], list(distances_km), rho_full, np.random.default_rng(seed + 9), kap_full, rho_x=A["coherence_dist"]["km"])
+    for (atm, info), x in zip(sets, out):
+        atm["u"], atm["v"], atm["T"], atm["RH"] = x[:, :nh], x[:, nh:2 * nh], x[:, 2 * nh:3 * nh], np.clip(x[:, 3 * nh:4 * nh], 0, 100)
+        atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
+        th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=info["elevation_m"])
+        atm.update(p=th["p"], rho=th["rho"], a=th["a"])
+        if atm.get("gust_mu") is not None and A["gust"] is not None:
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
+        info["coherent_downrange_km"] = list(distances_km)
     return [a for a, _ in sets], [i for _, i in sets]
 
 

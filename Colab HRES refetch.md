@@ -56,7 +56,7 @@ import os, time
 import numpy as np, xarray as xr, fsspec, dask, psutil
 
 TEST_ONE_MONTH = True          # first run: only 2016-01, then set False
-PART, PARTS = 0, 1             # parallel notebooks: same PARTS in each, PART = 0 .. PARTS-1
+PART, PARTS = 0, 3             # 3 notebooks: PART = 0 in the first copy, 1 in the second, 2 in the third
 OUT = "/content/drive/MyDrive/tempest_wb2_v2"
 FIRST, LAST = 2016, 2022       # this store ends 2023-01; do not go past 2022
 EVERY_DAYS = 4                 # 00Z and 12Z each every 4th day (12Z offset by 2 days)

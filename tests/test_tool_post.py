@@ -91,3 +91,15 @@ def test_coherence_nugget_lowers_the_correlation_between_hours_only():
     out = coherence.sequence(s, [0, 2], rho, rng, kappa=np.full(D, 0.8))
     got = np.corrcoef(norm_scores(out[0][:, 0]), norm_scores(out[1][:, 0]))[0, 1]
     assert abs(got - 0.8 * 0.8) < 0.04
+
+
+def test_coherence_over_distance_uses_interpolated_rows():
+    from tempest_weather import coherence
+    rng = np.random.default_rng(6)
+    n, D = 6000, 2
+    km = np.array([0.0, 30.0, 60.0])
+    rho = np.tile(np.array([1.0, 0.9, 0.7])[:, None], (1, D))
+    s = [rng.normal(0, 1, (n, D)) for _ in range(3)]
+    out = coherence.sequence(s, [0.0, 15.0, 60.0], rho, rng, rho_x=km)
+    c = lambda i, k: np.corrcoef(norm_scores(out[i][:, 0]), norm_scores(out[k][:, 0]))[0, 1]
+    assert abs(c(0, 1) - 0.95) < 0.04 and abs(c(0, 2) - 0.70) < 0.04 and abs(c(1, 2) - 0.8) < 0.04

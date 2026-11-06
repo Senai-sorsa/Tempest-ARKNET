@@ -17,11 +17,20 @@ def _scores(x):
     return norm_ppf((r + 0.5) / len(x))
 
 
-def _chol_by_column(rho, offsets, kappa=None):
+def _chol_by_column(rho, offsets, kappa=None, rho_x=None):
     """rho (L, D) lag correlations (L >= 1; lags above L-1 use the last), offsets (K,) hours -> (D, K, K) Cholesky factors of the per-column Toeplitz correlation matrices."""
     off = np.asarray(offsets)
-    lag = np.minimum(np.abs(off[:, None] - off[None, :]), rho.shape[0] - 1)
-    R = np.moveaxis(rho[lag], -1, 0).astype(np.float64)                  # (D, K, K)
+    if rho_x is None:                                                      # integer lags (hours): row = lag
+        lag = np.minimum(np.abs(off[:, None] - off[None, :]), rho.shape[0] - 1)
+        R = np.moveaxis(rho[lag], -1, 0).astype(np.float64)              # (D, K, K)
+    else:                                                                  # rows belong to the distances rho_x (km): linear interpolation between them, the last row beyond
+        x = np.asarray(rho_x, float)
+        pos = np.interp(np.abs(off[:, None] - off[None, :]).astype(float), x, np.arange(len(x)))
+        i0 = np.floor(pos).astype(int)
+        i1 = np.minimum(i0 + 1, len(x) - 1)
+        w = (pos - i0)[..., None]
+        R = np.moveaxis((1 - w) * rho[i0] + w * rho[i1], -1, 0).astype(np.float64)
+        R[:, np.arange(len(off)), np.arange(len(off))] = 1.0
     if kappa is not None:                                                  # nugget: the part of the variance that is rough (balloon-like) and not shared between hours; hours apart share only kappa of the ERA5 correlation
         k = np.asarray(kappa, float)[:, None, None]
         R = k * R + (1 - k) * np.eye(len(off))[None]
@@ -32,11 +41,11 @@ def _chol_by_column(rho, offsets, kappa=None):
     return np.linalg.cholesky(R + 1e-9 * np.eye(len(off))[None])
 
 
-def sequence(samples, offsets, rho, rng=None, kappa=None):
+def sequence(samples, offsets, rho, rng=None, kappa=None, rho_x=None):
     """samples: list of K arrays (n, D), the ensembles of the hours `offsets` (hours, K of them); rho (L, D). -> list of K arrays (n, D), sample j coherent over the K hours."""
     rng = rng or np.random.default_rng()
     K, (n, D) = len(samples), samples[0].shape
-    L = _chol_by_column(np.asarray(rho), offsets, kappa)                          # (D, K, K)
+    L = _chol_by_column(np.asarray(rho), offsets, kappa, rho_x)                          # (D, K, K)
     e = np.stack([_scores(s[rng.permutation(n)]) for s in samples], 0)    # (K, n, D): one whole random sample of each hour's ensemble
     z = np.einsum("dik,knd->ind", L, e)                                    # (K, n, D)
     out = []
