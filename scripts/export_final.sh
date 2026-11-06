@@ -8,5 +8,5 @@ M=models/generator_80_p2f
 PYTHONPATH=. .venv/Scripts/python -W ignore -m tempest.export_tool --model $M.pt --calib $M.calib2021.npz \
   --head models/whead_clean.pt --wcalib models/whead_clean.wcalib2021.npz --gust models/gust_model.npz \
   --post-templates data/train/pilot80_dpd.npz --post-cell 8 --post-smap $M.shearmap2021_cell8.npz \
-  --modef models/modeF_v2.pt --modep models/modeP.pt --modep-sfc models/modeP_sfc_pool.npz --modep-sta models/station_map_mix.npz \
+  --modef models/modeF_v2.pt --modef-ridge --modep models/modeP.pt --modep-sfc models/modeP_sfc_pool.npz --modep-sta models/station_map_mix.npz \
   "${@:2}" --out "$OUT"
