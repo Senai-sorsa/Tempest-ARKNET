@@ -79,7 +79,7 @@ def main():
     if scal and scal >= held_from:
         raise SystemExit("--station-calib-year must be before the first scored year")
     sfrom = a.station_calib_from_year or scal
-    start = min(held_from, sfrom or held_from)
+    start = min(held_from, sfrom or held_from, a.offset_from_year or held_from)
     draw0 = lambda rep, n: (spread.apply(cal, sampler.profiles(rep).reshape(n, a.m, -1)) if cal
                             else sampler.profiles(rep).reshape(n, a.m, -1))  # calibrated at grid elevation, then moved
     tw = qpool = ref_cond = None
