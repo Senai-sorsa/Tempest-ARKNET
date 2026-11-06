@@ -7,7 +7,7 @@ The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`, after the loop-3 queue) answ
 ## 1. Where we stand (measured 2026-11-06)
 | Item | Size | Note |
 |---|---|---|
-| `data/raw` (counts toward the 100 GB cap) | **80 GB** (+ global store growing, ~9 GB at the end) | the global plan assumed 66 GB; 20 GB left |
+| `data/raw` (counts toward the **200 GB** cap, raised 2026-11-06) | **81 GB** (+ global store growing: 33/420 months, ~12 GB at the end) | ~107 GB left after the global store. **Time, not disk, is now the constraint** |
 | ERA5 NM/TX store `era5_em80` (377 points, hourly) + `era5_em` (older, 18 variables) | 32 + 30 GB | together 3/4 of the cap |
 | ERA5 Denver 1991-2025 hourly, 81 points, 13 levels + surface | **5.3 GB** = 212 B per point-hour (zarr, compressed) | per variable: r 1.1, v 1.0, u 1.0, t 0.94, z 0.86 GB |
 | IGRA derived files, 2 stations | 279 MB = **~140 MB per station** | the full derived archive would not fit (see 3) |
@@ -26,9 +26,9 @@ Point-hour cost 212 B (measured, Denver). "Diurnal-cycled" = one hour per day, c
 | Stage | Data | Estimate | Fits the cap? |
 |---|---|---|---|
 | G1 (now) | Denver ERA5 (done, 5.3 GB) + ~15 western-US IGRA stations | IGRA: **use the plain IGRA2 data files, not the derived ones**, convert to our 44 heights on arrival and keep only that (≈ 2 soundings/day × 35 y × 176 values × 2 B ≈ **9 MB per station** instead of 140 MB) → ~0.15 GB | yes |
-| G2 | 6 more boxes, 3°×3° (~144 points each), hourly 1991-2025 | 6 × 144 × 308k h × 212 B ≈ **56 GB hourly**; diurnal-cycled → **2.3 GB** | only if thinned in time |
+| G2 | 6 more boxes, 3°×3° (~144 points each), hourly 1991-2025 | 6 × 144 × 308k h × 212 B ≈ **56 GB hourly** (temporal group: ~1 tile per box, ~4 h download at the Denver rate); diurnal-cycled → **2.3 GB** | yes, both. Hourly costs GPU time (~5× the rows), so D3 still decides |
 | G3 | N. America lattice ~1,600 points + ~180 IGRA | diurnal-cycled: 1,600 × 12.8k × 212 B ≈ **4.3 GB** + IGRA ~1.6 GB | yes |
-| G4 | global 7,483 points incl. 987 IGRA columns (fetch running) | diurnal-cycled **16 GB** (1991-2025); **7 GB** if 2011-2025 suffices (D1) + IGRA ~6 GB at 9 MB per station | **only with** time thinning and either fewer years or pruning old stores (needs the user, ASK_LATER 12) |
+| G4 | global 7,483 points incl. 987 IGRA columns (fetch running) | diurnal-cycled **16 GB** (1991-2025); **7 GB** if 2011-2025 suffices (D1) + IGRA ~6 GB at 9 MB per station | yes (cap 200 GB) |
 | G6 | 2026-07 → latest ERA5 at the holdouts | < 1 GB | yes |
 
 The big decisions are therefore: **(a) how thin in time** (D3/D4/D5), **(b) how many years** (D1/D6), **(c) how dense in space** (D2, plus the Denver zero-shot tests of loop 3), **(d) IGRA as processed profiles only**.
@@ -56,4 +56,5 @@ How to read them: a "PASS"/within-tolerance result means that slice of data can 
 | 2026-11-06 | Keep 1991 as the earliest year; no pre-1991 data | P3-5 |
 | 2026-11-06 | IGRA kept as processed profiles at our heights only, raw derived files deleted after conversion (for new stations; the 2 existing stay) | 140 MB/station measured |
 | 2026-11-06 | **User approved the 16 GB global store.** Fetch from the Earthmover *spatial* group (`fetch_global.py`): 7,483 points (987 IGRA, ~5,000 Fibonacci lattice, **1,505 terrain points** added after L3-0b, chosen by local relief and weighted by area), one step per day (UTC hour cycles), int16 ≈ **11.8 GB** (28 MB and 174 s per month measured for 7,483 points), ~1.9 TB transferred, 2011-2025 first | the temporal group would need ~18 TB for scattered points (Denver: 4 tiles in 39 min) |
-| 2026-11-06 | G2 boxes: hourly does not fit (56 GB); fetch diurnal-cycled **if D3 holds**, else every 4th hour (D4, ~14 GB) | 212 B/point-hour measured |
+| 2026-11-06 | G2 boxes: fetch diurnal-cycled **if D3 holds**, else every 4th hour (D4, ~14 GB); hourly (56 GB) now fits the disk but costs ~5× the training time | 212 B/point-hour measured |
+| 2026-11-06 | Cap raised to 200 GB by the user: "The larger concern is time." Data choices are now made for download and GPU time; pruning old stores (ASK_LATER 12) is no longer needed for G2-G4 | user |

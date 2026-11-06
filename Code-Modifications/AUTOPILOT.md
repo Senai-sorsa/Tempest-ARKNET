@@ -361,4 +361,5 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-1 nolatlon | NM/TX + Denver zero-shot | **FAIL**: NM/TX skill15 -0.010 (u/v 0-1 km worse); Denver -0.176 → -0.143 (18 % of gap): u 0-1 km fixed (-1.76 → -0.14) but T 12-18 km -0.57, t2m -0.23. Not kept alone; SH rows next |
 | NM/TX seed tolerance | p2f s1/s2 vs p2f: skill15 -0.0006 / -0.0001 | done (tolerance 0.0006) |
 | L3-2 sh10 | NM/TX + Denver zero-shot | **FAIL**: NM/TX -0.0007 (at tolerance), shape FAIL (vcorr, shear); Denver -0.176 → -0.168 (4 % of gap), u 0-1 km still -1.77. Not kept |
-| L3-3 sh20, L3-3 sh20, L3-4 siren, L3-10a sh10ctx (elevations via context FiLM), L3-12 w768 | NM/TX verdict + shape + Denver zero-shot | running in this order |
+| L3-3 sh20 | NM/TX + Denver zero-shot | **FAIL**: NM/TX neutral, shape FAIL (vcorr 0.076 → 0.135); Denver -0.176 → -0.150 (14 % of gap). SH normalisation not queued (one box cannot teach place; see LOOP3 Results) |
+| L3-4 siren, L3-3 sh20, L3-4 siren, L3-10a sh10ctx (elevations via context FiLM), L3-12 w768 | NM/TX verdict + shape + Denver zero-shot | running in this order |
