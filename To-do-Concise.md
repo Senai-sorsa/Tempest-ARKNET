@@ -1,7 +1,6 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
 ## You
-- Confirm G1-a → G2 go: Denver beats climatology everywhere with a local fit, not zero-shot (see GLOBAL_PLAN §7). Default if you say nothing: go, with SAMOS targets in G2.
 - Colab: WB2 HRES pull (ASK_LATER 9) — needed for global Mode F only, not urgent.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
@@ -23,6 +22,6 @@
 - Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
 - IGRA plain files → 44 heights, delete raw zips; then run the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`: head only, base frozen, BLH / tropopause centre priors).
 - int16 tail check (Denver 99.9th shear).
-- G2 training (8 boxes, leave-one-box-out), then G3/G4.
+- G2 training (8 boxes, leave-one-box-out; **go** decided 2026-11-06, SAMOS targets L3-8 as the zero-shot candidate) once the 6 boxes land (~21:00 Nov 7), then G3/G4.
 - Launch plan (`docs/plans/LAUNCH_PLAN.md`), after the G9 block: A2 launch-day correction from any readings → A1 extension to 80 km (no retrain) → A3 wind/shear tails → tracer-drift check + runtime.
 - Test #3 future climate.
