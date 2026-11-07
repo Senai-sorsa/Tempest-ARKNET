@@ -89,7 +89,7 @@ def main():
         x = pit_recal.apply(dict(np.load(a.pit_recal)), x, a.pit_damp)
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
-        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template, cell=a.template_cell))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template, cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(d["cond"])))
     if a.seasonal:
         from tempest.calibrate import seasonal
         x = seasonal.apply(dict(np.load(a.seasonal)), x, month)

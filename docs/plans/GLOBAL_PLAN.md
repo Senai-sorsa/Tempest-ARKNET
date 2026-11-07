@@ -127,6 +127,7 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 | 2026-11-06 | plan | design of §2, locks of §3.1 | this file |
 | 2026-11-06 | G1 | siren (L3-4) not adopted, p2f stays the base (user, on the recommendation) | LOOP3 Results: Denver real 12-18 km T -0.31, surface jumps 12x ERA5 |
 | 2026-11-06 | G1 (§9 checks) | keep p2f as the base; keep coordinate encodings low-frequency (§9.6); next accuracy step out of domain = per-band, DI-gated climatology blend (§9.3) | `data/g9_verdicts.txt`: siren/sirenw15 lose Denver cold-point T (-0.36/-0.93) and make 12x ERA5's t2m/10 m jumps; studt's tails break the shear limit 2-5x; a w 0.5 blend lifts every Denver band for every run, a fixed w costs T at NM/TX |
+| 2026-11-06 | G1-a | **met with a local fit, not zero-shot**: Denver p2f + range map + DI-gated trust (fitted on local ERA5 2021-23) + shear map + shuffle = skill15 +0.0100, every band > 0, ~97 % of the B-raw → B-local gap. Raw p2f stays -0.19 (mean bias, e.g. u 0-1 km +7.8 m/s). Recommended: go for G2, with SAMOS targets (L3-8) as the zero-shot candidate; L3-34 debias tests the bias reading first. User to confirm | LOOP3 L3-29, L3-33; `models/l3_p2fden_cal2021_trust_smap_shufc8_*` |
 
 ## 8. Cost summary
 | Stage | New data | GPU | Needs the user |

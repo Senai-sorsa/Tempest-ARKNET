@@ -21,14 +21,26 @@ def cell_keys(keys, cell, n_lon=29):
     return ((pid // n_lon // cell) * 100 + (pid % n_lon) // cell) * 144 + k_ % 144
 
 
-def group_template(target, keys, year, idx, m, rng, before_year, pooled=False, cell=0):
+def grid_n_lon(cond):
+    """Longitudes per latitude row of the grid in `cond` (as score.group_keys numbers its points), or 0 if the points are not a full regular grid."""
+    from tempest.generator.features import FEATURES
+    ll = np.unique(np.round(np.asarray(cond)[:, [FEATURES.index("lat"), FEATURES.index("lon")]], 3), axis=0)
+    n_lat, n_lon = len(np.unique(ll[:, 0])), len(np.unique(ll[:, 1]))
+    return n_lon if n_lat * n_lon == len(ll) else 0
+
+
+def group_template(target, keys, year, idx, m, rng, before_year, pooled=False, cell=0, n_lon=29):
     """Real profiles as dependence template: for each row idx, m training-year rows (year < before_year) of the same scoring group (grid point x month x hour bin).
-    target: dataset target array, keys: group keys for all rows, year: year per row. Returns (len(idx), m, D) physical profiles."""
+    target: dataset target array, keys: group keys for all rows, year: year per row. n_lon: grid_n_lon of the dataset (L3-35: 29 was
+    hard-wired, which cut the 9 x 9 Denver grid into mixed strips); 0 = not a regular grid, so cell falls back to per-point templates.
+    Returns (len(idx), m, D) physical profiles."""
     from tempest.generator.sample import to_physical
     if pooled:                                           # IL-94: templates by month x 2-hour bin only (all grid points together): small enough to ship with the tool
         keys = np.asarray(keys) % 144
-    elif cell:                                           # IL-95: templates per block of `cell` x `cell` grid points (0.25 degree steps; point ids run 29 per row of latitude) x month x 2-hour bin
-        keys = cell_keys(keys, cell)
+    elif cell and n_lon:                                 # IL-95: templates per block of `cell` x `cell` grid points (0.25 degree steps; point ids run n_lon per row of latitude) x month x 2-hour bin
+        keys = cell_keys(keys, cell, n_lon)
+    elif cell:
+        print("shuffle: points are not a regular grid, --template-cell ignored (per-point templates)", flush=True)
     tr = np.flatnonzero(year < before_year)
     tr = tr[np.argsort(keys[tr], kind="stable")]
     lo, hi = np.searchsorted(keys[tr], keys[idx], "left"), np.searchsorted(keys[tr], keys[idx], "right")

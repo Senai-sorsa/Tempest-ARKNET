@@ -119,6 +119,7 @@ def main():
     ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
+    ap.add_argument("--debias", help="L3-34: per point x month x 4-hour-bin mean-error table from tempest.scoring.debias (needs --calib), applied after the calibration maps; outputs get a _debias suffix")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
@@ -209,6 +210,13 @@ def main():
         sw = dict(np.load(a.seasonal))
         mon = (keys[va] // 12) % 12 + 1
         known, unknown = seasonal.apply(sw, known, mon), seasonal.apply(sw, unknown, mon)
+    if a.debias:  # L3-34: before trust, so the blend weights see the debiased model
+        if not cal:
+            raise SystemExit("--debias needs --calib")
+        from tempest.scoring import debias
+        dbt = dict(np.load(a.debias))
+        debias.check_points(dbt, cond)
+        known, unknown = debias.apply(dbt, known, keys[va]), debias.apply(dbt, unknown, keys[va])
     if a.trust:  # L3-33: before the shuffle and the shear-space maps, so they repair the joint shape the per-column blend breaks
         if not cal:
             raise SystemExit("--trust needs --calib")
@@ -220,7 +228,7 @@ def main():
         from tempest.calibrate import shuffle as shuf_mod
         tpl = clim
         if a.template_cell:                                                          # IL-95: templates per block of N x N grid points, as shipped in the tool
-            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), cell=a.template_cell)
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
         if a.pooled_template:                                                        # IL-94: templates pooled over grid points, as shipped in the tool
             tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), pooled=True)
         known, unknown = shuf_mod.apply(known, tpl), shuf_mod.apply(unknown, tpl)
@@ -259,7 +267,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 

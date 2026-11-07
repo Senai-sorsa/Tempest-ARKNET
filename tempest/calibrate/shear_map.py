@@ -136,7 +136,7 @@ def main():
         from tempest.calibrate import shuffle as shuf_mod
         from tempest.scoring.score import group_keys
         keys = group_keys(np.asarray(d["cond"]))
-        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year, cell=a.template_cell))
+        x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, d["year"], idx, a.m, rng, a.from_year, cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(d["cond"])))
     table = fit(x, truth, edges=EDGES7 if a.groups == 7 else None, full=a.full)
     out = a.out or a.model.rsplit(".", 1)[0] + f".shearmap{a.from_year}.npz"
     np.savez(out, grid=table["grid"], gain=table["gain"], **({"edges": table["edges"]} if "edges" in table else {}), fit_from=a.from_year, fit_to=a.year, m=a.m, model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
