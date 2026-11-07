@@ -13,7 +13,7 @@
 - Global ASOS gusts, 200 stations 2016-25 (`data/asos_global.log`) → ~Nov 7 morning.
 - Chain after global store (`data/fetch_chain.log`): extras w/gust/BLH/CAPE/cloud/precip (~5 h) → IGRA plain files 987 stns (~1 h, ~25 GB) → 6 G2 boxes hourly (~4 h, ~32 GB) → ~Nov 7 evening.
 - Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
-- GLOBAL_PLAN §9 Monte Carlo checks (`scripts/ap_g9.sh`, running: all done but studt (scoring now), then `ap_g9_refill.sh` rescores p2f Denver): results in `data/g9_verdicts.txt`; then record them in GLOBAL_PLAN §7. `scripts/ap_g9_refill.sh` then rescores p2f Denver with the fixed filled check. Siren evidence is in: its Denver T 12-18 km loss is on real heights (-0.31), so it does not transfer cleanly; adoption is the user's call. Next design step from the first results: DI-gated climatology blend (§9.3), and check siren's t2m/10 m jump excess.
+- Decide: build the per-band DI-gated climatology blend (GLOBAL_PLAN §9.3)? G9 (done, `data/g9_verdicts.txt`, logged in §7) shows a w 0.5 blend lifts every Denver band for every model, while a fixed w costs T at NM/TX. It needs the DI of L3-19 (sidelined by the lean cut); CPU only, no retraining.
 
 ## Automatic — next
 - Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md.
