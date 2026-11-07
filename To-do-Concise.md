@@ -5,7 +5,6 @@
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
-- Decide: adopt **siren** (L3-4) over p2f? NM/TX +0.0278 (PASS), shape PASS, Denver fill-top -0.156 vs p2f -0.192, but T 12-18 km at Denver -0.02 → -0.33. G9 evidence (18:05): the T 12-18 km loss is on real heights, not fill-top copies, and siren's members make t2m/10 m jumps 12x as often as ERA5. Recommendation: keep p2f; revisit after the IGRA tropopause fix (L3-27).
 - Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running

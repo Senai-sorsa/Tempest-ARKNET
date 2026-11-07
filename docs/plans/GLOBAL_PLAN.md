@@ -125,6 +125,7 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 | Date | Stage | Decision | Evidence |
 |---|---|---|---|
 | 2026-11-06 | plan | design of §2, locks of §3.1 | this file |
+| 2026-11-06 | G1 | siren (L3-4) not adopted, p2f stays the base (user, on the recommendation) | LOOP3 Results: Denver real 12-18 km T -0.31, surface jumps 12x ERA5 |
 | 2026-11-06 | G1 (§9 checks) | keep p2f as the base; keep coordinate encodings low-frequency (§9.6); next accuracy step out of domain = per-band, DI-gated climatology blend (§9.3) | `data/g9_verdicts.txt`: siren/sirenw15 lose Denver cold-point T (-0.36/-0.93) and make 12x ERA5's t2m/10 m jumps; studt's tails break the shear limit 2-5x; a w 0.5 blend lifts every Denver band for every run, a fixed w costs T at NM/TX |
 
 ## 8. Cost summary
