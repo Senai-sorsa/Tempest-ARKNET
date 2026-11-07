@@ -48,7 +48,8 @@ def solar_time(when, lon):
 
 class Atmosphere:
     def __init__(self, model, calib, data, head=None, gust="models/gust_model.npz", surface="data/pilot/surface_hourly.zarr",
-                 profiles="data/pilot/profiles80.zarr", indices_root="data/raw/indices", lib_years=(1991, 2023), device="cpu"):
+                 profiles="data/pilot/profiles80.zarr", indices_root="data/raw/indices", lib_years=(1991, 2023), device="cpu", solar_hours=(6.0, 21.0)):
+        self.solar_hours = solar_hours                                             # (0, 24) for the all-hours models (l3_h_all24)
         self.sampler = Sampler(torch.load(model, map_location="cpu", weights_only=True), device=device)
         self.cal = spread.load(calib, model)
         load_npz(data)  # activates the dataset's feature list and humidity target
@@ -80,8 +81,8 @@ class Atmosphere:
         rng = np.random.default_rng(seed)
         torch.manual_seed(seed)
         t_utc, sh = solar_time(when, lon)
-        if not 6.0 <= sh <= 21.0:
-            raise ValueError(f"solar time {sh:.1f} h is outside the trained 06-21 h window")
+        if not self.solar_hours[0] <= sh <= self.solar_hours[1]:
+            raise ValueError(f"solar time {sh:.1f} h is outside the trained {self.solar_hours[0]:02.0f}-{self.solar_hours[1]:02.0f} h window")
         p = int(np.argmin((self.pt_lat - lat) ** 2 + (self.pt_lon - lon) ** 2))      # nearest point, reported
         pts, wts = blend.bilinear(self.pt_lat, self.pt_lon, lat, lon)                 # F-6: bilinear over the four surrounding points
         elev = float(np.dot(wts, self.pt_elev[pts]))                                  # the site (bilinear grid elevation)

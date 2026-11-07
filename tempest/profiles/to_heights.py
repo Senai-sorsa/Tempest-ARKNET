@@ -90,6 +90,12 @@ def interp_columns(h, x, targets, log_below=None):
     return out
 
 
+def top_valid(x):
+    """(..., 44) profile -> index of the highest finite height (-1 if none); heights above it are what fill_top fills."""
+    ok = np.isfinite(x)
+    return np.where(ok.any(-1), x.shape[-1] - 1 - np.argmax(ok[..., ::-1], -1), -1)
+
+
 def fill_top(x):
     """(..., 44) profile -> copy whose NaN heights ABOVE the highest valid one take that value (u, v, RH constant, T
     isothermal). Mountain columns (ground > ~2.6 km) put the 18 km-AGL top above the 50 hPa level, so these heights
@@ -97,8 +103,7 @@ def fill_top(x):
     shortcut: isothermal T is ~1 K/km too cold in the lower stratosphere (<= ~3 K at 18 km AGL over 5 km ground);
     upgrade to a fitted stratospheric lapse rate if the global G4 upper-T bands show it."""
     x = np.array(x, dtype=np.float32, copy=True)
-    ok = np.isfinite(x)
-    top = np.where(ok.any(-1), x.shape[-1] - 1 - np.argmax(ok[..., ::-1], -1), -1)    # index of the highest valid height
+    top = top_valid(x)
     above = (np.arange(x.shape[-1]) > top[..., None]) & (top[..., None] >= 0)
     val = np.take_along_axis(x, np.clip(top, 0, None)[..., None], -1)
     return np.where(above, val, x)

@@ -57,7 +57,7 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
     if "seasonal" in post:
         x = _core.seasonal_apply(post["seasonal"], x, np.full(len(x), month + 1))
     if "rank" in post and pts is not None:                           # templates per block of grid points (IL-95): each range-map block comes from one point, so it gets its block's ranks
-        ncol = -(-29 // post["cell"])
+        ncol = -(-len(np.unique(np.round(grid["lon"], 3))) // post["cell"])   # longitudes per grid row (29 for NM/TX)
         lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / 0.25).astype(int) // post["cell"]
         lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / 0.25).astype(int) // post["cell"]
         r = post["rank"][lat_i * ncol + lon_i, month * 12 + hb]               # (groups, 199, 179)
@@ -214,8 +214,9 @@ FORECAST_SOLAR = (14.0, 20.0)     # hours of local solar time: the archived case
 def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None):
     """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
     -> ((n, 179) physical, the forecast profile dict, quality flags)."""
-    doc = (fetch or openmeteo.fetch)(lat, lon, t_utc.strftime("%Y-%m-%d"))
-    fields = forecast.fields_from_openmeteo(doc, int(t_utc.hour))
+    t_hr = (t_utc + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)   # nearest forecast hour (14:50 -> 15:00, which may be the next day)
+    doc = (fetch or openmeteo.fetch)(lat, lon, t_hr.strftime("%Y-%m-%d"))
+    fields = forecast.fields_from_openmeteo(doc, int(t_hr.hour))
     flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
     state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
     if state is not None:                                          # IL-98 item B: the live feed's recent surface bias at this site (EWMA, gated), subtracted before the profile is built
@@ -231,8 +232,7 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
         row = np.concatenate([base, [prof["t2m"], prof["sp"], prof["rh2m"]]]).astype(np.float32)
         return np.tile(row, (n, 1)), prof, flag
     groups = int(np.ceil(n / M_CAL))
-    g = A["grid"]
-    cond = forecast.condition(prof, float(g["lat"][p]), float(g["lon"][p]), z_sfc, t_utc.timetuple().tm_yday, lead, A["modef_coarse"])
+    cond = forecast.condition(prof, float(lat), float(lon), z_sfc, t_utc.timetuple().tm_yday, lead, A["modef_coarse"])
     res = A["modef"].sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
     x = base[None, None, :] + res
     i = 3 * nh
@@ -266,8 +266,9 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/plans/REGION_PLAN.md)")
     rng = np.random.default_rng(seed)
     t_utc, sh = _time(when, lon)
-    if not 6.0 <= sh <= 21.0:
-        raise ValueError(f"solar time {sh:.1f} h is outside the trained 06-21 h window")
+    lo_h, hi_h = A["manifest"].get("solar_hours", [6.0, 21.0])                 # assets exported before 2026-11-07 are the 06-21 h models
+    if not lo_h <= sh <= hi_h:
+        raise ValueError(f"solar time {sh:.1f} h is outside the trained {lo_h:02.0f}-{hi_h:02.0f} h window")
     store_path = era5_store or era5_local.default_path()
     avail = {"past"} if (store_path and A["modep"] is not None) else set()
     lead = modes.lead_days(t_utc, now)
@@ -370,7 +371,8 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
 def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, **kw):
     """Group C1: the same n atmospheres over several hours as ONE coherent sequence. `offsets` are hours relative to `when`; every hour is sampled by `atmosphere_set` (so each hour keeps its own
     calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
-    -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (06-21 solar) raise like a normal query."""
+    -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (manifest solar_hours, 06-21 solar for older assets) raise like a normal query.
+    shortcut: forecast-mode hours are tied with the ERA5 climate lag table, not forecast-error lags; flagged in quality, upgrade with a Mode F lag table."""
     A = _assets(assets)
     table = rho if rho is not None else A.get("coherence")
     if table is None:
@@ -409,6 +411,8 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
             tt = datetime.fromisoformat(info["valid_utc"])
             atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
         info["coherent_sequence_offsets_h"] = list(offsets)
+        if info["mode"] == "forecast":
+            info["quality"] = list(info["quality"]) + ["sequence-coherence:climate-lag-table-not-forecast-error"]
     return [a for a, _ in sets], [i for _, i in sets]
 
 

@@ -64,5 +64,7 @@ def load(path=None):
     path = path or os.environ.get("TEMPEST_REGION") or DEFAULT
     with open(path, "rb") as f:
         d = tomllib.load(f)
+    # shortcut: boxes crossing 180 deg are unsupported (contains/n_lon assume west < east); upgrade at G4 (the global set uses points, not boxes)
+    assert d["lon_west"] < d["lon_east"], f"{path}: lon_west {d['lon_west']} >= lon_east {d['lon_east']} (antimeridian boxes are not supported)"
     return Region(name=d["name"], lat_north=d["lat_north"], lat_south=d["lat_south"], lon_west=d["lon_west"], lon_east=d["lon_east"], step=d["step"],
                   stations={k: tuple(v) for k, v in d.get("stations", {}).items()}, asos={k: tuple(v) for k, v in d.get("asos", {}).items()})

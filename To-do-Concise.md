@@ -20,6 +20,8 @@ Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 1. Base for both stacks is now `l3_h_all24` (L3-42 NM/TX KEEP: day -0.0001 over 3 seeds, night +0.0274; L3-40/41 Denver KEEP). Known costs: Denver day t2m -0.005 (fallback: p2f stack by day), night rh2m cov99 0.9976 over-cover. GPU idle until IGRA/global data arrive (L3-27).
 2. Any further winners stacked on all24 and rescored with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
+3. Review fixes 2026-11-07 done (8 bugs, GLOBAL_PLAN §7). Pending from it: `fill_mask` Denver test (rebuild with `--fill-top`, CPU, no GPU job running) and the 2021-22 / 2023 validation-calibration split test. 7 candidate ideas logged in GLOBAL_PLAN §7.2, not run.
+
 Processes to finish and check:
 7. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
 8. Global store finishes 2001-2010 and 1991-2000 (~11:00 Nov 7); completeness check.

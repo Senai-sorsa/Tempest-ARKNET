@@ -46,6 +46,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
                 train_rows=0,               # F-29: use a random subset of this many training rows (0 = all); lets the float32-storage comparison fit in GPU memory
                 store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
+                fill_mask=False,            # review 2026-11-07: heights that build_dataset --fill-top filled (above fill_top_idx) count 0 in the loss; needs a dataset built with --fill-top after 2026-11-07
                 shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
                 geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
@@ -119,8 +120,9 @@ def split(year, cond, names, cfg):
     return tr, val
 
 
-def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=None, members=1):
-    """-> one checkpoint, or dict(members=[...]) when members > 1 (member k uses seed + k)."""
+def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=None, members=1, fill_top_idx=None):
+    """-> one checkpoint, or dict(members=[...]) when members > 1 (member k uses seed + k).
+    fill_top_idx (N, 4) int8: with cfg fill_mask, the highest real height per row and variable (dataset array of the same name)."""
     cfg = {**DEFAULTS, **(cfg or {})}
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     rng = np.random.default_rng(cfg["seed"])
@@ -249,8 +251,14 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         f = lambda q: 17.502 * (q - 273.16) / (q - 32.19)
         return 100.0 * torch.exp(torch.clamp(f(td) - f(T), max=0.0))            # ratio of saturation vapour pressures as one exponential, never above 100 %
 
-    def score(samples, t):
+    def score(samples, t, top=None):
+        if top is not None:   # fill_mask: filled heights take the target's value, so every term below sees no error and no gradient there
+            mk = (torch.arange(n_h, device=top.device) > top[..., None].long()).flatten(-2)
+            mk = torch.cat([mk, mk.new_zeros(len(mk), t.shape[-1] - n_prof)], 1)                                    # surface columns are never filled
+            samples = torch.where(mk[:, None], t[:, None], samples)
         s, y = phys_std(samples), phys_std(t)
+        if top is not None:
+            s = torch.where(mk[:, None], y[:, None], s)
         loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
         if cfg["step_weight"] and n_prof:  # CRPS on the height-to-height steps too: level CRPS alone leaves shear too smooth
             if strides:
@@ -258,7 +266,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             else:
                 loss = loss + cfg["step_weight"] * afcrps(samples[..., :n_prof], t[..., :n_prof], cfg["crps_alpha"])
         if rh_w:
-            loss = loss + rh_w * afcrps(rh_pct(samples) / 25.0, rh_pct(t) / 25.0, cfg["crps_alpha"])
+            r_s, r_y = rh_pct(samples), rh_pct(t)
+            if top is not None:
+                r_s = torch.where(mk[:, None, iR_:iR_ + n_h], r_y[:, None], r_s)
+            loss = loss + rh_w * afcrps(r_s / 25.0, r_y / 25.0, cfg["crps_alpha"])
         if cfg["superadiabatic_weight"] and n_prof:
             loss = loss + cfg["superadiabatic_weight"] * superadiabatic(samples)
         if cfg["shear_tail_weight"] and n_prof:
@@ -289,6 +300,13 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         Xt[i:i + len(j)] = torch.from_numpy(((targets(j) - tm) / ts).astype(np.float32)).to(device)
     vc = torch.from_numpy(((cond[va_idx] - cm) / cs).astype(np.float32)).to(device)
     vt = torch.from_numpy(((targets(va_idx) - tm) / ts).astype(np.float32)).to(device)
+    Xf = vf = None
+    if cfg["fill_mask"]:
+        if fill_top_idx is None or not n_prof:
+            raise ValueError("fill_mask needs a profile dataset built with build_dataset --fill-top (array fill_top_idx); rebuild it")
+        Xf = torch.from_numpy(np.asarray(fill_top_idx[tr_idx], np.int8)).to(device)
+        vf = torch.from_numpy(np.asarray(fill_top_idx[va_idx], np.int8)).to(device)
+        log(f"fill_mask: {float((Xf < n_h - 1).any(1).float().mean()):.1%} of training rows have filled heights")
 
     mem = []
     for k in range(members):
@@ -314,7 +332,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             c, t = Xc[idx].float(), Xt[idx].float()
             with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
                 s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
-            loss = score(s.float(), t)
+            loss = score(s.float(), t, None if Xf is None else Xf[idx])
             M["opt"].zero_grad(set_to_none=True)
             loss.backward()
             gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), float("inf"))  # measure only, no clipping
@@ -332,7 +350,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                 with torch.no_grad(), torch.random.fork_rng(devices=[torch.device(device)] if gpu else []):
                     torch.manual_seed(M["seed"] + 12345)
                     vb = 8192 if cfg["arch"] == "mlp" else 1024   # the token model holds 44 tokens per sample: smaller chunks
-                    v = float(sum(score(model(vc[i:i + vb], cfg["m"]), vt[i:i + vb])
+                    v = float(sum(score(model(vc[i:i + vb], cfg["m"]), vt[i:i + vb], None if vf is None else vf[i:i + vb])
                                   * len(vc[i:i + vb])
                                   for i in range(0, len(vc), vb)) / len(vc))
                     d = diagnose(model, vc[:vb // 2 if vb < 8192 else 4096], vt[:vb // 2 if vb < 8192 else 4096])
@@ -403,7 +421,8 @@ def main():
     if "rh_target" in d:
         meta["rh_target"] = str(d["rh_target"])
     t0 = time.time()
-    train(cond, target, np.asarray(year), cfg, out=a.out, meta=meta, members=int(cfg.pop("members", 1)))
+    train(cond, target, np.asarray(year), cfg, out=a.out, meta=meta, members=int(cfg.pop("members", 1)),
+          fill_top_idx=d["fill_top_idx"][keep] if cfg.get("fill_mask") and "fill_top_idx" in d else None)
     print(f"trained in {(time.time() - t0) / 60:.1f} min", flush=True)
 
 

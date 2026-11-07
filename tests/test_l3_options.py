@@ -79,3 +79,33 @@ def test_qmc_noise():
     torch.manual_seed(1)
     q, r = sobol_normal(100, 128, 8).view(100, 128, 8), torch.randn(100, 128, 8)
     assert torch.isfinite(q).all() and q.mean(1).abs().mean() < r.mean(1).abs().mean() / 3
+
+
+def test_fill_mask_ignores_filled_heights():
+    """review 2026-11-07: with fill_mask the heights above fill_top_idx count 0. Junk there, shuffled between rows (same column
+    statistics, so the same normalisation), leaves the validation loss unchanged with the mask and changes it without."""
+    from tempest.generator.train import N_PROF
+    import pytest
+    rng = np.random.default_rng(1)
+    n, nh = 6000, N_PROF // 4
+    cond = rng.normal(size=(n, 3)).astype(np.float32)
+    year = np.repeat(np.arange(2000, 2010), n // 10)
+    y = (0.1 * rng.normal(size=(n, N_PROF + 3))).astype(np.float32)
+    tops = np.full((n, 4), nh - 1, np.int8)
+    tops[::3] = nh - 6                                                     # a third of the rows: top 5 heights filled
+    pr = y[:, :N_PROF].reshape(n, 4, nh).copy()
+    pr[::3, :, :nh - 5] = 0.0                                             # equal lower parts: shuffled junk keeps every normalisation statistic
+    pr[::3, :, nh - 5:] = 3.0 * rng.normal(size=pr[::3, :, nh - 5:].shape)  # junk the mask must ignore
+    y[:, :N_PROF] = pr.reshape(n, -1)
+    pr[::3, :, nh - 5:] = pr[::3, :, nh - 5:][rng.permutation(len(pr[::3]))]
+    y2 = y.copy()
+    y2[:, :N_PROF] = pr.reshape(n, -1)
+    meta = dict(cond_names=["a", "b", "c"], target_names=[str(i) for i in range(N_PROF + 3)])
+    cfg = dict(width=32, depth=2, noise_dim=4, batch=256, steps=40, eval_every=20, val_years=2, lr=3e-3, fill_mask=True)
+    run = lambda t, c, **k: train(cond, t, year, c, device="cpu", log=lambda *_: None, meta=meta, **k)["val_loss"]  # noqa: E731
+    a, b = run(y, cfg, fill_top_idx=tops), run(y2, cfg, fill_top_idx=tops)
+    off = {**cfg, "fill_mask": False}
+    c, d = run(y, off), run(y2, off)
+    assert np.isfinite(a) and abs(a - b) < 0.1 * abs(c - d), (a, b, c, d)          # float summation order leaves ~1e-5
+    with pytest.raises(ValueError):
+        run(y, cfg)

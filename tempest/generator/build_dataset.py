@@ -23,7 +23,7 @@ from tempest.generator.features import FEATURES, features
 from tempest.generator.sample import dpd_from_rh
 from tempest.ingest import indices
 from tempest.profiles.diff import from_diff, to_diff
-from tempest.profiles.to_heights import HEIGHTS, PROFILE, fill_top
+from tempest.profiles.to_heights import HEIGHTS, PROFILE, fill_top, top_valid
 
 SURFACE = ["t2m", "sp", "rh2m"]
 
@@ -85,6 +85,7 @@ def main():
     cond = np.empty((n, len(FEATURES)), np.float32)
     target = np.empty((n, 4 * len(HEIGHTS) + len(SURFACE)), np.float32)
     year = np.empty(n, np.int16)
+    tops = np.full((n, len(PROFILE)), len(HEIGHTS) - 1, np.int8)   # --fill-top: highest real height per variable (above it the row is filled); train.py fill_mask reads it
     prov = dict(point=np.empty(n, np.int32), time=np.empty(n, "datetime64[h]"), group=np.full(n, -1, np.int16))
     r = 0
     for i0 in range(0, len(times), block):
@@ -95,6 +96,8 @@ def main():
         b = ds.isel(time=slice(i0, i0 + block)).load()
         tt = times[i0 + t]
         diffs = np.stack([to_diff(fill_top(b[v].values[p, t]) if a.fill_top else b[v].values[p, t]) for v in PROFILE], 1)  # (n, variable, height)
+        if a.fill_top:
+            tops[r:r + len(p)] = np.stack([top_valid(b[v].values[p, t]) for v in PROFILE], 1)
         gid = None
         if qm is not None:
             diffs, gid = station.correct(qm, diffs, lat[p], lon[p], tt.month.to_numpy(), sh[p, i0 + t], crng, blend=a.station_blend, return_group=True)
@@ -121,9 +124,9 @@ def main():
     ok = np.isfinite(target).all(1) & np.isfinite(cond).all(1)
     print(f"dropping {(~ok).sum():,} rows with missing values (profile top above 50 hPa, or index gaps)", flush=True)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
-    extra = {}
+    extra = dict(fill_top_idx=tops[ok]) if a.fill_top else {}
     if a.sidecar:
-        extra = dict(row_point=prov["point"][ok], row_time=prov["time"][ok], row_group=prov["group"][ok],
+        extra |= dict(row_point=prov["point"][ok], row_time=prov["time"][ok], row_group=prov["group"][ok],
                      correction=np.array(f"station-map {os.path.basename(a.station_map or 'none')}, blend={a.station_blend}"))
     with open(a.out, "wb") as fh:                      # a file object, so np.savez does not append ".npz" to a name like x.npz.part (that broke the F-20 rebuild's rename)
       np.savez(fh, cond=cond[ok], target=target[ok], year=year[ok],

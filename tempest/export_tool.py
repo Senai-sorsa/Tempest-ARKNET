@@ -28,6 +28,11 @@ def pack(ckpt, prefix, arrays):
     members = ckpt["members"] if "members" in ckpt else [ckpt]
     m0 = members[0]
     c = m0["cfg"]
+    # the numpy engine (tempest_weather/engine.py) runs only the plain MLP + linear slope; anything else would export silently wrong
+    extra = [k for k, bad in (("model_kw", bool(m0.get("model_kw"))), ("arch", c.get("arch", "mlp") not in (None, "mlp")),
+                              ("interactions", bool(c.get("interactions"))), ("product_pairs", bool(m0.get("product_pairs")))) if bad]
+    if extra:
+        raise SystemExit(f"{prefix or 'model'}: checkpoint uses {extra}, which the numpy engine does not implement; port them to tempest_weather/engine.py first")
     meta = dict(members=len(members), n_cond=m0["n_cond"], n_out=m0["n_out"], linear_cols=list(m0["linear_cols"]), noise_dim=c["noise_dim"], width=c["width"],
                 depth=c["depth"], sp_offset=m0.get("sp_offset"), cond_names=list(m0.get("cond_names", [])), rh_target=m0.get("rh_target", "rh"))
     arrays[prefix + "meta"] = np.array(json.dumps(meta))
@@ -75,8 +80,11 @@ def main():
     ap.add_argument("--modef-coarse", type=int, default=4, help="every k-th height of the forecast profile is a network input")
     ap.add_argument("--indices", default="data/raw/indices")
     ap.add_argument("--profiles", default="data/pilot/profiles80.zarr", help="for the grid points and their elevations")
+    ap.add_argument("--solar-hours", default="6-21", help="solar-hour window the model was trained on (manifest solar_hours; the tool refuses hours outside it). 0-24 = all hours (l3_h_all24)")
     ap.add_argument("--out", default="tempest_weather/assets")
     a = ap.parse_args()
+    solar_hours = [float(x) for x in a.solar_hours.split("-")]
+    assert len(solar_hours) == 2 and 0 <= solar_hours[0] < solar_hours[1] <= 24, "--solar-hours is LO-HI within 0-24"
     os.makedirs(a.out, exist_ok=True)
     arrays = {}
     meta = pack(torch.load(a.model, map_location="cpu", weights_only=True), "", arrays)
@@ -94,14 +102,17 @@ def main():
         from tempest.scoring.score import group_keys
         dd = load_npz(a.post_templates)
         k_all, yr = group_keys(np.asarray(dd["cond"])), np.asarray(dd["year"])
-        keys = cell_keys(k_all, a.post_cell) if a.post_cell else k_all % 144
+        from tempest.calibrate.shuffle import grid_n_lon
+        n_lon = grid_n_lon(dd["cond"])
+        assert n_lon > 0 or not a.post_cell, "--post-cell needs a full regular grid in --post-templates"
+        keys = cell_keys(k_all, a.post_cell, n_lon=n_lon) if a.post_cell else k_all % 144
         ukeys = np.unique(keys[yr < 2021])
         rng_t = np.random.default_rng(0)
         first_test = 2021                                                          # templates from training years only (<= 2020)
         tr = np.flatnonzero(yr < first_test)
         if a.post_cell:
             cells = np.unique(ukeys // 144)
-            ncol = -(-29 // a.post_cell)
+            ncol = -(-n_lon // a.post_cell)
             lat_i, lon_i = cells // 100, cells % 100
             cid = lat_i * ncol + lon_i
             tpl = np.zeros((int(cid.max()) + 1, 144, 199, 179), np.uint8)
@@ -210,7 +221,7 @@ def main():
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
                     source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
-                    humidity_target=meta["rh_target"], files={f: sha(os.path.join(a.out, f)) for f in files})
+                    humidity_target=meta["rh_target"], solar_hours=solar_hours, files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)
     print(json.dumps(manifest, indent=1)[:1200])

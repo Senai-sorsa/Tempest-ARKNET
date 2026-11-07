@@ -123,7 +123,7 @@ class TempestFlightSimEngine:
             x[:, j] = self._ppf(j, norm_cdf(y[:, jj]))
         if fixed is not None:
             x[:, fixed[0]] = fixed[1][None, :]
-        return self._finish(x)
+        return self._finish(x, self._nearest(x))
 
     def observe_by_weights(self, obs, sensor_sigma, n_out=1000):
         """The pool-based alternative: weight every pool atmosphere by the Gaussian likelihood of the observations (sensor_sigma in physical units, one number or {variable: sigma}) and
@@ -137,14 +137,28 @@ class TempestFlightSimEngine:
         w = np.exp(ll - ll.max())
         w /= w.sum()
         pick = rng.choice(len(self.pool), n_out, p=w)
-        return self._finish(self.pool[pick].copy()), float(1.0 / np.sum(w ** 2))
+        return self._finish(self.pool[pick].copy(), pick), float(1.0 / np.sum(w ** 2))
 
-    def _finish(self, x):
+    def _nearest(self, x, chunk=4096):
+        """Pool row nearest to each new row (standardised columns): copula rows borrow w and the gust parameters from it.
+        shortcut: w/gust are not in the copula, so they follow the nearest pool atmosphere; upgrade by adding them as copula columns."""
+        if self.atm.get("w") is None and self.atm.get("gust_mu") is None:
+            return None
+        sd = np.where(self._sd > 0, self._sd, 1.0)
+        P = self.pool / sd
+        pp = (P ** 2).sum(1)
+        return np.concatenate([np.argmin(pp[None, :] - 2 * (x[i:i + chunk] / sd) @ P.T, 1) for i in range(0, len(x), chunk)])
+
+    def _finish(self, x, rows=None):
         x[:, 3 * NH:4 * NH] = np.clip(x[:, 3 * NH:4 * NH], 0, 100)
         x[:, -1] = np.clip(x[:, -1], 0, 100)
         out = dict(u=x[:, :NH], v=x[:, NH:2 * NH], T=x[:, 2 * NH:3 * NH], RH=x[:, 3 * NH:4 * NH], t2m=x[:, -3], sp=x[:, -2], rh2m=x[:, -1], z=np.asarray(_core.HEIGHTS, float))
         th = _core.thermo_column(_core.HEIGHTS, out["T"], out["RH"], out["sp"], t_sfc=out["t2m"], rh_sfc=out["rh2m"], z_sfc=self.elev)
         out.update(p=th["p"], rho=th["rho"], a=th["a"], elevation_m=self.elev)
+        if rows is not None:                                             # vertical wind and gust parameters of the pool atmospheres the rows came from (review 2026-11-07: they were dropped)
+            for k in ("w", "gust_mu", "gust_beta"):
+                if self.atm.get(k) is not None:
+                    out[k] = np.asarray(self.atm[k])[rows]
         return out
 
     # ---- the one-call contract (blueprint section "Unified integration")

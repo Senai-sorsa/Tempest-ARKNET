@@ -128,6 +128,23 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 | 2026-11-06 | G1 | siren (L3-4) not adopted, p2f stays the base (user, on the recommendation) | LOOP3 Results: Denver real 12-18 km T -0.31, surface jumps 12x ERA5 |
 | 2026-11-06 | G1 (§9 checks) | keep p2f as the base; keep coordinate encodings low-frequency (§9.6); next accuracy step out of domain = per-band, DI-gated climatology blend (§9.3) | `data/g9_verdicts.txt`: siren/sirenw15 lose Denver cold-point T (-0.36/-0.93) and make 12x ERA5's t2m/10 m jumps; studt's tails break the shear limit 2-5x; a w 0.5 blend lifts every Denver band for every run, a fixed w costs T at NM/TX |
 | 2026-11-06 | G1-a | **met with a local fit, not zero-shot**: Denver p2f + range map + DI-gated trust (fitted on local ERA5 2021-23) + shear map + shuffle = skill15 +0.0100, every band > 0, ~97 % of the B-raw → B-local gap. Raw p2f stays -0.19 (mean bias, e.g. u 0-1 km +7.8 m/s). Recommended: go for G2, with SAMOS targets (L3-8) as the zero-shot candidate; L3-34 debias tests the bias reading first. **Go** (decided under the user's loop-autonomy rule, 2026-11-06) | LOOP3 L3-29, L3-33; `models/l3_p2fden_cal2021_trust_smap_shufc8_*` |
+| 2026-11-07 | review | **Code-review bugs fixed before G4** (user request): export refuses non-MLP/model_kw checkpoints (the numpy tool cannot run them); solar-hour window travels in the tool manifest (`--solar-hours`, all24 = `0-24`); post-shuffle column count from the real grid, not a fixed n_lon; Mode F rounds to the nearest hour and conditions on the query point; sequence forecast flagged as climate-lag coherence; DI on unit-sphere xyz (no antimeridian seam); region boxes assert lon_west < lon_east (antimeridian boxes = G4 upgrade); flight engine attaches w/gust from the nearest pool row on Sobol draws; `fill_top` keeps a per-row top index (`fill_top_idx`) and an opt-in `fill_mask` loss that ignores filled heights | `tests/test_l3_options.py::test_fill_mask_ignores_filled_heights`, `tempest/scoring/di.py` self-check |
+
+### 7.1 Design notes from the 2026-11-07 review (not bugs, open)
+- **Validation and calibration share 2021-23.** Early stopping and the spread/trust fits see the same years. Test: retrain with validation 2021-22 and calibration 2023 only, compare the headline (one GPU run, after the G2 data).
+- **`fill_mask` test pending.** Rebuild the Denver file with `--fill-top` (CPU, not during a GPU job; it now stores `fill_top_idx`), train with `fill_mask = true`, score vs l3_a24den. The normalisation stats still include the filled values (minor).
+- **sp has zero spread in forecast/past modes.** No sp error data in the Mode F rows; flagged, not modelled.
+- **elev_site is collinear with the box elevation in one box.** Not a bug; the to_site inversion is tested at G2 (Salt Lake box).
+- **Old DI numbers (L3-28) change** with the xyz metric; DI is diagnostic only, so no verdict moves.
+
+### 7.2 Candidate ideas from the 2026-11-07 review (logged, not run; each needs its own verdict row)
+1. **Dual-space SAMOS climatology anchor**: score/predict in both the raw and the climatology-standardised space (extends §9.4, L3-8). Needs the G2 boxes.
+2. **Validity-masked fill_top loss + stratospheric lapse rate**: the mask half is built (`fill_mask`); the lapse-rate fill replaces the isothermal one (§9.7). Test on Denver fill first.
+3. **Censored / band-wise IGRA station pools**: treat heights above balloon burst as censored, pool stations per height band. Needs `data/igra_heights` (chain → `igra_convert.sh`).
+4. **t2m as a difference step + per-member boundary-layer lapse rate in `to_site`**: targets the Denver day t2m -0.005 cost. Test on Denver after G2.
+5. **Zero-training live ensemble dressing**: IFS 51 + WN2 64 members through Mode P, lead-time inflation, router blend. Needs the WB2/IFS ENS pulls; Mode F only.
+6. **EOF bottleneck (K = 16) Mode F head**: predict the leading EOFs of the forecast error instead of all columns. Needs the HRES global pull.
+7. **Synoptic analog templates for Mode F**: replace the climate-lag sequence table with analog sequences (fixes the flag added above). Needs the global store.
 
 ## 8. Cost summary
 | Stage | New data | GPU | Needs the user |
