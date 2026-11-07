@@ -12,7 +12,7 @@
 - Global store 7,483 pts (`data/global_fetch.log`) → ~Nov 7 06:00.
 - Global ASOS gusts, 200 stations 2016-25 (`data/asos_global.log`) → ~Nov 7 morning.
 - Chain after global store (`data/fetch_chain.log`): extras w/gust/BLH/CAPE/cloud/precip (~5 h) → IGRA plain files 987 stns (~1 h, ~25 GB) → 6 G2 boxes hourly (~4 h, ~32 GB) → ~Nov 7 evening.
-- Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). Only studt's Denver fill score is still running (`scripts/ap_l3_fill_studt.sh`, record only). Results in `docs/logs/LOOP3.md`.
+- Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
 - GLOBAL_PLAN §9 Monte Carlo checks (`scripts/ap_g9.sh`, running, waits for loop 3 + fill rescore, GPU idle, >= 9 GB RAM): results in `data/g9_verdicts.txt`; then record them in GLOBAL_PLAN §7.
 
 ## Automatic — next
