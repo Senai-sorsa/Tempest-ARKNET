@@ -10,6 +10,7 @@ The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) **finished 2026-11-07 01:00*
 | `data/raw` (counts toward the **200 GB** cap, raised 2026-11-06) | **81 GB** (+ global store growing: 33/420 months, ~12 GB at the end) | ~107 GB left after the global store. **Time, not disk, is now the constraint** |
 | ERA5 NM/TX store `era5_em80` (377 points, hourly) + `era5_em` (older, 18 variables) | 32 + 30 GB | together 3/4 of the cap |
 | ERA5 Denver 1991-2025 hourly, 81 points, 13 levels + surface | **5.3 GB** = 212 B per point-hour (zarr, compressed) | per variable: r 1.1, v 1.0, u 1.0, t 0.94, z 0.86 GB |
+| Denver night heights (UTC 05-11, L3-40) | 4.9 GB, built from the same raw store (no download) | needed: the all-hours Denver stack gains night skill (+0.0088 → +0.0102); keep every hour |
 | IGRA derived files, 2 stations | 279 MB = **~140 MB per station** | the full derived archive would not fit (see 3) |
 | `data/train/*.npz` (outside the cap) | 59 GB, of which ~10 near-identical 5.8 GB pilot copies | only `pilot80_dpd`, its `_l3x` overlay and `denver_full_dpd` are used by loop 3 |
 
