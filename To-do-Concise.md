@@ -13,15 +13,33 @@
 - Chain after the **whole** global store (`data/fetch_chain.log`, waits for 1991 too): extras (~5 h) → IGRA 987 stns (~1 h, ~25 GB) → 6 G2 boxes (~4 h, ~32 GB) → **~21:00 Nov 7** (corrected; earlier ETA assumed 2011-2025 only).
 - Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
 - **G9 follow-up block** (LOOP3 L3-28..33): DI and trust blend done (Denver -0.19 → +0.01, but physics worse; L3-33 adds the shuffle). Raw-p2f diagnosis done (calibration makes the surface jumps; the Denver inversion error comes from the model → IGRA jump head). L3-33 done: Denver **+0.0100, every band beats climatology**, physics close to ERA5 with the shuffle; but that needs the local ERA5 fit (not zero-shot). studt clip 3 (L3-30) rejected: no better than studt, wind-shear tails still too wide. Shuffle grid fix (L3-35) done: no change, kept. **Debias (L3-34) takes Denver from -0.19 to -0.03 with no retraining**, but it ruins the humidity spread. Debias on top of the local fit adds nothing, so the local fit (+0.0100) stays the Denver best.
-- Data-needs queue D1-D7 running (`scripts/ap_l3_data.sh`, `docs/data/DATA_NEEDS.md`): D1 13 years FAIL (keep 1991-2025; D6 23 years decides); D2 0.5° lattice neutral (enough). **D3 one hour per day FAIL** (+0.0176 vs +0.0277: the global store is built that thin, so G2 may need denser hours; D4 one hour in 4 decides, training now), then D5-D7, L3-36 (no-humidity debias), L3-37 (QMC noise).
+- Data-needs queue D1-D7 running (`scripts/ap_l3_data.sh`, `docs/data/DATA_NEEDS.md`): D1 13 years FAIL (keep 1991-2025; D6 23 years decides); D2 0.5° lattice neutral (enough). **D3 one hour per day FAIL** (+0.0176 vs +0.0277: the global store is built that thin, so G2 may need denser hours; D4 one hour in 4 decides, training now); the rest is numbered below.
 
-## Automatic — next
-- Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md.
-- Stack the winners of the lean queue (if any) and rescore Denver with the fill-top data.
-- Global loader + holdout/2026 guard + completeness check + below-ground masks (G0).
-- Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
-- IGRA plain files → 44 heights, delete raw zips; then run the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`: head only, base frozen, BLH / tropopause centre priors).
-- int16 tail check (Denver 99.9th shear).
-- G2 training (8 boxes, leave-one-box-out; **go** decided 2026-11-06, SAMOS targets L3-8 as the zero-shot candidate) once the 6 boxes land (~21:00 Nov 7), then G3/G4.
-- Launch plan (`docs/plans/LAUNCH_PLAN.md`), after the G9 block: A2 launch-day correction from any readings → A1 extension to 80 km (no retrain) → A3 wind/shear tails → tracer-drift check + runtime.
-- Test #3 future climate.
+## Left to check — numbered, in run order
+Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
+1. D4 `hcyc4` — one hour in 4 (training now). Decides how thin the G2 boxes may be in time.
+2. D5 `pts2hcyc16` — 0.5° lattice + one hour per day.
+3. D6 `yrs2001` — 23 years (decides the year range after D1 failed).
+4. D7a `den_yrs2011` — new region (Denver), 13 years vs B-local.
+5. D7b `den_hcyc16` — new region, one hour per day vs B-local.
+6. L3-36a — Denver debias without humidity, alone.
+7. L3-36b — the same inside the full stack (trust + shear map + shuffle c8).
+8. L3-36c — full stack with the full debias table.
+9. L3-37a — Sobol noise, NM/TX seed 0 vs the g9 baseline (+0.0277).
+10. L3-37b — seed-to-seed spread: random vs Sobol, seeds 1 and 2 (4 scores).
+11. L3-37c — Denver kept stack (L3-35 c8) with Sobol.
+12. L3-37 follow-up (only if Sobol wins): m = 256 so the Sobol set is exact.
+13. Stack the winners of 1-12 and rescore NM/TX + Denver.
+
+Processes to finish and check:
+14. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
+15. Global store finishes 2001-2010 and 1991-2000 (~11:00 Nov 7); completeness check.
+16. Fetch chain: extras → IGRA 987 stations → 6 G2 boxes (~21:00 Nov 7).
+17. G0: global loader + holdout/2026 guard + completeness check + below-ground masks.
+18. Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
+19. IGRA plain files → 44 heights, delete raw zips; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
+20. int16 tail check (Denver 99.9th shear).
+21. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
+22. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.
+23. Test #3 future climate.
+24. Run pytest once no GPU job is running (covers the new L3-37 test).
