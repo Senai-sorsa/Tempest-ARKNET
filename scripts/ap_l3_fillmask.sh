@@ -5,7 +5,7 @@
 # (l3_blfm), calibrates on 2021-23 and scores 2024-25 on the same file. Verdict: mask ON vs OFF.
 # Caveat: the score targets above each row's top are the filled values themselves, so the OFF model is favoured there;
 # read the bands below the fill (0-12 km) and the coverage, not only the mean.
-# Starts when no loop-3 queue, GPU or build job runs and >= 9 GB RAM is free. Every step skips when its output exists.
+# Starts when no loop-3 queue, GPU or build job runs and >= 6 GB RAM is free (was 9; lowered 13:25 Nov 7: available sits at 6-7 GB with 23 GB commit free, and Denver jobs ran at 6.5 GB before). Every step skips when its output exists.
 # Log: data/l3.log [L3-43]; verdicts: data/l3_verdicts.txt. Never edit while running.
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
 . scripts/cap_cpu.sh
@@ -15,9 +15,9 @@ log() { echo "$(date '+%F %T') [L3-43] $*" >> data/l3.log; }
 busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | ? { \$_.CommandLine -match 'generator.train|calibrate|scoring|build_dataset|to_heights|l3_overlay|concat_npz|igra_to_heights' }).Count" | tr -d '\r'; }
 queues() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='bash.exe'\" | ? { \$_.CommandLine -match 'ap_l3_(?!fillmask)|ap_l3\.sh|ap_g9' }).Count" | tr -d '\r'; }
 ram_gb() { powershell -NoProfile -c "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB)" | tr -d '\r'; }
-wait_gpu() { while [ "$(busy)" != "0" ] || [ "$(ram_gb)" -lt 9 ]; do sleep 60; done; }
+wait_gpu() { while [ "$(busy)" != "0" ] || [ "$(ram_gb)" -lt 6 ]; do sleep 60; done; }
 
-log "waiting for the loop-3 queue, GPU, builds and 9 GB RAM"
+log "waiting for the loop-3 queue, GPU, builds and 6 GB RAM"
 while :; do
   [ "$(queues)" = "0" ] && [ "$(busy)" = "0" ] && { sleep 120; [ "$(queues)" = "0" ] && [ "$(busy)" = "0" ] && break; }
   sleep 300
