@@ -101,8 +101,22 @@ def to_site(phys: np.ndarray, z_grid, z_site) -> np.ndarray:
     return phys
 
 
+def sobol_normal(n_blocks: int, m: int, dim: int) -> torch.Tensor:
+    """Randomised quasi-Monte Carlo noise (L3-37) -> (n_blocks * m, dim) N(0, 1), block b = rows b*m .. b*m+m-1.
+    One scrambled Sobol set of m points, shifted by an independent uniform per block (Cranley-Patterson) and mapped through the
+    normal quantile: each block is still an unbiased draw, but its m points fill the noise space more evenly than m random ones.
+    Uses torch's global RNG (score.py seeds it), so --seed still changes the draw.
+    shortcut: m = 199 is not a power of 2, so the Sobol balance is not exact; try m = 256 if L3-37 shows a gain."""
+    seed = int(torch.randint(0, 2**31 - 1, (1,)))
+    p = torch.quasirandom.SobolEngine(dim, scramble=True, seed=seed).draw(m, dtype=torch.float64)
+    u = (p[None] + torch.rand(n_blocks, 1, dim, dtype=torch.float64)) % 1.0
+    return torch.special.ndtri(u.clamp(1e-9, 1 - 1e-9)).reshape(n_blocks * m, dim).float()
+
+
 class Sampler:
-    """Loads one trained model, or an ensemble file {"members": [...]}; samples are split evenly over members."""
+    """Loads one trained model, or an ensemble file {"members": [...]}; samples are split evenly over members.
+    qmc_m = m (score.py --qmc) draws the noise with sobol_normal, one Sobol set per m consecutive rows (one condition's samples)."""
+    qmc_m = 0
 
     def __init__(self, ckpt, device=None):
         if not isinstance(ckpt, dict):
@@ -140,8 +154,14 @@ class Sampler:
         c = torch.as_tensor(cond, dtype=torch.float32, device=self.device)
         m0 = self.members[0][0]
         out = torch.empty(len(c), getattr(m0, "n_out", None) or m0.head[-1].out_features, device=self.device)
+        eps = None
+        if self.qmc_m:
+            if len(c) % self.qmc_m or not isinstance(m0, Generator):  # TokenGenerator draws its own noise
+                raise ValueError(f"qmc needs whole blocks of m = {self.qmc_m} rows and an mlp generator")
+            eps = sobol_normal(len(c) // self.qmc_m, self.qmc_m, m0.noise_dim).to(self.device)
         for i, (model, n) in enumerate(self.members):
-            out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1)[:, 0] * n["ts"] + n["tm"]
+            kw = {"eps": eps[i::len(self.members)]} if eps is not None else {}
+            out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1, **kw)[:, 0] * n["ts"] + n["tm"]
         out = out.cpu().numpy()
         if self.sp_offset is not None:
             j, e = self.sp_offset

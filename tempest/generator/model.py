@@ -122,8 +122,9 @@ class Generator(nn.Module):
             nn.init.zeros_(self.slope[-1].weight)  # start with no effect; training adds what the data supports
             nn.init.zeros_(self.slope[-1].bias)
 
-    def forward(self, cond: torch.Tensor, m: int = 1) -> torch.Tensor:
-        """cond (B, F) normalised -> m samples per row, (B, m, n_out) normalised."""
+    def forward(self, cond: torch.Tensor, m: int = 1, eps: torch.Tensor | None = None) -> torch.Tensor:
+        """cond (B, F) normalised -> m samples per row, (B, m, n_out) normalised. eps (B * m, noise_dim) overrides the Gaussian
+        noise draw (L3-37 quasi-random sampling, sample.sobol_normal); None = the usual torch.randn."""
         full = slope_in = cond
         g = self._geo(full) if self.geo else None
         place = ([full[:, self.context_cols]] if self.context_cols else []) + ([g] if g is not None else [])
@@ -135,7 +136,10 @@ class Generator(nn.Module):
         if self.linear_cols and not self.interactions:
             slope_in = torch.cat([full[:, self.keep_cols]] + place, -1) if place else cond
         c = cond.unsqueeze(1).expand(-1, m, -1)
-        eps = torch.randn(*c.shape[:2], self.noise_dim, device=cond.device, dtype=cond.dtype)
+        if eps is None:
+            eps = torch.randn(*c.shape[:2], self.noise_dim, device=cond.device, dtype=cond.dtype)
+        else:
+            eps = eps.to(device=cond.device, dtype=cond.dtype).view(*c.shape[:2], self.noise_dim)
         if self.noise_t:
             d, nu = int(self.noise_t["dims"]), float(self.noise_t["nu"])
             chi = torch.distributions.Chi2(torch.tensor(nu, device=cond.device)).sample((*c.shape[:2], d)).to(eps.dtype)

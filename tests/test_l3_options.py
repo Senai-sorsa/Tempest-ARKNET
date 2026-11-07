@@ -66,3 +66,16 @@ def test_overlay_npz(tmp_path):
         assert list(d["cond_names"])[-1] == "x"
     finally:
         features.set_active(features.BASE_FEATURES)   # load_npz activates the file's column list module-wide
+
+
+def test_qmc_noise():
+    """L3-37: eps=None is the plain torch.randn draw; Sobol blocks are balanced (block mean ~4x closer to 0 than random)."""
+    from tempest.generator.sample import sobol_normal
+    g = Generator(4, 6, noise_dim=8, width=16, depth=1).eval()
+    c = torch.randn(5, 4)
+    torch.manual_seed(0); a = g(c, 1)
+    torch.manual_seed(0); b = g(c, 1, eps=torch.randn(5, 1, 8).view(5, -1))
+    assert torch.equal(a, b)
+    torch.manual_seed(1)
+    q, r = sobol_normal(100, 128, 8).view(100, 128, 8), torch.randn(100, 128, 8)
+    assert torch.isfinite(q).all() and q.mean(1).abs().mean() < r.mean(1).abs().mean() / 3

@@ -22,7 +22,7 @@ in `docs/plans/PLAN.md` (improvement log and blueprint review); discarded ideas 
 
 ## Accuracy: model and loss
 
-- Quasi-random (Sobol / antithetic) noise when sampling: smoother tails at the same m.
+- Quasi-random (Sobol / antithetic) noise when sampling: smoother tails at the same m. → LOOP3 L3-37 (Sobol at inference, queued 2026-11-06).
 - Smooth vertical basis (EOF / B-spline) or a jet / inversion shape head (step loss already fixed shear).
 - Sobolev / hydrostatic penalty in the loss; vertical conv / Fourier layer; FiLM conditioning.
 - afCRPS alpha 0.99 instead of 0.95: tried as item 13, no skill gain.

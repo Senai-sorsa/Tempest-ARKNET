@@ -111,6 +111,7 @@ def main():
     ap.add_argument("--m", type=int, help="samples per row (default: the calibration's m, else 50)")
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--qmc", action="store_true", help="L3-37: quasi-random (scrambled Sobol, sample.sobol_normal) generator noise instead of torch.randn; outputs get a _qmc suffix")
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year; later years are not used at all")
@@ -151,6 +152,7 @@ def main():
         held = (year >= a.first_test_year) & (year <= (a.last_test_year or 9999))
     cal = spread.load(a.calib, a.model)
     a.m = a.m or (int(cal["m"]) if cal else 50)
+    sampler.qmc_m = a.m if a.qmc else 0
     keys = group_keys(cond)
 
     tr = np.flatnonzero(~held & (year <= (a.last_test_year or 9999)))
@@ -267,7 +269,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
