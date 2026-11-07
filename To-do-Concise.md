@@ -5,7 +5,7 @@
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
-- Create a free NASA Earthdata login (for MERRA-2, the 48-80 km layer of A1) and tell me when done.
+- NASA Earthdata token received 2026-11-07 (kept outside the repo in `~/.earthdata_token`, expires 2027-01-06; valid at LP DAAC). **MERRA-2 (GES DISC) still answers 401**: at urs.earthdata.nasa.gov → Applications → Authorized Apps → Approve More Applications, approve "NASA GESDISC DATA ARCHIVE", then tell me (for A1, the 48-80 km layer).
 - Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running
