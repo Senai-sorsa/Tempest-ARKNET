@@ -2,7 +2,7 @@
 
 Goal: the **smallest realistic data set** that keeps the model working, at each stage of `docs/plans/GLOBAL_PLAN.md`.
 Every number below is marked **measured** (from files on disk or a run) or **estimate** (to be replaced by a measurement).
-The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) would answer the open questions; **sidelined 2026-11-06** (user cut loop 3 to a lean queue). Until they run, keep the defaults below: all 1991-2025 years, hourly, full space.
+The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) would answer the open questions; sidelined, then reaped, **running since 2026-11-06 21:35** (D1 `yrs2011` first, one GPU job at a time, then the rest in order). Until they run, keep the defaults below: all 1991-2025 years, hourly, full space.
 
 ## 1. Where we stand (measured 2026-11-06)
 | Item | Size | Note |
@@ -38,7 +38,7 @@ All on the p2f config, calibrated and scored on the **full** data 2024-25, compa
 
 | ID | Question | Run | Data share | Result |
 |---|---|---|---|---|
-| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | pending |
+| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **training** (21:35) |
 | D2 | Is a 0.5° lattice enough (unseen points between)? | `pts2` | ~25 % | pending |
 | D3 | **One hour per day**, cycling through the hours (the global store design) | `hcyc16` | 6 % | pending |
 | D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | pending |
