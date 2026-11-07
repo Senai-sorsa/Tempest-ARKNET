@@ -17,8 +17,8 @@
 ## Left to check — numbered, in run order
 L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-38 03:29: all-hours KEEP (day +0.0278 = +0.0277, night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 205 passed (02:40).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
-1. L3-42 NM/TX stack on all24 (`scripts/ap_l3_nmtx_hours.sh`, ~45 min, running): day seeds 0/1/2 + night vs the p2f stack. Denver done: L3-40/41 KEEP, `l3_a24den` is the Denver stack for all hours (night +0.0102, day -0.0004 in tolerance; day t2m -0.005 is the known cost; fallback = p2f stack by day). Then rebuild later rows on `l3_h_all24`.
-2. After L3-42: any further winners stacked on all24 and rescored with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
+1. Base for both stacks is now `l3_h_all24` (L3-42 NM/TX KEEP: day -0.0001 over 3 seeds, night +0.0274; L3-40/41 Denver KEEP). Known costs: Denver day t2m -0.005 (fallback: p2f stack by day), night rh2m cov99 0.9976 over-cover. GPU idle until IGRA/global data arrive (L3-27).
+2. Any further winners stacked on all24 and rescored with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
 Processes to finish and check:
 7. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.

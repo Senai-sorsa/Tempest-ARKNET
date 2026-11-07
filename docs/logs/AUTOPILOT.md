@@ -380,5 +380,5 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-39 all24 3 seeds | `scripts/ap_l3_hours_seeds.sh` | **done 03:54, KEEP confirmed**: paired +0.0001 / -0.0003 / -0.0001 (mean -0.0001), no band worse; Denver zero-shot -0.192 → -0.175 |
 | L3-40 Denver all-hours stack | `scripts/ap_l3_denhours.sh` | **done 04:36**: night +0.0088 → +0.0102 PASS; day +0.0100 → +0.0096 (-0.0004, in tolerance, no band worse) |
 | L3-41 Denver all24 day seeds | `scripts/ap_l3_denhours_seeds.sh` | **done 04:59, KEEP**: day -0.0004/-0.0003/-0.0005 (mean -0.0004, in tolerance), cov99 better every seed; `l3_a24den` = Denver stack, all hours |
-| L3-42 NM/TX all-hours stack | `scripts/ap_l3_nmtx_hours.sh` | queued 05:03: day seeds 0/1/2 + night vs p2f stack |
+| L3-42 NM/TX all-hours stack | `scripts/ap_l3_nmtx_hours.sh` | **done 05:43, KEEP**: day mean -0.0001 over 3 seeds (b PASS, cov99 better), night -0.0072 → +0.0274 (rh2m cov99 0.9976 over-cover flag); `l3_a24nm` = NM/TX stack, all hours |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
