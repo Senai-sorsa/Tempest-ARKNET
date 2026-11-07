@@ -18,7 +18,7 @@
 L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 205 passed (02:40).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 1. L3-38 — **all solar hours** (`scripts/ap_l3_hours.sh`, started 02:31): night store (~2-3 h CPU) → builds → p2f on all 24 h at the same 8 M rows (~25 min) → day vs p2f, night vs p2f. If day skill drops > 0.0006: more rows (x) and a separate night model (split). ~5-7 h after L3-37.
-2. Stack the winners and rescore NM/TX + Denver.
+2. Stack the winners and rescore NM/TX + Denver with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
 Processes to finish and check:
 7. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
