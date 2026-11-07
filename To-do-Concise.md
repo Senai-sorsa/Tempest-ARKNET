@@ -17,7 +17,7 @@
 ## Left to check — numbered, in run order
 L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-38 03:29: all-hours KEEP (day +0.0278 = +0.0277, night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 205 passed (02:40).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
-1. L3-38/39 done (all-hours KEEP, confirmed on 3 seeds: mean -0.0001 by day). Next: Denver all-hours store (`data/raw/era5_em_denver_full` already holds all 24 UTC hours, so `to_heights --hours 5-11`, no download) + fine-tune so the Denver stack (+0.0100, day only) gets night skill too; rebuild later rows on `l3_h_all24`.
+1. L3-40 Denver all-hours stack (`scripts/ap_l3_denhours.sh`, queued 04:05, starts by itself): night store + build (~1-2 h CPU), all24 shear map + trust, day vs the +0.0100 p2f stack, night vs p2f stack. If day holds, `l3_a24den` becomes the Denver stack; rebuild later rows on `l3_h_all24`.
 2. Stack the winners and rescore NM/TX + Denver with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
 Processes to finish and check:
