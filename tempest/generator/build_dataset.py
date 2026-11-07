@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--station-blend", action="store_true", help="F-20: draw the correcting station by inverse-distance weights and the launch class by a cosine ramp over 05-17 h solar "
                     "(no Voronoi seam, no 11:00 switch); default off = the hard nearest-station / 11:00 rule")
     ap.add_argument("--sidecar", action="store_true", help="F-35: also store row provenance (grid point, UTC time, correction group, correction version) in the npz")
+    ap.add_argument("--all-hours", action="store_true", help="keep every solar hour in the store instead of the 06-21 h window (all-hours test; pair with a to_heights --hours 5-11 store for the nights)")
     ap.add_argument("--fill-top", action="store_true", help="keep mountain rows whose top heights lie above 50 hPa: those heights copy the highest valid one (to_heights.fill_top) instead of the row being dropped")
     a = ap.parse_args()
     if a.features == "p2":
@@ -73,7 +74,7 @@ def main():
     times = pd.DatetimeIndex(ds.time.values)
     lat, lon, elev = ds.lat.values, ds.lon.values, ds.z_sfc.values
     sh = solar_hour(times, lon)
-    keep = (sh >= 6) & (sh <= 21) & ((times.year >= a.first_year) & (times.year <= a.last_year))[None, :]
+    keep = (((sh >= 6) & (sh <= 21)) | a.all_hours) & ((times.year >= a.first_year) & (times.year <= a.last_year))[None, :]
     rng = np.random.default_rng(a.seed)
     sel = keep & (rng.random(keep.shape, dtype=np.float32) < min(1.0, a.rows / keep.sum()))
     n = int(sel.sum())

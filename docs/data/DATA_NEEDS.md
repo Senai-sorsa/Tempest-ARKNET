@@ -15,7 +15,7 @@ The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) **finished 2026-11-07 01:00*
 
 ## 2. What the model needs (known)
 - **Variables**: u, v, T, RH on 13 pressure levels → 44 heights to 18 km (above 18 km dropped), plus t2m, sp, rh2m, 10/100 m wind. z can be rebuilt hydrostatically from T, RH and sp (saves ~16 % of a store; only worth doing for the global store).
-- **Hours**: all 24 for the global store (night hours are R-8; the pilot only has solar hours 06-21).
+- **Hours**: all 24 for the global store (night hours are R-8; the pilot only has solar hours 06-21). L3-38 (`scripts/ap_l3_hours.sh`) adds the pilot nights from the raw hourly store (no download, ~30 GB derived) and measures whether all 24 h at the same row count costs day skill.
 - **Years**: 1991-2025 is enough. P3-5 tested 1980-2023 against 1991-2023: **no skill gain** (`docs/plans/PLAN.md` P3-5). Whether *fewer* years are enough is D1/D2.
 - **Test and lock**: 2026 and the holdout places (`docs/plans/GLOBAL_PLAN.md` §3.1) are never fetched into training stores.
 - **Statics**: ERA5 invariants (z, lsm, sdor, slor, anor, isor) are one 2-D field each, < 100 MB worldwide.

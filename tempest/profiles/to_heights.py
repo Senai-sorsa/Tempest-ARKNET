@@ -26,6 +26,21 @@ SURFACE = ["t2m", "sp", "rh2m", "u10", "v10"]
 CDS_LEVELS = [975, 950, 900, 875, 825, 800, 775, 750]
 
 
+def parse_hours(spec):
+    """'12-23,0-4' -> [12..23, 0..4] (UTC hours, in that order); 'all' -> 0..23."""
+    if spec == "all":
+        return list(range(24))
+    out = []
+    for part in spec.split(","):
+        lo, _, hi = part.partition("-")
+        out += list(range(int(lo), int(hi or lo) + 1))
+    assert out and len(set(out)) == len(out) and all(0 <= h < 24 for h in out), spec
+    return out
+
+
+assert parse_hours("12-23,0-4") == UTC_HOURS and parse_hours("5-11") == list(range(5, 12))
+
+
 def geometric_height(z):
     """Geopotential (m2/s2) -> geometric height (m)."""
     zh = z / G0
@@ -149,10 +164,13 @@ def main():
     ap.add_argument("--raw", default="data/raw/era5_em")
     ap.add_argument("--cds", default="data/raw/era5_cds")
     ap.add_argument("--out", default="data/pilot/profiles.zarr")
+    ap.add_argument("--hours", default="12-23,0-4", help="UTC hours to keep, e.g. 5-11 (the night hours the default leaves out) or all")
+    ap.add_argument("--last-year", type=int, help="leave out later years (e.g. 2025: no 2026 holdout data in the store)")
     a = ap.parse_args()
+    hours = parse_hours(a.hours)
 
     ds = open_raw(a.raw)
-    ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(UTC_HOURS))
+    ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(hours) & (ds.valid_time.dt.year <= (a.last_year or 9999)))
     use_cds = os.path.isdir(a.cds) and any(f.endswith((".grib", ".nc")) for f in os.listdir(a.cds))
     if use_cds:
         have = {f[:6] for f in os.listdir(a.cds) if f.endswith((".grib", ".nc"))}
@@ -163,7 +181,7 @@ def main():
     lat, lon = lat2.ravel(), ((lon2.ravel() + 180) % 360) - 180
     z_sfc = ds.z_sfc.values.ravel()
     n_pt, n_t = len(lat), ds.sizes["valid_time"]
-    block = 364 * len(UTC_HOURS)                             # one store time-chunk after the hour filter
+    block = 364 * len(hours)                                 # one store time-chunk after the hour filter
 
     if not os.path.exists(a.out):
         p3, p2 = (29, block, 44), (29, block)

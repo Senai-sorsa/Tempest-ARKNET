@@ -13,7 +13,6 @@
 - Chain after the **whole** global store (`data/fetch_chain.log`, waits for 1991 too): extras (~5 h) → IGRA 987 stns (~1 h, ~25 GB) → 6 G2 boxes (~4 h, ~32 GB) → **~21:00 Nov 7** (corrected; earlier ETA assumed 2011-2025 only).
 - Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
 - **G9 follow-up block** (LOOP3 L3-28..33): DI and trust blend done (Denver -0.19 → +0.01, but physics worse; L3-33 adds the shuffle). Raw-p2f diagnosis done (calibration makes the surface jumps; the Denver inversion error comes from the model → IGRA jump head). L3-33 done: Denver **+0.0100, every band beats climatology**, physics close to ERA5 with the shuffle; but that needs the local ERA5 fit (not zero-shot). studt clip 3 (L3-30) rejected: no better than studt, wind-shear tails still too wide. Shuffle grid fix (L3-35) done: no change, kept. **Debias (L3-34) takes Denver from -0.19 to -0.03 with no retraining**, but it ruins the humidity spread. Debias on top of the local fit adds nothing, so the local fit (+0.0100) stays the Denver best.
-- Data-needs queue D1-D7 running (`scripts/ap_l3_data.sh`, `docs/data/DATA_NEEDS.md`): D1 13 years FAIL (keep 1991-2025; D6 23 years decides); D2 0.5° lattice neutral (enough). **D3 one hour per day FAIL** (+0.0176 vs +0.0277: the global store is built that thin, so G2 may need denser hours; D4 one hour in 4 decides, training now); the rest is numbered below.
 
 ## Left to check — numbered, in run order
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
@@ -23,6 +22,7 @@ Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 4. L3-37a — Sobol noise, NM/TX seed 0 vs the g9 baseline (+0.0277).
 5. L3-37b — seed-to-seed spread: random vs Sobol, seeds 1 and 2 (4 scores).
 6. L3-37c — Denver kept stack (L3-35 c8) with Sobol.
+7. L3-38 — **all solar hours** (`scripts/ap_l3_hours.sh`, waiting): night store (~2-3 h CPU) → builds → p2f on all 24 h at the same 8 M rows (~25 min) → day vs p2f, night vs p2f. If day skill drops > 0.0006: more rows (x) and a separate night model (split). ~5-7 h after L3-37.
 7. L3-37 follow-up (only if Sobol wins): m = 256 so the Sobol set is exact.
 8. Stack the winners of 1-12 and rescore NM/TX + Denver.
 
