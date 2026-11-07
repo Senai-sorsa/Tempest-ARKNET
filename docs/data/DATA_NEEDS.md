@@ -41,7 +41,7 @@ All on the p2f config, calibrated and scored on the **full** data 2024-25, compa
 | D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **FAIL** (22:02): skill15 +0.0050 vs +0.0277, every band lower, v/RH worse than climatology; cov99 fine. 13 years are not enough: keep 1991-2025, D6 (23 yrs) now decides |
 | D2 | Is a 0.5° lattice enough (unseen points between)? | `pts2` | ~25 % | **neutral = enough** (22:28; with fewer rows than yrs2011 and no loss, so D1 fails on climate variety, not row count): skill15 +0.0276 vs +0.0277 (inside the 0.0006 seed tolerance), no band worse, cov99 PASS. A 0.5° lattice loses nothing at unseen points between |
 | D3 | **One hour per day**, cycling through the hours (the global store design) | `hcyc16` | 6 % | **FAIL** (22:55): skill15 +0.0176 vs +0.0277 (36 % of the skill lost), no band worse, cov99 PASS. One hour per day is too thin at a fixed number of years: the global store (one hour per day) needs D4 or more years per box before G2 relies on it |
-| D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | pending |
+| D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | **small loss** (23:19): skill15 +0.0266 vs +0.0277 (-0.0011, ~2x the seed tolerance, 4 % of the skill), no band worse, cov99 PASS. One hour in 4 keeps ~96 % of the skill vs D3's 64 %: for G2, one hour in 4 is the thinnest safe choice (or one hour per day with ~2x the years/boxes) |
 | D5 | 0.5° lattice + one hour per day | `pts2hcyc16` | ~1.5 % | pending |
 | D6 | Are 23 years (2001-2023) enough? (matters only if D1 fails) | `yrs2001` | 70 % | pending |
 | D7a | New region: 13 years of a box (vs B-local) | `den_yrs2011` | 39 % | pending |
