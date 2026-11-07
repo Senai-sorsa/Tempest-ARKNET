@@ -379,5 +379,6 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-38 all hours (user) | `scripts/ap_l3_hours.sh` | **started 02:31**; night store built in 16 min; day-only p2f at night skill15 **-0.006** (below climatology, vs +0.028 by day); **KEEP 03:29**: all24 day +0.0278 (= +0.0277), night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base, Denver zero-shot scoring. Plan was: night store + all-hours p2f at the same row count; day vs p2f, night vs p2f; alternatives x / split only if the day loss is significant |
 | L3-39 all24 3 seeds | `scripts/ap_l3_hours_seeds.sh` | **done 03:54, KEEP confirmed**: paired +0.0001 / -0.0003 / -0.0001 (mean -0.0001), no band worse; Denver zero-shot -0.192 → -0.175 |
 | L3-40 Denver all-hours stack | `scripts/ap_l3_denhours.sh` | **done 04:36**: night +0.0088 → +0.0102 PASS; day +0.0100 → +0.0096 (-0.0004, in tolerance, no band worse) |
-| L3-41 Denver all24 day seeds | `scripts/ap_l3_denhours_seeds.sh` | queued 04:36: day seeds 1/2, paired |
+| L3-41 Denver all24 day seeds | `scripts/ap_l3_denhours_seeds.sh` | **done 04:59, KEEP**: day -0.0004/-0.0003/-0.0005 (mean -0.0004, in tolerance), cov99 better every seed; `l3_a24den` = Denver stack, all hours |
+| L3-42 NM/TX all-hours stack | `scripts/ap_l3_nmtx_hours.sh` | queued 05:03: day seeds 0/1/2 + night vs p2f stack |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
