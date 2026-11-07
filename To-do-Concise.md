@@ -24,9 +24,8 @@ Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 
 Processes to finish and check:
 7. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
-8. Global store finishes 2001-2010 and 1991-2000 (~11:00 Nov 7); completeness check.
 9. Fetch chain: extras → IGRA 987 stations → 6 G2 boxes (~21:00 Nov 7).
-10. G0: global loader + holdout/2026 guard + completeness check + below-ground masks.
+10. G0: global loader + holdout/2026 guard + below-ground masks (store completeness checked 15:37 Nov 7: 420/420 months 1991-2025, steps/hours right, no .part/2026, no saturated int16, 11 GB, 7,483 pts).
 11. Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
 12. IGRA plain files → `data/igra_heights` (44 + A1 heights to 80 km, raw zips deleted): automatic via `scripts/igra_convert.sh` after the chain's IGRA download; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
 13. int16 tail check (Denver 99.9th shear).
