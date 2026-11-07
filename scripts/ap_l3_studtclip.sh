@@ -15,9 +15,10 @@ log start
 $PY - <<'PY' || { log "FAILED clip copy"; exit 1; }
 import torch
 ck = torch.load("models/l3_studt.pt", map_location="cpu", weights_only=False)
-ck["model_kw"]["noise_t"]["clip"] = 3.0
+for mb in ck["members"]:  # ensemble checkpoint: model_kw per member
+    mb["model_kw"]["noise_t"]["clip"] = 3.0
 torch.save(ck, "models/l3_studtc3.pt")
-print(ck["model_kw"]["noise_t"])
+print([mb["model_kw"]["noise_t"] for mb in ck["members"]])
 PY
 wait_room
 $PY -W ignore -u -m tempest.calibrate.spread --model $M --data $NT --year 2023 --from-year 2021 --rows 60000 --m 199 > data/l3_calib_studtc3.log 2>&1 \
