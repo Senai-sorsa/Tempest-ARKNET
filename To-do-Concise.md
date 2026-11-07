@@ -13,7 +13,7 @@
 - Global ASOS gusts, 200 stations 2016-25 (`data/asos_global.log`) → ~Nov 7 morning.
 - Chain after global store (`data/fetch_chain.log`): extras w/gust/BLH/CAPE/cloud/precip (~5 h) → IGRA plain files 987 stns (~1 h, ~25 GB) → 6 G2 boxes hourly (~4 h, ~32 GB) → ~Nov 7 evening.
 - Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
-- GLOBAL_PLAN §9 Monte Carlo checks (`scripts/ap_g9.sh`, running, waits for loop 3 + fill rescore, GPU idle, >= 9 GB RAM): results in `data/g9_verdicts.txt`; then record them in GLOBAL_PLAN §7.
+- GLOBAL_PLAN §9 Monte Carlo checks (`scripts/ap_g9.sh`, running, waits for loop 3 + fill rescore, GPU idle, >= 9 GB RAM): results in `data/g9_verdicts.txt`; then record them in GLOBAL_PLAN §7. `scripts/ap_g9_refill.sh` then rescores p2f/siren Denver with the fixed filled check (siren adoption evidence). Next design step from the first results: DI-gated climatology blend (§9.3), and check siren's t2m/10 m jump excess.
 
 ## Automatic — next
 - Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md.
