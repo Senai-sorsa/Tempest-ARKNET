@@ -1,11 +1,11 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
 ## You
-- Colab: WB2 HRES pull (ASK_LATER 9) — needed for global Mode F only, not urgent.
+- Colab: global HRES pull (ASK_LATER 9, global Mode F, not urgent): `docs/data/colab/Colab HRES global fetch.md` (tested, ~7 GB, ~8-35 h Colab). Box refetch already done.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
-- NASA Earthdata token received 2026-11-07 (kept outside the repo in `~/.earthdata_token`, expires 2027-01-06; valid at LP DAAC). **MERRA-2 (GES DISC) still answers 401**: at urs.earthdata.nasa.gov → Applications → Authorized Apps → Approve More Applications, approve "NASA GESDISC DATA ARCHIVE", then tell me (for A1, the 48-80 km layer).
+- Done: NASA Earthdata token works for MERRA-2 (GES DISC approved 2026-11-07; token in `~/.earthdata_token`, outside the repo, expires 2027-01-06 — renew before then). Used by A1 (48-80 km layer).
 - Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running
