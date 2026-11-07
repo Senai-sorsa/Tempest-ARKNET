@@ -209,6 +209,13 @@ def main():
         sw = dict(np.load(a.seasonal))
         mon = (keys[va] // 12) % 12 + 1
         known, unknown = seasonal.apply(sw, known, mon), seasonal.apply(sw, unknown, mon)
+    if a.trust:  # L3-33: before the shuffle and the shear-space maps, so they repair the joint shape the per-column blend breaks
+        if not cal:
+            raise SystemExit("--trust needs --calib")
+        tw = trust.load(a.trust, a.model, a.calib)
+        qpool = trust.ClimPool(keys, year, target, (first - int(tw["clim_years"]), first - 1), a.m)  # same window as clim15 above
+        q = qpool.quantiles(keys[va])
+        known, unknown = trust.apply_full(tw, known, q), trust.apply_full(tw, unknown, q)
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         tpl = clim
@@ -236,14 +243,6 @@ def main():
         from tempest.calibrate import shear_tail
         st, prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
         known, unknown = shear_tail.apply(st, known, prng), shear_tail.apply(st, unknown, prng)
-    if a.trust:
-        if not cal:
-            raise SystemExit("--trust needs --calib")
-        tw = trust.load(a.trust, a.model, a.calib)
-        qpool = trust.ClimPool(keys, year, target, (first - int(tw["clim_years"]), first - 1), a.m)  # same window as clim15 above
-        q = qpool.quantiles(keys[va])
-        known, unknown = trust.apply_full(tw, known, q), trust.apply_full(tw, unknown, q)
-
     res = pd.DataFrame({"column": physical_names()})
     sets = [("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown)]
     n = len(HEIGHTS)
