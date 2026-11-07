@@ -107,16 +107,18 @@ def write(stem, x, clim15, truth, cond, names, band_masks, w_list=(0.25, 0.5)):
         for var, band, sel in band_masks:
             add("blend", f"{var} {band}", f"skill_w{w:g}", 1 - cr[sel].mean() / cr_c[sel].mean(), 0.0)
 
-    filled = np.zeros_like(T, bool)  # filled heights: the top run of exact copies of the last real T
-    rev = (np.diff(T, axis=-1) == 0)[:, ::-1]
-    run = np.cumprod(rev, axis=1).sum(1)
-    filled[np.arange(N)[None] >= N - run[:, None]] = True
-    if filled.any():
+    # filled heights (fill-top build: above the 50 hPa top, ~20.5 km MSL, copies of the highest valid height). Found by
+    # MSL height, not by exact copies: build_dataset's station correction runs after fill_top, so the copies are not equal.
+    # shortcut: fixed 50 hPa height (it moves ~+-0.4 km with season); the 19.5-20.5 km MSL band is left out as ambiguous.
+    msl = cond[:, names.index("elev_grid")][:, None] + HEIGHTS[None]
+    filled, real = msl > 20500, (HEIGHTS >= 12000)[None] & (msl < 19500)
+    if filled.sum() >= 200:
         cT = _crps(x[..., IT:IT + N], T)
         cTc = _crps(clim15[..., IT:IT + N], T)
-        for g, msk in (("filled", filled), ("real_12_18km", ~filled & (HEIGHTS >= 12000))):
+        cv = _cov(x[..., IT:IT + N], T, 0.99)
+        for g, msk in (("filled", filled), ("real_12_18km", real)):
             add("filled", g, "T_crps_skill_vs_clim15", 1 - cT[msk].mean() / cTc[msk].mean(), msk.mean())
-            add("filled", g, "T_cov99", _cov(x[..., IT:IT + N], T, 0.99)[msk].mean(), 0.99)
+            add("filled", g, "T_cov99", cv[msk].mean(), 0.99)
 
     elev = cond[:, names.index("elev_grid")]
     cls = np.digitize(elev, [1500, 2500])
@@ -145,13 +147,14 @@ if __name__ == "__main__":
     base[4 * N] = base[IT]
     draw = lambda *s: base + rng.normal(0, 1, (*s, 4 * N + 3)).cumsum(-1) * 0.1
     tr, xs, cl = draw(400), draw(400, 99), draw(400, 99)
-    tr[:, IT + N - 3:IT + N] = tr[:, IT + N - 4:IT + N - 3]
     names = ["doy_sin", "doy_cos", "hour_sin", "hour_cos", "elev_grid"]
-    cond = np.c_[rng.normal(size=(400, 4)), np.full(400, 1000.0)]
+    cond = np.c_[rng.normal(size=(400, 4)), np.r_[np.full(200, 1000.0), np.full(200, 3000.0)]]  # half over high ground: top height filled
     masks = [("T", "0-18 km", np.r_[np.zeros(IT, bool), np.ones(N, bool), np.zeros(N + 3, bool)])]
     import tempfile, os
     o = write(os.path.join(tempfile.mkdtemp(), "t"), xs, cl, tr, cond, names, masks)
     assert abs(o.query("check == 'es' and group == 'all'").model.item()) < 0.05
     assert abs(o.query("check == 'derived' and group == 'max_wind' and metric == 'cov90'").model.item() - 0.9) < 0.05
-    assert o.query("check == 'filled' and group == 'filled' and metric == 'T_cov99'").model.item() < 0.5  # members are not filled, so the copies fall outside
+    f = o.query("check == 'filled' and metric == 'T_cov99'").set_index("group")
+    assert abs(f.loc["filled", "model"] - 0.99) < 0.05 and abs(f.loc["real_12_18km", "model"] - 0.99) < 0.05  # perfect ensemble: nominal in both
+    assert 0 < o.query("check == 'filled' and group == 'filled'").ref.iloc[0] < 0.05  # 200 rows x 1 height of 400 x 44
     print("mc self-check ok")
