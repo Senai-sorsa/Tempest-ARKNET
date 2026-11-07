@@ -20,7 +20,7 @@ Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 1. Base for both stacks is now `l3_h_all24` (L3-42 NM/TX KEEP: day -0.0001 over 3 seeds, night +0.0274; L3-40/41 Denver KEEP). Known costs: Denver day t2m -0.005 (fallback: p2f stack by day), night rh2m cov99 0.9976 over-cover. GPU idle until IGRA/global data arrive (L3-27).
 2. Any further winners stacked on all24 and rescored with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
-3. Review fixes 2026-11-07 done (8 bugs, GLOBAL_PLAN §7). Pending from it: `fill_mask` Denver test = **L3-43, queued 11:40** (`scripts/ap_l3_fillmask.sh`, ~1.2 h once 9 GB RAM is free; GPU idle anyway) and the 2021-22 / 2023 validation-calibration split test. 7 candidate ideas logged in GLOBAL_PLAN §7.2, not run.
+3. Review fixes 2026-11-07 done (8 bugs, GLOBAL_PLAN §7). Pending from it: `fill_mask` Denver test = **L3-43 running** (`scripts/ap_l3_fillmask.sh`): build done 12:11 (4.0 M rows, 23.4 % with filled heights, as L3-25), mask-OFF model trained 12:27 (15.3 min); calib/score wait for 9 GB free RAM (7 GB at 12:37), then the mask-ON model; result ~14:00 if RAM allows and the 2021-22 / 2023 validation-calibration split test. 7 candidate ideas logged in GLOBAL_PLAN §7.2, not run.
 
 Processes to finish and check:
 7. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
