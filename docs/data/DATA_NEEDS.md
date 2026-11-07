@@ -38,8 +38,8 @@ All on the p2f config, calibrated and scored on the **full** data 2024-25, compa
 
 | ID | Question | Run | Data share | Result |
 |---|---|---|---|---|
-| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **scoring** (trained in 16 min, 21:52) |
-| D2 | Is a 0.5° lattice enough (unseen points between)? | `pts2` | ~25 % | pending |
+| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **FAIL** (22:02): skill15 +0.0050 vs +0.0277, every band lower, v/RH worse than climatology; cov99 fine. 13 years are not enough: keep 1991-2025, D6 (23 yrs) now decides |
+| D2 | Is a 0.5° lattice enough (unseen points between)? | `pts2` | ~25 % | **neutral = enough** (22:28): skill15 +0.0276 vs +0.0277 (inside the 0.0006 seed tolerance), no band worse, cov99 PASS. A 0.5° lattice loses nothing at unseen points between |
 | D3 | **One hour per day**, cycling through the hours (the global store design) | `hcyc16` | 6 % | pending |
 | D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | pending |
 | D5 | 0.5° lattice + one hour per day | `pts2hcyc16` | ~1.5 % | pending |
