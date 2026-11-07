@@ -375,5 +375,6 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | Fill-top Denver rescore | `ap_l3_fill.sh` | siren -0.1562 vs p2f -0.1918 (rule a PASS, b FAIL: T 12-18 km -0.33); w768 -0.2154 FAIL; terrain -0.2069 FAIL (rejected: t2m/rh2m/v 0-1 km worse); ctxsep -0.2179 FAIL; sirenw15 -0.2013 FAIL |
 | L3-23 ctxsep | `ap_l3_lean.sh` | **rejected for NM/TX**: +0.0250 vs +0.0277 (sp/t2m surface worse), shape FAIL (RH 1-5 km tails, pit_tv); Denver overlay failed on the old set → fill-top rescore by `ap_l3_fill.sh` |
 | L3-24 sirenw15 | `ap_l3_lean.sh` | **rejected**: NM/TX +0.0288 (PASS) but shape FAIL (shear_ks 5-12 km); Denver -0.1816 vs siren -0.1377 (T 12-18 km -0.76): high w0 extrapolates badly, keep w0 = 1 |
-| L3-38 all hours (user) | `scripts/ap_l3_hours.sh` | queued 01:26 Nov 7: night store + all-hours p2f at the same row count; day vs p2f, night vs p2f; alternatives x / split only if the day loss is significant |
+| L3-37 Sobol noise | `ap_l3_qmc.sh` | **DROP 02:20** (neutral): Sobol vs random same seed -0.0002 mean over 3 seeds, Denver stack +0.0100 unchanged |
+| L3-38 all hours (user) | `scripts/ap_l3_hours.sh` | **started 02:31**: night store + all-hours p2f at the same row count; day vs p2f, night vs p2f; alternatives x / split only if the day loss is significant |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
