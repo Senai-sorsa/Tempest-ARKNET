@@ -1,6 +1,6 @@
 """Climatology debias (LOOP3 L3-34): subtract the calibrated model's mean error per grid point x month x 4-hour bin.
 
-    python -m tempest.scoring.debias --model M --calib C --data D [--from-year 2021 --year 2023 --rows 120000 --m 8]
+    python -m tempest.scoring.debias --model M --calib C --data D [--from-year 2021 --year 2023 --rows 60000 --m <calib m>]
     -> <model stem>.debias<from-year>.npz; then score with --debias <file> (outputs get a _debias suffix)
 
 Why: at Denver most of the p2f loss is mean bias (u 0-1 km +7.8 m/s, 77 % of its MSE), which the NM/TX-trained model cannot
@@ -67,8 +67,8 @@ def main():
     ap.add_argument("--data", required=True)
     ap.add_argument("--from-year", type=int, default=2021)
     ap.add_argument("--year", type=int, default=2023)
-    ap.add_argument("--rows", type=int, default=120000)
-    ap.add_argument("--m", type=int, default=8)
+    ap.add_argument("--rows", type=int, default=60000)
+    ap.add_argument("--m", type=int, help="default: the m the calibration was fitted with")
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out")
@@ -79,6 +79,7 @@ def main():
     torch.manual_seed(a.seed)
     sampler = Sampler(torch.load(a.model, map_location="cpu", weights_only=True), device=a.device)
     cal = spread.load(a.calib, a.model)
+    a.m = a.m or int(cal.get("m", 8))  # spread.apply refuses any other m
     d = load_npz(a.data)
     cond_all, year = np.asarray(d["cond"]), d["year"]
     keys_all = group_keys(cond_all)
