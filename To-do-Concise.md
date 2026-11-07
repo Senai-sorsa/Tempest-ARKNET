@@ -9,8 +9,7 @@
 - Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running
-- Global store 7,483 pts (`data/global_fetch.log`) → ~Nov 7 06:00.
-- Global ASOS gusts, 200 stations 2016-25 (`data/asos_global.log`) → ~Nov 7 morning.
+- Global store 7,483 pts (`data/global_fetch.log`), 2011-2025: on the last month, done ~20:50 Nov 6.
 - Chain after global store (`data/fetch_chain.log`): extras w/gust/BLH/CAPE/cloud/precip (~5 h) → IGRA plain files 987 stns (~1 h, ~25 GB) → 6 G2 boxes hourly (~4 h, ~32 GB) → ~Nov 7 evening.
 - Loop 3 lean queue: **done, nothing to stack.** Rejected: w768, terrain, ctxsep, sirenw15, studt (Gemini idea 1: shape FAIL). studt is transfer-only (Denver fill -0.173 vs -0.192, better coverage, no tropopause loss): try it in the global model. Results in `docs/logs/LOOP3.md`.
 - **G9 follow-up block** (LOOP3 L3-28..33): DI and trust blend done (Denver -0.19 → +0.01, but physics worse; L3-33 adds the shuffle). Raw-p2f diagnosis done (calibration makes the surface jumps; the Denver inversion error comes from the model → IGRA jump head). Running: stack + G1-a verdict (L3-33, scoring) → studt clip 3 (L3-30 rerun).
