@@ -15,9 +15,9 @@
 - **G9 follow-up block** (LOOP3 L3-28..33): DI and trust blend done (Denver -0.19 → +0.01, but physics worse; L3-33 adds the shuffle). Raw-p2f diagnosis done (calibration makes the surface jumps; the Denver inversion error comes from the model → IGRA jump head). L3-33 done: Denver **+0.0100, every band beats climatology**, physics close to ERA5 with the shuffle; but that needs the local ERA5 fit (not zero-shot). studt clip 3 (L3-30) rejected: no better than studt, wind-shear tails still too wide. Shuffle grid fix (L3-35) done: no change, kept. **Debias (L3-34) takes Denver from -0.19 to -0.03 with no retraining**, but it ruins the humidity spread. Debias on top of the local fit adds nothing, so the local fit (+0.0100) stays the Denver best.
 
 ## Left to check — numbered, in run order
-L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 205 passed (02:40).
+L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-38 03:29: all-hours KEEP (day +0.0278 = +0.0277, night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 205 passed (02:40).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
-1. L3-38 — **all solar hours** (`scripts/ap_l3_hours.sh`, started 02:31): night store (~2-3 h CPU) → builds → p2f on all 24 h at the same 8 M rows (~25 min) → day vs p2f, night vs p2f. If day skill drops > 0.0006: more rows (x) and a separate night model (split). ~5-7 h after L3-37.
+1. L3-38 — Denver zero-shot score of the all-hours model (running). Then: Denver all-hours store + fine-tune so the Denver stack (+0.0100, day only) gets night skill too; rebuild later rows on `l3_h_all24`.
 2. Stack the winners and rescore NM/TX + Denver with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
 Processes to finish and check:
