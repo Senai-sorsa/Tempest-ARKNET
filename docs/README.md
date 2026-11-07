@@ -18,7 +18,7 @@ Every project document lives under `docs/`, one folder per kind. Start with **`.
 
 ## Every file
 
-**plans/** — [PLAN.md](plans/PLAN.md) master plan · [PHASE1.md](plans/PHASE1.md) phases 1–2 build spec · [PHASED_PLAN.md](plans/PHASED_PLAN.md) phased improvements · [PHASE4_FORECAST.md](plans/PHASE4_FORECAST.md) forecast system · [TOOL_PLAN.md](plans/TOOL_PLAN.md) query-tool skeleton · [PHASE5_TOOL.md](plans/PHASE5_TOOL.md) query tool rework ([original note](plans/phase5_inputs/original_tool_plan_from_downloads.md)) · [STAGE6_PLAN.md](plans/STAGE6_PLAN.md) flight-sim tools · [REGION_PLAN.md](plans/REGION_PLAN.md) other regions · [GLOBAL_PLAN.md](plans/GLOBAL_PLAN.md) global model (G0–G4)
+**plans/** — [PLAN.md](plans/PLAN.md) master plan · [PHASE1.md](plans/PHASE1.md) phases 1–2 build spec · [PHASED_PLAN.md](plans/PHASED_PLAN.md) phased improvements · [PHASE4_FORECAST.md](plans/PHASE4_FORECAST.md) forecast system · [TOOL_PLAN.md](plans/TOOL_PLAN.md) query-tool skeleton · [PHASE5_TOOL.md](plans/PHASE5_TOOL.md) query tool rework ([original note](plans/phase5_inputs/original_tool_plan_from_downloads.md)) · [STAGE6_PLAN.md](plans/STAGE6_PLAN.md) flight-sim tools · [REGION_PLAN.md](plans/REGION_PLAN.md) other regions · [GLOBAL_PLAN.md](plans/GLOBAL_PLAN.md) global model (G0–G4) · [LAUNCH_PLAN.md](plans/LAUNCH_PLAN.md) 80 km extension, launch-day correction, wind tails
 
 **specs/** — [atmosphere-outputs.md](specs/atmosphere-outputs.md) · [coupled-atmosphere.md](specs/coupled-atmosphere.md) · [operations.md](specs/operations.md)
 

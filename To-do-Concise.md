@@ -5,6 +5,7 @@
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
+- Create a free NASA Earthdata login (for MERRA-2, the 48-80 km layer of A1) and tell me when done.
 - Docs index: `docs/README.md` (plans, external reviews, triage, logs, results, data, Colab steps).
 
 ## Automatic — running
@@ -22,4 +23,5 @@
 - IGRA plain files → 44 heights, delete raw zips; then run the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`: head only, base frozen, BLH / tropopause centre priors).
 - int16 tail check (Denver 99.9th shear).
 - G2 training (8 boxes, leave-one-box-out), then G3/G4.
-- Stage 6 IL-33/G; test #3 future climate.
+- Launch plan (`docs/plans/LAUNCH_PLAN.md`), after the G9 block: A2 launch-day correction from any readings → A1 extension to 80 km (no retrain) → A3 wind/shear tails → tracer-drift check + runtime.
+- Test #3 future climate.
