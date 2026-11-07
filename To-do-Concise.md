@@ -17,26 +17,24 @@
 
 ## Left to check — numbered, in run order
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
-1. D7a `den_yrs2011` — new region (Denver), 13 years vs B-local (scoring now). (D6 23 years: FAIL +0.0221, 80 % of skill: keep all 1991-2025.)
-2. D7b `den_hcyc16` — new region, one hour per day vs B-local.
-3. L3-36a — Denver debias without humidity, alone.
-4. L3-36b — the same inside the full stack (trust + shear map + shuffle c8).
-5. L3-36c — full stack with the full debias table.
-6. L3-37a — Sobol noise, NM/TX seed 0 vs the g9 baseline (+0.0277).
-7. L3-37b — seed-to-seed spread: random vs Sobol, seeds 1 and 2 (4 scores).
-8. L3-37c — Denver kept stack (L3-35 c8) with Sobol.
-9. L3-37 follow-up (only if Sobol wins): m = 256 so the Sobol set is exact.
-10. Stack the winners of 1-12 and rescore NM/TX + Denver.
+1. L3-36a — Denver debias without humidity, alone. (Data queue D1-D7 done: keep all 1991-2025 hourly; only the 0.5° lattice (D2) is free. D7 at Denver: 13 yrs -0.0115, one hour/day 43 % of skill.)
+2. L3-36b — the same inside the full stack (trust + shear map + shuffle c8).
+3. L3-36c — full stack with the full debias table.
+4. L3-37a — Sobol noise, NM/TX seed 0 vs the g9 baseline (+0.0277).
+5. L3-37b — seed-to-seed spread: random vs Sobol, seeds 1 and 2 (4 scores).
+6. L3-37c — Denver kept stack (L3-35 c8) with Sobol.
+7. L3-37 follow-up (only if Sobol wins): m = 256 so the Sobol set is exact.
+8. Stack the winners of 1-12 and rescore NM/TX + Denver.
 
 Processes to finish and check:
-11. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
-12. Global store finishes 2001-2010 and 1991-2000 (~11:00 Nov 7); completeness check.
-13. Fetch chain: extras → IGRA 987 stations → 6 G2 boxes (~21:00 Nov 7).
-14. G0: global loader + holdout/2026 guard + completeness check + below-ground masks.
-15. Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
-16. IGRA plain files → 44 heights, delete raw zips; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
-17. int16 tail check (Denver 99.9th shear).
-18. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
-19. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.
-20. Test #3 future climate.
-21. Run pytest once no GPU job is running (covers the new L3-37 test).
+9. Verdicts each check-in → LOOP3.md, AUTOPILOT.md, DATA_NEEDS.md, this list.
+10. Global store finishes 2001-2010 and 1991-2000 (~11:00 Nov 7); completeness check.
+11. Fetch chain: extras → IGRA 987 stations → 6 G2 boxes (~21:00 Nov 7).
+12. G0: global loader + holdout/2026 guard + completeness check + below-ground masks.
+13. Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
+14. IGRA plain files → 44 heights, delete raw zips; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
+15. int16 tail check (Denver 99.9th shear).
+16. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
+17. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.
+18. Test #3 future climate.
+19. Run pytest once no GPU job is running (covers the new L3-37 test).

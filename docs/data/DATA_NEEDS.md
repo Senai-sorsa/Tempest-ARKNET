@@ -2,7 +2,7 @@
 
 Goal: the **smallest realistic data set** that keeps the model working, at each stage of `docs/plans/GLOBAL_PLAN.md`.
 Every number below is marked **measured** (from files on disk or a run) or **estimate** (to be replaced by a measurement).
-The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) would answer the open questions; sidelined, then reaped, **running since 2026-11-06 21:35** (D1 `yrs2011` first, one GPU job at a time, then the rest in order). Until they run, keep the defaults below: all 1991-2025 years, hourly, full space.
+The data-needs runs D1-D7 (`scripts/ap_l3_data.sh`) **finished 2026-11-07 01:00**. Verdict: keep **all 1991-2025 years, hourly**; skill still rises with years (13 / 23 / 33 yrs: +0.005 / +0.022 / +0.028 at NM/TX) and one hour per day keeps only 64 % (NM/TX) / 43 % (Denver) of the skill, one hour in 4 keeps 96 %. The only free saving is space: a 0.5° lattice (D2) loses nothing, but not combined with thin hours (D5).
 
 ## 1. Where we stand (measured 2026-11-06)
 | Item | Size | Note |
@@ -44,8 +44,8 @@ All on the p2f config, calibrated and scored on the **full** data 2024-25, compa
 | D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | **small loss** (23:19): skill15 +0.0266 vs +0.0277 (-0.0011, ~2x the seed tolerance, 4 % of the skill), no band worse, cov99 PASS. One hour in 4 keeps ~96 % of the skill vs D3's 64 %: for G2, one hour in 4 is the thinnest safe choice (or one hour per day with ~2x the years/boxes) |
 | D5 | 0.5° lattice + one hour per day | `pts2hcyc16` | ~1.5 % | **FAIL** (23:46): skill15 +0.0125 vs +0.0277, five low-level wind/RH bands worse than climatology, cov99 PASS. Worse than D3 alone (+0.0176): halving the points costs nothing at full hours (D2) but compounds when hours are thin. Do not thin both |
 | D6 | Are 23 years (2001-2023) enough? (matters only if D1 fails) | `yrs2001` | 70 % | **FAIL** (00:12): skill15 +0.0221 vs +0.0277 (80 % of the skill), no band worse, cov99 PASS. Skill still rises with years (13 yrs +0.0050, 23 yrs +0.0221, 33 yrs +0.0277): keep all of 1991-2025. P3-5 found no gain from 1980-90 on an older model; worth one recheck on p2f only if a box is short of years |
-| D7a | New region: 13 years of a box (vs B-local) | `den_yrs2011` | 39 % | pending |
-| D7b | New region: one hour per day (vs B-local) | `den_hcyc16` | 6 % | pending |
+| D7a | New region: 13 years of a box (vs B-local) | `den_yrs2011` | 39 % | **FAIL** (00:36): skill15 -0.0115 vs B-local +0.0162 (below climatology), 11 bands worse, worst u 12-18 km. At a new region years matter even more than at NM/TX (D1 kept +0.0050) |
+| D7b | New region: one hour per day (vs B-local) | `den_hcyc16` | 6 % | **FAIL** (01:00): skill15 +0.0069 vs +0.0162 (43 % of the skill), only RH 1-5 km cov flagged. Same pattern as D3 (NM/TX 64 %): one hour per day too thin, worse at the new box |
 | D8 | How much does a box that was never seen cost? | loop 3 B-raw vs B-local, and the best L3 variant zero-shot | 0 % | B-raw skill15 **-0.176** vs B-local **+0.016** (2026-11-06): a never-seen box with new terrain is far worse than climatology. Spatial coverage of terrain types is the first data need; years and hours come second. Rest pending (loop-3 variants) |
 
 How to read them: a "PASS"/within-tolerance result means that slice of data can be dropped from the global store; a band that gets worse names what the thinning costs (e.g. 0-1 km at unseen hours = the diurnal cycle needs every hour).
