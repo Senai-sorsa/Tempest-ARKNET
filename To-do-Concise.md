@@ -26,7 +26,7 @@ Processes to finish and check:
 9. Fetch chain: extras → IGRA 987 stations → 6 G2 boxes (~21:00 Nov 7).
 10. G0: global loader + holdout/2026 guard + completeness check + below-ground masks.
 11. Statics join (z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI; slopes with cos(lat)) → model inputs.
-12. IGRA plain files → 44 heights, delete raw zips; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
+12. IGRA plain files → `data/igra_heights` (44 + A1 heights to 80 km, raw zips deleted): automatic via `scripts/igra_convert.sh` after the chain's IGRA download; then the jump idea (L3-27, `configs/generator_l3_jump_igra.toml`).
 13. int16 tail check (Denver 99.9th shear).
 14. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
 15. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.

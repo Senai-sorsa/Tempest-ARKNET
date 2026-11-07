@@ -4,7 +4,7 @@
 
 Stations = the IGRA ids in points.npz, which already excludes the locked holdout stations and everything within
 radius_deg of the holdout sites (configs/global_holdout.toml); the held ids are re-checked here. Files are whole records
-(up to ~80 MB zipped for long ones); they are converted to our 44 heights later and then deleted (docs/data/DATA_NEEDS.md).
+(up to ~80 MB zipped for long ones); they are converted once by tempest.ingest.igra_to_heights (44 heights + 19-80 km) and then deleted (docs/data/DATA_NEEDS.md).
 Resumable: finished files are skipped; a failed station is retried 3 times, then listed at the end (exit 1 if any).
 """
 import argparse

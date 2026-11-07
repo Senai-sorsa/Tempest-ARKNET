@@ -39,16 +39,16 @@ def season(month):
     return (np.asarray(month) % 12) // 3
 
 
-def to_grid(h, x):
-    """One balloon variable at heights h (m above launch) -> values on HEIGHTS (NaN outside data or in wide gaps)."""
+def to_grid(h, x, grid=HEIGHTS):
+    """One balloon variable at heights h (m above launch) -> values on grid (NaN outside data or in wide gaps)."""
     ok = np.isfinite(h) & np.isfinite(x)
     h, i = np.unique(h[ok], return_index=True)
     x = x[ok][i]
     if len(h) < 2:
-        return np.full(len(HEIGHTS), np.nan, np.float32)
-    y = np.interp(HEIGHTS, h, x, left=np.nan, right=np.nan)
-    j = np.searchsorted(h, HEIGHTS).clip(1, len(h) - 1)
-    y[(h[j] - h[j - 1] > MAX_GAP) & ~np.isin(HEIGHTS, h)] = np.nan
+        return np.full(len(grid), np.nan, np.float32)
+    y = np.interp(grid, h, x, left=np.nan, right=np.nan)
+    j = np.searchsorted(h, grid).clip(1, len(h) - 1)
+    y[(h[j] - h[j - 1] > MAX_GAP) & ~np.isin(grid, h)] = np.nan
     return y.astype(np.float32)
 
 
