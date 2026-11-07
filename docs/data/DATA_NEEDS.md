@@ -38,7 +38,7 @@ All on the p2f config, calibrated and scored on the **full** data 2024-25, compa
 
 | ID | Question | Run | Data share | Result |
 |---|---|---|---|---|
-| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **training** (21:35) |
+| D1 | Are 13 training years (2011-2023) enough? | `yrs2011` | 39 % | **scoring** (trained in 16 min, 21:52) |
 | D2 | Is a 0.5° lattice enough (unseen points between)? | `pts2` | ~25 % | pending |
 | D3 | **One hour per day**, cycling through the hours (the global store design) | `hcyc16` | 6 % | pending |
 | D4 | One hour in 4, cycling (fallback if D3 loses) | `hcyc4` | 25 % | pending |
