@@ -132,7 +132,7 @@ Boxes (B's list, 3°×3°, 2°×2° where terrain is uniform): NM/TX (existing),
 
 ### 7.1 Design notes from the 2026-11-07 review (not bugs, open)
 - **Validation and calibration share 2021-23.** Early stopping and the spread/trust fits see the same years. Test: retrain with validation 2021-22 and calibration 2023 only, compare the headline (one GPU run, after the G2 data).
-- **`fill_mask` test pending.** Rebuild the Denver file with `--fill-top` (CPU, not during a GPU job; it now stores `fill_top_idx`), train with `fill_mask = true`, score vs l3_a24den. The normalisation stats still include the filled values (minor).
+- **`fill_mask` tested (L3-43, 2026-11-07): neutral, DROP.** Denver B-local config on the fill-top file (23.7 % of rows filled): mask OFF vs ON +0.0154 = +0.0154, every band within the Denver seed tolerance (±0.003), cov99 identical. The flag stays opt-in; retest at G4 together with the stratospheric lapse-rate fill (§7.2 idea 2), where high-ground rows are a larger share.
 - **sp has zero spread in forecast/past modes.** No sp error data in the Mode F rows; flagged, not modelled.
 - **elev_site is collinear with the box elevation in one box.** Not a bug; the to_site inversion is tested at G2 (Salt Lake box).
 - **Old DI numbers (L3-28) change** with the xyz metric; DI is diagnostic only, so no verdict moves.
