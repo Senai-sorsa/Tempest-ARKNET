@@ -4,6 +4,21 @@
 
 **SAFETY AND SCOPE RULES (user 2026-11-08): (1) Nothing may ever damage or endanger the computer: 12 threads at low priority, one GPU job, RAM above ~2 GB free, disk above 10 GB free, back off if it runs hot; no security, registry, antivirus or policy changes; kill only the exact PID this work started. (2) Never add code unrelated to the task at hand, and never change code unrelated to the task at hand: small diffs, new behaviour behind a flag, check `git diff` before every commit and stage files by name.**
 
+## G tasks (global track; the user runs the heavy training on their supercomputer, not here)
+Source: `docs/plans/GLOBAL_PLAN.md`. Order: G0 → G1 (running here) → G2 → G3 → G4 → G5 → G6.
+- **G0 setup and locks (CPU, ~2 h; I write it here, it is the prerequisite for everything below):** `configs/global_holdout.toml` + loader guard (refuses locked places and dates ≥ 2026-07-01 unless `TEMPEST_FINAL_GLOBAL=1`), statics (`tempest/geo/statics.py`: z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI), spherical-harmonic encoder (`sh.py`), harmonic climatology fitter (`clim.py`), below-ground masks, int16 tail check on the global store, global HRES loader (84 months arrived).
+- **G1 Denver test bed (GPU + CPU):** this is the L3 loop that runs here (L3-44/45 done or running, L3-27 jump head next); no supercomputer needed.
+- **G2 eight NA boxes, leave-one-box-out (supercomputer, ~1 day laptop-equivalent, 8 independent trainings):** the 6 G2 boxes are on disk (`data/raw/era5_g2_*`, ~5.2 GB each) plus the 2 existing ones; SAMOS targets L3-8 as the zero-shot candidate.
+- **G3 NA lattice (supercomputer, ~1-2 days; Mode F part needs the Colab HRES pull).**
+- **G4 global (supercomputer, ~3-4 days, 3-5 seeds):** store `data/global_*` 7,483 points, 1991-2025, ~11 GB, already complete.
+- **G5 packaging (supercomputer, ~1 day, no new data).**
+- **G6 final test of the overall AI: once only, at the very end; the user decides when (touches 2026 holdout data).**
+- **What I prepare so the supercomputer needs no hand-holding:** G0 code and tests, a data bundle list (global store ~11 GB, 6 boxes ~31 GB, HRES), one launch script per G job with resume/skip-if-done, a README with the exact commands and the holdout rules, and a results-return format. Transfer and queue submission are the user's.
+
+## Forecast (Mode F) tasks: automatic except the Colab pulls
+- **Automatic here (no user needed):** IL-74 lead blending in the router, IL-81 shape metrics per lead, IL-83 Schaake shuffle in the climate generator, IL-84 noise floors, IL-85 PIT recalibration for Mode F, IL-87 date-block bootstrap, IL-78 live-forecast domain check (Open-Meteo, no login), IL-6 state check.
+- **Needs the user (skipped, not waited on):** IL-75 second HRES pull and IL-79 any-lead model (both need the Colab notebook rerun with more leads), and the IFS ensemble refetch (`tempest_wb2_ifs_ens_v2`: unzip into `data/raw/wb2_ifs_ens\` and `wb2_ifs_ens_denver\`). When the files appear I fold them in on the next check-in.
+
 ## You
 - **Long-range data (IL-118): DONE 2026-11-08.** `data/raw/wb2_ifs_extended/` is in place and checked (84 months x pilot/denver x fc/rf = 336 files, 646 MB, no bad files). Long-range download budget used: 0.65 of 5 GB (IL-118 to IL-127). Weekly-average meaning confirmed (lead k = 168 h window starting 12 h before day k, forward week).
 - **Waiting on you:** the IFS ensemble refetch (`Colab IFS ENS fetch.md`, `tempest_wb2_ifs_ens_v2`) arrives in about 10 h; unzip into `data/raw/wb2_ifs_ens\` (pilot) and `data/raw/wb2_ifs_ens_denver\` (denver) and tell Claude.
