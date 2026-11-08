@@ -135,6 +135,7 @@ def main():
     ap.add_argument("--mc", action="store_true", help="also write the Monte Carlo checks of GLOBAL_PLAN §9 (tempest.scoring.mc) to <stem>_mc.csv")
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
                     "(<stem>_stress.csv) and print the worst cells; read-only")
+    ap.add_argument("--mask-filled", action="store_true", help="IL-143: leave the heights a dataset built with --fill-top filled (above fill_top_idx) out of the headline table; off = they count as before")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
                     "whole-profile coverage of the simultaneous 99 %% band (output only; samples are not changed)")
     a = ap.parse_args()
@@ -308,7 +309,13 @@ def main():
     print(f"wrote {out}")
     c = {k: cond[va, FEATURES.index(k)] for k in ("doy_sin", "doy_cos")}
     day = year[va].astype(np.int64) * 1000 + np.round(np.arctan2(c["doy_sin"], c["doy_cos"]) % (2 * np.pi) / (2 * np.pi) * 365.25).astype(np.int64)
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks()), stem + "_headline.csv")
+    valid = None
+    if a.mask_filled:
+        if "fill_top_idx" not in d:
+            raise SystemExit("--mask-filled needs a dataset built with --fill-top (it has no fill_top_idx)")
+        valid = diag.valid_from_fill_top(np.asarray(d["fill_top_idx"])[va], truth.shape[1])
+        print(f"--mask-filled: {1 - valid.mean():.1%} of the columns are filled heights and are left out of the headline")
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag

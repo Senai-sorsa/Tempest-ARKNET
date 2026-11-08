@@ -69,15 +69,35 @@ def report(stem, x, y, names, groups, month=None, var_slices=None):
     return summ
 
 
-def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0):
+def valid_from_fill_top(top, D):
+    """top (N, 4) int: the highest real height index per row and PROFILE variable (dataset array fill_top_idx) -> (N, D) bool, False for the filled heights above it; the surface columns stay True."""
+    from tempest.profiles.to_heights import HEIGHTS
+    n = len(HEIGHTS)
+    h = np.arange(n)[None, :]
+    ok = np.ones((len(top), D), bool)
+    for i in range(top.shape[1]):
+        ok[:, i * n:(i + 1) * n] = h <= np.asarray(top)[:, i:i + 1]
+    return ok
+
+
+def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
     """Band table with 95 % intervals from a bootstrap over whole days (rows on one day move together, so resampling
     rows would give falsely narrow intervals). sets: dict name -> (N, m, D) samples, needs clim, known, unknown and
     optionally clim15 (climatology from the last 15 years before the test, so skill is not just "knows it got warmer").
-    skill = 1 - CRPS / CRPS_clim; mae = error of the per-column median (the best guess); cov99 = inside the 99 % range."""
+    skill = 1 - CRPS / CRPS_clim; mae = error of the per-column median (the best guess); cov99 = inside the 99 % range.
+    valid (N, D) bool, opt-in (IL-143): columns that are real data. Heights a dataset filled above its highest valid level (fill_top) are False and count in no band mean; a row with no valid
+    column in a band drops out of that band. None = every column counts, as before."""
     from tempest.scoring.score import coverage90, crps_ensemble  # late import: score imports diag
     masks = np.stack([sel for _, _, sel in groups], 1).astype(np.float64)
-    masks /= masks.sum(0)
-    band = lambda a: a.astype(np.float64) @ masks  # (N, D) -> (N, G) per-row band means
+    if valid is None:
+        masks /= masks.sum(0)
+        band = lambda a: a.astype(np.float64) @ masks  # (N, D) -> (N, G) per-row band means
+        have = None
+    else:
+        vm = np.asarray(valid, np.float64)
+        cnt = vm @ masks                                  # (N, G) valid columns per row and band
+        have = (cnt > 0).astype(np.float64)
+        band = lambda a: (a.astype(np.float64) * vm) @ masks / np.maximum(cnt, 1.0)
     stat = {}
     for k, x in sets.items():
         stat[f"crps_{k}"] = band(crps_ensemble(x, truth))
@@ -90,7 +110,11 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0):
     c = np.vstack([np.ones(nd), rng.multinomial(nd, np.full(nd, 1 / nd), n_boot)])  # times each day is drawn; row 0 = as is
     tot = c @ np.bincount(inv, minlength=nd)  # rows per replicate
     daysum = lambda v: np.stack([np.bincount(inv, v[:, g], nd) for g in range(v.shape[1])], 1)  # (nd, G)
-    mean = {k: (c @ daysum(v)) / tot[:, None] for k, v in stat.items()}  # (1 + n_boot, G)
+    if have is None:
+        mean = {k: (c @ daysum(v)) / tot[:, None] for k, v in stat.items()}  # (1 + n_boot, G)
+    else:                                                 # rows weighted by "has a valid column in the band"
+        den = c @ daysum(have)
+        mean = {k: (c @ daysum(v * have)) / np.maximum(den, 1.0) for k, v in stat.items()}
     out = {"var": [v for v, _, _ in groups], "band": [b for _, b, _ in groups]}
 
     def put(name, val):

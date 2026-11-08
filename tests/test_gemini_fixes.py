@@ -283,3 +283,29 @@ def test_il142_debias_in_logit_space_keeps_humidity_in_range_and_default_unchang
     assert (lg[..., r] < x[..., r]).all()
     assert (phys[..., r] == 0).mean() > 0.2                                        # the physical shift piles samples on 0 %RH
     assert np.allclose(debias.from_logit(debias.to_logit(np.array([5.0, 50.0, 95.0]))), [5, 50, 95])
+
+
+def test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical():
+    from tempest.scoring import diag
+    r = np.random.default_rng(0)
+    N, m, D = 300, 10, 6
+    truth = r.normal(size=(N, D))
+    truth[:, 3:] = 0.0                                                        # the "filled" part: trivially predicted
+    mk = lambda s: r.normal(size=(N, m, D)) * s
+    sets = dict(clim=mk(2), clim15=mk(2), known=mk(1), unknown=mk(1))
+    sets["known"][..., 3:] = 0.0
+    sets["unknown"][..., 3:] = 0.0
+    sets["clim15"][..., 3:] = r.normal(size=(N, m, 3)) * 0.5
+    grp = [("t", "all", np.ones(D, bool)), ("t", "top", np.arange(D) >= 3)]
+    day = np.arange(N) // 5
+    base = diag.headline(sets, truth, day, grp, n_boot=20)
+    same = diag.headline(sets, truth, day, grp, n_boot=20, valid=np.ones((N, D), bool))
+    assert np.allclose(base["skill15_unknown"], same["skill15_unknown"])      # all valid = no change
+    valid = np.arange(D)[None, :] < 3
+    valid = np.broadcast_to(valid, (N, D)).copy()
+    masked = diag.headline(sets, truth, day, grp, n_boot=20, valid=valid)
+    assert masked["skill15_unknown"][0] < base["skill15_unknown"][0]          # the filled columns flattered the band
+    assert np.isfinite(masked["skill15_unknown"][0]) and np.isnan(masked["skill15_unknown"][1])   # a band with no real column anywhere has no score
+    top = np.array([[2, 1, 0, 2], [0, 0, 0, 0]])
+    v = diag.valid_from_fill_top(top, 4 * 44 + 3)
+    assert v[0, :3].all() and not v[0, 3] and v[0, 44] and not v[0, 46] and v[:, -3:].all() and v[1, 0] and not v[1, 1]
