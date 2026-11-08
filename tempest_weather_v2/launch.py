@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from tempest_weather import _core, api
-from tempest_weather_v2 import __version__, elevation as E, names, roughness, stats, timeutil, weather_calc as W
+from tempest_weather_v2 import __version__, hrrr as _hrrr, elevation as E, names, roughness, stats, timeutil, weather_calc as W
 from tempest_weather_v2.readers import Atmosphere, normalise_samples
 from tempest_weather_v2.results import Weather
 from tempest_weather_v2.sites import get_site, guess_tz
@@ -76,7 +76,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, _pool=None, _obs=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -94,6 +94,7 @@ class Launch:
         if not 0.5 <= self.past_wind_spread <= 3.0:
             raise ValueError("past_wind_spread must be between 0.5 and 3 (1.0 = off, 1.2 = the value fitted against station winds)")
         self._obs = dict(_obs or {})
+        self._hrrr = dict(_hrrr) if _hrrr else None      # C3: {"u", "v", "note"} HRRR 10 m wind at the pad, applied to the pool by _apply_hrrr
         self._flags = []
         tzname = tz or (self._site.tz if self._site and self._site.tz else None)
         if tzname is None:
@@ -125,7 +126,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, _obs=self._obs)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, _obs=self._obs, _hrrr=self._hrrr)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -179,6 +180,27 @@ class Launch:
 
     # ---- the pool
     def _ensure_pool(self, n=None):
+        pool = self._ensure_pool_raw(n)
+        if self._hrrr and not pool.get("hrrr_applied"):
+            pool = self._apply_hrrr(pool)
+            self._pool = pool
+        return pool
+
+    def _apply_hrrr(self, pool):
+        """C3: move the near-ground u, v of every sample so the median is HRRR's 10 m wind (weight 1.0) and the spread about it is x0.8, both fading out by 300 m (fitted in scripts/hrrr_vs_asos.py)."""
+        from tempest_weather_v2 import hrrr
+        s = dict(pool["samples"])
+        z = np.asarray(_core.HEIGHTS, float)
+        taper = np.clip(1.0 - (z - z[0]) / (hrrr.TAPER_TOP_M - z[0]), 0.0, 1.0)
+        for k, target in (("u", self._hrrr["u"]), ("v", self._hrrr["v"])):
+            x = np.asarray(s[k], float)
+            med = np.median(x[:, 0])
+            x = np.median(x, axis=0, keepdims=True) + (x - np.median(x, axis=0, keepdims=True)) * (1.0 + (hrrr.SPREAD_SCALE - 1.0) * taper)
+            x = x + hrrr.HRRR_WEIGHT * (target - med) * taper
+            s[k] = x.astype(np.float32)
+        return dict(pool, samples=s, hrrr_applied=True, flags=list(pool["flags"]) + ["ground-wind-anchored-to-HRRR"])
+
+    def _ensure_pool_raw(self, n=None):
         n = int(n or self.n)
         if self._pool is not None and len(self._pool["samples"]["u"]) >= n:
             return self._pool
@@ -329,6 +351,16 @@ class Launch:
             raise ValueError("that METAR has nothing usable (a variable-direction wind alone cannot be used)")
         return self.observe(**kw)
 
+    def observe_hrrr(self, fetch=None, now=None):
+        """A NEW Launch whose ground wind (below 300 m) is anchored to HRRR's 10 m wind at the pad: the sample median moves to HRRR's value and the spread about it shrinks to 0.8x (weights fitted on station winds,
+        scripts/hrrr_vs_asos.py). Needs one launch time. HRRR is near-analysis quality only for past and present hours; at long forecast lead the benefit is not measured (the trust line says so)."""
+        r = self.resolved_window()
+        if not r.single:
+            raise ValueError("observe_hrrr needs a single launch time, not a window")
+        t0 = r.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+        u, v, note = _hrrr.fetch_wind(self.lat, self.lon, t0, now=now, fetch=fetch)
+        return self.with_(_hrrr=dict(u=u, v=v, note=note))
+
     def observe_latest(self, max_km=150.0, hours=6, k=3, fetch=None, now=None):
         """A NEW Launch conditioned on the latest METAR of the nearest station that has a usable report before the launch time (IEM, no key; `fetch` and `now` are injectable for tests / offline replay).
         The report is weighted by its age, its distance and its height difference from the pad, and the trust line names station, distance and age."""
@@ -361,6 +393,8 @@ class Launch:
             text = "Mixed: " + ", ".join(f"{100 * v:.0f}% {'forecast' if k == 'forecast' else 'climate' if k == 'ai' else 'past'}" for k, v in sorted(m.items(), key=lambda kv: -kv[1])) + " (window spans a mode limit)"
         if "fallback-mode" in p["flags"]:
             text += " (the mode you asked for was not available: see flags)"
+        if self._hrrr:
+            text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted on station winds; not validated beyond near-analysis)"
         if self._measurements():
             text += f"; conditioned on {len(self._measurements())} measurements (not yet validated)"
             o = self._obs
