@@ -46,9 +46,37 @@ def fit(err, keys, n_points):
     return (base + ng / (ng + K) * (sg / np.maximum(ng, 1) - base)).astype(np.float32)
 
 
+def rh_columns(D):
+    """Boolean mask (D,) of the relative-humidity columns: the RH profile block and the 2 m humidity (the layout of to_physical: PROFILE blocks, then t2m, sp, rh2m)."""
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    n = len(HEIGHTS)
+    m = np.zeros(D, bool)
+    m[PROFILE.index("RH") * n:(PROFILE.index("RH") + 1) * n] = True
+    if D >= len(PROFILE) * n + 3:
+        m[len(PROFILE) * n + 2] = True
+    return m
+
+
+def to_logit(rh):
+    """IL-142: humidity in %RH -> logit of the fraction (clipped to 0.5 .. 99.5 %), the coordinate in which a shift cannot leave 0 .. 100 %."""
+    p = np.clip(np.asarray(rh, np.float64), 0.5, 99.5) / 100.0
+    return np.log(p / (1.0 - p))
+
+
+def from_logit(z):
+    return 100.0 / (1.0 + np.exp(-np.asarray(z, np.float64)))
+
+
 def apply(tab, x, keys):
-    """x (N, m, D) physical samples, keys (N,) score.group_keys of the rows -> debiased samples."""
-    return clip_ranges(x - tab["delta"][_groups(keys)[0]][:, None, :])
+    """x (N, m, D) physical samples, keys (N,) score.group_keys of the rows -> debiased samples. A table fitted with --rh-logit (IL-142) shifts the humidity columns in logit space."""
+    d = tab["delta"][_groups(keys)[0]][:, None, :]
+    if "rh_logit" in tab and int(tab["rh_logit"]):
+        r = rh_columns(x.shape[-1])
+        out = x.astype(np.float64, copy=True)
+        out[..., ~r] = x[..., ~r] - d[..., ~r]
+        out[..., r] = from_logit(to_logit(x[..., r]) - d[..., r])
+        return clip_ranges(out.astype(x.dtype))
+    return clip_ranges(x - d)
 
 
 def check_points(tab, cond):
@@ -72,6 +100,7 @@ def main():
     ap.add_argument("--device")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out")
+    ap.add_argument("--rh-logit", action="store_true", help="IL-142: fit and apply the humidity shift in logit space (the physical-space shift collapses the lower tail at 0 %%RH); off = as L3-34")
     a = ap.parse_args()
     if a.year >= 2024:
         raise SystemExit("debias must be fitted before the test years (2024-25)")
@@ -91,10 +120,14 @@ def main():
         sl = slice(i, i + 2000)
         x = spread.apply(cal, sampler.profiles(np.repeat(cond_all[idx[sl]], a.m, axis=0)).reshape(len(idx[sl]), a.m, -1))
         err[sl] = x.mean(1) - truth[sl]
+        if a.rh_logit:
+            r = rh_columns(x.shape[-1])
+            err[sl][:, r] = to_logit(x[..., r]).mean(1) - to_logit(truth[sl][:, r])
     pts = points(cond_all)
     delta = fit(err, keys_all[idx], len(pts))
     out = a.out or a.model.rsplit(".", 1)[0] + f".debias{a.from_year}.npz"
-    np.savez(out, delta=delta, points=pts, fit_from=a.from_year, fit_to=a.year, rows=len(idx), m=a.m, k=K,
+    extra = dict(rh_logit=1) if a.rh_logit else {}
+    np.savez(out, **extra, delta=delta, points=pts, fit_from=a.from_year, fit_to=a.year, rows=len(idx), m=a.m, k=K,
              model_sha=spread.model_hash(a.model), calib_sha=file_sha(a.calib))
     print(f"{len(idx):,} rows {a.from_year}-{a.year}, mean |error| before {np.abs(err).mean():.3f}, "
           f"after (in-sample) {np.abs(err - delta[_groups(keys_all[idx])[0]]).mean():.3f} -> {out}")

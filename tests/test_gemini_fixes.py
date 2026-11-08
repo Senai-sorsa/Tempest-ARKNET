@@ -246,3 +246,40 @@ def test_il138_distance_decaying_inflation_is_opt_in_and_widens_near_the_observa
     r_near = b2["u"][:, j_near].std() / b0["u"][:, j_near].std()
     r_far = b2["u"][:, j_far].std() / b0["u"][:, j_far].std()
     assert r_near > 1.05 and r_far < r_near - 0.05                                          # widened near the measurement, hardly far from it
+
+
+def test_il141_smooth_weights_removes_the_steps_and_keeps_ones():
+    from tempest.calibrate import trust
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    n, D = len(HEIGHTS), len(PROFILE) * len(HEIGHTS) + 3
+    w = np.ones(D, np.float32)
+    w[:n] = 1.0
+    w[n:n + 20] = 0.2                                   # a step inside the second variable
+    w[-3:] = 0.5
+    s = trust.smooth_weights(w, 700.0)
+    assert np.array_equal(s[:n], w[:n]) and np.array_equal(s[-3:], w[-3:])      # all-ones column and the surface columns untouched
+    assert np.abs(np.diff(s[n:n + 40])).max() < np.abs(np.diff(w[n:n + 40])).max()
+    assert s.min() >= 0 and s.max() <= 1
+
+
+def test_il142_debias_in_logit_space_keeps_humidity_in_range_and_default_unchanged():
+    from tempest.scoring import debias
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    n = len(HEIGHTS)
+    D = len(PROFILE) * n + 3
+    rng = np.random.default_rng(0)
+    x = rng.uniform(50, 80, (5, 7, D))
+    r = debias.rh_columns(D)
+    assert r.sum() == n + 1
+    x[..., r] = rng.uniform(0.6, 3.0, (5, 7, r.sum()))                            # very dry samples
+    keys = np.zeros(5, np.int64)
+    delta = np.zeros((12 * debias.NB, D), np.float32)
+    delta[:, r] = 2.0                                                              # model too humid by 2 in the fitted coordinate
+    tab = dict(delta=delta, points=None)
+    phys = debias.apply(tab, x, keys)
+    assert np.allclose(phys[..., ~r], x[..., ~r] - delta[0, ~r])                  # default path = plain subtraction
+    lg = debias.apply(dict(tab, rh_logit=np.array(1)), x, keys)
+    assert (lg[..., r] > 0).all() and (lg[..., r] <= 100).all()                    # logit shift never reaches 0 or collapses onto it
+    assert (lg[..., r] < x[..., r]).all()
+    assert (phys[..., r] == 0).mean() > 0.2                                        # the physical shift piles samples on 0 %RH
+    assert np.allclose(debias.from_logit(debias.to_logit(np.array([5.0, 50.0, 95.0]))), [5, 50, 95])

@@ -93,6 +93,20 @@ def apply(w, x, q):
     return clip_ranges(out)
 
 
+def smooth_weights(w, sigma_m):
+    """IL-141 (opt-in): the fitted weight is one number per variable x height band, so it steps at the band edges (1, 5, 12 km) and the blend makes a shear and lapse step there. Smooth the
+    profile part of w (PROFILE variables x HEIGHTS, then the surface columns untouched) over height with a Gaussian of sigma_m metres; w stays in [0, 1], and a column with w = 1 everywhere stays 1."""
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    h = np.asarray(HEIGHTS, float)
+    k = np.exp(-0.5 * ((h[:, None] - h[None, :]) / float(sigma_m)) ** 2)
+    k /= k.sum(1, keepdims=True)
+    out = np.asarray(w, np.float32).copy()
+    n = len(h)
+    for i in range(len(PROFILE)):
+        out[i * n:(i + 1) * n] = k @ out[i * n:(i + 1) * n]
+    return np.clip(out, 0.0, 1.0).astype(np.float32)
+
+
 def apply_full(t, x, q):
     """Trust file dict, calibrated samples, climatology quantiles -> blended samples. If the file holds a second range
     map (qz, qu fitted on blended samples), it is applied after the blend: blending narrows the tails, and this restores
@@ -136,6 +150,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--min-gain", type=float, default=0.0, help="IL-10: a band keeps its fitted weight only if the calibration-year CRPS gain over w = 1 is at least this share (e.g. 0.003)")
     ap.add_argument("--skip", nargs="*", default=[], help="IL-10: bands left at w = 1 whatever the fit says, as 'RH:5-12 km' (variable:band label); coverage safeguard decided before the test years")
+    ap.add_argument("--smooth-w-m", type=float, default=0.0, help="IL-141: smooth the fitted weights over height with a Gaussian of this width in metres before the second range map (0 = off, the weights step at the band edges)")
     ap.add_argument("--no-second-map", action="store_true", help="IL-10: blend only, no second range map (v1 of the layer)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
@@ -179,6 +194,9 @@ def main():
         if 1 - tot.min() / tot[-1] < a.min_gain or f"{v}:{b}" in a.skip:
             w_col[sel] = 1.0
         print(f"{v:<8}{b:<12}{w_col[sel][0]:6.2f}  {tot.min() / tot[-1]:>12.4f}{tot.min() / tot[0]:>30.4f}")
+    if a.smooth_w_m > 0:
+        w_col = smooth_weights(w_col, a.smooth_w_m)
+        print(f"weights smoothed over height (sigma {a.smooth_w_m:g} m)")
     # second pass: range map on the blended samples (restores 99 % coverage that blending narrows)
     zs, us = [], []
     for i in range(0, 0 if a.no_second_map else len(rows), step):
