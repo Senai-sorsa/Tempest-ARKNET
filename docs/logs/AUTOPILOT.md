@@ -272,6 +272,22 @@ Shear goals (numbers): 99.9th within 5 % of the truth in all four bands for 2021
 | IL-125 | S | Land and ocean memory predictors for the summer monsoon / thermal days: soil moisture (ERA5 swvl1-2) and SST anomalies at the sites as slow predictors for weeks 2-6. Small point download (a few MB per site), approved by the user 2026-11-07 within the 5 GB long-range budget | slow predictors into `linear_cols`, skill by lead week | todo |
 | IL-126 | D | Spread vs lead reliability: calibrate spread as a function of lead (PIT / spread-skill per lead), so the long-range ranges are honest even where skill is zero | per-lead PIT and coverage table; lead-dependent width map | todo |
 | IL-127 | S | Optional: GraphCast/Pangu as extra first guesses for days 5-10, where raw HRES skill falls (-0.21 at day 7) and the network reaches +0.20. Same test as `Strong improvment.md` F: HRES only vs HRES + GraphCast mean/spread. Needs the Colab listing first (paths, years, live availability) | one-year trial before any full pull | todo (low priority, after IL-118) |
+| IL-128 | S | Gemini 1.1 (Gaussian copula in `sample_sobol` may smooth tail shear/inversions). Reproduce on the real pool: 99th/99.9th shear and inversion strength of the pool vs after `sample_sobol`; if it loses tails, select whole profiles by stratified Sobol when unconditioned, and apply the Schur update as a residual on whole members when conditioned | pool vs `sample_sobol` shear table; M12 tracer drift 95th/99th | todo |
+| IL-129 | S | Gemini 1.2 (`_cdf`/`_ppf` clamp at the pool min/max): linear tail extrapolation from the outer 5 % slope, the same method as IL-103/F4; test an observation above the pool maximum (no shear spike between 10 m and 50 m) | unit test + shear check on a conditioned pool | todo |
+| IL-130 | S | Gemini 1.3-1.5 in `dryden.py`: N^2 = (g/T)(dT/dz + g/cp) instead of the linearised theta (N^2 low by 31 % at 10 km, 45 % at 18 km); boundary-layer floor 0.05 -> 0 plus a 0.05 m/s background; add resolved `w` to `w_total`. Do together with S1 (same function) | Dryden variance/spectrum test vs current; Ri and sigma_w profiles at 10-18 km | todo (Section 1, with S1) |
+| IL-131 | S | Gemini 1.6-1.7: add a 0 m AGL node to `TempestAtmosphere`/`TempestWind` (t2m, sp, rh2m, reduced wind) so `conditions(site)` matches the pad state; convert geometric to geopotential altitude in `_Tail` and `baro_altitude_msl` (51 m at 18 km) | test `conditions(site)` == (t2m, sp, rh2m); standard-day altimeter bias at 18 km | todo (Section 1) |
+| IL-132 | S | Gemini 1.8: `site_shift` fade term changes dT/dz by LAPSE*dz/1500 (2.17 K/km at dz = 500 m). Compare against (a) per-sample boundary-layer lapse and (b) constant shift to the mixed-layer top then fade, on the pad-elevation check (A1) and stable morning profiles | inversion/lapse change before vs after the shift | todo |
+| IL-133 | S | Gemini 1.9: `atmosphere_sequence`/`downrange` do not update `w` after the coherence reordering. Put the 44 `w` columns into the coherence step (or re-sample the `w` head after it) | test: w[j] correlates with u[j], v[j] of the same sample after reordering | todo (Section 1) |
+| IL-134 | S | Gemini 1.10: add lead-dependent surface-pressure spread (sigma_sp) in past/forecast modes, fitted from the ERA5/ASOS data on disk (not Gemini's 50-250 Pa guess), correlated with t2m or wind | density spread vs balloons/ASOS; sp coverage | todo (Section 1) |
+| IL-135 | S | Gemini 2 (Dryden parameters): estimate h_pbl per sample from the profile (bulk Richardson > 0.25 or d theta/dz threshold) instead of 1200 m, and draw the 1-cos gust peak from the sample's own gust_mu/gust_beta instead of uniform 3-15 m/s. With R1 (roughness) in 2A | h_pbl vs time of day at EPZ/MAF; gust peak distribution vs ASOS | todo |
+| IL-136 | D | Low-priority clean-ups (Gemini 2): acoustic ray tracer use moist sound speed `atm["a"]` and mid-point rule near turning points; unify the three saturation-vapour formulas (es_liquid, Buck in avionics, Bolton in igra_to_heights) on es_liquid after measuring the round-trip difference | acoustics range error vs fine integration; round-trip table | todo |
+| IL-137 | S | Gemini 2: shear-map smoothing window `SMOOTH = 9` heights spans 1.24 km low and 4.5 km mid/upper. Test smoothing in metres (about 2 km Gaussian) as an opt-in flag | shear tail and physics rows, 3 seeds (IL-109) | todo |
+| IL-138 | S | Gemini 2: Schur conditioning `inflate = 1.5` is one scalar. Test an inflation that decays with correlation distance from the observed heights (LAUNCH_PLAN A2); the formula in the paste was cut off, so define it first | `scripts/s6_condition_eval.py` coverage at 50 m / upper levels | todo |
+| IL-139 | D | Gemini 2: `M_CAL = 199` blocks and `[:n]` slicing. Permute within each block before slicing (or generate exact counts) so a partial last block is never sorted or from one grid point. Same as S5 | n = 1024 test: partial block statistics equal full blocks | todo |
+| IL-140 | S | Gemini 3 (pit_apply order): make `pit_recal.apply` / `_core.pit_apply` restore the input member order (take_along_axis with the input ranks) as an opt-in flag, then recheck IL-86 | cross-variable rank correlation after PIT alone, before vs after | todo |
+| IL-141 | S | Gemini 3 (trust seams): the trust weight is a step across bands, creating shear and lapse steps at 1, 5, 12 km (L3-29: superadiabatic 0.283 -> 0.474). Smooth the weight across heights (Whittaker, as in station.py) and rerun L3-29/L3-33 | physics rows of mc.csv; Denver headline | todo |
+| IL-142 | S | Gemini 3 (debias): L3-34 debias shifts RH in physical space after range calibration, collapsing the lower tail at 0 %. Debias in the transformed coordinate (log dewpoint depression or logit) before conversion | rerun L3-34 humidity coverage | todo |
+| IL-143 | D | Gemini 3 (fill_mask scoring): `score.py` scores against filled (isothermal) truth, so L3-43 may have looked neutral wrongly. Mask the score by `fill_top_idx` (or use the mc.py real-height subset) and rerun L3-43 mask off vs on. Ties to the 'filled is not skill' item (IL-116) | L3-43 rescore | todo |
 **Long-range download budget (user, 2026-11-07):** up to **5 GB in total** may be downloaded for the long-range ideas IL-118 to IL-127, including `ifs_extended_range`. This is an exception to the standing 'no downloads beyond what is running' rule and covers only these ideas. Count the total on disk; stop and ask before going over 5 GB. Download folders are new ones (e.g. `data/raw/wb2_ifs_extended`), low priority, one at a time.
 
 ## Pitfall checks (user 2026-11-05): quick checks for the classic beginner and expert mistakes, run after every item that trains, fits or changes a file, and at the end of every phase
@@ -409,3 +425,28 @@ Denver (USM00072469) is the zero-shot test bed: models trained on NM/TX only, sc
 | L3-42 NM/TX all-hours stack | `scripts/ap_l3_nmtx_hours.sh` | **done 05:43, KEEP**: day mean -0.0001 over 3 seeds (b PASS, cov99 better), night -0.0072 → +0.0274 (rh2m cov99 0.9976 over-cover flag); `l3_a24nm` = NM/TX stack, all hours |
 | L3-43 fill_mask (review) | `scripts/ap_l3_fillmask.sh` | **done 13:55, DROP (neutral)**: mean skill15 +0.0154 → +0.0154, rule (b) PASS, cov99 identical (0.0030); mask ON nudges u up (+0.001..0.002) and T/RH 1-12 km down (-0.001), rh2m -0.0024 — all within single-seed noise. Leave `fill_mask` off (opt-in flag stays); not stacked |
 | Queue cut (user) | `scripts/ap_l3_lean.sh` | running: Denver fill-top rescore → w768 → terrain → ctxsep → sirenw15 → studt (improved: + tail head); jump waits for IGRA; Gemini idea 2 removed; rest sidelined (`SIDELINED.md`) |
+
+## Fix status, 2026-11-07 22:00 (fixes before new ideas, user's order)
+All opt-in, off by default, tests in `tests/test_gate_fixes.py` and `tests/test_gemini_fixes.py`; NOT yet switched on (each needs a 3-seed verification run).
+
+| IL | Flag / entry point | State |
+|---|---|---|
+| IL-109 | `compare_headline.py --tol T` | code done; the 3-seed rerun that sets T waits for the GPU (after L3-44) |
+| IL-110 | `diag.tail_support`, `diag.block_bootstrap_ci`; `mc.csv` rows `tail` | code done (expected exceedances per column; 5,000 rows give 0.5 for a 99.99th percentile, so that threshold is set by about one row) |
+| IL-111 | `diag.headline` writes `skill15_gauss`, `margin_gauss_*`; `compare_headline.py --require-gauss` | code done |
+| IL-112 | - | waits for `igra_heights` |
+| IL-128 | - | test not yet run |
+| IL-129 | `TempestFlightSimEngine(tail_extrap=True)` | code done |
+| IL-130 / IL-135 | `sample_sobol_batch(dryden_fixes=True)`; `dryden.synthesize(exact_n2, bl_floor0, w, h_pbl_from_profile, gust_params)` | code done |
+| IL-131 | `TempestAtmosphere/TempestWind(pad_node=True)`, `TempestAtmosphere(geopotential=True)`, `baro_altitude_msl(geometric=True)` | code done |
+| IL-132 | `_core.site_shift(shift_mode="const"/"pbl")` | code done; default decision needs the pad-elevation check |
+| IL-133 | `atmosphere_sequence/downrange(fix_w=True)` | code done |
+| IL-134 | - | not started (needs sigma_sp fitted from ERA5/ASOS) |
+| IL-136 | `AcousticRayTracer(sound_speed=...)`, `trace_ray_fan(midpoint=True)` | code done; saturation formulas measured vs `es_liquid`: Buck +0.07..0.25 % and Bolton +0.03..0.38 % from -20 to 30 C, +4.2 % / +2.7 % at -60 C (e < 0.02 hPa); kept as they are |
+| IL-137 | `shear_apply(smooth_m=...)`, `shear_map.apply(smooth_m=...)` | code done; parity tested |
+| IL-138 | `condition_on_observations(inflate_decay_m=...)` | code done |
+| IL-139 | `api.OPTIONS["permute_blocks"]=True` | code done |
+| IL-140 | `pit_apply(keep_order=True)`, `pit_recal.apply(keep_order=True)` | code done |
+| IL-141 | `trust --smooth-w-m SIGMA` | code done; refit + L3-29/L3-33 rerun wait for the GPU |
+| IL-142 | `debias --rh-logit` | code done; refit + L3-34 rerun wait for the GPU |
+| IL-143 | `score --mask-filled` (dataset needs `fill_top_idx`) | code done; L3-43 rescore waits for the GPU |
