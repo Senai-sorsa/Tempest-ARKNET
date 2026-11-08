@@ -26,6 +26,7 @@ Rules that keep both loops alive:
 2. Health: `date`; GPU (`nvidia-smi`), free RAM, disk, python/bash processes of this project (no orphans, no duplicate queue scripts), forecast loggers alive (`tempest.ops.logger`, `logger_p4`), `git status` (no stray files staged).
 3. Read this file. Find the first unchecked item whose prerequisites are done. If a GPU queue is running, work on CPU items instead; if the GPU is idle and the next GPU item is ready, write a NEW detached queue script (`nohup`, RAM wait <= 6 GB, skip-if-output-exists, retry once, exclude its own name from the `queues()` regex, log to `data/l3.log`) and launch it. Never edit a running bash script.
 4. Do the work in small steps; test; record verdicts in `docs/logs/LOOP3.md` and `docs/logs/AUTOPILOT.md`; keep `To-do-Concise.md` current; commit by file name.
+4b. **Failure rule (user 2026-11-08):** every 3 ideas that fail or come out neutral add ONE new sideline idea to the bottom of `docs/logs/AUTOPILOT.md` ("Ideas learned from failures") that uses what failed and what worked; keep the failure ledger there up to date. First two added (IL-158, IL-159).
 5. Tick the box here (`[x]`) with a short result, or write why it was skipped (blocked items are skipped, never waited for).
 6. Daily checks (section 4) when their time comes.
 7. Re-arm `ScheduleWakeup(1800)`; run `CronList`.
