@@ -15,6 +15,7 @@
 
 ## Left to check — numbered, in run order
 L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-38 03:29: all-hours KEEP (day +0.0278 = +0.0277, night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 208 passed (11:40, after review fixes d997f62).
+**Gate fixes, do first (user 2026-11-07; `docs/logs/AUTOPILOT.md` IL-109..112):** IL-109 3-seed paired tolerance replaces 0.0006; IL-110 effective tail sample count + bootstrap CI on every tail number; IL-111 add margin-over-climatology and Gaussian/GRAM baseline to the gate table; IL-112 derive the shear-vs-IGRA gate from the 987-station scatter (waits for `data/igra_heights`).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
 **L3-44 running (18:42)**: 21-level NM/TX rebuild + retrain (`scripts/ap_l3_lev21.sh`), verdict ~20:30; global HRES (84 months) arrived, waits for G0's loader.
 1. Base for both stacks is now `l3_h_all24` (L3-42 NM/TX KEEP: day -0.0001 over 3 seeds, night +0.0274; L3-40/41 Denver KEEP). Known costs: Denver day t2m -0.005 (fallback: p2f stack by day), night rh2m cov99 0.9976 over-cover. GPU idle until IGRA/global data arrive (L3-27).
@@ -32,4 +33,4 @@ Processes to finish and check:
 14. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
 15. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.
 16. Test #3 future climate.
-17. **Last, after ALL other Wi-Fi work** (fetch chain extras → IGRA → G2, MERRA-2 for A1, any other downloads): resume the CDS grib download, `nohup .venv/Scripts/python -W ignore -u -m tempest.ingest.fetch_cds >> data/cds.log 2>&1 &` (stopped 18:45 Nov 7 by the user's choice; the ledger resumes it; ~290 grib copies of months the ARCO nc fill already covers, so nothing waits on it).
+17. **Last, after ALL other Wi-Fi work** (fetch chain extras → IGRA → G2, MERRA-2 for A1, any other downloads): resume the CDS grib download, `nohup .venv/Scripts/python -W ignore -u -m tempest.ingest.fetch_cds >> data/cds.log 2>&1 &` (stopped 18:45 Nov 7 by the user's choice; relaunched 19:20 by the other session's stale Nov-4 `pipeline4.sh` watchdog, which waits for 420 `.grib` and ignores the nc fill; the user stopped both ~19:40. Don't restart `pipeline4.sh`: L3-44 replaces its 13-level profiles_bl/generator_pilot steps; the ledger resumes it; ~290 grib copies of months the ARCO nc fill already covers, so nothing waits on it).
