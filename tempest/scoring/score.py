@@ -124,6 +124,7 @@ def main():
     ap.add_argument("--shuffle-w", type=float, default=1.0, help="IL-161: with --shuffle, weight of the template ranks against the network's own order (1 = the plain Schaake shuffle)")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
+    ap.add_argument("--lapse-map", help="IL-162: lapse-rate quantile map from tempest.calibrate.lapse_map, applied after the shuffle and the shear map; outputs get an _lmap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
     ap.add_argument("--shear-tail", help="rare wind-shear patches from tempest.calibrate.shear_tail (needs --calib); outputs get a _stail suffix")
     ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
@@ -242,6 +243,10 @@ def main():
         from tempest.calibrate import shear_map
         smt = dict(np.load(a.shear_map))
         known, unknown = shear_map.apply(smt, known), shear_map.apply(smt, unknown)
+    if a.lapse_map:   # IL-162: after the shuffle and the shear map, the order they were fitted in
+        from tempest.calibrate import lapse_map
+        lmt = dict(np.load(a.lapse_map))
+        known, unknown = lapse_map.apply(lmt, known), lapse_map.apply(lmt, unknown)
     if a.shift:
         if not cal:
             raise SystemExit("--shift needs --calib")
@@ -271,7 +276,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
