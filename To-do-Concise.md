@@ -1,7 +1,6 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
 ## You
-- `fetch_cds` (CDS grib download) is now redundant: all 420 months exist (ARCO nc fill). Stopping it frees Wi-Fi for the fetch chain; I was not allowed to stop it, say if you want it stopped.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
@@ -33,3 +32,4 @@ Processes to finish and check:
 14. G2 training (8 boxes, leave-one-box-out, SAMOS targets L3-8 as the zero-shot candidate; hour density from D4), then G3/G4.
 15. Launch plan (`docs/plans/LAUNCH_PLAN.md`): A2 launch-day correction → A1 extension to 80 km (needs your NASA Earthdata login) → A3 wind/shear tails → tracer-drift check + runtime.
 16. Test #3 future climate.
+17. **Last, after ALL other Wi-Fi work** (fetch chain extras → IGRA → G2, MERRA-2 for A1, any other downloads): resume the CDS grib download, `nohup .venv/Scripts/python -W ignore -u -m tempest.ingest.fetch_cds >> data/cds.log 2>&1 &` (stopped 18:45 Nov 7 by the user's choice; the ledger resumes it; ~290 grib copies of months the ARCO nc fill already covers, so nothing waits on it).
