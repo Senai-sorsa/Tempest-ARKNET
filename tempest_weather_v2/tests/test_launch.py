@@ -212,3 +212,15 @@ def test_past_wind_spread_flag_and_widening():
     L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64, past_wind_spread=1.2)
     assert L.with_(units="si").past_wind_spread == 1.2
     assert "past-wind-spread-widened" not in L.weather(all=True).flags               # climate mode: not applied
+
+
+def test_domain_inside_edge_outside():
+    d = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64).domain()
+    assert d["status"] in ("inside", "edge") and d["region"] and d["edge_km"] > 0
+    assert Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64).domain()["status"] == "inside"
+    e = Launch(31.05, -104.5, "2027-06-16 10:00", mode="ai", n=64)
+    assert e.domain()["status"] == "edge" and "edge of the trained area" in e.domain()["reason"] and "edge of what the model was trained on" in e.trust
+    far = Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64, elevation=3500, units="si").domain()
+    assert far["status"] == "edge" and "model grid height" in far["reason"]
+    out = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64).domain()                                  # no asset set covers it
+    assert out["status"] == "outside" and out["region"] is None

@@ -381,6 +381,36 @@ class Launch:
         near = ", ".join(f"{i} {d:.0f} km" for i, d, _ in O.nearest(self.lat, self.lon, k=k, max_km=max_km)) or f"none within {max_km:.0f} km"
         raise LookupError(f"no usable METAR in the {hours} h before launch from the nearest stations ({near}; tried {tried or 'none'}). Pass the report yourself with observe_metar(text).")
 
+    # ---- C5: domain of applicability
+    EDGE_DEG = 0.25            # within this many degrees of the trained box edge: "edge"
+    EDGE_DZ_M = 500.0          # site more than this far above or below the model grid's own height: "edge"
+
+    def domain(self):
+        """Is this place inside what the generator was trained on? -> dict(status "inside" | "edge" | "outside", reason, edge_km, elevation_gap_m, region). Outside = no asset set covers the point (the tool refuses there);
+        edge = within 0.25 degrees (about 25 km) of the trained box edge or a site more than 500 m from the model grid's height: the model is extrapolating a little (Denver, 17 degrees away in height-feature space, was
+        measured as clearly outside by the L3-28 dissimilarity test, which this simple check does not replace)."""
+        import os
+        name = None
+        for nm, a in sorted(api.regions().items(), key=lambda kv: (kv[0] != "assets", kv[0])):
+            if a["lat"][0] <= self.lat <= a["lat"][1] and a["lon"][0] <= self.lon <= a["lon"][1]:
+                name, box = nm, a
+                break
+        if name is None:
+            return dict(status="outside", reason="no trained asset set covers this point", edge_km=None, elevation_gap_m=None, region=None)
+        edge_deg = min(self.lat - box["lat"][0], box["lat"][1] - self.lat, (self.lon - box["lon"][0]) * np.cos(np.radians(self.lat)), (box["lon"][1] - self.lon) * np.cos(np.radians(self.lat)))
+        edge_km = float(edge_deg * 111.0)
+        g = api._assets(os.path.join(api.HERE, name))["grid"]
+        pts, wts = _core.bilinear(g["lat"], g["lon"], self.lat, self.lon)
+        grid_elev = float(np.dot(wts, g["elev"][pts]))
+        site = self.elevation_info()[0]
+        gap = None if site is None else float(site) - grid_elev
+        reasons = []
+        if edge_deg < self.EDGE_DEG:
+            reasons.append(f"{edge_km:.0f} km from the edge of the trained area")
+        if gap is not None and abs(gap) > self.EDGE_DZ_M:
+            reasons.append(f"site is {gap:+.0f} m from the model grid height")
+        return dict(status="edge" if reasons else "inside", reason="; ".join(reasons) or "inside the trained area", edge_km=edge_km, elevation_gap_m=gap, region=name)
+
     # ---- trust, provenance
     @property
     def trust(self):
@@ -393,6 +423,9 @@ class Launch:
             text = "Mixed: " + ", ".join(f"{100 * v:.0f}% {'forecast' if k == 'forecast' else 'climate' if k == 'ai' else 'past'}" for k, v in sorted(m.items(), key=lambda kv: -kv[1])) + " (window spans a mode limit)"
         if "fallback-mode" in p["flags"]:
             text += " (the mode you asked for was not available: see flags)"
+        dom = self.domain()
+        if dom["status"] == "edge":
+            text += f"; near the edge of what the model was trained on ({dom['reason']})"
         if self._hrrr:
             text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted on station winds; not validated beyond near-analysis)"
         if self._measurements():
