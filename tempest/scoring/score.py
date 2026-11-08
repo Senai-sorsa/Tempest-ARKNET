@@ -121,6 +121,7 @@ def main():
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
     ap.add_argument("--debias", help="L3-34: per point x month x 4-hour-bin mean-error table from tempest.scoring.debias (needs --calib), applied after the calibration maps; outputs get a _debias suffix")
+    ap.add_argument("--shuffle-w", type=float, default=1.0, help="IL-161: with --shuffle, weight of the template ranks against the network's own order (1 = the plain Schaake shuffle)")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
@@ -234,7 +235,7 @@ def main():
             tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
         if a.pooled_template:                                                        # IL-94: templates pooled over grid points, as shipped in the tool
             tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), pooled=True)
-        known, unknown = shuf_mod.apply(known, tpl), shuf_mod.apply(unknown, tpl)
+        known, unknown = shuf_mod.apply(known, tpl, a.shuffle_w), shuf_mod.apply(unknown, tpl, a.shuffle_w)
     if a.shear_map:
         if not cal:
             raise SystemExit("--shear-map needs --calib")

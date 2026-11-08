@@ -8,9 +8,16 @@ real one. Off by default (score --shuffle).
 import numpy as np
 
 
-def apply(x, template):
-    """x, template (N, m, D) -> x with the template's rank structure along the m axis."""
-    ranks = np.argsort(np.argsort(template, axis=1), axis=1)
+def apply(x, template, w=1.0):
+    """x, template (N, m, D) -> x with the template's rank structure along the m axis.
+    w < 1 (IL-161): blended ranks. Each column's ranks are w x the template's rank + (1 - w) x the rank the sample already has in x (the network's own order), re-ranked within the column,
+    so the marginals are still exactly those of x and w = 1 is the plain Schaake shuffle."""
+    r_t = np.argsort(np.argsort(template, axis=1), axis=1)
+    if w >= 1.0:
+        return np.take_along_axis(np.sort(x, axis=1), r_t, axis=1)
+    r_x = np.argsort(np.argsort(x, axis=1), axis=1)
+    blend = float(w) * r_t + (1.0 - float(w)) * r_x
+    ranks = np.argsort(np.argsort(blend, axis=1, kind="stable"), axis=1, kind="stable")
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
 
 
