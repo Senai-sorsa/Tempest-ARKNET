@@ -15,6 +15,7 @@ targets carry pressure. Regimes come from inputs (season, day/night), never from
 import numpy as np
 import pandas as pd
 
+from tempest.scoring import diag
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
 N = len(HEIGHTS)
@@ -77,6 +78,9 @@ def write(stem, x, clim15, truth, cond, names, band_masks, w_list=(0.25, 0.5)):
     T, u, v = truth[:, IT:IT + N], truth[:, IU:IU + N], truth[:, IV:IV + N]
     thr = dict(shear=np.quantile(np.hypot(np.diff(u, axis=-1), np.diff(v, axis=-1)) / DZ, 0.9999, axis=0),
                sfc=np.quantile(np.abs(truth[:, 4 * N] - T[:, 0]), 0.999))
+    for name, q in (("shear_9999", 0.9999), ("sfc_jump_999", 0.999)):    # IL-110: what stands behind each tail threshold
+        sup = diag.tail_support(len(truth), q)
+        add("tail", "all", f"{name}_expected_exceedances_per_column", sup["expected_per_column"], 10.0)   # ref = the minimum we want (10)
     vm, vt = violations(x, thr), violations(truth, thr)
     for k in vm:  # ref = ERA5's own rate (the shear/sfc ones are ~1e-4/1e-3 by construction)
         add("phys", "all", k, vm[k].mean(), vt[k].mean())

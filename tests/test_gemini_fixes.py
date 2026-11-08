@@ -309,3 +309,24 @@ def test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
     top = np.array([[2, 1, 0, 2], [0, 0, 0, 0]])
     v = diag.valid_from_fill_top(top, 4 * 44 + 3)
     assert v[0, :3].all() and not v[0, 3] and v[0, 44] and not v[0, 46] and v[:, -3:].all() and v[1, 0] and not v[1, 1]
+
+
+def test_il110_tail_support_counts_and_block_bootstrap_interval():
+    from tempest.scoring import diag
+    s = diag.tail_support(5000, 0.9999)
+    assert abs(s["expected_per_column"] - 0.5) < 1e-9 and s["thin"]
+    assert not diag.tail_support(50000, 0.999)["thin"] or diag.tail_support(5000, 0.999)["thin"]
+    day = np.repeat(np.arange(50), 10)
+    ex = np.zeros((500, 3), bool)
+    ex[:10, 0] = True                                         # ten exceeding rows, all on day 0
+    ex[:3, 1] = True
+    t = diag.tail_support(500, 0.99, day=day, exceed=ex)
+    assert t["observed"] == 13 and t["effective_days"] == 1   # many rows, one weather day
+    v = np.random.default_rng(0).normal(size=500)
+    est, lo, hi = diag.block_bootstrap_ci(v, day, lambda a: np.quantile(a, 0.99), n_boot=100)
+    assert lo <= est <= hi and hi - lo > 0
+    # day blocks give a wider interval than treating all rows as independent when the rows of a day are equal
+    v2 = np.repeat(np.random.default_rng(1).normal(size=50), 10)
+    _, l_b, h_b = diag.block_bootstrap_ci(v2, day, np.mean, n_boot=200)
+    _, l_i, h_i = diag.block_bootstrap_ci(v2, np.arange(500), np.mean, n_boot=200)
+    assert (h_b - l_b) > (h_i - l_i)

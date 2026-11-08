@@ -69,6 +69,39 @@ def report(stem, x, y, names, groups, month=None, var_slices=None):
     return summ
 
 
+def tail_support(n_rows, q, n_layers=1, day=None, exceed=None):
+    """IL-110: how much data stands behind a tail number. n_rows rows, tail level q (0.9999 = the 99.99th percentile) -> dict: expected exceedances per column (n_rows * (1 - q); below about 10 the
+    quantile is set by a handful of rows), and, when `exceed` (N, ...) bool marks the rows that exceed and `day` (N,) their day ids, the observed exceedance count and the EFFECTIVE count: the number
+    of distinct days holding an exceedance (rows of one day, and neighbouring layers of one row, move together)."""
+    out = dict(rows=int(n_rows), q=float(q), expected_per_column=float(n_rows * (1.0 - q)), thin=bool(n_rows * (1.0 - q) < 10.0))
+    if exceed is not None:
+        ex = np.asarray(exceed, bool)
+        out["observed"] = int(ex.sum())
+        flat = ex.reshape(len(ex), -1).any(1)
+        out["effective_days"] = int(len(np.unique(np.asarray(day)[flat]))) if day is not None else int(flat.sum())
+    return out
+
+
+def block_bootstrap_ci(values, day, stat=np.mean, n_boot=500, seed=0, alpha=0.05):
+    """IL-110: 95 % interval of stat(values) by resampling whole days (values (N,) or (N, k) with one row per day member; day (N,)). -> (estimate, lo, hi). Rows of one day are never split, so
+    the interval is not falsely narrow for tails that sit in a few weather days."""
+    v = np.asarray(values, float)
+    _, inv = np.unique(np.asarray(day), return_inverse=True)
+    order = np.argsort(inv, kind="stable")
+    v, inv = v[order], inv[order]
+    starts = np.searchsorted(inv, np.arange(inv.max() + 1))
+    ends = np.append(starts[1:], len(inv))
+    rng = np.random.default_rng(seed)
+    nd = len(starts)
+    est = stat(v)
+    boots = np.empty(n_boot)
+    for b in range(n_boot):
+        pick = rng.integers(0, nd, nd)
+        boots[b] = stat(np.concatenate([v[starts[i]:ends[i]] for i in pick]))
+    lo, hi = np.percentile(boots, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return float(est), float(lo), float(hi)
+
+
 def valid_from_fill_top(top, D):
     """top (N, 4) int: the highest real height index per row and PROFILE variable (dataset array fill_top_idx) -> (N, D) bool, False for the filled heights above it; the surface columns stay True."""
     from tempest.profiles.to_heights import HEIGHTS
