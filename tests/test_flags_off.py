@@ -75,3 +75,11 @@ def test_shear_tail_flag_runs_changes_results_and_off_is_golden():
     got = run(dict(shear_tail_weight=0.3))
     assert np.isfinite(got["member0"]["val"]).all() and got != run()
     assert run(dict(shear_tail_weight=0.0)) == json.load(open(GOLDEN, encoding="utf-8"))
+
+
+def test_low_level_flags_run_change_results_and_off_is_golden():       # C4b
+    for extra in (dict(low_weight=3.0), dict(wind_vec_weight=0.5), dict(low_weight=3.0, wind_vec_weight=0.5, m=6)):
+        got = run(extra)
+        assert np.isfinite(got["member0"]["val"] + got["member0"]["train"]).all(), extra
+        assert got != run(), extra
+    assert run(dict(low_weight=1.0, wind_vec_weight=0.0)) == json.load(open(GOLDEN, encoding="utf-8"))

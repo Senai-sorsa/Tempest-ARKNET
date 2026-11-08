@@ -43,6 +43,9 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 product_pairs=None,         # IL-97: e.g. [["oni", "qbo30"], ["oni", "qbo50"]]: products of two linear features as extra straight-line effects
                 interactions=False,         # F-14: slope network sees the driver columns too (driver x driver effects); mlp arch only
                 m_final=0, final_steps=0,   # F-15: draw m_final samples per row (instead of m) for the last final_steps steps: less noisy pairwise-spread gradients where the shape is finished
+                low_weight=1.0,             # C4b: weight of the per-value CRPS at heights <= low_top_m (1.0 = off; 3.0 = three times as much as above)
+                wind_vec_weight=0.0,        # C4b: weight of an extra energy score on the (u, v) vector plus CRPS of the wind speed, both at heights <= low_top_m (0 = off)
+                low_top_m=300.0,
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
                 train_rows=0,               # F-29: use a random subset of this many training rows (0 = all); lets the float32-storage comparison fit in GPU memory
                 store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
@@ -251,6 +254,19 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         f = lambda q: 17.502 * (q - 273.16) / (q - 32.19)
         return 100.0 * torch.exp(torch.clamp(f(td) - f(T), max=0.0))            # ratio of saturation vapour pressures as one exponential, never above 100 %
 
+    low_h = np.flatnonzero(np.asarray(HEIGHTS) <= cfg["low_top_m"])
+    low_cols = torch.tensor(np.concatenate([i * n_h + low_h for i in range(n_v)]) if n_prof else [], dtype=torch.long, device=device)
+    iu_, iv_ = PROFILE.index("u") * n_h if n_prof else 0, PROFILE.index("v") * n_h if n_prof else 0
+    low_idx = torch.tensor(low_h, dtype=torch.long, device=device)
+
+    def low_wind_loss(samples, t, s_std, y_std):   # C4b: vector energy score on (u, v) + CRPS of speed, near the ground, in units of about 3 m/s
+        ps_, pt_ = physical(samples * ts_d + tm_d), physical(t * ts_d + tm_d)
+        us, vs = ps_[..., iu_ + low_idx], ps_[..., iv_ + low_idx]                  # (B, m, K)
+        ut, vt = pt_[..., iu_ + low_idx], pt_[..., iv_ + low_idx]
+        es = energy_score(torch.stack([us, vs], -1).flatten(-2) / 3.0, torch.stack([ut, vt], -1).flatten(-2) / 3.0) / math.sqrt(2 * len(low_h))
+        sp = afcrps(torch.hypot(us, vs) / 3.0, torch.hypot(ut, vt) / 3.0, cfg["crps_alpha"])
+        return es + sp
+
     def score(samples, t, top=None):
         if top is not None:   # fill_mask: filled heights take the target's value, so every term below sees no error and no gradient there
             mk = (torch.arange(n_h, device=top.device) > top[..., None].long()).flatten(-2)
@@ -260,6 +276,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         if top is not None:
             s = torch.where(mk[:, None], y[:, None], s)
         loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
+        if cfg["low_weight"] != 1.0 and n_prof:
+            loss = loss + (cfg["low_weight"] - 1.0) * afcrps(s[..., low_cols], y[..., low_cols], cfg["crps_alpha"])
+        if cfg["wind_vec_weight"] and n_prof:
+            loss = loss + cfg["wind_vec_weight"] * low_wind_loss(samples, t, s, y)
         if cfg["step_weight"] and n_prof:  # CRPS on the height-to-height steps too: level CRPS alone leaves shear too smooth
             if strides:
                 loss = loss + cfg["step_weight"] * stride_loss(samples, t)
