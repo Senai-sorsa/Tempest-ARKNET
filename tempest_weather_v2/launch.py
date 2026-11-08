@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from tempest_weather import _core, api
-from tempest_weather_v2 import __version__, elevation as E, names, stats, timeutil, weather_calc as W
+from tempest_weather_v2 import __version__, elevation as E, names, roughness, stats, timeutil, weather_calc as W
 from tempest_weather_v2.readers import Atmosphere, normalise_samples
 from tempest_weather_v2.results import Weather
 from tempest_weather_v2.sites import get_site, guess_tz
@@ -68,7 +68,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, _pool=None, _obs=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, _pool=None, _obs=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -81,6 +81,7 @@ class Launch:
         self.created = datetime.now(timezone.utc)
         self._elevation_arg = elevation
         self._z0_arg = z0
+        self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
         self._obs = dict(_obs or {})
         self._flags = []
         tzname = tz or (self._site.tz if self._site and self._site.tz else None)
@@ -113,7 +114,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, _obs=self._obs)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, _obs=self._obs)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -187,7 +188,7 @@ class Launch:
         samples, infos, mode_count = {}, [], {}
         for gi, (t_utc, pos) in enumerate(groups):
             iso = t_utc.replace(tzinfo=timezone.utc).isoformat()
-            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now)
+            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store)
             if elev_m is None:
                 elev_m = float(info["elevation_m"])
             for k in SAMPLE_KEYS:
@@ -210,6 +211,10 @@ class Launch:
                     flags.append(q)
         if self._tz_note:
             flags.append(self._tz_note)
+        if "fallback-mode" in flags:
+            asked = self.mode or "the automatic mode"
+            warnings.warn(f"Launch asked for {asked} but the tool fell back to the climate generator ({', '.join(f for f in flags if f.startswith(('past-', 'forecast-', 'fallback')))}). "
+                          "For past dates give era5_store=<folder> (a local ERA5 profile store) or set TEMPEST_ERA5_STORE; the result is a climate estimate, not that day's weather.", stacklevel=3)
         if not single:
             flags.append("window-hours-independent")
         self._pool = dict(samples=samples, launch_times=times, infos=infos, modes={k: v / n for k, v in mode_count.items()}, elevation_source=esrc, flags=flags,
@@ -269,6 +274,8 @@ class Launch:
             text = names_.get(next(iter(m)), f"mode {next(iter(m))}")
         else:
             text = "Mixed: " + ", ".join(f"{100 * v:.0f}% {'forecast' if k == 'forecast' else 'climate' if k == 'ai' else 'past'}" for k, v in sorted(m.items(), key=lambda kv: -kv[1])) + " (window spans a mode limit)"
+        if "fallback-mode" in p["flags"]:
+            text += " (the mode you asked for was not available: see flags)"
         if self._obs:
             text += f"; conditioned on {len(self._obs)} measurements (not yet validated)"
         return text
@@ -282,7 +289,7 @@ class Launch:
                     forecast_model=("IFS (Open-Meteo)" if "forecast" in p["modes"] else None))
 
     # ---- derived per-sample quantities (SI internal)
-    def _derive(self, s):
+    def _derive(self, s, times=None):
         z = np.asarray(s["height_agl"], float)
         u, v = np.asarray(s["u"], float), np.asarray(s["v"], float)
         t2m, sp, rh2m = (np.asarray(s[k], float) for k in ("t2m", "sp", "rh2m"))
@@ -304,10 +311,32 @@ class Launch:
         q = _core.mixing_q(t2m, rh2m, sp)
         rho = sp / (_core.RD * t2m * (1 + (_core.RV / _core.RD - 1) * q))
         d["density"], d["density_ratio"], d["density_altitude"] = rho, rho / 1.225, W.density_altitude_m(rho)
-        d["surface_roughness_m"] = np.full(len(u), float(self._z0_arg) if self._z0_arg else Z0_DEFAULT)
+        d["surface_roughness_m"] = self._z0_samples(d["wind_10m_from_deg"], times, len(u))
         d["max_wind_shear"], d["max_wind_shear_alt"] = W.max_shear(u, v, z)
         d["upper_wind_max"], d["upper_wind_max_alt"] = W.upper_wind_max(u, v, z)
         return d
+
+    def _z0_samples(self, wind_from, times, n):
+        """R1: z0 per sample from the user's value, else the directional land-cover map (the sample's own 10 m wind direction and month), else the old fixed 0.03 m (flagged)."""
+        if self._z0_arg:
+            return np.full(n, float(self._z0_arg))
+        rmap = roughness.load_default()
+        if rmap is not None and rmap.covers(self.lat, self.lon):
+            months = (times.astype("datetime64[M]").astype(int) % 12 + 1) if times is not None else np.full(n, self.resolved_window().cells_utc[0].astype("datetime64[M]").astype(int) % 12 + 1)
+            out = np.empty(n)
+            for m in np.unique(months):
+                sel = months == m
+                out[sel] = rmap.z0(self.lat, self.lon, wind_from[sel], int(m))
+            if np.isfinite(out).all():
+                return out
+        if "z0-default-0.03" not in self._flags:
+            self._flags.append("z0-default-0.03")
+        return np.full(n, Z0_DEFAULT)
+
+    def z0(self):
+        """The median surface roughness (m) for this launch, e.g. for the Dryden turbulence (`z0_roughness_m=`)."""
+        pool = self._ensure_pool()
+        return float(np.median(self._derive(pool["samples"], pool["launch_times"])["surface_roughness_m"]))
 
     @staticmethod
     def _summ(name, x, sel=None):
@@ -324,9 +353,9 @@ class Launch:
             return [self.weather(percentile=p, all=all, by=by, marginal=marginal) for p in percentile]
         pool = self._ensure_pool()
         s = pool["samples"]
-        d = self._derive(s)
+        d = self._derive(s, pool["launch_times"])
         n = len(d["elevation"])
-        flags = list(pool["flags"])
+        flags = list(pool["flags"]) + [f for f in self._flags if f not in pool["flags"]]
         notes = [f"uniform wind assumes a {int(round(W.FLIGHT_DEFAULT['apogee_m'] / 0.3048)):,} ft flight (main at 1,000 ft)"]
         if percentile is None:
             sel, label = None, f"{self.local_time_note}  |  median of {n} atmospheres"

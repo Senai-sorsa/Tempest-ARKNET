@@ -157,3 +157,16 @@ def test_exports(launch):
     orr = r.to_openrocket()
     assert "mbar" in orr and "Wind direction" in orr and "turbulence intensity" in orr
     assert r.to_dict(units="si")["elevation"] == pytest.approx(1400.6, abs=0.1)
+
+
+def test_past_mode_without_a_store_warns_loudly_and_a_store_path_is_accepted(monkeypatch):
+    import os
+    monkeypatch.delenv("TEMPEST_ERA5_STORE", raising=False)
+    with pytest.warns(UserWarning, match="fell back to the climate generator"):
+        L = Launch("spaceport_america", "2022-06-24 09:17", mode="past", n=100)
+        r = L.weather()
+    assert "fallback-mode" in r.flags and "not available" in r.trust
+    store = os.path.join(os.path.dirname(__file__), "..", "..", "data", "pilot", "profiles.zarr")
+    if os.path.exists(store):
+        ok = Launch("spaceport_america", "2022-06-24 09:17", mode="past", n=100, era5_store=store).weather()
+        assert "fallback-mode" not in ok.flags and "Past date" in ok.trust
