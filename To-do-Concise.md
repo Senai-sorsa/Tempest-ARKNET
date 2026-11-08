@@ -1,5 +1,7 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
+**AUTOMATION RULE (user 2026-11-08): everything runs automatically; the user should never need to step in. Wake up every 30 min (ScheduleWakeup 1800, re-armed at the end of EVERY turn) and never stay off for long. All backlog items are in scope, no time limit. The user runs the G (global) jobs on their own supercomputer, so no G training here. If something stalls (RAM wait, policy block, a blocked kill), write a new script or pick a safe default, log it, and keep going.**
+
 ## You
 - **Long-range data (IL-118): DONE 2026-11-08.** `data/raw/wb2_ifs_extended/` is in place and checked (84 months x pilot/denver x fc/rf = 336 files, 646 MB, no bad files). Long-range download budget used: 0.65 of 5 GB (IL-118 to IL-127). Weekly-average meaning confirmed (lead k = 168 h window starting 12 h before day k, forward week).
 - **Waiting on you:** the IFS ensemble refetch (`Colab IFS ENS fetch.md`, `tempest_wb2_ifs_ens_v2`) arrives in about 10 h; unzip into `data/raw/wb2_ifs_ens\` (pilot) and `data/raw/wb2_ifs_ens_denver\` (denver) and tell Claude.
