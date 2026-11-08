@@ -27,6 +27,7 @@ class AtmosphereConditions(NamedTuple):
 
 
 # standard-atmosphere lapse rates above 18 km: (base altitude m, K per m), geopotential ~ geometric to the accuracy needed here
+_RE = 6371000.0
 _LAYERS = ((11000.0, 0.0), (20000.0, 0.001), (32000.0, 0.0028), (47000.0, 0.0), (51000.0, -0.0028), (71000.0, -0.002), (86000.0, 0.0))
 
 
@@ -41,12 +42,15 @@ def _lapse(z):
 class _Tail:
     """T and p above the top height, integrated from the top values with standard lapse rates (100 m steps, to 86 km)."""
 
-    def __init__(self, z_top, t_top, p_top):
+    def __init__(self, z_top, t_top, p_top, geopotential=False):
         self.z = np.arange(z_top, 86000.0 + 100.0, 100.0)
+        # IL-131 (opt-in): the standard lapse layers and the hydrostatic step are in GEOPOTENTIAL height; the grid above is geometric (51 m apart at 18 km)
+        hp = (lambda z: _RE * z / (_RE + z)) if geopotential else (lambda z: z)
         t, lnp = [t_top], [math.log(p_top)]
         for a, b in zip(self.z[:-1], self.z[1:]):
-            tb = t[-1] + _lapse(a) * (b - a)
-            lnp.append(lnp[-1] - G0 * (b - a) / (RD * 0.5 * (t[-1] + tb)))
+            ha, hb = hp(a), hp(b)
+            tb = t[-1] + _lapse(ha) * (hb - ha)
+            lnp.append(lnp[-1] - G0 * (hb - ha) / (RD * 0.5 * (t[-1] + tb)))
             t.append(tb)
         self.t, self.lnp = np.array(t), np.array(lnp)
 
@@ -56,20 +60,29 @@ class _Tail:
 
 
 class _Sample:
-    def __init__(self, samples, k):
+    def __init__(self, samples, k, pad_node=False, pad_wind_factor=0.72):
         g = lambda key: np.asarray(samples[key][k], float)
         self.z = np.asarray(samples["height_asl"], float)
         self.site = float(self.z[0] - float(np.asarray(samples["height_agl"])[0]))
         self.u, self.v, self.T, self.p, self.RH = g("u"), g("v"), g("T"), g("p"), g("RH")
         self.w = g("w") if "w" in samples and np.isfinite(np.asarray(samples["w"][k])).all() else np.zeros_like(self.u)
         self.k = k
+        if pad_node and all(key in samples for key in ("t2m", "sp", "rh2m")) and all(np.isfinite(float(np.asarray(samples[key][k]))) for key in ("t2m", "sp", "rh2m")):
+            # IL-131 (opt-in): a node at the pad (0 m above ground) with the surface state, so conditions(pad) is (t2m, sp, rh2m) and not the 10 m values. Wind there is the 10 m wind
+            # reduced by the log-law ratio ln(2 / z0) / ln(10 / z0) = 0.72 (z0 = 3 cm); the vertical wind is zero at the ground.
+            f = float(pad_wind_factor)
+            self.z = np.concatenate([[self.site], self.z])
+            self.u, self.v, self.w = np.concatenate([[self.u[0] * f], self.u]), np.concatenate([[self.v[0] * f], self.v]), np.concatenate([[0.0], self.w])
+            self.T = np.concatenate([[float(np.asarray(samples["t2m"][k]))], self.T])
+            self.p = np.concatenate([[float(np.asarray(samples["sp"][k]))], self.p])
+            self.RH = np.concatenate([[float(np.asarray(samples["rh2m"][k]))], self.RH])
 
 
 class TempestWind:
     """Wind of sample k: velocity(altitude_m) -> [up, east, north] (m/s). Vertical wind only if the samples carry it."""
 
-    def __init__(self, samples, k, include_vertical=True):
-        self.s = _Sample(samples, k)
+    def __init__(self, samples, k, include_vertical=True, pad_node=False):
+        self.s = _Sample(samples, k, pad_node)
         self.include_vertical = include_vertical
 
     def velocity(self, altitude_m):
@@ -79,10 +92,10 @@ class TempestWind:
 
 
 class TempestAtmosphere:
-    def __init__(self, samples, k):
-        self.s = _Sample(samples, k)
+    def __init__(self, samples, k, pad_node=False, geopotential=False):
+        self.s = _Sample(samples, k, pad_node)
         s = self.s
-        self.tail = _Tail(float(s.z[-1]), float(s.T[-1]), float(s.p[-1]))
+        self.tail = _Tail(float(s.z[-1]), float(s.T[-1]), float(s.p[-1]), geopotential)
 
     def anchor(self, launch_altitude_m, tolerance_m=10.0):
         if abs(launch_altitude_m - self.s.site) > tolerance_m:

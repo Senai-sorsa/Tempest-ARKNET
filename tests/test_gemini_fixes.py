@@ -187,3 +187,29 @@ def test_il132_site_shift_modes_default_unchanged_and_const_keeps_the_lapse_in_t
     d_ref = np.diff(base[:, 2 * nh:3 * nh][:, k], axis=1) / np.diff(z[k])
     assert np.abs(d_new - d_ref).max() < np.abs(d_old - d_ref).max()           # the lapse inside the layer is left alone
     assert np.isfinite(p).all() and (p[:, 3 * nh:4 * nh] <= 100).all()
+
+
+def test_il131_pad_node_and_geopotential_are_opt_in():
+    from test_flight_sim_readers import _samples
+    from tempest_weather.flight import avionics
+    from tempest_weather.flight_sim_readers import TempestAtmosphere, TempestWind
+    s = _samples(elev=1400.0)
+    site = 1400.0
+    old, new = TempestAtmosphere(s, 2), TempestAtmosphere(s, 2, pad_node=True)
+    assert np.isclose(old.conditions(site).temperature, s["T"][2, 0])               # default: the 10 m value at the pad (as before)
+    c = new.conditions(site)
+    assert np.isclose(c.temperature, s["t2m"][2]) and np.isclose(c.pressure, s["sp"][2], rtol=1e-6)
+    assert np.isclose(new.conditions(float(s["height_asl"][5])).temperature, old.conditions(float(s["height_asl"][5])).temperature)
+    wv = TempestWind(s, 2, pad_node=True).velocity(site)
+    assert wv[0] == 0.0 and abs(wv[1]) <= abs(TempestWind(s, 2).velocity(site)[1]) + 1e-9
+    new.anchor(1405.0)                                                              # the anchor check still uses the site elevation
+    # geopotential tail: pressure at 40 km slightly different, still monotone and continuous
+    g = TempestAtmosphere(s, 2, geopotential=True)
+    top = float(s["height_asl"][-1])
+    assert abs(g.conditions(top + 50).temperature - g.conditions(top).temperature) < 1.0 and g.conditions(40000).pressure < g.conditions(top).pressure
+    assert g.conditions(40000).pressure != old.conditions(40000).pressure
+    p = np.array([101325.0, 50000.0, 7500.0])
+    a = avionics.baro_altitude_msl(p)
+    assert np.array_equal(a, avionics.baro_altitude_msl(p, geometric=False))
+    b = avionics.baro_altitude_msl(p, geometric=True)
+    assert b[0] == 0.0 and 0 < (b - a)[2] < 100 and (b > a)[1:].all()               # about 51 m at 18 km (7.5 kPa is ~18 km)
