@@ -213,3 +213,36 @@ def test_il131_pad_node_and_geopotential_are_opt_in():
     assert np.array_equal(a, avionics.baro_altitude_msl(p, geometric=False))
     b = avionics.baro_altitude_msl(p, geometric=True)
     assert b[0] == 0.0 and 0 < (b - a)[2] < 100 and (b > a)[1:].all()               # about 51 m at 18 km (7.5 kPa is ~18 km)
+
+
+def test_il136_acoustics_options_default_unchanged_and_midpoint_is_finer():
+    from tempest_weather.flight.acoustics import AcousticRayTracer
+    z = np.linspace(0, 3000, 31)
+    T = 288 - 0.0065 * z
+    u, v = 5 + z / 1000.0, np.zeros_like(z)
+    a = AcousticRayTracer(z, T, u, v)
+    base = a.trace_ray_fan(2000.0, [90.0], [20.0, 45.0])
+    assert np.array_equal(base["x_east_m"], a.trace_ray_fan(2000.0, [90.0], [20.0, 45.0], midpoint=False)["x_east_m"], equal_nan=True)
+    fine = a.trace_ray_fan(2000.0, [90.0], [45.0], n_int=20000, midpoint=True)["x_east_m"][0, 0]
+    coarse_t = a.trace_ray_fan(2000.0, [90.0], [45.0], n_int=40)["x_east_m"][0, 0]
+    coarse_m = a.trace_ray_fan(2000.0, [90.0], [45.0], n_int=40, midpoint=True)["x_east_m"][0, 0]
+    assert abs(coarse_m - fine) <= abs(coarse_t - fine) * 1.5 + 1.0              # same accuracy class, finite
+    moist = AcousticRayTracer(z, T, u, v, sound_speed=np.sqrt(1.4 * 287.05 * T) * 1.003)
+    assert moist.trace_ray_fan(2000.0, [90.0], [45.0])["travel_time_s"][0, 0] < base["travel_time_s"][0, 1]  # a faster medium: shorter time
+
+
+def test_il138_distance_decaying_inflation_is_opt_in_and_widens_near_the_observation():
+    u = np.random.default_rng(9).random((4000, 20))
+    e0, e1, e2 = _eng(), _eng(), _eng()
+    obs = {("wind_u", 100.0): 8.0}
+    e0.condition_on_observations(obs)
+    e1.condition_on_observations(obs, inflate=1.5)
+    e1b = _eng()
+    e1b.condition_on_observations(obs)
+    assert np.array_equal(e1._post["eigvals"], e1b._post["eigvals"])               # default path identical
+    e2.condition_on_observations(obs, inflate=2.0, inflate_decay_m=1500.0)
+    b0, b2 = e0.sample_sobol(u), e2.sample_sobol(u)
+    j_near, j_far = 3, 40                                                           # 150 m and ~15 km, same variable
+    r_near = b2["u"][:, j_near].std() / b0["u"][:, j_near].std()
+    r_far = b2["u"][:, j_far].std() / b0["u"][:, j_far].std()
+    assert r_near > 1.05 and r_far < r_near - 0.05                                          # widened near the measurement, hardly far from it

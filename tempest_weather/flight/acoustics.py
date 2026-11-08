@@ -14,16 +14,19 @@ GAMMA_R = 1.4 * 287.05287
 
 
 class AcousticRayTracer:
-    def __init__(self, z_m, temp_K, wind_u_mps, wind_v_mps):
+    def __init__(self, z_m, temp_K, wind_u_mps, wind_v_mps, sound_speed=None):
+        """sound_speed (IL-136, opt-in): the moist speed of sound on the same heights (the batch's `a`), instead of the dry-air value from the temperature."""
         self.z = np.asarray(z_m, float)
-        self.c = np.sqrt(GAMMA_R * np.asarray(temp_K, float))
+        self.c = np.sqrt(GAMMA_R * np.asarray(temp_K, float)) if sound_speed is None else np.asarray(sound_speed, float)
         self.u, self.v = np.asarray(wind_u_mps, float), np.asarray(wind_v_mps, float)
 
-    def trace_ray_fan(self, source_alt_m, azimuths_deg, depression_angles_deg, n_int=400):
+    def trace_ray_fan(self, source_alt_m, azimuths_deg, depression_angles_deg, n_int=400, midpoint=False):
         """Rays from (0, 0, source_alt_m) to the ground. azimuths: direction of propagation, degrees clockwise from north; depression: degrees below the horizontal.
+        midpoint=True (IL-136, opt-in) evaluates the integrands at the middle of every height step instead of the trapezoid on its ends, which is finite where a ray nearly turns.
         -> dict of (n_az, n_dep) arrays: x_east_m, y_north_m, travel_time_s, reaches_ground (False where the ray turns upward or has no downward start), turning_height_m."""
         z = np.linspace(0.0, float(source_alt_m), n_int)
-        c, u, v = (np.interp(z, self.z, a) for a in (self.c, self.u, self.v))
+        zi = 0.5 * (z[1:] + z[:-1]) if midpoint else z                  # where the integrands are read
+        c, u, v = (np.interp(zi, self.z, a) for a in (self.c, self.u, self.v))
         c_src, u_src, v_src = (float(np.interp(source_alt_m, self.z, a)) for a in (self.c, self.u, self.v))
         az, dep = np.deg2rad(np.asarray(azimuths_deg, float)), np.deg2rad(np.asarray(depression_angles_deg, float))
         shape = (len(az), len(dep))
@@ -40,14 +43,18 @@ class AcousticRayTracer:
                 s = a * c_eff                                              # cos(theta) along the ray
                 bad = s >= 1.0 - 1e-9
                 if bad.any():
-                    turn[i, j] = z[np.flatnonzero(bad)[-1]]               # the highest height below the source where the ray would be horizontal
+                    turn[i, j] = zi[np.flatnonzero(bad)[-1]]               # the highest height below the source where the ray would be horizontal
                     continue
                 sin_t = np.sqrt(1.0 - s ** 2)
                 dxdz = s / sin_t
                 dtdz = 1.0 / (c_eff * sin_t)
-                x_par = np.trapezoid(dxdz, z) if hasattr(np, "trapezoid") else np.trapz(dxdz, z)
-                tt = np.trapezoid(dtdz, z) if hasattr(np, "trapezoid") else np.trapz(dtdz, z)
-                drift = (np.trapezoid(v_perp * dtdz, z) if hasattr(np, "trapezoid") else np.trapz(v_perp * dtdz, z))
+                if midpoint:
+                    dz = np.diff(z)
+                    x_par, tt, drift = float((dxdz * dz).sum()), float((dtdz * dz).sum()), float((v_perp * dtdz * dz).sum())
+                else:
+                    x_par = np.trapezoid(dxdz, z) if hasattr(np, "trapezoid") else np.trapz(dxdz, z)
+                    tt = np.trapezoid(dtdz, z) if hasattr(np, "trapezoid") else np.trapz(dtdz, z)
+                    drift = (np.trapezoid(v_perp * dtdz, z) if hasattr(np, "trapezoid") else np.trapz(v_perp * dtdz, z))
                 x[i, j] = x_par * e_h[0] + drift * e_h[1]
                 y[i, j] = x_par * e_h[1] - drift * e_h[0]
                 t[i, j], ok[i, j] = tt, True

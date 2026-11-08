@@ -95,10 +95,12 @@ class TempestFlightSimEngine:
         return out
 
     # ---- module 2
-    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5):
+    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None):
         """obs: {(variable, height_m): measured value}; variables wind_u, wind_v (m/s), temp_K, rh_pct, pressure_Pa (surface, height 0). Heights must be model heights (10, 50, 100 ... 18000 m)
         or 2 m for temp_K / rh_pct. sensor_sigma: physical standard deviation of the sensors (one number or {variable: sigma}); default: practically exact pins. inflate: factor on the posterior variance of the unobserved columns (1.0 = the pure Schur complement; 1.5 is the default: the check in
-        scripts/s6_condition_eval.py found the pure version too sharp: 90 % intervals held 80-86 % of balloons, 88-92 % with 1.5)."""
+        scripts/s6_condition_eval.py found the pure version too sharp: 90 % intervals held 80-86 % of balloons, 88-92 % with 1.5).
+        inflate_decay_m (IL-138, opt-in; None = the single scalar): the variance of every unobserved column is multiplied by 1 + (inflate - 1) exp(-d / inflate_decay_m), d = distance in metres from the
+        column's height to the nearest observed height: the sharpness the pure update has near a measurement is corrected there, and columns far from every measurement (still close to the prior) are not widened."""
         idx, y = [], []
         for (var, h), val in obs.items():
             k = (var, float(h))
@@ -120,9 +122,16 @@ class TempestFlightSimEngine:
         gain = np.linalg.solve(C11, C21.T).T
         mu = gain @ y
         S = self.corr[np.ix_(un, un)] - gain @ C21.T
+        scale = float(inflate)
+        if inflate_decay_m:
+            h = np.array([self.names[i][1] if self.names[i][1] > 0 else 0.0 for i in range(P)])    # pressure (height 0) and the 2 m values sit at the surface
+            d = np.abs(h[un][:, None] - h[idx][None, :]).min(1)
+            f = np.sqrt(1.0 + (float(inflate) - 1.0) * np.exp(-d / float(inflate_decay_m)))
+            S = S * f[:, None] * f[None, :]
+            scale = 1.0
         w, v = np.linalg.eigh(0.5 * (S + S.T))
         o = np.argsort(w)[::-1]
-        self._post = dict(idx=idx, un=un, vals=np.array(list(obs.values()), float), mu=mu, eigvals=np.maximum(w[o], 0.0) * float(inflate), eigvecs=v[:, o])
+        self._post = dict(idx=idx, un=un, vals=np.array(list(obs.values()), float), mu=mu, eigvals=np.maximum(w[o], 0.0) * scale, eigvecs=v[:, o])
         return self
 
     def clear_observations(self):
