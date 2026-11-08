@@ -145,5 +145,5 @@ def test_pit_apply_matches_training_code_and_damp_is_half_way():
     tab = pit_recal.fit(rng.standard_normal((4000, 199, 7)).astype(np.float32), y.astype(np.float32), np.array([0, 0, 0, 1, 1, 1, 1]))
     for d in (1.0, 0.5):
         assert np.allclose(_core.pit_apply(tab["ginv"], tab["groups"], x, d), pit_recal.apply(tab, x, d), atol=1e-5)
-    full, half = _core.pit_apply(tab["ginv"], tab["groups"], x, 1.0), _core.pit_apply(tab["ginv"], tab["groups"], x, 0.5)
+    full, half = (_core.pit_apply(tab["ginv"], tab["groups"], x, d, keep_order=False) for d in (1.0, 0.5))   # the half-way identity is stated on the sorted members (keep_order=False)
     assert np.allclose(half, 0.5 * (np.sort(x, 1) + full), atol=1e-5)
