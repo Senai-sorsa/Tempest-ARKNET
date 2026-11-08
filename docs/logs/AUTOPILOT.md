@@ -450,7 +450,7 @@ All opt-in, off by default, tests in `tests/test_gate_fixes.py` and `tests/test_
 | IL-139 | `api.OPTIONS["permute_blocks"]=True` | code done |
 | IL-140 | `pit_apply(keep_order=True)`, `pit_recal.apply(keep_order=True)` | code done |
 | IL-141 | `trust --smooth-w-m SIGMA` | **verdict 02:25 Nov 8 (L3-47): NEUTRAL, stays off** (Denver +0.0099 = +0.0099, physics rows unchanged) |
-| IL-142 | `debias --rh-logit` | code done; refit + L3-34 rerun wait for the GPU |
+| IL-142 | `debias --rh-logit` | **verdict 02:38 Nov 8 (L3-48): works for debias alone (RH 12-18 km cov99 0.47 -> 0.86, mean skill -0.0313 -> -0.0253), neutral in the stack with trust (+0.0094 -> +0.0093); kept as the option for debias-alone** |
 | F1/F2 | `sample_sobol(run_id=...)`, `sample_sobol_batch(run_id=...)`, `dryden.synthesize(run_id, block)` | code done: different run_id gives different noise; n=600 starts with the n=300 rows |
 | S1 | `dryden.synthesize(exact_ar=True)`, `sample_sobol_batch(exact_ar=True)` | code done: exact AR(2) step, no burn-in; std/sigma 0.99-1.01 and lag-1 correlation matches (1 - d/2L)exp(-d/L); the Euler version gave 0.98-1.04 |
 | F3/F6/C3 | `engine.to_samples(batch)`, `engine.conditioned(obs)`, `engine.check_outputs(batch)` | code done (additive) |

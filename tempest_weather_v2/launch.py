@@ -275,6 +275,16 @@ class Launch:
             raise ValueError("give at least one measurement")
         return self.with_(_obs=obs)
 
+    def observe_metar(self, text):
+        """A NEW Launch conditioned on a METAR/SPECI report (wind, temperature, altimeter setting): `launch.observe_metar("KTCS 241553Z 19002KT 10SM CLR 23/12 A3012")`. The station is
+        usually not at the pad: the trust line says so, and a station far from or much higher than the pad is a weak stand-in for the pad's own wind and temperature."""
+        from tempest_weather_v2 import metar
+        m = metar.parse(text)
+        kw = m.observation_kwargs()
+        if not kw:
+            raise ValueError("that METAR has nothing usable (a variable-direction wind alone cannot be used)")
+        return self.observe(**kw)
+
     # ---- trust, provenance
     @property
     def trust(self):
