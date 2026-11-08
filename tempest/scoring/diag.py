@@ -100,6 +100,10 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0):
         put(f"skill_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim"])
         if "crps_clim15" in mean:
             put(f"skill15_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim15"])
+    if "crps_gauss" in mean and "crps_clim15" in mean:  # IL-111: Gaussian (Earth-GRAM style) baseline, additive columns
+        put("skill15_gauss", 1 - mean["crps_gauss"] / mean["crps_clim15"])
+        for k in ("known", "unknown"):  # margin of the model over the Gaussian baseline, in units of clim15 CRPS (> 0 = model wins)
+            put(f"margin_gauss_{k}", (mean["crps_gauss"] - mean[f"crps_{k}"]) / mean["crps_clim15"])
     for k in ("clim", "clim15", "known", "unknown"):
         if f"mae_{k}" in mean:
             out[f"mae_{k}"] = mean[f"mae_{k}"][0]
@@ -113,7 +117,8 @@ def print_headline(tab, path):
     tab.to_csv(path, index=False)
     f = lambda c: tab.apply(lambda r: f"{r[c]:.3f} [{r[c + '_lo']:.3f}, {r[c + '_hi']:.3f}]", axis=1)
     show = tab[["var", "band"]].copy()
-    for c in ("skill_known", "skill_unknown", "skill15_known", "skill15_unknown", "cov99_known", "cov99_unknown"):
+    for c in ("skill_known", "skill_unknown", "skill15_known", "skill15_unknown", "skill15_gauss", "margin_gauss_unknown",
+              "cov99_known", "cov99_unknown"):
         if c in tab:
             show[c] = f(c)
     for c in ("mae_clim", "mae_clim15", "mae_known", "mae_unknown"):
