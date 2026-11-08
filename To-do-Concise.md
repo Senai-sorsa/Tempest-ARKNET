@@ -4,6 +4,8 @@
 
 **SAFETY AND SCOPE RULES (user 2026-11-08): (1) Nothing may ever damage or endanger the computer: 12 threads at low priority, one GPU job, RAM above ~2 GB free, disk above 10 GB free, back off if it runs hot; no security, registry, antivirus or policy changes; kill only the exact PID this work started. (2) Never add code unrelated to the task at hand, and never change code unrelated to the task at hand: small diffs, new behaviour behind a flag, check `git diff` before every commit and stage files by name.**
 
+**Flight-sim trial DONE 02:10 Nov 8 (user request): `flight_sim_trial/` (deletable, untracked, nested clone of tamusrt/flight_sim main; read `FINDINGS.md`).** Plain standard atmosphere is outside the whole Tempest apogee distribution (+4.4 % apogee on a hot afternoon, pad 28 K colder / 10 % denser); real balloons fall in the tool's T range 85-94 %; flaws: wind spread too narrow (IL-144), pad elevation 93 m off (IL-145), minor upper-air bias (IL-146). The user's local repo is `C:\devlight_sim` (checked out on JARVIS-TRUE-VALIDATION, its main is older than GitHub's).
+
 ## G tasks (global track; the user runs the heavy training on their supercomputer, not here)
 Source: `docs/plans/GLOBAL_PLAN.md`. Order: G0 → G1 (running here) → G2 → G3 → G4 → G5 → G6.
 - **G0 setup and locks (CPU, ~2 h; I write it here, it is the prerequisite for everything below):** `configs/global_holdout.toml` + loader guard (refuses locked places and dates ≥ 2026-07-01 unless `TEMPEST_FINAL_GLOBAL=1`), statics (`tempest/geo/statics.py`: z_sfc, lsm, sdor, slor, anor, isor, coast distance, TPI), spherical-harmonic encoder (`sh.py`), harmonic climatology fitter (`clim.py`), below-ground masks, int16 tail check on the global store, global HRES loader (84 months arrived).
