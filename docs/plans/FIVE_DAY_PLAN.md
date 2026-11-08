@@ -1,4 +1,4 @@
-# Five-day plan (2026-11-08 03:30 to 2026-11-13 03:30): everything except the G (global) stages
+# Work plan (target about five days, 2026-11-08 to 2026-11-13): everything except the G (global) stages, as one ordered list
 
 Owner: Claude, running automatically. The user does not need to step in. This file is the single source of truth for both wake-up loops: every tick reads it, does the next item, ticks the box, and re-arms. G stages (G0, G2-G6, the global store training) run on the user's supercomputer and are NOT in this plan.
 
@@ -13,7 +13,7 @@ Owner: Claude, running automatically. The user does not need to step in. This fi
 Rules that keep both loops alive:
 1. Every turn that does anything ends with `ScheduleWakeup(1800)` (primary). A turn that is interrupted or forgets this is repaired by the backup within about 2 h.
 2. The backup tick starts with `python scripts/loop_heartbeat.py --check`: if the newest heartbeat is older than 55 min it prints `PRIMARY_DEAD`; then call `ScheduleWakeup(1800)` first (restart), log it, and carry on with the normal work.
-3. Every tick (either loop) calls `CronList`: if no backup cron exists, `CronCreate` it again (same cron and prompt below). Cron jobs expire after 7 days: on the last day (5.5) both are renewed for another 5 days unless the user ends the plan.
+3. Every tick (either loop) calls `CronList`: if no backup cron exists, `CronCreate` it again (same cron and prompt below). Cron jobs expire after 7 days: on the last day (L25) both are renewed for another 5 days unless the user ends the plan.
 4. Never let two work threads fight: a tick that finds a heartbeat younger than 20 min from the OTHER loop only does health checks and returns.
 5. A GPU job is never started while another python training/scoring/build process runs (one GPU job at a time); pytest never runs while a GPU job runs.
 
@@ -31,46 +31,40 @@ Rules that keep both loops alive:
 7. Re-arm `ScheduleWakeup(1800)`; run `CronList`.
 If a plan item fails twice: log it in AUTOPILOT, mark `[!]`, move on. If everything is done early: pull the next sidelined idea from AUTOPILOT, or improve tests and docs.
 
-## 3. The schedule (check off as done; times are targets, order matters more than hours)
-Capacity: roughly 100 GPU hours exist in five days and the GPU items below total about 35, so everything fits if nothing breaks. CPU work runs alongside GPU jobs.
+## 3. The work list (one ordered list, not split by days; work through it as fast as possible)
+Target horizon: about five days (to 2026-11-13 03:30), but the order is what matters, not the clock. **CPU and GPU items run side by side:** while a GPU job runs, take the next CPU-only item further down the list (marked CPU); when the GPU is idle, launch the next GPU-ready item. Skip blocked items and note why; come back to them on later ticks. GPU items total about 35 hours; about 100 are available.
 
-### Day 1 (Nov 8 afternoon to Nov 9 03:30)
-- [ ] 1.1 **C3 quick test (CPU):** does HRRR 10 m wind beat our tool against ASOS (GW-1 style)? Check feasibility of anonymous point access (`hrrrzarr`, Open-Meteo historical forecast); if no free path, record why and move on.
-- [ ] 1.2 **C1 stage 1:** pull small ASOS histories for 8-10 southern NM / west Texas stations (IEM, 2015-2025), leave-one-station-out experiment (naive update vs `obs.py` weights vs data-fitted localisation: distance, elevation, age, stability), refit the weights in `obs.py` behind a flag, tests, verdict.
-- [ ] 1.3 **IL-112** shear-vs-IGRA gate from the 986 stations (CPU, stream the files).
-- [ ] 1.4 **Section 2 small items in `tempest_weather_v2`:** F8/F10/F11, `_guards.py` (C1-C3), S3 `save_fast`, S4 hash cache, S5 partial block and F2 block seeds in `atmosphere_set`, M1-M3 caps. Tests per module.
-- [ ] 1.5 Daily checks #1 (section 4).
+**Core (highest value first)**
+- [ ] L1 (CPU) **C3 quick test:** does HRRR 10 m wind beat our tool against ASOS (GW-1 style)? Check anonymous point access (`hrrrzarr`, Open-Meteo historical forecast); if there is no free path, record why and move on.
+- [ ] L2 (CPU) **C1 stage 1, observation assimilation:** small ASOS histories for 8-10 southern NM / west Texas stations (IEM, 2015-2025); leave-one-station-out experiment (naive update vs `obs.py` weights vs data-fitted localisation by distance, elevation, age, stability); refit the weights in `obs.py` behind a flag; tests; verdict.
+- [ ] L3 (CPU) **IL-112:** shear-vs-IGRA gate from the 986 stations (stream the files).
+- [ ] L4 (CPU) **Section 2 small items in `tempest_weather_v2`:** F8 / F10 / F11, `_guards.py` (C1-C3), S3 `save_fast`, S4 hash cache, S5 partial block and F2 block seeds in `atmosphere_set`, M1-M3 caps, T1-T2 `Launches`. Tests per module.
+- [ ] L5 (CPU / IO) **C2 data:** size check, then ARCO ERA5 MODEL-level point extraction for the pilot and Denver points (target under 3 GB) and the near-surface dataset build (0-300 m, about 10 levels, station-corrected).
+- [ ] L6 (GPU) **C2 train, calibrate, score** 3 seeds against the l21 stack on 10-200 m wind, shear and rail-exit wind; verdict.
+- [ ] L7 (CPU) **C4a:** past-mode spread x 1.2 as a flag in the tool; tests.
+- [ ] L8 (GPU) **C4b:** M = 16 samples + speed-aware vector energy score + 3x weight below 300 m, one run behind a flag; verdict.
+- [ ] L9 (CPU) **Section 2 finish:** F4 GPD tail, F5 / R2 general observation operator and morning sounding, region-pack manifest, `pyproject`, `ATTRIBUTION.md`, `examples/`, README.
+- [ ] L10 (CPU) **C5 domain-of-applicability check** in `Launch` (inside / edge / outside, DI from L3-28, blend to climatology outside); tests.
+- [ ] L11 (CPU then GPU) **IL-151 physics:** check on `mc.csv` rows, then the penalty experiment behind a flag.
+- [ ] L12 (CPU then GPU) **C3 build** (if L1 is positive): HRRR / WTK point extraction (20-30 points, 2018-2025, under 100 MB); forecast-mode scoring on the apogee of the three validation flights with archived forecasts; distillation prototype.
+- [ ] L13 (GPU) **L3-27 jump head:** IGRA-matched dataset builder, train, score on Denver.
 
-### Day 2 (Nov 9)
-- [ ] 2.1 **C2 data:** size check, then ARCO ERA5 MODEL-level point extraction for the pilot and Denver points (target under 3 GB), near-surface dataset build (0-300 m, about 10 levels, station-corrected).
-- [ ] 2.2 **C2 GPU:** train, calibrate, score 3 seeds against the l21 stack on 10-200 m wind, shear, rail-exit wind; verdict.
-- [ ] 2.3 **C4a** past-mode spread x 1.2 as a flag in the tool, tests; **C4b** M = 16 + speed-aware vector energy + 3x weight below 300 m: one GPU run behind a flag, verdict.
-- [ ] 2.4 **Section 2 finish:** F4 GPD tail, F5/R2 general observation operator and morning sounding, region-pack manifest, `pyproject`, `ATTRIBUTION.md`, `examples/`, README.
-- [ ] 2.5 **Mode F (CPU):** IL-74, 81, 83, 84, 85, 87 (the items that need no user; IL-75 / IL-79 / IFS ensemble unzip need the user's Colab runs and are skipped).
-- [ ] 2.6 Daily checks #2.
+**Backlog that was asked for (all non-G, in this order)**
+- [ ] L14 (CPU) **Mode F items that need no user:** IL-74, 81, 83, 84, 85, 87 (IL-75, IL-79 and the IFS ensemble unzip need the user's Colab runs: skipped).
+- [ ] L15 (CPU) **Long range, first part:** IL-118 Mode M ridge test on `wb2_ifs_extended`, IL-120 skill-by-lead table.
+- [ ] L16 (CPU) **Long range, rest:** IL-119, 121, 122, 123, 124, 125 (small approved point download), 126; IL-127 last and optional.
+- [ ] L17 (GPU / CPU) **Validity:** IL-76 retrain with the 2021-22 / 2023 split, IL-155 / IL-113 confirmation-window rescore, IL-114 sondes seen vs unseen, IL-115 trend-aware baseline, IL-116 label filled layers.
+- [ ] L18 (GPU / CPU) **Tails and gates:** IL-103 to IL-108 (retrain parts on GPU, gate parts on CPU).
+- [ ] L19 (CPU) **Launch plan:** A2 launch-day correction (code and test), A1 MERRA-2 fetch script (write and dry-run only; the download waits for the last Wi-Fi slot), A3 wind / shear tails.
+- [ ] L20 (GPU) **Older ideas, triaged:** from the remaining shape / loss rows in AUTOPILOT run the six with the best evidence as one queue (3 seeds each); the rest stay sidelined with a reason.
 
-### Day 3 (Nov 10)
-- [ ] 3.1 **C3 build:** HRRR / WTK point extraction (20-30 points, 2018-2025, under 100 MB) if 1.1 is positive; forecast-mode scoring on the apogee of the three validation flights (archived forecasts); distillation prototype (GPU).
-- [ ] 3.2 **C5 domain-of-applicability check** in `Launch` (inside / edge / outside, DI from L3-28, blend to climatology outside) + tests.
-- [ ] 3.3 **IL-151 physics:** check on `mc.csv` rows, then the penalty experiment (GPU, flag).
-- [ ] 3.4 **L3-27 jump head:** IGRA-matched dataset builder, train, score on Denver (GPU).
-- [ ] 3.5 **Long range, first part (CPU):** IL-118 Mode M ridge test on `wb2_ifs_extended`, IL-120 skill-by-lead table.
-- [ ] 3.6 Daily checks #3.
-
-### Day 4 (Nov 11)
-- [ ] 4.1 **Long range, rest (CPU, alongside GPU):** IL-119, 121, 122, 123, 124, 125 (small approved point download), 126; IL-127 last and optional.
-- [ ] 4.2 **Validity:** IL-76 retrain with the 2021-22 / 2023 split (GPU), IL-155 / IL-113 confirmation window rescore, IL-114 sondes seen vs unseen, IL-115 trend-aware baseline, IL-116 label filled layers.
-- [ ] 4.3 **Tails and gates:** IL-103 to IL-108 (retrain parts on GPU, gate parts on CPU).
-- [ ] 4.4 **Launch plan:** A2 launch-day correction (code and test), A1 MERRA-2 fetch script (write and dry-run only; the download waits for the last Wi-Fi slot), A3 wind / shear tails.
-- [ ] 4.5 **Older ideas, triaged:** from the remaining shape / loss rows in AUTOPILOT run the six with the best evidence as one GPU queue (3 seeds each); the rest stay sidelined with a reason.
-- [ ] 4.6 Daily checks #4.
-
-### Day 5 (Nov 12 to Nov 13 03:30)
-- [ ] 5.1 **Stack the winners** of C1-C4 and the fix verifications on NM/TX and Denver, 3 seeds, decide the new base.
-- [ ] 5.2 **Test #3, future climate** (trend-aware, IL-122 backtest).
-- [ ] 5.3 **Final development report and trust card;** rerun the three-flight true-validation with the new tool (observation weights, finer levels) and update `FlightSIM&Validation with Tempest-ARKNET.md`.
-- [ ] 5.4 **Full test suite,** docs sync, commits; resume `fetch_cds` (last Wi-Fi job); G hand-off notes (what the supercomputer needs: bundle list, scripts).
-- [ ] 5.5 **Renew both loops** (cron expires after 7 days), write the summary for the user, and propose the next five days.
+**Closing (when the items above are done or exhausted)**
+- [ ] L21 (GPU) **Stack the winners** of C1-C4 and the fix verifications on NM/TX and Denver, 3 seeds, decide the new base.
+- [ ] L22 (CPU) **Test #3, future climate** (trend-aware, IL-122 backtest).
+- [ ] L23 (CPU) **Final development report and trust card;** rerun the three-flight true validation with the new tool (observation weights, finer levels) and update `FlightSIM&Validation with Tempest-ARKNET.md`.
+- [ ] L24 (CPU) **Full test suite,** docs sync, commits; resume `fetch_cds` (the last Wi-Fi job); G hand-off notes (what the supercomputer needs: bundle list, scripts).
+- [ ] L25 **Renew both loops** (the cron expires after 7 days), write the summary for the user, and propose the next list.
+If the list is exhausted early, take the next sidelined idea from AUTOPILOT, or strengthen tests and docs. The daily checks (section 4) run in quiet gaps regardless of where the list stands.
 
 ## 4. Daily checks (once per calendar day, in a quiet gap; each appends one dated block to `FlightSIM&Validation with Tempest-ARKNET.md` section "Daily log")
 1. **Health:** disk, RAM, GPU, temperatures, processes, loggers, `git status`, last test run.
