@@ -10,3 +10,5 @@ Rules: stdlib + numpy only; every module has tests in `tests/`; run them with `P
 | `_net.py` timeouts, retries, rate limits, offline, resumable download | N1-N3 | done, tested |
 | `elevation.py` lookup (USGS, Open Topo Data, Open-Meteo, offline DEM, cache) | 0.1, Part 4 | done, tested, on `_net` / `_files` |
 | `readers.py` `Atmosphere`: 10 m float32 tables, frame/units/reference/direction, above_top policy, pad node, anchor, OpenRocket CSV, schema normaliser | F7, S2, F12, F3, F10 | done, tested; scalar lookups 0.7 us (original readers 3-6 us), 0.08 us per altitude vectorised; real flight_sim flights agree with the original readers to 0.45 m apogee |
+| `timeutil.py` `Window`: local wall-clock times, uniform / triangular / union-of-ranges launch times, 06-21 h solar cut, exclusions, relative times | 0.2, I-5, I-6 | done, tested (tzdata needed on Windows) |
+| `weather_calc.py`: altimeter setting + exact inverse, MSLP, density altitude, dew point, drift-equivalent uniform wind, max shear, jet wind, degree-4 IGRF declination | 1.1-1.3 | done, tested (declination within 3 deg at 7 cities) |
