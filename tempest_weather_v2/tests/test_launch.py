@@ -194,3 +194,21 @@ def test_launches_many_times_at_once():
     assert t.shape == (2, 3) and (t[:, 1] <= t[:, 0]).all() and (t[:, 0] <= t[:, 2]).all()
     with pytest.raises(ValueError):
         Launches([])
+
+
+def test_past_wind_spread_flag_and_widening():
+    from tempest_weather import _core
+    from tempest_weather_v2.launch import widen_near_surface
+    rng = np.random.default_rng(1)
+    x = rng.normal(5.0, 2.0, size=(4000, len(_core.HEIGHTS)))
+    y = widen_near_surface(x, 1.2, _core.HEIGHTS)
+    assert np.allclose(np.median(y, 0), np.median(x, 0))
+    assert y[:, 0].std() / x[:, 0].std() == pytest.approx(1.2, abs=1e-6)
+    hi = np.asarray(_core.HEIGHTS) > 300
+    assert np.allclose(y[:, hi], x[:, hi])
+    assert np.allclose(widen_near_surface(x, 1.0, _core.HEIGHTS), x)
+    with pytest.raises(ValueError):
+        Launch("spaceport_america", "2027-06-16 10:00", past_wind_spread=9)
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64, past_wind_spread=1.2)
+    assert L.with_(units="si").past_wind_spread == 1.2
+    assert "past-wind-spread-widened" not in L.weather(all=True).flags               # climate mode: not applied

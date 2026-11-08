@@ -34,6 +34,14 @@ SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "
 Z0_DEFAULT = 0.03
 
 
+def widen_near_surface(x, factor, heights, top=300.0):
+    """Scale the departure of each sample from the sample median by `factor` at the ground, tapering linearly to 1 at `top` m (rows are samples, columns the model heights). Median unchanged; factor 1 returns x."""
+    z = np.asarray(heights, float)
+    f = 1.0 + (float(factor) - 1.0) * np.clip(1.0 - (z - z[0]) / (top - z[0]), 0.0, 1.0)
+    med = np.median(x, axis=0, keepdims=True)
+    return med + (x - med) * f
+
+
 class AtmosphereSet:
     """An indexable, sliceable sequence of `Atmosphere` readers over one sample set."""
 
@@ -68,7 +76,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, _pool=None, _obs=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, _pool=None, _obs=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -82,6 +90,9 @@ class Launch:
         self._elevation_arg = elevation
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
+        self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
+        if not 0.5 <= self.past_wind_spread <= 3.0:
+            raise ValueError("past_wind_spread must be between 0.5 and 3 (1.0 = off, 1.2 = the value fitted against station winds)")
         self._obs = dict(_obs or {})
         self._flags = []
         tzname = tz or (self._site.tz if self._site and self._site.tz else None)
@@ -114,7 +125,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, _obs=self._obs)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, _obs=self._obs)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -186,11 +197,18 @@ class Launch:
             uniq, inv = np.unique(hours, return_inverse=True)
             groups = [(h.astype(datetime), np.flatnonzero(inv == i)) for i, h in enumerate(uniq)]
         samples, infos, mode_count = {}, [], {}
+        infos_flags = []
         for gi, (t_utc, pos) in enumerate(groups):
             iso = t_utc.replace(tzinfo=timezone.utc).isoformat()
             atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store)
             if elev_m is None:
                 elev_m = float(info["elevation_m"])
+            if self.past_wind_spread != 1.0 and info.get("mode") == "past":
+                atm = dict(atm)
+                for k in ("u", "v"):
+                    atm[k] = widen_near_surface(np.asarray(atm[k], float), self.past_wind_spread, _core.HEIGHTS)
+                if "past-wind-spread-widened" not in infos_flags:
+                    infos_flags.append("past-wind-spread-widened")
             for k in SAMPLE_KEYS:
                 v = atm.get(k)
                 if v is None:
@@ -211,6 +229,7 @@ class Launch:
                     flags.append(q)
         if self._tz_note:
             flags.append(self._tz_note)
+        flags += infos_flags
         if "fallback-mode" in flags:
             asked = self.mode or "the automatic mode"
             warnings.warn(f"Launch asked for {asked} but the tool fell back to the climate generator ({', '.join(f for f in flags if f.startswith(('past-', 'forecast-', 'fallback')))}). "
