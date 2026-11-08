@@ -32,4 +32,4 @@ def test_calibrated_forecast_is_left_alone():
     t = PR.fit(xc, yc, groups)
     xt, yt = _data(2000, 99, 4, 0.0, 1.0, 3)
     assert abs(_tv(PR.apply(t, xt), yt) - _tv(xt, yt)) < 0.02
-    assert np.all(np.diff(PR.apply(t, xt), axis=1) >= -1e-9)               # still sorted
+    assert np.all(np.diff(PR.apply(t, xt, keep_order=False), axis=1) >= -1e-9)   # keep_order=False: still sorted (the pre-IL-140 contract)

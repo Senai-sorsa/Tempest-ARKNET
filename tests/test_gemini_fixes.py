@@ -111,21 +111,21 @@ def test_il133_refresh_w_follows_the_reordered_rows():
     assert inspect.signature(api.atmosphere_downrange).parameters["fix_w"].default is True
 
 
-def test_il140_pit_keep_order_flag_default_unchanged_and_ranks_kept():
+def test_il140_pit_keep_order_on_by_default_and_sorted_reachable():
     rng = np.random.default_rng(1)
     N, m, D = 3, 50, 4
     x = rng.standard_normal((N, m, D))
     ginv = np.tile(np.linspace(0, 1, 201) ** 1.3, (2, 1))
     groups = np.array([0, 0, 1, 1])
-    a = _core.pit_apply(ginv, groups, x)
-    assert np.array_equal(a, _core.pit_apply(ginv, groups, x, keep_order=False))
-    assert (np.diff(a, axis=1) >= 0).all()                           # default stays sorted
-    b = _core.pit_apply(ginv, groups, x, keep_order=True)
+    a = _core.pit_apply(ginv, groups, x, keep_order=False)
+    assert (np.diff(a, axis=1) >= 0).all()                           # keep_order=False: sorted, as before
+    b = _core.pit_apply(ginv, groups, x)
+    assert np.array_equal(b, _core.pit_apply(ginv, groups, x, keep_order=True))      # the default keeps the order
     assert np.allclose(np.sort(b, axis=1), a)                        # same values, different order
     assert np.array_equal(np.argsort(b, axis=1), np.argsort(x, axis=1))  # input ranks kept
     from tempest.calibrate import pit_recal
     tab = {"ginv": ginv, "groups": groups}
-    assert np.allclose(pit_recal.apply(tab, x, keep_order=True), b, atol=1e-5)
+    assert np.allclose(pit_recal.apply(tab, x), b, atol=1e-5)
 
 
 def test_il139_cut_default_is_plain_slice_and_flag_permutes_inside_blocks():
