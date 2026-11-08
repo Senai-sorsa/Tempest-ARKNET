@@ -50,7 +50,7 @@ Target horizon: about five days (to 2026-11-13 03:30), but the order is what mat
 - [ ] L13 (GPU) **L3-27 jump head:** IGRA-matched dataset builder, train, score on Denver.
 
 **Backlog that was asked for (all non-G, in this order)**
-- [ ] L14 (CPU) **Mode F items that need no user:** IL-74, 81, 83, 84, 85, 87 (IL-75, IL-79 and the IFS ensemble unzip need the user's Colab runs: skipped).
+- [ ] L14 (CPU) **Mode F items that need no user:** IL-74, 81, 83, 84, 85, 87 (IL-75 and IL-79 need the user's Colab runs: skipped). **Added 2026-11-08: IFS ensemble features for Mode F** (files arrived; 2018-2022 clean, 2016-17 and 2023-24 have source gaps, used masked; fit 2018-20, calibrate 2021-22, dev test 2024; accept only if better than HRES-only on the same rows; see LOOP3).
 - [ ] L15 (CPU) **Long range, first part:** IL-118 Mode M ridge test on `wb2_ifs_extended`, IL-120 skill-by-lead table.
 - [ ] L16 (CPU) **Long range, rest:** IL-119, 121, 122, 123, 124, 125 (small approved point download), 126; IL-127 last and optional.
 - [ ] L17 (GPU / CPU) **Validity:** IL-76 retrain with the 2021-22 / 2023 split, IL-155 / IL-113 confirmation-window rescore, IL-114 sondes seen vs unseen, IL-115 trend-aware baseline, IL-116 label filled layers.
