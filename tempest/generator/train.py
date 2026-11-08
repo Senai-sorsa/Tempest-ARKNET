@@ -59,7 +59,8 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 terrain_head_inputs=[],     # L3: input names for the altitude-decayed terrain head
                 noise_t_dims=0, noise_t_nu=4.0,   # Gemini idea 1: this many noise numbers are Student-t (model noise_t)
                 noise_t_head=0, noise_t_clip=8.0,                   # Gemini idea 1b: the first K t numbers also scale a zero-init output head (past the layer norms)
-                jump_k=0, jump_top=3000.0)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
+                jump_k=0, jump_top=3000.0,
+                conv_c=0, conv_layers=3, conv_k=5)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -183,6 +184,9 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     if cfg["jump_k"] and n_prof:
         model_kw["jump"] = dict(K=int(cfg["jump_k"]), top=float(cfg["jump_top"]), height=[float(x) for x in HEIGHTS], n_var=len(PROFILE),
                                 inv_ts=(1.0 / np.asarray(norm["ts"][:N_PROF], float)).tolist())   # model adds raw-unit jumps in normalised-target space
+
+    if cfg["conv_c"] and n_prof:
+        model_kw["conv"] = dict(C=int(cfg["conv_c"]), layers=int(cfg["conv_layers"]), k=int(cfg["conv_k"]), n_var=len(PROFILE), n_h=len(HEIGHTS))
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:

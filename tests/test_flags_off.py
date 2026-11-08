@@ -83,3 +83,30 @@ def test_low_level_flags_run_change_results_and_off_is_golden():       # C4b
         assert np.isfinite(got["member0"]["val"] + got["member0"]["train"]).all(), extra
         assert got != run(), extra
     assert run(dict(low_weight=1.0, wind_vec_weight=0.0)) == json.load(open(GOLDEN, encoding="utf-8"))
+
+
+def test_conv_refinement_flag_runs_changes_results_and_off_is_golden():     # L26
+    got = run(dict(conv_c=8, conv_layers=2, conv_k=3))
+    assert np.isfinite(got["member0"]["val"] + got["member0"]["train"]).all() and got != run()
+    assert run(dict(conv_c=0)) == json.load(open(GOLDEN, encoding="utf-8"))
+
+
+def test_conv_refinement_starts_as_the_plain_network():
+    import torch
+    from tempest.generator.model import Generator
+    torch.manual_seed(0)
+    a = Generator(10, 3 * 5 + 2, noise_dim=4, width=16, depth=1)
+    torch.manual_seed(0)
+    b = Generator(10, 3 * 5 + 2, noise_dim=4, width=16, depth=1, conv=dict(C=4, layers=2, k=3, n_var=3, n_h=5))
+    b.load_state_dict({k: v for k, v in a.state_dict().items()}, strict=False)
+    x = torch.randn(6, 10)
+    torch.manual_seed(1)
+    ya = a(x, 3)
+    torch.manual_seed(1)
+    yb = b(x, 3)
+    assert ya.shape == yb.shape == (6, 3, 17) and torch.allclose(ya, yb, atol=1e-6)         # zero-initialised output layer: identical at the start
+    with torch.no_grad():
+        b.conv_out.weight.add_(0.1)
+    torch.manual_seed(1)
+    yc = b(x, 3)
+    assert not torch.allclose(yc[..., :15], ya[..., :15]) and torch.allclose(yc[..., 15:], ya[..., 15:])        # only the profile part changes, the surface columns do not

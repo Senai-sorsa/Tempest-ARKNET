@@ -44,7 +44,7 @@ class Generator(nn.Module):
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
                  linear_cols: list[int] | None = None, interactions: bool = False, product_pairs: list | None = None,
                  geo: dict | None = None, context_cols: list[int] | None = None, terrain_head: dict | None = None,
-                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None):
+                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None, conv: dict | None = None):
         """Loop-3 options, all off by default (= the adopted network, same parameters and outputs):
         geo = dict(cols=[lat, lon positions], mu=[..], sd=[..], L=10, siren=0): spherical harmonics of the real
           lat/lon (un-normalised with mu/sd) replace the two raw columns; siren > 0 passes them through a 2-layer
@@ -62,7 +62,11 @@ class Generator(nn.Module):
           and the head's layer norms rescale away most of an extreme draw's size, so without this the t tails barely reach the output.
         jump = dict(K=2, top=3000, height=[n_h], n_var=4, inv_ts=[n_var*n_h]): K sharp steps per sample, each with its centre
           (0..top m), width and per-variable size, added to the profile as tanh steps (= bumps in the step targets); sizes start
-          at 0 (Gemini idea 3: inversions and shear sheets as explicit jumps)."""
+          at 0 (Gemini idea 3: inversions and shear sheets as explicit jumps).
+        conv = dict(C=32, layers=3, k=5, n_var=4, n_h=44) (L26): a 1-D convolutional refinement along the heights. The trunk state is projected to C
+          features per height, stacked with the network's own profile outputs, passed through `layers` residual convolutions of width k and added back
+          to the profile outputs (last layer zero-initialised, so the network starts as without it). Neighbouring heights see each other: aimed at
+          height-to-height roughness (surface jumps, shear tail)."""
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.geo = dict(geo) if geo else None
@@ -109,6 +113,14 @@ class Generator(nn.Module):
             nn.init.zeros_(self.jump_net.bias)
             self.register_buffer("jump_z", torch.tensor(self.jump["height"], dtype=torch.float32))
             self.register_buffer("jump_inv_ts", torch.tensor(self.jump["inv_ts"], dtype=torch.float32))
+        self.conv = dict(conv) if conv else None
+        if self.conv:
+            C, nv, nh, k = int(self.conv["C"]), int(self.conv["n_var"]), int(self.conv["n_h"]), int(self.conv["k"])
+            self.conv_in = nn.Linear(width, C * nh)
+            self.conv_net = nn.ModuleList([nn.Conv1d(C + nv if i == 0 else C, C, k, padding=k // 2) for i in range(int(self.conv["layers"]))])
+            self.conv_out = nn.Conv1d(C, nv, 1)
+            nn.init.zeros_(self.conv_out.weight)     # starts with no effect
+            nn.init.zeros_(self.conv_out.bias)
         self.th = dict(terrain_head) if terrain_head else None
         if self.th:
             self.th_net = nn.Sequential(nn.Linear(len(self.th["cols"]), 64), nn.SiLU(), nn.Linear(64, n_out))
@@ -163,6 +175,8 @@ class Generator(nn.Module):
             out = out + torch.einsum("bmk,bmkd->bmd", eps[..., :K], self.tail(hn).view(*hn.shape[:-1], K, -1))
         if self.jump:
             out = out + self._jumps(h, out.shape[-1])
+        if self.conv:
+            out = out + self._conv(h, out)
         if self.th:
             out = out + (torch.exp(-self.th_height / torch.exp(self.th_logH)) * self.th_net(full[:, self.th["cols"]])).unsqueeze(1)
         if self.linear_cols:
@@ -171,6 +185,18 @@ class Generator(nn.Module):
             s = self.slope(slope_in).view(len(cond), x.shape[1], -1)
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
         return out
+
+    def _conv(self, h, out):
+        C, nv, nh = int(self.conv["C"]), int(self.conv["n_var"]), int(self.conv["n_h"])
+        lead = h.shape[:-1]
+        f = self.conv_in(h).reshape(-1, C, nh)
+        prof = out[..., :nv * nh].reshape(-1, nv, nh)
+        x = torch.cat([f, prof], 1)
+        for i, layer in enumerate(self.conv_net):
+            y = nn.functional.silu(layer(x))
+            x = y if i == 0 else x + y
+        add = self.conv_out(x).reshape(*lead, nv * nh)
+        return torch.cat([add, add.new_zeros(*add.shape[:-1], out.shape[-1] - nv * nh)], -1)
 
     def _jumps(self, h, n_out):
         K, nv, nh = int(self.jump["K"]), int(self.jump["n_var"]), len(self.jump_z)
