@@ -39,7 +39,7 @@ Do **2A flexibility, 2B speed, 2C usage**, in that order, all automatically. **N
 
 ## You
 - **Long-range data (IL-118): DONE 2026-11-08.** `data/raw/wb2_ifs_extended/` is in place and checked (84 months x pilot/denver x fc/rf = 336 files, 646 MB, no bad files). Long-range download budget used: 0.65 of 5 GB (IL-118 to IL-127). Weekly-average meaning confirmed (lead k = 168 h window starting 12 h before day k, forward week).
-- **Waiting on you:** the IFS ensemble refetch (`Colab IFS ENS fetch.md`, `tempest_wb2_ifs_ens_v2`) arrives in about 10 h; unzip into `data/raw/wb2_ifs_ens\` (pilot) and `data/raw/wb2_ifs_ens_denver\` (denver) and tell Claude.
+- **ARRIVED 2026-11-08 (see LOOP3): 60 of 108 months NaN-free, 48 still have 16-22 % NaN.** Was: the IFS ensemble refetch (`Colab IFS ENS fetch.md`, `tempest_wb2_ifs_ens_v2`) arrives in about 10 h; unzip into `data/raw/wb2_ifs_ens\` (pilot) and `data/raw/wb2_ifs_ens_denver\` (denver) and tell Claude.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
