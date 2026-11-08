@@ -97,7 +97,7 @@ class TempestFlightSimEngine:
         return out
 
     # ---- module 2
-    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None):
+    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False):
         """obs: {(variable, height_m): measured value}; variables wind_u, wind_v (m/s), temp_K, rh_pct, pressure_Pa (surface, height 0). Heights must be model heights (10, 50, 100 ... 18000 m)
         or 2 m for temp_K / rh_pct. sensor_sigma: physical standard deviation of the sensors (one number or {variable: sigma}); default: practically exact pins. inflate: factor on the posterior variance of the unobserved columns (1.0 = the pure Schur complement; 1.5 is the default: the check in
         scripts/s6_condition_eval.py found the pure version too sharp: 90 % intervals held 80-86 % of balloons, 88-92 % with 1.5).
@@ -131,20 +131,24 @@ class TempestFlightSimEngine:
             f = np.sqrt(1.0 + (float(inflate) - 1.0) * np.exp(-d / float(inflate_decay_m)))
             S = S * f[:, None] * f[None, :]
             scale = 1.0
+        if soft:                  # opt-in: noisy observations do NOT pin their columns; the full Gaussian posterior over every column (the observed ones included) given the observations and their errors
+            C_all = self.corr[:, idx]
+            g_all = np.linalg.solve(C11, C_all.T).T
+            un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T
         w, v = np.linalg.eigh(0.5 * (S + S.T))
         o = np.argsort(w)[::-1]
-        self._post = dict(idx=idx, un=un, vals=np.array(list(obs.values()), float), mu=mu, eigvals=np.maximum(w[o], 0.0) * scale, eigvecs=v[:, o])
+        self._post = dict(idx=idx, un=un, vals=np.array(list(obs.values()), float), mu=mu, eigvals=np.maximum(w[o], 0.0) * scale, eigvecs=v[:, o], soft=bool(soft))
         return self
 
     def clear_observations(self):
         self._post = None
 
-    def conditioned(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None):
+    def conditioned(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False):
         """F6: a NEW engine conditioned on obs; this one is left untouched (condition_on_observations mutates self._post, a hazard when one engine is shared between runs)."""
         new = copy.copy(self)
         new.__dict__ = dict(self.__dict__)
         new._post = None
-        return new.condition_on_observations(obs, sensor_sigma, inflate, inflate_decay_m)
+        return new.condition_on_observations(obs, sensor_sigma, inflate, inflate_decay_m, soft)
 
     def _blocked_normals(self, stream, run_id, n, d, block=256):
         """F1/F2: (n, d) standard normals where every block of `block` rows has its own generator keyed on (seed, stream, run_id, block index): a run of n rows starts with exactly the rows of a
@@ -163,7 +167,7 @@ class TempestFlightSimEngine:
             vals, vecs, mu, cols, fixed = self.eigvals, self.eigvecs, np.zeros(P), np.arange(P), None
         else:
             p = self._post
-            vals, vecs, mu, cols, fixed = p["eigvals"], p["eigvecs"], p["mu"], p["un"], (p["idx"], p["vals"])
+            vals, vecs, mu, cols, fixed = p["eigvals"], p["eigvecs"], p["mu"], p["un"], (None if p.get("soft") else (p["idx"], p["vals"]))
         D = len(cols)
         if u_matrix is None:
             y = mu[None, :]

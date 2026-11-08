@@ -221,9 +221,27 @@ class Launch:
                           day_share=r.day_share, window=r.description)
         return self._pool
 
+    def _measurements(self):
+        return {k: v for k, v in self._obs.items() if not k.startswith("_")}
+
+    def _sensor_sigma(self, base, eng_obs):
+        """R2 / IL-156: an observation older than the launch hour, or from a station away from the pad, is not the pad state. Turn its effective gain (age decay x distance and elevation) into an
+        observation error for the Gaussian update; no bookkeeping keys = exact pins, as before."""
+        from tempest_weather_v2 import obs as O
+        o = self._obs
+        if not any(k in o for k in ("_age_h", "_dist_km", "_dz_m")):
+            return None
+        gain = O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0))
+        pool = base._ensure_pool()["samples"]
+        prior = {("wind_u", 10.0): np.std(np.asarray(pool["u"], float)[:, 0]), ("wind_v", 10.0): np.std(np.asarray(pool["v"], float)[:, 0]),
+                 ("temp_K", 2.0): np.std(np.asarray(pool["t2m"], float)), ("pressure_Pa", 0.0): np.std(np.asarray(pool["sp"], float))}
+        return {k[0]: O.observation_sigma(prior[k], gain) for k in eng_obs if k in prior}
+
     def _conditioned_pool(self, n):
         base = Launch.with_(self, _obs=None)
-        eng = base.engine().conditioned(self._obs_to_engine(base))
+        eng_obs = self._obs_to_engine(base)
+        sig = self._sensor_sigma(base, eng_obs)
+        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None)       # weighted observations are soft: the observed columns move with the error, they are not pinned
         u = np.random.default_rng(np.random.SeedSequence([self.seed, 2])).random((n, 16))
         out = eng.sample_sobol(u)
         s = {k: np.asarray(out[k], np.float32) for k in ("u", "v", "T", "RH", "p", "rho", "a", "t2m", "sp", "rh2m") if k in out}
@@ -237,10 +255,10 @@ class Launch:
         s["height_asl"] = (elev + s["height_agl"]).astype(np.float32)
         bp = base._ensure_pool()
         return dict(samples=s, launch_times=bp["launch_times"][:1].repeat(n), infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
-                    flags=list(bp["flags"]) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._obs)], day_share=bp["day_share"], window=bp["window"])
+                    flags=list(bp["flags"]) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
 
     def _obs_to_engine(self, base):
-        o, eng_obs = self._obs, {}
+        o, eng_obs = self._measurements(), {}
         if "wind_10m" in o:
             spd = names.parse_quantity(o["wind_10m"], "speed", self.units)
             frm = float(o.get("wind_from_deg", 0.0))
@@ -255,12 +273,13 @@ class Launch:
             eng_obs[("pressure_Pa", 0.0)] = float(W.station_pressure_hpa(names.parse_quantity(o["altimeter"], "pressure", self.units), elev)) * 100.0
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
         if station_pressure is not None and altimeter is not None:
             raise ValueError("give station_pressure or altimeter, not both")
+        # age_hours / distance_km / elevation_diff_m (station minus pad) weight the measurement by its representativeness (see obs.py); without them the values are pinned exactly
         if sounding is not None:
             raise NotImplementedError("sounding conditioning comes with the R2 module (tempest_weather_v2.sounding); pass wind_10m / wind_from_deg / temperature for now")
         obs = dict(self._obs)
@@ -271,7 +290,10 @@ class Launch:
             obs.pop("altimeter" if station_pressure is not None else "station_pressure")      # the newer value replaces an earlier one of the other kind
         if "wind_from_deg" in obs and "wind_10m" not in obs:
             raise ValueError("a wind direction needs a wind speed too (wind_10m=...)")
-        if not obs:
+        for k, v in (("_age_h", age_hours), ("_dist_km", distance_km), ("_dz_m", elevation_diff_m), ("_source", source)):
+            if v is not None:
+                obs[k] = v
+        if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
         return self.with_(_obs=obs)
 
@@ -285,6 +307,26 @@ class Launch:
             raise ValueError("that METAR has nothing usable (a variable-direction wind alone cannot be used)")
         return self.observe(**kw)
 
+    def observe_latest(self, max_km=150.0, hours=6, k=3, fetch=None, now=None):
+        """A NEW Launch conditioned on the latest METAR of the nearest station that has a usable report before the launch time (IEM, no key; `fetch` and `now` are injectable for tests / offline replay).
+        The report is weighted by its age, its distance and its height difference from the pad, and the trust line names station, distance and age."""
+        from datetime import timezone as _tz
+        from tempest_weather_v2 import obs as O
+        r = self.resolved_window()
+        t0 = r.cells_utc[len(r.cells_utc) // 2].astype("datetime64[s]").astype(datetime).replace(tzinfo=_tz.utc)
+        stop = min(t0, now) if now is not None else t0                       # a report cannot be newer than the real clock
+        elev = float(self._ensure_pool()["samples"]["elevation_m"]) if self._pool is not None else (self.elevation_info()[0] or 0.0)
+        tried = []
+        for sid, dist, el in O.nearest(self.lat, self.lon, k=k, max_km=max_km):
+            t, m = O.latest_report(sid, stop, hours=hours, fetch=fetch)
+            tried.append(sid)
+            kw = m.observation_kwargs() if m is not None else {}
+            if not kw:
+                continue
+            return self.observe(**kw, age_hours=(t0 - t).total_seconds() / 3600.0, distance_km=dist, elevation_diff_m=el - elev, source=f"METAR {sid} {t:%d %H:%MZ}")
+        near = ", ".join(f"{i} {d:.0f} km" for i, d, _ in O.nearest(self.lat, self.lon, k=k, max_km=max_km)) or f"none within {max_km:.0f} km"
+        raise LookupError(f"no usable METAR in the {hours} h before launch from the nearest stations ({near}; tried {tried or 'none'}). Pass the report yourself with observe_metar(text).")
+
     # ---- trust, provenance
     @property
     def trust(self):
@@ -297,8 +339,18 @@ class Launch:
             text = "Mixed: " + ", ".join(f"{100 * v:.0f}% {'forecast' if k == 'forecast' else 'climate' if k == 'ai' else 'past'}" for k, v in sorted(m.items(), key=lambda kv: -kv[1])) + " (window spans a mode limit)"
         if "fallback-mode" in p["flags"]:
             text += " (the mode you asked for was not available: see flags)"
-        if self._obs:
-            text += f"; conditioned on {len(self._obs)} measurements (not yet validated)"
+        if self._measurements():
+            text += f"; conditioned on {len(self._measurements())} measurements (not yet validated)"
+            o = self._obs
+            if "_source" in o:
+                detail = [f"from {o['_source']}"]
+                if "_dist_km" in o:
+                    detail.append(f"{o['_dist_km']:.0f} km from the pad")
+                if "_dz_m" in o:
+                    detail.append(f"{o['_dz_m']:+.0f} m in height")
+                if "_age_h" in o:
+                    detail.append(f"{o['_age_h']:.1f} h old")
+                text += " (" + ", ".join(detail) + "; weights assumed, see obs.py)"
         return text
 
     @property

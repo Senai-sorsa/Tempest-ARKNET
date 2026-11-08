@@ -410,3 +410,16 @@ def test_f3_f6_c3_schema_conditioned_copy_and_output_checks():
     c = e.conditioned({("wind_u", 10.0): 7.0})
     assert e._post is None and c._post is not None and c is not e                      # the original engine is untouched
     assert np.allclose(c.sample_sobol(np.random.default_rng(1).random((3, 6)))["u"][:, 0], 7.0)
+
+
+def test_soft_conditioning_moves_the_observed_column_with_the_observation_error():
+    obs = {("wind_u", 10.0): 9.0}
+    u = np.random.default_rng(4).random((6000, 20))
+    free = _eng().sample_sobol(u)["u"][:, 0]
+    pin = _eng().conditioned(obs).sample_sobol(u)["u"][:, 0]                                          # default: pinned exactly
+    assert np.allclose(pin, 9.0)
+    tight = _eng().conditioned(obs, sensor_sigma={"wind_u": 0.05}, soft=True).sample_sobol(u)["u"][:, 0]
+    loose = _eng().conditioned(obs, sensor_sigma={"wind_u": 3.0 * free.std()}, soft=True).sample_sobol(u)["u"][:, 0]
+    assert abs(tight.mean() - 9.0) < 0.2 and tight.std() < 0.5 * free.std()                          # a precise observation: close to the value, narrow
+    assert abs(loose.mean() - free.mean()) < abs(tight.mean() - free.mean())                         # a poor observation moves the median less
+    assert loose.std() > tight.std() and not np.allclose(loose, 9.0)                                 # and the observed column is not pinned
