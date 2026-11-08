@@ -231,7 +231,10 @@ class Launch:
         o = self._obs
         if not any(k in o for k in ("_age_h", "_dist_km", "_dz_m")):
             return None
-        gain = O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0))
+        r = self.resolved_window()
+        t_mid = r.cells_utc[len(r.cells_utc) // 2]
+        night = O.night_weight(timeutil.solar_hour(t_mid.astype("datetime64[s]").astype(datetime), self.lon))
+        gain = O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0), night)
         pool = base._ensure_pool()["samples"]
         prior = {("wind_u", 10.0): np.std(np.asarray(pool["u"], float)[:, 0]), ("wind_v", 10.0): np.std(np.asarray(pool["v"], float)[:, 0]),
                  ("temp_K", 2.0): np.std(np.asarray(pool["t2m"], float)), ("pressure_Pa", 0.0): np.std(np.asarray(pool["sp"], float))}
@@ -350,7 +353,7 @@ class Launch:
                     detail.append(f"{o['_dz_m']:+.0f} m in height")
                 if "_age_h" in o:
                     detail.append(f"{o['_age_h']:.1f} h old")
-                text += " (" + ", ".join(detail) + "; weights assumed, see obs.py)"
+                text += " (" + ", ".join(detail) + "; gain fitted on station pairs, see obs.py)"
         return text
 
     @property
