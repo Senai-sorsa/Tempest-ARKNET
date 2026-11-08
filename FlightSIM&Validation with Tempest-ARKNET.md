@@ -104,6 +104,44 @@ Yes, in two forms, both exercised here end to end:
 
 On the three in-domain flights, replacing the standard atmosphere with Tempest-ARKNET's real-day atmospheres **did not make the flight simulator measurably more accurate** (mean absolute error 5.21 % as filed vs 5.81 % past mode, 6.03 % past plus measured values; against a plain standard day 6.15 %). It did make the inputs physically correct and moved the signed bias slightly (+3.6 % to +3.2 %). The reason is that the simulator's error on these rockets is dominated by things the atmosphere does not control. The honest statement of the end goal: the atmosphere is now the better-known input; the next accuracy gains for the whole system must come from the rocket side, and a decisive test needs many more in-domain flights with documented inputs (for example Spaceport America Cup rockets with published designs and official apogees) and, for the other flights, the global extension.
 
-## 9. Files
+## 9. Why did Prometheus move so much? (follow-up 2026-11-08)
+
+Prometheus went from +7.7 % (standard air) to +8.8 % (Tempest past), +11.4 % (climate) and +11.1 % (past + measured values). Four separate things explain it, each checked:
+
+1. **The standard air was the wrong air, and the right air makes this rocket's error larger, not smaller.** The branch's Prometheus run used the standard-day temperature at 1401 m (5.9 degC). On 24 June 2022 at 09:17 the real surface was about 26 degC. Thinner air (density 0.996 against 1.069 kg/m3) raises the apogee by **+3.1 %** (decomposition table: 13778 -> 14166 ft with no wind). The simulator was already reading high, so the correct air moves it further from the measured 12789 ft.
+2. **The simulator reads high for reasons outside the atmosphere.** RocketPy's own published run for this very flight, using the reanalysis weather of the day, also over-predicts: 4190 m simulated against 3898 m official (+7.5 %). Our past-mode run, +8.8 %, is in the same place. Two independent tools with real weather land at +7.5 % and +8.8 %: the shared error is in the rocket inputs (drag, mass, impulse, rail guides), not the air.
+3. **Only the wind in the lowest 200 m matters for Prometheus's apogee** (`tempest_run/why_prometheus.py`, past-mode atmospheres, median of 25 flights):
+
+   | wind change | apogee error |
+   |---|---|
+   | as generated | +8.8 % |
+   | calm below 200 m, rest unchanged | +10.6 % |
+   | below 200 m x 0.3 | +10.0 % |
+   | below 200 m x 2 | +7.2 % |
+   | no wind above 200 m, ground wind unchanged | +8.9 % |
+   | no wind at all | +10.8 % |
+
+   The rocket leaves a 5 m rail slowly, so a crosswind there tips it into the wind (weathercocking) and costs altitude. Everything above 200 m is irrelevant for this rocket's apogee.
+4. **That is why the "measured values" run (S4) went up 2.3 %.** The Truth or Consequences ASOS station reported a near-calm (0.9 m/s) at 09:17; conditioning on it pinned the 10 m wind to 0.9 m/s instead of the 3.2 m/s of the unconditioned past mode, and the air was 2.6 K cooler (which alone would lower apogee about 0.4 %). Light wind at the rail wins: +8.8 % -> +11.1 %. The conditioning did exactly what it was told; the *measurement* (a station tens of km away, 78 m higher, one hourly report) is a poor stand-in for the pad's rail-exit wind.
+
+The climate run (+11.4 %) is the same story: a typical hot morning (28.8 degC) is thin air with a spread of 233 ft (standard deviation) from the wind draws.
+
+## 10. Is the tool actually useful? And how to make it more useful
+
+**What this test says, plainly.** For *apogee*, the atmosphere is a second-order input: about 3 % from temperature and density, about 2 % from the ground wind at the rail, 0.5-1 % scatter from everything else it models. The simulators' own errors on these rockets are 5-8 %. So today Tempest-ARKNET cannot be shown to make the apogee more accurate, and with three flights that was never going to be shown either way. Where it is clearly useful already:
+- **It removes a systematic bias.** A standard-day run for a hot New Mexico afternoon is 3 % high on apogee from the air alone (28 K too cold at the pad). The tool gives the real day's air (past mode) or the typical air for a planned date (climate mode), checked against balloons and against an independent reanalysis.
+- **It gives uncertainty, not one number:** a pool of coherent atmospheres (density, wind, shear, jet) for Monte Carlo of landing dispersion, rail-exit wind, shear loads and recovery drift, which a single standard atmosphere cannot do. Those quantities depend on the wind much more than apogee does, and the true landing positions needed to prove it are not in this validation set.
+- **It speaks the users' formats:** RASAero and OpenRocket launch inputs (altimeter setting, drift-equivalent wind), OpenRocket profile CSV, a drop-in reader for the flight simulator.
+
+**What would make it more useful (ordered by the evidence above):**
+1. **Get the ground wind right (0-200 m).** It is the one atmospheric input that moves apogee as much as the air. The tool's wind spread was 15-25 % too narrow against balloons (IL-144), and the 10 m wind has the least skill. Work: wind-spread calibration at the lowest levels, and a station-aware near-surface wind (the pad's own anemometer, IREC on-site weather, nearby mesonet stations) instead of a distant airport.
+2. **A launch-day mode that takes real observations easily.** `observe()` works but needs typed numbers. Add `observe_metar("KTCS 241553Z 19002KT ... 23/12 A3012")` (METAR parser; built next), a one-command live fetch of the nearest METAR / mesonet reading and the morning sounding (R2), and put the observation's age and distance in the trust line.
+3. **Coverage.** 35 of the 38 flights in your validation set are outside the two trained boxes. Nothing else matters as much for using it on your real flights. The global extension (G stages, on the supercomputer) is the prerequisite for a meaningful validation.
+4. **A plug-in for the simulator and EDITH.** `Launch.atmospheres()` already returns drop-in readers, but your sim and the EDITH dispersion framework are driven by TOML. A small adapter class (`type = "tempest_weather_v2...TempestAtmosphere"` with a `.tempest` file and an index) and a `couple()` bridge for EDITH's dispersion classes would let a Monte Carlo draw its atmospheres from the tool with no code.
+5. **Tell the user which inputs matter for their rocket.** The sensitivity table above (3 % per 20 K, 2 % per 3 m/s of ground wind for a 14 kg, 5 m-rail rocket) is exactly what a user needs to decide whether the weather is worth refining. A documented recipe, or a helper that flies the user's sim at a few perturbations, would turn the tool from "numbers" into "decisions".
+6. **Test the forecast mode, the real use case.** Everything here used the real day's analysis. A launch team decides days ahead; the test that matters is "atmosphere forecast 1-5 days ahead vs standard day, scored on the apogee". It needs archived forecasts for the flight dates (Open-Meteo's historical forecast archive covers recent years) and more flights.
+7. **More in-domain flights with published designs.** Spaceport America Cup teams publish designs and official apogees every year; Midland-area launches too. 20-30 flights would resolve effects of 1-3 %.
+
+## 11. Files
 
 `flight_sim_trial/true_validation/` (deletable): the branch copy, `tempest_run/gen_atmospheres.py`, `fly.py`, `decompose.py`, `analyze.py`, `inputs/` (atmospheres per flight and scenario), `flights.csv` (every flight), `summary.md`. Reproduce: step A in the project venv with `TEMPEST_ERA5_STORE=data/pilot/profiles.zarr`, then `fly.py`, `decompose.py`, `analyze.py`.
