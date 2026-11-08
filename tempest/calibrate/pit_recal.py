@@ -32,9 +32,10 @@ def fit(x, y, groups, rng=None):
     return dict(ginv=ginv, groups=groups, m=np.array(x.shape[1]))
 
 
-def apply(table, x, damp=1.0):
+def apply(table, x, damp=1.0, keep_order=False):
     """x (N, m, D) -> samples at the recalibrated quantile levels (same shape, sorted along m). damp in (0, 1]: 1 = the full correction, 0.5 = half way between the sorted input and the
-    recalibrated samples (loop 2 H1: the full map gave better coverage and tails but a slightly worse PIT distance)."""
+    recalibrated samples (loop 2 H1: the full map gave better coverage and tails but a slightly worse PIT distance).
+    keep_order (IL-140, off = as before): hand the recalibrated values back in the member order of the input (each column's ranks kept), so cross-variable rank structure is not destroyed when no shuffle follows."""
     m = x.shape[1]
     lev = (np.arange(m) + 0.5) / m
     xs = np.sort(x, axis=1)
@@ -48,4 +49,8 @@ def apply(table, x, damp=1.0):
         w = (pos - i0)[None, :, None]
         cols = groups == g
         out[:, :, cols] = xs[:, i0][:, :, cols] * (1 - w) + xs[:, i1][:, :, cols] * w
-    return xs + damp * (out - xs) if damp != 1.0 else out
+    res = xs + damp * (out - xs) if damp != 1.0 else out
+    if keep_order:
+        ranks = np.argsort(np.argsort(x, axis=1), axis=1)
+        res = np.take_along_axis(res, ranks, axis=1)
+    return res

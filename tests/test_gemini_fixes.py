@@ -88,3 +88,36 @@ def test_dryden_fixes_flag_in_the_batch_call_is_off_by_default():
     assert np.array_equal(a["fine"]["u_total"], b["fine"]["u_total"])
     c = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, dryden_fixes=True)
     assert np.isfinite(c["fine"]["w_total"]).all() and c["fine"]["u_total"].shape == a["fine"]["u_total"].shape
+
+
+def test_il133_refresh_w_follows_the_reordered_rows():
+    from tempest_weather import api
+    rng = np.random.default_rng(0)
+    n, nh = 300, _core.NH
+    old = rng.standard_normal((n, 4 * nh))
+    w = old[:, :nh] * 0.5                                           # w tied to u of the same sample
+    perm = rng.permutation(n)
+    atm = {"w": w.copy()}
+    api._refresh_w(atm, old, old[perm] + 1e-6)
+    assert np.allclose(atm["w"], w[perm])                           # reordered rows get their own w back
+    api._refresh_w({"w": None}, old, old)                           # no w: no-op
+    import inspect
+    assert inspect.signature(api.atmosphere_sequence).parameters["fix_w"].default is False
+    assert inspect.signature(api.atmosphere_downrange).parameters["fix_w"].default is False
+
+
+def test_il140_pit_keep_order_flag_default_unchanged_and_ranks_kept():
+    rng = np.random.default_rng(1)
+    N, m, D = 3, 50, 4
+    x = rng.standard_normal((N, m, D))
+    ginv = np.tile(np.linspace(0, 1, 201) ** 1.3, (2, 1))
+    groups = np.array([0, 0, 1, 1])
+    a = _core.pit_apply(ginv, groups, x)
+    assert np.array_equal(a, _core.pit_apply(ginv, groups, x, keep_order=False))
+    assert (np.diff(a, axis=1) >= 0).all()                           # default stays sorted
+    b = _core.pit_apply(ginv, groups, x, keep_order=True)
+    assert np.allclose(np.sort(b, axis=1), a)                        # same values, different order
+    assert np.array_equal(np.argsort(b, axis=1), np.argsort(x, axis=1))  # input ranks kept
+    from tempest.calibrate import pit_recal
+    tab = {"ginv": ginv, "groups": groups}
+    assert np.allclose(pit_recal.apply(tab, x, keep_order=True), b, atol=1e-5)

@@ -368,7 +368,20 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     return atm, info
 
 
-def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, **kw):
+def _refresh_w(atm, old_flat, new_flat, chunk=512):
+    """IL-133: the coherence step reorders u, v, T, RH but left the vertical wind `w` of the old rows. Give every new row the w of its nearest original atmosphere (standardised u, v, T, RH,
+    so w keeps its relation to the horizontal wind of the same sample). No-op when the set carries no w."""
+    if atm.get("w") is None:
+        return
+    sd = np.where(old_flat.std(0) > 0, old_flat.std(0), 1.0)
+    P = old_flat / sd
+    pp = (P ** 2).sum(1)
+    q = new_flat / sd
+    idx = np.concatenate([np.argmin(pp[None, :] - 2 * q[i:i + chunk] @ P.T, 1) for i in range(0, len(q), chunk)])
+    atm["w"] = np.asarray(atm["w"])[idx]
+
+
+def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, fix_w=False, **kw):
     """Group C1: the same n atmospheres over several hours as ONE coherent sequence. `offsets` are hours relative to `when`; every hour is sampled by `atmosphere_set` (so each hour keeps its own
     calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
     -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (manifest solar_hours, 06-21 solar for older assets) raise like a normal query.
@@ -402,7 +415,9 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
                       regime_of=lambda x: np.digitize(np.hypot(x[:, I3] - x[:, 0], x[:, nh + I3] - x[:, nh]), cr["edges"]))
     out = _coh.sequence(cols, list(offsets), rho_full, np.random.default_rng(seed + 7), kap_full, **reg_kw)
     elev = sets[0][1]["elevation_m"]
-    for (atm, info), x in zip(sets, out):
+    for k, ((atm, info), x) in enumerate(zip(sets, out)):
+        if fix_w:
+            _refresh_w(atm, cols[k][:, :4 * nh], x[:, :4 * nh])
         atm["u"], atm["v"], atm["T"], atm["RH"] = x[:, :nh], x[:, nh:2 * nh], x[:, 2 * nh:3 * nh], np.clip(x[:, 3 * nh:4 * nh], 0, 100)
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
@@ -416,7 +431,7 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     return [a for a, _ in sets], [i for _, i in sets]
 
 
-def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 20, 30, 40, 50, 60), n=1024, seed=0, assets=None, **kw):
+def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 20, 30, 40, 50, 60), n=1024, seed=0, assets=None, fix_w=False, **kw):
     """Group C2: the same n atmospheres at several points along a line from (lat, lon) in direction `bearing_deg` (0 = north, 90 = east), `distances_km` away, as ONE coherent set (sample j is the same
     weather system at every point). Each point is sampled by `atmosphere_set` (own bilinear blend and site elevation), then tied with a Gaussian copula in distance (lag table of ERA5 anomalies by
     distance and season, with the nugget kappa of the time table: ERA5 is smoother than the real atmosphere). Every point must lie inside the trained box.
@@ -438,8 +453,11 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
     rho_full = np.concatenate([rho, np.stack([rho[:, 2 * nh], rho[:, 2 * nh], rho[:, 3 * nh]], 1)], 1)
     kap = A.get("coherence_kappa")
     kap_full = None if kap is None else np.concatenate([kap, [kap[2 * nh], kap[2 * nh], kap[3 * nh]]])
-    out = _coh.sequence([flat(a) for a, _ in sets], list(distances_km), rho_full, np.random.default_rng(seed + 9), kap_full, rho_x=A["coherence_dist"]["km"])
-    for (atm, info), x in zip(sets, out):
+    cols = [flat(a) for a, _ in sets]
+    out = _coh.sequence(cols, list(distances_km), rho_full, np.random.default_rng(seed + 9), kap_full, rho_x=A["coherence_dist"]["km"])
+    for k, ((atm, info), x) in enumerate(zip(sets, out)):
+        if fix_w:
+            _refresh_w(atm, cols[k][:, :4 * nh], x[:, :4 * nh])
         atm["u"], atm["v"], atm["T"], atm["RH"] = x[:, :nh], x[:, nh:2 * nh], x[:, 2 * nh:3 * nh], np.clip(x[:, 3 * nh:4 * nh], 0, 100)
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=info["elevation_m"])

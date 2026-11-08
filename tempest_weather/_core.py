@@ -183,7 +183,7 @@ def allocate(weights, blocks, rng):
 PIT_GRID = np.linspace(0.0, 1.0, 201)
 
 
-def pit_apply(ginv, groups, x, damp=1.0):
+def pit_apply(ginv, groups, x, damp=1.0, keep_order=False):
     """x (N, m, D) -> samples read at the recalibrated quantile levels (sorted along m); damp 1 = full correction, 0.5 = half way. ginv (G, 201), groups (D,)."""
     m = x.shape[1]
     lev = (np.arange(m) + 0.5) / m
@@ -197,7 +197,10 @@ def pit_apply(ginv, groups, x, damp=1.0):
         w = (pos - i0)[None, :, None]
         cols = groups == g
         out[:, :, cols] = xs[:, i0][:, :, cols] * (1 - w) + xs[:, i1][:, :, cols] * w
-    return (xs + damp * (out - xs) if damp != 1.0 else out).astype(x.dtype)
+    res = (xs + damp * (out - xs) if damp != 1.0 else out).astype(x.dtype)
+    if keep_order:                                                    # IL-140 (off = as before): original member order, ranks per column kept
+        res = np.take_along_axis(res, np.argsort(np.argsort(x, axis=1), axis=1), axis=1)
+    return res
 
 
 def seasonal_apply(scale, x, month):
