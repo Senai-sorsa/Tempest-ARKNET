@@ -126,16 +126,29 @@ def feature_matrix(names, lat, lon, elev_site, elev_grid, doy, solar_hour, year,
 LAPSE, SHIFT_SCALE = 0.0065, 1500.0
 
 
-def site_shift(phys, dz):
+def _pbl_top(T):
+    """(n, NH) temperature profiles -> boundary-layer depth (m): first height with theta 1 K above the lowest level, clamped to 200 .. 3000 m (1200 m if never)."""
+    theta = np.asarray(T, np.float64) + (G0 / 1004.7) * HEIGHTS[None, :]
+    hit = (theta - theta[:, :1]) >= 1.0
+    return np.clip(np.where(hit.any(1), HEIGHTS[hit.argmax(1)], 1200.0), 200.0, 3000.0)
+
+
+def site_shift(phys, dz, shift_mode=None, top_m=1500.0):
     """(n, 179) values at the grid elevation -> the site elevation `dz` metres higher (in place; dz a number or one value per row): sp hypsometric, t2m with the standard
     lapse rate, the temperature profile with a shift that fades with height (-lapse * dz * exp(-z / 1500 m): no jump between 2 m and 10 m), humidity keeping its dew point
-    where the shift acts."""
+    where the shift acts.
+    shift_mode (IL-132, opt-in; None = the fade above): the fade changes dT/dz by LAPSE * dz / 1500 m (2.17 K/km at dz = 500 m). "const": the full shift up to top_m, then the fade;
+    "pbl": the same with the top at each profile's own boundary-layer depth (first height where theta has risen 1 K above the lowest level)."""
     nh = NH
     dz = np.broadcast_to(np.asarray(dz, np.float64), (len(phys),))
     d2 = dz[:, None]
     t = phys[:, 4 * nh].astype(np.float64)
     phys[:, 4 * nh + 1] *= np.exp(-G0 * dz / (RD * (t - LAPSE * dz / 2)))
-    w = np.exp(-HEIGHTS / SHIFT_SCALE)
+    if shift_mode is None:
+        w = np.exp(-HEIGHTS / SHIFT_SCALE)
+    else:
+        top = np.full((len(phys), 1), float(top_m)) if shift_mode == "const" else _pbl_top(phys[:, 2 * nh:3 * nh])[:, None]
+        w = np.where(HEIGHTS[None, :] <= top, 1.0, np.exp(-(HEIGHTS[None, :] - top) / SHIFT_SCALE))
     t_old = phys[:, 2 * nh:3 * nh].astype(np.float64)
     t_new = t_old - LAPSE * d2 * w
     rh = phys[:, 3 * nh:4 * nh]
@@ -230,7 +243,14 @@ def _uniform_filter_nearest(a, size):
     return (c[..., size:] - c[..., :-size]) / size
 
 
-def shear_apply(table, x, smooth=9):
+def gauss_smoother(heights, sigma_m):
+    """(n, n) row-normalised Gaussian smoothing matrix over the model heights with the width sigma_m in METRES (IL-137: a window counted in heights is 1.2 km wide near the ground, 4.5 km aloft)."""
+    h = np.asarray(heights, float)
+    w = np.exp(-0.5 * ((h[:, None] - h[None, :]) / float(sigma_m)) ** 2)
+    return w / w.sum(1, keepdims=True)
+
+
+def shear_apply(table, x, smooth=9, smooth_m=None):
     """Shear-space quantile map (IL-58/IL-91). table: edges, grid (bands, G), gain (bands, G). x (S, m, D) physical, u and v in the first 2 NH columns."""
     mid = HEIGHTS[1:]
     dz = np.diff(HEIGHTS) / 1000.0
@@ -246,6 +266,6 @@ def shear_apply(table, x, smooth=9):
         g[..., sel] = np.interp(s[..., sel], table["grid"][b], table["gain"][b])
     delta = np.cumsum(d * (g[..., None, :] - 1.0), axis=-1)
     delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
-    rough = delta - _uniform_filter_nearest(delta, smooth)
+    rough = delta - (delta @ gauss_smoother(HEIGHTS, smooth_m).T if smooth_m else _uniform_filter_nearest(delta, smooth))   # smooth_m (opt-in): Gaussian of that width in metres
     out[..., :2 * NH] = (uv + rough).reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
     return out

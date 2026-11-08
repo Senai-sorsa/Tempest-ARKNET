@@ -40,10 +40,10 @@ def shears(uv):
     return d, np.hypot(d[..., 0, :], d[..., 1, :]) / DZ
 
 
-def apply(table, x, chunk=256):
+def apply(table, x, chunk=256, smooth_m=None):
     """x (S, m, D) physical samples (u, v first) -> copy with the shear gain applied to the wind columns (rows in chunks to bound memory)."""
     if x.ndim == 3 and len(x) > chunk:
-        return np.concatenate([apply(table, x[i:i + chunk], chunk) for i in range(0, len(x), chunk)])
+        return np.concatenate([apply(table, x[i:i + chunk], chunk, smooth_m) for i in range(0, len(x), chunk)])
     out = x.copy()
     uv = x[..., :2 * NH].reshape(*x.shape[:-1], 2, NH).astype(np.float64)
     d, s = shears(uv)
@@ -54,7 +54,11 @@ def apply(table, x, chunk=256):
         g[..., sel] = np.interp(s[..., sel], table["grid"][b], table["gain"][b])
     delta = np.cumsum(d * (g[..., None, :] - 1.0), axis=-1)                   # change of the wind at heights 1..NH-1 (height 0 fixed)
     delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)    # (..., 2, NH)
-    rough = delta - uniform_filter1d(delta, SMOOTH, axis=-1, mode="nearest")
+    if smooth_m:                                                              # IL-137 (opt-in): Gaussian of this width in metres instead of 9 heights
+        w = np.exp(-0.5 * ((HEIGHTS[:, None] - HEIGHTS[None, :]) / float(smooth_m)) ** 2)
+        rough = delta - delta @ (w / w.sum(1, keepdims=True)).T
+    else:
+        rough = delta - uniform_filter1d(delta, SMOOTH, axis=-1, mode="nearest")
     new = uv + rough
     out[..., :2 * NH] = new.reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
     return out

@@ -143,3 +143,47 @@ def test_il139_cut_default_is_plain_slice_and_flag_permutes_inside_blocks():
         assert np.array_equal(full, x)                                           # whole blocks: nothing is permuted
     finally:
         api.OPTIONS["permute_blocks"] = False
+
+
+def test_il137_shear_smoothing_in_metres_is_opt_in_and_matches_the_training_copy():
+    from tempest.calibrate import shear_map
+    rng = np.random.default_rng(2)
+    n, m, D = 3, 20, 4 * 44 + 3
+    x = rng.normal(size=(n, m, D)).astype(np.float32)
+    x[..., :88] = np.cumsum(rng.normal(size=(n, m, 88)), -1) * 2
+    grid = np.tile(np.linspace(0, 60, 400), (4, 1))
+    table = dict(grid=grid, gain=1 + 0.004 * grid)
+    base = _core.shear_apply(table, x)
+    assert np.array_equal(base, _core.shear_apply(table, x, smooth_m=None))      # default unchanged
+    a, b = _core.shear_apply(table, x, smooth_m=1000.0), shear_map.apply(table, x, smooth_m=1000.0)
+    assert np.allclose(a, b, atol=1e-4)                                         # runtime and training copies agree
+    assert not np.allclose(a, base)
+    w = _core.gauss_smoother(_core.HEIGHTS, 500.0)
+    assert np.allclose(w.sum(1), 1.0) and w[0, 0] > w[0, 5]
+    # the window in metres is the same everywhere: a wider sigma smooths more (the change that survives as "rough" shrinks)
+    r1 = np.abs(_core.shear_apply(table, x, smooth_m=300.0)[..., :88] - x[..., :88]).mean()
+    r2 = np.abs(_core.shear_apply(table, x, smooth_m=3000.0)[..., :88] - x[..., :88]).mean()
+    assert r2 > r1 * 0.9
+
+
+def test_il132_site_shift_modes_default_unchanged_and_const_keeps_the_lapse_in_the_layer():
+    rng = np.random.default_rng(5)
+    nh = _core.NH
+    z = np.asarray(_core.HEIGHTS, float)
+    n = 4
+    base = np.zeros((n, 4 * nh + 3))
+    base[:, 2 * nh:3 * nh] = 288 - 0.0065 * z[None] + 0.01 * rng.normal(size=(n, nh))
+    base[:, 3 * nh:4 * nh] = 50
+    base[:, 4 * nh] = 288.5
+    base[:, 4 * nh + 1] = 90000
+    base[:, 4 * nh + 2] = 50
+    a = _core.site_shift(base.copy(), 500.0)
+    assert np.array_equal(a, _core.site_shift(base.copy(), 500.0, shift_mode=None))
+    c = _core.site_shift(base.copy(), 500.0, shift_mode="const", top_m=1500.0)
+    p = _core.site_shift(base.copy(), 500.0, shift_mode="pbl")
+    k = (z <= 1500)
+    d_old = np.diff(a[:, 2 * nh:3 * nh][:, k], axis=1) / np.diff(z[k])
+    d_new = np.diff(c[:, 2 * nh:3 * nh][:, k], axis=1) / np.diff(z[k])
+    d_ref = np.diff(base[:, 2 * nh:3 * nh][:, k], axis=1) / np.diff(z[k])
+    assert np.abs(d_new - d_ref).max() < np.abs(d_old - d_ref).max()           # the lapse inside the layer is left alone
+    assert np.isfinite(p).all() and (p[:, 3 * nh:4 * nh] <= 100).all()
