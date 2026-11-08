@@ -32,12 +32,12 @@ def pool_matrix(atm):
 
 
 class TempestFlightSimEngine:
-    def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, tail_extrap=False, **kw):
+    def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, tail_extrap=True, **kw):
         if atm is None:
             from tempest_weather import api
             atm, info = api.atmosphere_set(lat, lon, when, n=n_pool, seed=seed, assets=assets, **kw)
         self.atm, self.info, self.seed = atm, info or {}, seed
-        self.tail_extrap = bool(tail_extrap)   # IL-129: extend the marginals past the pool min/max with the outer-5 % slope (off = clamp, as before)
+        self.tail_extrap = bool(tail_extrap)   # IL-129 (plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour)): extend the marginals past the pool min/max with the outer-5 % slope; False = clamp
         self.names = feature_names()
         self.index = {k: i for i, k in enumerate(self.names)}
         self.pool = pool_matrix(atm)
@@ -153,10 +153,10 @@ class TempestFlightSimEngine:
         return np.concatenate(parts) if parts else np.empty((0, d))
 
     # ---- module 1
-    def sample_sobol(self, u_matrix=None, exact_residual=True, run_id=None, block=256):
+    def sample_sobol(self, u_matrix=None, exact_residual=True, run_id=0, block=256):
         """u_matrix (N, k) uniforms in (0, 1) from the simulator, or None for the conditional median profile (N = 1). -> dict of arrays (N, ...) like `atmosphere_set` (+ z, p, rho, a).
-        The k leading eigenmodes are driven by the columns of u_matrix; the remaining modes use a seeded pseudo-random draw (exact_residual=True) or are left out (False). run_id (opt-in, F1/F2): key that
-        draw on (seed, run_id, row block) instead of the fixed seed + 31, so runs differ and the first rows do not depend on N."""
+        The k leading eigenmodes are driven by the columns of u_matrix; the remaining modes use a seeded pseudo-random draw (exact_residual=True) or are left out (False). run_id (F1/F2, plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour); None = the old
+        fixed seed + 31 stream): key that draw on (seed, run_id, row block), so different run_ids give different noise and the first rows do not depend on N."""
         rng = np.random.default_rng(self.seed + 31)
         P = len(self.names)
         if self._post is None:
@@ -252,20 +252,20 @@ class TempestFlightSimEngine:
         return bad
 
     # ---- the one-call contract (blueprint section "Unified integration")
-    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=False, run_id=None, exact_ar=False):
+    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False):
         """One vectorised call for a simulator. u_sobol_matrix (N, >= k_atmo [+ 4]): columns 0 .. k_atmo-1 drive the leading atmosphere modes; if the matrix has 4 more columns they are the
         1-cos gust (altitude, wavelength, direction, magnitude). -> dict with the coarse batch (u, v, T, RH, p, rho, a ... on the 44 heights), `fine` (Dryden fields on dz_fine_m) and
-        `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes=True switches on the Gemini-review fixes IL-130/IL-135 (exact N^2, no
-        boundary-layer leak above the layer, resolved w added, layer depth from the profile, gust peak from the sample's own gust law); off (default) = the previous output.
-        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block); exact_ar (S1) uses the exact AR(2) transverse filter. Both off by default."""
+        `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes (IL-130; plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour)): exact N^2, no boundary-layer leak above the layer, resolved w added.
+        dryden_modelling (IL-135, OFF by default: a modelling choice, needs its own verdict): layer depth from the profile, gust peak from the sample's own gust law.
+        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default)."""
         from tempest_weather.flight import avionics, dryden
         u = np.asarray(u_sobol_matrix, float)
         batch = self.sample_sobol(u[:, :k_atmo], run_id=run_id)
         if include_dryden_turbulence:
             gust = tuple(u[:, k_atmo + i] for i in range(4)) if u.shape[1] >= k_atmo + 4 else None
             batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar,
-                                             **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True, h_pbl_from_profile=True,
-                                                     gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_fixes else {}))
+                                             **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True) if dryden_fixes else {}),
+                                             **(dict(h_pbl_from_profile=True, gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_modelling else {}))
         if include_avionics_bias:
             z_true = self.elev + np.concatenate([[0.0], batch["z"]])
             p = np.concatenate([batch["sp"][:, None], batch["p"]], 1)

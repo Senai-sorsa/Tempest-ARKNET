@@ -10,12 +10,13 @@ def _eng(**kw):
     return TempestFlightSimEngine(atm=synthetic_pool(n=2000), info={"elevation_m": 1300.0}, **kw)
 
 
-def test_il129_tail_extrapolation_off_by_default_and_monotone_when_on():
-    off, on = _eng(), _eng(tail_extrap=True)
+def test_il129_tail_extrapolation_on_by_default_and_old_clamp_reachable():
+    off, on = _eng(tail_extrap=False), _eng()
+    assert _eng().tail_extrap is True
     j = off.index[("wind_u", 10.0)]
     top = off._sorted[-1, j]
     far = top + 4 * off._sd[j]
-    assert off._cdf(j, far) == off._cdf(j, top)                       # default clamps, as before
+    assert off._cdf(j, far) == off._cdf(j, top)                       # tail_extrap=False clamps, as before
     assert on._cdf(j, far) > on._cdf(j, top) > on._cdf(j, top - 2 * on._sd[j])
     assert np.isclose(on._cdf(j, on._sorted[1000, j]), off._cdf(j, off._sorted[1000, j]))  # inside the pool: identical
     v = on._cdf(j, top + 1.0 * on._sd[j])
@@ -80,13 +81,17 @@ def test_il135_pbl_height_and_gust_law_and_resolved_w():
     assert np.all(np.diff(peaks) > 0)                                            # higher quantile -> bigger gust, from the sample's own law
 
 
-def test_dryden_fixes_flag_in_the_batch_call_is_off_by_default():
+def test_dryden_fixes_on_by_default_legacy_reachable_modelling_off():
     eng = _eng()
     u = np.random.default_rng(4).random((4, 10))
+    legacy = dict(dryden_fixes=False, run_id=None, exact_ar=False)
     a = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0)
-    b = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, dryden_fixes=False)
-    assert np.array_equal(a["fine"]["u_total"], b["fine"]["u_total"])
-    c = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, dryden_fixes=True)
+    b = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False)
+    assert np.array_equal(a["fine"]["u_total"], b["fine"]["u_total"])                      # the defaults are the fixed settings
+    old1 = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, **legacy)
+    old2 = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, **legacy)
+    assert np.array_equal(old1["fine"]["u_total"], old2["fine"]["u_total"]) and not np.array_equal(old1["fine"]["u_total"], a["fine"]["u_total"])
+    c = eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=50.0, dryden_modelling=True)           # IL-135 stays an explicit choice
     assert np.isfinite(c["fine"]["w_total"]).all() and c["fine"]["u_total"].shape == a["fine"]["u_total"].shape
 
 
@@ -102,8 +107,8 @@ def test_il133_refresh_w_follows_the_reordered_rows():
     assert np.allclose(atm["w"], w[perm])                           # reordered rows get their own w back
     api._refresh_w({"w": None}, old, old)                           # no w: no-op
     import inspect
-    assert inspect.signature(api.atmosphere_sequence).parameters["fix_w"].default is False
-    assert inspect.signature(api.atmosphere_downrange).parameters["fix_w"].default is False
+    assert inspect.signature(api.atmosphere_sequence).parameters["fix_w"].default is True
+    assert inspect.signature(api.atmosphere_downrange).parameters["fix_w"].default is True
 
 
 def test_il140_pit_keep_order_flag_default_unchanged_and_ranks_kept():
@@ -130,9 +135,13 @@ def test_il139_cut_default_is_plain_slice_and_flag_permutes_inside_blocks():
     x = np.arange(groups * M, dtype=float)[:, None] * np.ones((1, 3))
     c = x.copy()
     rng = np.random.default_rng(0)
-    out, c_out = api._cut(x, groups, n, rng, c)
-    assert np.array_equal(out, x[:n]) and np.array_equal(c_out, c[:n])         # default: exactly x[:n]
-    api.OPTIONS["permute_blocks"] = True
+    assert api.OPTIONS["permute_blocks"] is True                                # ON by default since 2026-11-08
+    api.OPTIONS["permute_blocks"] = False
+    try:
+        out, c_out = api._cut(x, groups, n, rng, c)
+        assert np.array_equal(out, x[:n]) and np.array_equal(c_out, c[:n])     # False: exactly x[:n], as before
+    finally:
+        api.OPTIONS["permute_blocks"] = True
     try:
         out, c_out = api._cut(x, groups, n, np.random.default_rng(0), c)
         assert out.shape == (n, 3) and np.array_equal(out, c_out)                # companions follow the same rows
@@ -142,7 +151,7 @@ def test_il139_cut_default_is_plain_slice_and_flag_permutes_inside_blocks():
         full, = api._cut(x, groups, groups * M, np.random.default_rng(0))
         assert np.array_equal(full, x)                                           # whole blocks: nothing is permuted
     finally:
-        api.OPTIONS["permute_blocks"] = False
+        api.OPTIONS["permute_blocks"] = True
 
 
 def test_il137_shear_smoothing_in_metres_is_opt_in_and_matches_the_training_copy():
@@ -189,25 +198,25 @@ def test_il132_site_shift_modes_default_unchanged_and_const_keeps_the_lapse_in_t
     assert np.isfinite(p).all() and (p[:, 3 * nh:4 * nh] <= 100).all()
 
 
-def test_il131_pad_node_and_geopotential_are_opt_in():
+def test_il131_pad_node_and_geopotential_on_by_default_old_behaviour_reachable():
     from test_flight_sim_readers import _samples
     from tempest_weather.flight import avionics
     from tempest_weather.flight_sim_readers import TempestAtmosphere, TempestWind
     s = _samples(elev=1400.0)
     site = 1400.0
-    old, new = TempestAtmosphere(s, 2), TempestAtmosphere(s, 2, pad_node=True)
-    assert np.isclose(old.conditions(site).temperature, s["T"][2, 0])               # default: the 10 m value at the pad (as before)
+    old, new = TempestAtmosphere(s, 2, pad_node=False, geopotential=False), TempestAtmosphere(s, 2)
+    assert np.isclose(old.conditions(site).temperature, s["T"][2, 0])               # pad_node=False: the 10 m value at the pad (as before)
     c = new.conditions(site)
     assert np.isclose(c.temperature, s["t2m"][2]) and np.isclose(c.pressure, s["sp"][2], rtol=1e-6)
     assert np.isclose(new.conditions(float(s["height_asl"][5])).temperature, old.conditions(float(s["height_asl"][5])).temperature)
-    wv = TempestWind(s, 2, pad_node=True).velocity(site)
-    assert wv[0] == 0.0 and abs(wv[1]) <= abs(TempestWind(s, 2).velocity(site)[1]) + 1e-9
+    wv = TempestWind(s, 2).velocity(site)
+    assert wv[0] == 0.0 and abs(wv[1]) <= abs(TempestWind(s, 2, pad_node=False).velocity(site)[1]) + 1e-9
     new.anchor(1405.0)                                                              # the anchor check still uses the site elevation
     # geopotential tail: pressure at 40 km slightly different, still monotone and continuous
-    g = TempestAtmosphere(s, 2, geopotential=True)
+    g = TempestAtmosphere(s, 2)
     top = float(s["height_asl"][-1])
     assert abs(g.conditions(top + 50).temperature - g.conditions(top).temperature) < 1.0 and g.conditions(40000).pressure < g.conditions(top).pressure
-    assert g.conditions(40000).pressure != old.conditions(40000).pressure
+    assert g.conditions(40000).pressure != old.conditions(40000).pressure           # geopotential tail differs from the old geometric one
     p = np.array([101325.0, 50000.0, 7500.0])
     a = avionics.baro_altitude_msl(p)
     assert np.array_equal(a, avionics.baro_altitude_msl(p, geometric=False))
@@ -383,7 +392,8 @@ def test_f1_f2_run_id_noise_differs_between_runs_and_has_the_prefix_property():
     uu = np.random.default_rng(0).random((600, 4))
     a, b = e.sample_sobol(uu, run_id=1, block=100), e.sample_sobol(uu[:300], run_id=1, block=100)
     assert np.allclose(a["T"][:300], b["T"]) and not np.allclose(e.sample_sobol(uu[:300], run_id=2, block=100)["T"], b["T"])
-    assert np.array_equal(e.sample_sobol(uu)["T"], e.sample_sobol(uu, run_id=None)["T"])                                  # default unchanged
+    assert np.array_equal(e.sample_sobol(uu)["T"], e.sample_sobol(uu, run_id=0)["T"])                                      # run_id=0 is the default
+    assert not np.array_equal(e.sample_sobol(uu)["T"], e.sample_sobol(uu, run_id=None)["T"])                              # None = the old stream
 
 
 def test_f3_f6_c3_schema_conditioned_copy_and_output_checks():

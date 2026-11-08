@@ -31,7 +31,7 @@ def saturation_vapour_hpa(T):
     return 6.1121 * np.exp((18.678 - t / 234.5) * (t / (257.14 + t)))
 
 
-def compute(z_true_m, pressure_Pa, temp_K, rh_pct=None, geometric=False):
+def compute(z_true_m, pressure_Pa, temp_K, rh_pct=None, geometric=True):
     """Profiles (nz,) or (N, nz) from the first level up (the first level is the pad). -> dict: z_true_agl_m, z_baro_msl_m, z_baro_agl_m, altimeter_bias_m, refractivity_N, dN_dz_per_km,
     k_factor, radio_horizon_km."""
     z = np.asarray(z_true_m, float)

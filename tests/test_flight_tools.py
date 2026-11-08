@@ -51,9 +51,11 @@ def test_barometric_altimeter_bias_signs_and_isa_consistency():
     z = np.array([0.0, 500, 1000, 3000, 8000, 12000.0])
     isa_T = np.where(z < 11000, 288.15 - 0.0065 * z, 216.65)
     isa_p = np.where(z < 11000, 101325 * (isa_T / 288.15) ** 5.25588, 22632.06 * np.exp(-9.80665 * (z - 11000) / (287.05287 * 216.65)))
-    r = avionics.compute(z, isa_p, isa_T)
+    r = avionics.compute(z, isa_p, isa_T, geometric=False)                                 # z here is the ISA's own (geopotential) height
     assert np.abs(r["altimeter_bias_m"]).max() < 1.0                                       # a standard day has no bias
-    warm = avionics.compute(z, isa_p, isa_T + 15.0 * (z < 11000))                          # same pressures: only temperature differs, bias unchanged by temperature
+    z_geo = 6371000.0 * z / (6371000.0 - z)                                               # IL-131 (default): sample heights are geometric; the same standard day on geometric heights
+    assert np.abs(avionics.compute(z_geo, isa_p, isa_T)["altimeter_bias_m"]).max() < 1.0
+    warm = avionics.compute(z, isa_p, isa_T + 15.0 * (z < 11000), geometric=False)         # same pressures: only temperature differs, bias unchanged by temperature
     assert np.allclose(warm["z_baro_agl_m"], r["z_baro_agl_m"])
     # a real warm column: pressure at height z for a +15 K atmosphere is higher than ISA, so the altimeter reads low
     Tw = 303.15 - 0.0065 * z

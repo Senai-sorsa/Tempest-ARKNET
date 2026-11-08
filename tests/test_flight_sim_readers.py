@@ -35,7 +35,7 @@ def test_values_at_grid_heights_are_exact_and_between_them_consistent():
 
 def test_below_first_and_above_top_rules():
     s = _samples()
-    atm, wind = TempestAtmosphere(s, 0), TempestWind(s, 0)
+    atm, wind = TempestAtmosphere(s, 0, pad_node=False), TempestWind(s, 0, pad_node=False)      # pad_node=False = the original rule; IL-131 (default) adds a pad node with the surface state
     assert np.allclose(wind.velocity(1400.0), wind.velocity(float(s["height_asl"][0])))         # at the ground: the 10 m value
     top = float(s["height_asl"][-1])
     assert np.allclose(wind.velocity(top + 5000), wind.velocity(top))                            # held above the top

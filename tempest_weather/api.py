@@ -25,7 +25,7 @@ from tempest_weather.sources.indices import Indices
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))      # default only; the assets carry their own grid and the check in atmosphere_set uses it
 M_CAL = 199
-OPTIONS = {"permute_blocks": False}   # IL-139 (opt-in): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows
+OPTIONS = {"permute_blocks": True}   # IL-139 (plain bug, ON by default since 2026-11-08; False = old slicing): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows
 
 
 def _cut(x, groups, n, rng, *also):
@@ -391,7 +391,7 @@ def _refresh_w(atm, old_flat, new_flat, chunk=512):
     atm["w"] = np.asarray(atm["w"])[idx]
 
 
-def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, fix_w=False, **kw):
+def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6), n=1024, seed=0, assets=None, rho=None, fix_w=True, **kw):
     """Group C1: the same n atmospheres over several hours as ONE coherent sequence. `offsets` are hours relative to `when`; every hour is sampled by `atmosphere_set` (so each hour keeps its own
     calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
     -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (manifest solar_hours, 06-21 solar for older assets) raise like a normal query.
@@ -441,7 +441,7 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     return [a for a, _ in sets], [i for _, i in sets]
 
 
-def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 20, 30, 40, 50, 60), n=1024, seed=0, assets=None, fix_w=False, **kw):
+def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 20, 30, 40, 50, 60), n=1024, seed=0, assets=None, fix_w=True, **kw):
     """Group C2: the same n atmospheres at several points along a line from (lat, lon) in direction `bearing_deg` (0 = north, 90 = east), `distances_km` away, as ONE coherent set (sample j is the same
     weather system at every point). Each point is sampled by `atmosphere_set` (own bilinear blend and site elevation), then tied with a Gaussian copula in distance (lag table of ERA5 anomalies by
     distance and season, with the nugget kappa of the time table: ERA5 is smoother than the real atmosphere). Every point must lie inside the trained box.
