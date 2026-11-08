@@ -10,7 +10,7 @@ __version__ = "2.0.0.dev0"
 
 
 def __getattr__(name):                      # lazy: importing the package must stay cheap and must not need the model assets
-    if name in ("Launch", "Window", "AtmosphereSet"):
+    if name in ("Launch", "Window", "AtmosphereSet", "Launches"):
         from tempest_weather_v2 import launch
         return getattr(launch, name)
     raise AttributeError(f"module 'tempest_weather_v2' has no attribute {name!r}")

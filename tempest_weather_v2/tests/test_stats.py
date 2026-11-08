@@ -89,3 +89,13 @@ def test_adjust_flags_spec_and_method_validation():
     assert sp["method"] == "t_copula" and "nu" in sp and len(sp["eigenvalues"]) == 3 and len(sp["marginals"]["a"]["quantiles"]) == len(x)
     with pytest.raises(ValueError, match="method must be one of"):
         S.Coupled(x, ["a", "b", "c"], "vine")
+
+
+def test_auto_k_picks_the_fewest_modes_for_95_percent():
+    rng = np.random.default_rng(0)
+    base = rng.normal(size=(2000, 1))
+    data = np.hstack([base + 0.05 * rng.normal(size=(2000, 1)) for _ in range(6)])        # six near-identical columns: one mode explains nearly everything
+    c = S.Coupled(data, list("abcdef"), method="t_copula", k="auto")
+    assert c.k == 1
+    free = S.Coupled(rng.normal(size=(2000, 6)), list("abcdef"), method="t_copula", k="auto")      # independent columns need almost all modes
+    assert free.k >= 5

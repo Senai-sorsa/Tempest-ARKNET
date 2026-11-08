@@ -184,3 +184,13 @@ def test_observe_accepts_pad_pressure_and_altimeter_setting(launch):
     with pytest.raises(ValueError, match="not both"):
         launch.observe(station_pressure="25 inHg", altimeter="29.9 inHg")
     assert "conditioned on 1 measurements" in cond.trust
+
+
+def test_launches_many_times_at_once():
+    from tempest_weather_v2 import Launches
+    runs = Launches.over_times("spaceport_america", times=["2027-06-16 08:00", "2027-06-16 12:00"], mode="ai", n=64, units="si")
+    assert len(runs) == 2 and len(runs.weather()) == 2
+    t = runs.table("wind_speed")
+    assert t.shape == (2, 3) and (t[:, 1] <= t[:, 0]).all() and (t[:, 0] <= t[:, 2]).all()
+    with pytest.raises(ValueError):
+        Launches([])

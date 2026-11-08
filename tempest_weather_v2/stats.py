@@ -166,7 +166,7 @@ class Coupled:
             self._z = norm_ppf((ranks + 0.5) / n)
             c = np.corrcoef(self._z, rowvar=False) if D > 1 else np.ones((1, 1))
             self.corr = self._fix(np.nan_to_num(c))
-            self.k = k or max(1, min(D, 6))
+            self.k = self._auto_k(self.corr) if k == "auto" else (k or max(1, min(D, 6)))
             self.corr_lr = self._low_rank(self.corr, self.k) if method == "t_copula" else self.corr
             if method == "t_copula":
                 self.nu = self._fit_nu(ranks)
@@ -181,6 +181,12 @@ class Coupled:
         c = (v * np.maximum(w, 1e-8)) @ v.T
         d = np.sqrt(np.diag(c))
         return c / np.outer(d, d)
+
+    @staticmethod
+    def _auto_k(c, share=0.95):
+        """k="auto": the fewest eigenmodes of the correlation matrix that explain `share` of its total variance (at least 1)."""
+        w = np.sort(np.linalg.eigvalsh(c))[::-1]
+        return int(min(len(w), max(1, np.searchsorted(np.cumsum(w) / w.sum(), share - 1e-12) + 1)))
 
     @staticmethod
     def _low_rank(c, k):

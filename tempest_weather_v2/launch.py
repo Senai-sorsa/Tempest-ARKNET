@@ -27,7 +27,7 @@ from tempest_weather_v2.results import Weather
 from tempest_weather_v2.sites import get_site, guess_tz
 from tempest_weather_v2.timeutil import Window, WindowError
 
-__all__ = ["Launch", "AtmosphereSet", "Window"]
+__all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
 FORMAT_VERSION = 1
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")
@@ -562,3 +562,39 @@ class Launch:
     def __repr__(self):
         site = self._site.name if self._site else f"{self.lat:.4f},{self.lon:.4f}"
         return f"Launch({site!r}, {self.window!r}, units={self.units!r}, seed={self.seed})"
+
+
+class Launches:
+    """T1/T2: many launches asked at once (a list of `Launch`, or one place over several times). Each member keeps its own cached pool; the loop only saves you writing it.
+
+        runs = Launches.over_times("spaceport_america", ["2027-06-16 08:00", "2027-06-16 10:00"], n=512)
+        runs.weather()                       # list of Weather, one per launch
+        runs.table("wind_speed")             # (median, p10, p90) per launch
+    """
+
+    def __init__(self, launches):
+        self.launches = list(launches)
+        if not self.launches:
+            raise ValueError("Launches needs at least one Launch")
+
+    @classmethod
+    def over_times(cls, *place, times, **kw):
+        return cls(Launch(*place, t, **kw) for t in times)
+
+    def __len__(self):
+        return len(self.launches)
+
+    def __getitem__(self, i):
+        return self.launches[i]
+
+    def weather(self, **kw):
+        return [L.weather(**kw) for L in self.launches]
+
+    def table(self, variable):
+        """(len, 3) array of the median, 10th and 90th percentile of one variable (derived SI-style units, as couple() uses) per launch."""
+        key = names.resolve_name(variable)
+        out = []
+        for L in self.launches:
+            x = L._derive(L._ensure_pool()["samples"])[key]
+            out.append(np.nanpercentile(x, [50, 10, 90]))
+        return np.array(out)
