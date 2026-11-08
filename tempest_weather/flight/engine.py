@@ -10,6 +10,8 @@ conditional median profile. `condition_on_observations` is the closed-form Gauss
 moves with the learned vertical cross-correlations and its remaining uncertainty shrinks. `observe_by_weights` is the alternative that keeps the non-Gaussian structure of the pool
 (importance weights and resampling).
 """
+import copy
+
 import numpy as np
 
 from tempest_weather import _core
@@ -137,10 +139,24 @@ class TempestFlightSimEngine:
     def clear_observations(self):
         self._post = None
 
+    def conditioned(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None):
+        """F6: a NEW engine conditioned on obs; this one is left untouched (condition_on_observations mutates self._post, a hazard when one engine is shared between runs)."""
+        new = copy.copy(self)
+        new.__dict__ = dict(self.__dict__)
+        new._post = None
+        return new.condition_on_observations(obs, sensor_sigma, inflate, inflate_decay_m)
+
+    def _blocked_normals(self, stream, run_id, n, d, block=256):
+        """F1/F2: (n, d) standard normals where every block of `block` rows has its own generator keyed on (seed, stream, run_id, block index): a run of n rows starts with exactly the rows of a
+        shorter run, and a different run_id gives different noise."""
+        parts = [np.random.default_rng(np.random.SeedSequence([int(self.seed), int(stream), int(run_id), b0 // block])).standard_normal((min(block, n - b0), d)) for b0 in range(0, n, block)]
+        return np.concatenate(parts) if parts else np.empty((0, d))
+
     # ---- module 1
-    def sample_sobol(self, u_matrix=None, exact_residual=True):
+    def sample_sobol(self, u_matrix=None, exact_residual=True, run_id=None, block=256):
         """u_matrix (N, k) uniforms in (0, 1) from the simulator, or None for the conditional median profile (N = 1). -> dict of arrays (N, ...) like `atmosphere_set` (+ z, p, rho, a).
-        The k leading eigenmodes are driven by the columns of u_matrix; the remaining modes use a seeded pseudo-random draw (exact_residual=True) or are left out (False)."""
+        The k leading eigenmodes are driven by the columns of u_matrix; the remaining modes use a seeded pseudo-random draw (exact_residual=True) or are left out (False). run_id (opt-in, F1/F2): key that
+        draw on (seed, run_id, row block) instead of the fixed seed + 31, so runs differ and the first rows do not depend on N."""
         rng = np.random.default_rng(self.seed + 31)
         P = len(self.names)
         if self._post is None:
@@ -158,7 +174,8 @@ class TempestFlightSimEngine:
             load = vecs * np.sqrt(vals)[None, :]
             y = mu[None, :] + norm_ppf(u[:, :k]) @ load[:, :k].T
             if exact_residual and k < D:
-                y = y + rng.standard_normal((N, D - k)) @ load[:, k:].T
+                noise = rng.standard_normal((N, D - k)) if run_id is None else self._blocked_normals(31, run_id, N, D - k, block)
+                y = y + noise @ load[:, k:].T
         x = np.empty((y.shape[0], P))
         for jj, j in enumerate(cols):
             x[:, j] = self._ppf(j, norm_cdf(y[:, jj]))
@@ -166,10 +183,10 @@ class TempestFlightSimEngine:
             x[:, fixed[0]] = fixed[1][None, :]
         return self._finish(x, self._nearest(x))
 
-    def observe_by_weights(self, obs, sensor_sigma, n_out=1000):
+    def observe_by_weights(self, obs, sensor_sigma, n_out=1000, run_id=None):
         """The pool-based alternative: weight every pool atmosphere by the Gaussian likelihood of the observations (sensor_sigma in physical units, one number or {variable: sigma}) and
         resample n_out with replacement. -> (batch, effective sample size). Keeps the non-Gaussian structure but needs a large pool and soft sensors: with hard pins the weights collapse."""
-        rng = np.random.default_rng(self.seed + 47)
+        rng = np.random.default_rng(self.seed + 47) if run_id is None else np.random.default_rng(np.random.SeedSequence([int(self.seed), 47, int(run_id)]))
         ll = np.zeros(len(self.pool))
         for (var, h), val in obs.items():
             j = self.index[(var, float(h))]
@@ -202,18 +219,51 @@ class TempestFlightSimEngine:
                     out[k] = np.asarray(self.atm[k])[rows]
         return out
 
+    def to_samples(self, batch):
+        """F3: a batch from sample_sobol / sample_sobol_batch -> the flat sample schema the flight-sim readers expect (adds height_agl and height_asl, drops the nested fine / avionics dicts)."""
+        out = {k: v for k, v in batch.items() if not isinstance(v, dict)}
+        z = np.asarray(batch["z"], float)
+        out["height_agl"] = z.astype(np.float32)
+        out["height_asl"] = (self.elev + z).astype(np.float32)
+        out["elevation_m"] = np.float32(self.elev)
+        return out
+
+    @staticmethod
+    def check_outputs(batch, max_wind=150.0):
+        """C3: -> list of problems (empty = ok): NaN/inf, RH outside 0-100, T outside 150-340 K, p <= 0 or not decreasing with height, rho or a <= 0, wind above max_wind."""
+        bad = []
+        for k, v in batch.items():
+            if isinstance(v, np.ndarray) and v.dtype.kind == "f" and not np.isfinite(v).all():
+                bad.append(f"{k}: NaN or inf")
+        if not ((batch["RH"] >= 0).all() and (batch["RH"] <= 100).all()):
+            bad.append("RH outside 0-100")
+        if not ((batch["T"] > 150).all() and (batch["T"] < 340).all()):
+            bad.append("T outside 150-340 K")
+        if not (batch["p"] > 0).all():
+            bad.append("p <= 0")
+        if not (np.diff(batch["p"], axis=1) <= 0).all():
+            bad.append("p not decreasing with height")
+        if not (batch["rho"] > 0).all():
+            bad.append("rho <= 0")
+        if not (batch["a"] > 0).all():
+            bad.append("a <= 0")
+        if not (np.hypot(batch["u"], batch["v"]) < max_wind).all():
+            bad.append(f"wind above {max_wind} m/s")
+        return bad
+
     # ---- the one-call contract (blueprint section "Unified integration")
-    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=False):
+    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=False, run_id=None, exact_ar=False):
         """One vectorised call for a simulator. u_sobol_matrix (N, >= k_atmo [+ 4]): columns 0 .. k_atmo-1 drive the leading atmosphere modes; if the matrix has 4 more columns they are the
         1-cos gust (altitude, wavelength, direction, magnitude). -> dict with the coarse batch (u, v, T, RH, p, rho, a ... on the 44 heights), `fine` (Dryden fields on dz_fine_m) and
         `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes=True switches on the Gemini-review fixes IL-130/IL-135 (exact N^2, no
-        boundary-layer leak above the layer, resolved w added, layer depth from the profile, gust peak from the sample's own gust law); off (default) = the previous output."""
+        boundary-layer leak above the layer, resolved w added, layer depth from the profile, gust peak from the sample's own gust law); off (default) = the previous output.
+        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block); exact_ar (S1) uses the exact AR(2) transverse filter. Both off by default."""
         from tempest_weather.flight import avionics, dryden
         u = np.asarray(u_sobol_matrix, float)
-        batch = self.sample_sobol(u[:, :k_atmo])
+        batch = self.sample_sobol(u[:, :k_atmo], run_id=run_id)
         if include_dryden_turbulence:
             gust = tuple(u[:, k_atmo + i] for i in range(4)) if u.shape[1] >= k_atmo + 4 else None
-            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m,
+            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar,
                                              **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True, h_pbl_from_profile=True,
                                                      gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_fixes else {}))
         if include_avionics_bias:

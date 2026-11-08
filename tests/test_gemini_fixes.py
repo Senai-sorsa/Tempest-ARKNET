@@ -330,3 +330,73 @@ def test_il110_tail_support_counts_and_block_bootstrap_interval():
     _, l_b, h_b = diag.block_bootstrap_ci(v2, day, np.mean, n_boot=200)
     _, l_i, h_i = diag.block_bootstrap_ci(v2, np.arange(500), np.mean, n_boot=200)
     assert (h_b - l_b) > (h_i - l_i)
+
+
+def test_il117_below_ground_levels_never_reach_the_profile():
+    """The ARCO and CDS humidities differ by 12-19 %RH under the terrain; profiles_from_levels must ignore every level at or below the surface, whatever its source."""
+    from tempest.profiles.to_heights import HEIGHTS, profiles_from_levels
+    g = 9.80665
+    zl = np.array([[[500.0, 2000.0, 3000.0, 5000.0, 8000.0]]]) * g        # (point, time, level): the first level is under a 1500 m surface
+    zs = np.full((1, 1), 1500.0 * g)
+    ones = np.ones((1, 1))
+    t = np.array([[[290.0, 280.0, 270.0, 260.0, 250.0]]])
+    u = np.array([[[1.0, 2.0, 3.0, 4.0, 5.0]]])
+
+    def run(r_under):
+        r = np.array([[[r_under, 60.0, 55.0, 50.0, 40.0]]])
+        return profiles_from_levels(zl, u, u, t, r, zs, 2 * ones, 2 * ones, 3 * ones, 3 * ones, 285 * ones, 280 * ones)[0]
+    a, b = run(10.0), run(95.0)
+    for k in ("u", "v", "T", "RH"):
+        assert np.allclose(a[k], b[k], equal_nan=True), k
+
+
+def test_s1_exact_ar_keeps_the_dryden_variance_and_correlation():
+    from tempest_weather.flight import dryden
+    z = np.array([10., 50, 100, 300, 600, 1000, 2000])
+    N = 3000
+    T = np.tile(288 - 0.0065 * z, (N, 1))
+    u = np.tile(np.linspace(3, 9, len(z)), (N, 1))
+    v = np.zeros_like(u)
+    o = dryden.synthesize(z, u, v, T, dz=20.0, seed=1, exact_ar=True)
+    ratio = o["u_turb"].std(0) / o["sigma_u"].mean(0)
+    assert np.abs(ratio - 1).max() < 0.08
+    L, d, i = o["L_u"][0, 50], 20.0, 50
+    c = np.corrcoef(o["u_turb"][:, i], o["u_turb"][:, i + 1])[0, 1]
+    assert abs(c - (1 - d / (2 * L)) * np.exp(-d / L)) < 0.03
+    base = dryden.synthesize(z, u[:4], v[:4], T[:4], dz=20.0, seed=1)
+    same = dryden.synthesize(z, u[:4], v[:4], T[:4], dz=20.0, seed=1, exact_ar=False, run_id=None)
+    assert np.array_equal(base["u_turb"], same["u_turb"])                      # defaults unchanged
+
+
+def test_f1_f2_run_id_noise_differs_between_runs_and_has_the_prefix_property():
+    from tempest_weather.flight import dryden
+    z = np.array([10., 50, 100, 300, 600.0])
+    mk = lambda n: (np.tile(288 - 0.0065 * z, (n, 1)), np.tile(np.linspace(3, 6, len(z)), (n, 1)), np.zeros((n, len(z))))
+    T2, u2, v2 = mk(600)
+    T1, u1, v1 = mk(300)
+    big = dryden.synthesize(z, u2, v2, T2, dz=50.0, seed=3, run_id=7, block=100)
+    small = dryden.synthesize(z, u1, v1, T1, dz=50.0, seed=3, run_id=7, block=100)
+    assert np.array_equal(big["w_turb"][:300], small["w_turb"]) and np.array_equal(big["u_turb"][:300], small["u_turb"])   # n=600 starts with the n=300 rows
+    other = dryden.synthesize(z, u1, v1, T1, dz=50.0, seed=3, run_id=8, block=100)
+    assert not np.array_equal(other["w_turb"], small["w_turb"])
+    e = _eng()
+    uu = np.random.default_rng(0).random((600, 4))
+    a, b = e.sample_sobol(uu, run_id=1, block=100), e.sample_sobol(uu[:300], run_id=1, block=100)
+    assert np.allclose(a["T"][:300], b["T"]) and not np.allclose(e.sample_sobol(uu[:300], run_id=2, block=100)["T"], b["T"])
+    assert np.array_equal(e.sample_sobol(uu)["T"], e.sample_sobol(uu, run_id=None)["T"])                                  # default unchanged
+
+
+def test_f3_f6_c3_schema_conditioned_copy_and_output_checks():
+    from tempest_weather.flight_sim_readers import TempestAtmosphere, TempestWind
+    e = _eng()
+    b = e.sample_sobol(np.random.default_rng(1).random((5, 6)))
+    s = e.to_samples(b)
+    assert "height_asl" in s and "height_agl" in s and np.isclose(s["height_asl"][0] - s["height_agl"][0], 1300.0)
+    TempestWind(s, 2)
+    TempestAtmosphere(s, 2).conditions(1500.0)                                          # the readers accept the tool's own output
+    assert e.check_outputs(b) == []
+    bad = dict(b, RH=b["RH"] + 200)
+    assert any("RH" in p for p in e.check_outputs(bad))
+    c = e.conditioned({("wind_u", 10.0): 7.0})
+    assert e._post is None and c._post is not None and c is not e                      # the original engine is untouched
+    assert np.allclose(c.sample_sobol(np.random.default_rng(1).random((3, 6)))["u"][:, 0], 7.0)

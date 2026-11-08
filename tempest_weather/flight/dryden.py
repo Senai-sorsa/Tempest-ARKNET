@@ -60,6 +60,23 @@ def envelopes(z, u, v, T, z0=0.03, h_pbl=1200.0, ell_cat=20.0, exact_n2=False, b
     return dict(sigma_u=sigma_u, sigma_w=sigma_w, L_u=np.broadcast_to(L_u, sigma_u.shape), L_w=np.broadcast_to(L_w, sigma_u.shape), ri=ri)
 
 
+def _ar2_step(x1, x2, tau, dz, e1, e2):
+    """Exact one-step transition of the critically damped Dryden filter x1'' + 2 x1' / tau + x1 / tau^2 = n / tau^2 over dz (S1): [x1, x2] -> Phi [x1, x2] + chol(Q) e, with
+    Phi = exp(-dz / tau) [[1 + dz / tau, dz], [-dz / tau^2, 1 - dz / tau]] and Q = P - Phi P Phi^T, P = diag(1 / (4 tau), 1 / (4 tau^3)) the stationary covariance (so the state stays
+    stationary for any dz, however coarse). All arrays (N,)."""
+    a = dz / tau
+    ex = np.exp(-a)
+    p1, p2 = 1.0 / (4.0 * tau), 1.0 / (4.0 * tau ** 3)
+    f11, f12, f21, f22 = ex * (1 + a), ex * dz, -ex * dz / tau ** 2, ex * (1 - a)
+    q11 = p1 - (f11 ** 2 * p1 + f12 ** 2 * p2)
+    q12 = -(f11 * f21 * p1 + f12 * f22 * p2)
+    q22 = p2 - (f21 ** 2 * p1 + f22 ** 2 * p2)
+    l11 = np.sqrt(np.maximum(q11, 1e-300))
+    l21 = q12 / l11
+    l22 = np.sqrt(np.maximum(q22 - l21 ** 2, 0.0))
+    return f11 * x1 + f12 * x2 + l11 * e1, f21 * x1 + f22 * x2 + l21 * e1 + l22 * e2
+
+
 def one_minus_cos(z, z_start, half_len, peak):
     """Discrete gust shape (m/s): peak / 2 * (1 - cos(pi (z - z_start) / half_len)) from z_start to z_start + 2 half_len, zero elsewhere."""
     inside = (z >= z_start) & (z <= z_start + 2.0 * half_len)
@@ -67,15 +84,27 @@ def one_minus_cos(z, z_start, half_len, peak):
 
 
 def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200.0, ell_cat=20.0, nsub=8, z_top=None, w=None, exact_n2=False, bl_floor0=False,
-               h_pbl_from_profile=False, gust_params=None):
+               h_pbl_from_profile=False, gust_params=None, run_id=None, block=256, exact_ar=False, _rng=None):
     """Fine-grid fields for N profiles. z_coarse (nz,) heights above ground, u, v, T (N, nz). gust: None or (u_alt, u_len, u_dir, u_mag) uniforms in (0, 1) (scalars or (N,) arrays) for the
     1-cos gust: start altitude over 0 .. 12 km, half-wavelength 15 .. 150 m, direction 0 .. 2 pi, peak 3 .. 15 m/s. -> dict: z, u_total, v_total, w_total (N, nzf), u_turb, v_turb, w_turb,
     gust_u, gust_v, sigma_u, sigma_w.
     Opt-in fixes (all off = the old behaviour): w (N, nz) resolved vertical wind added to w_total (IL-130); exact_n2, bl_floor0 (see `envelopes`); h_pbl_from_profile estimates the layer depth
-    per profile (IL-135); gust_params = (gust_mu, gust_beta) arrays (N,) draw the 1-cos peak from the sample's own gust law (Gumbel-type, mean mu, scale beta) instead of uniform 3-15 m/s (IL-135)."""
+    per profile (IL-135); run_id (F1/F2, opt-in) keys the noise on (seed, run_id, row block) so different runs get different noise and a run of N rows starts with exactly the rows of a run of fewer (the old
+    seed + 0 stream repeated the same noise in every batch and changed with N); block = rows per noise block; exact_ar (S1, opt-in) steps the transverse Dryden filter with its exact discrete
+    transition and noise covariance (one step per dz, stationary start, no burn-in, no Euler sub-steps); gust_params = (gust_mu, gust_beta) arrays (N,) draw the 1-cos peak from the sample's own gust law (Gumbel-type, mean mu, scale beta) instead of uniform 3-15 m/s (IL-135)."""
     z_coarse = np.asarray(z_coarse, float)
     u, v, T = (np.atleast_2d(np.asarray(a, float)) for a in (u, v, T))
     N = len(u)
+    if run_id is not None and _rng is None and N > block:                       # F2: whole row blocks, each with its own seed, so the first rows do not depend on N
+        parts = []
+        for b0 in range(0, N, block):
+            sl = slice(b0, b0 + block)
+            sub = lambda a: np.asarray(a, float)[sl] if np.ndim(a) else a
+            g = None if gust is None else tuple(sub(x) for x in gust)
+            gp = None if gust_params is None else tuple(sub(x) for x in gust_params)
+            parts.append(synthesize(z_coarse, u[sl], v[sl], T[sl], dz, seed, g, z0, sub(h_pbl) if np.ndim(h_pbl) else h_pbl, ell_cat, nsub, z_top, None if w is None else np.asarray(w, float)[sl],
+                                    exact_n2, bl_floor0, h_pbl_from_profile, gp, run_id, block, exact_ar, np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), b0 // block]))))
+        return {k: (parts[0][k] if k == "z" else np.concatenate([p[k] for p in parts])) for k in parts[0]}
     z_top = z_top or z_coarse[-1]
     zf = np.arange(z_coarse[0], z_top + dz, dz)
     interp = lambda a: np.stack([np.interp(zf, z_coarse, r) for r in a])
@@ -83,7 +112,7 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
     if h_pbl_from_profile:
         h_pbl = pbl_height(zf, Tf)
     env = envelopes(zf, uf, vf, Tf, z0, h_pbl, ell_cat, exact_n2=exact_n2, bl_floor0=bl_floor0)
-    rng = np.random.default_rng(seed)
+    rng = _rng if _rng is not None else (np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), 0])) if run_id is not None else np.random.default_rng(seed))
     nz = len(zf)
     ug, vg, wg = np.zeros((N, nz)), np.zeros((N, nz)), np.zeros((N, nz))
     # along-path component (w): exact first-order recurrence
@@ -97,6 +126,17 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
     for out, key in ((ug, 0), (vg, 1)):
         x1, x2 = np.zeros(N), np.zeros(N)
         tau0 = env["L_u"][:, 0]
+        if exact_ar:                                                          # S1: stationary start, exact transition per dz (no burn-in, no sub-steps)
+            x1, x2 = rng.standard_normal(N) / np.sqrt(4.0 * tau0), rng.standard_normal(N) / np.sqrt(4.0 * tau0 ** 3)
+            tau_prev = tau0
+            for i in range(nz):
+                tau = env["L_u"][:, i]
+                r = tau_prev / tau
+                x1, x2 = x1 * np.sqrt(r), x2 * r ** 1.5
+                tau_prev = tau
+                x1, x2 = _ar2_step(x1, x2, tau, dz, rng.standard_normal(N), rng.standard_normal(N))
+                out[:, i] = env["sigma_u"][:, i] * np.sqrt(tau) * (x1 + np.sqrt(3.0) * tau * x2)
+            continue
         for _ in range(int(min(60.0 * tau0.max(), 4000.0) / h)):          # burn-in so the state starts stationary
             x2 += h * (-x1 / tau0 ** 2 - 2 * x2 / tau0) + np.sqrt(h) * rng.standard_normal(N) / tau0 ** 2
             x1 += h * x2
