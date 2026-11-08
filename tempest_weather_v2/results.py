@@ -90,11 +90,11 @@ class Weather:
     def to_openrocket(self, wind_std_ms=None):
         """OpenRocket Launch Conditions tab: pad elevation, average wind speed and its standard deviation (turbulence), wind direction FROM, temperature and STATION pressure in mbar."""
         g = lambda k: names.to_units(k, self._v[k], "si")
-        sd = wind_std_ms if wind_std_ms is not None else self._v.get("wind_10m_std")
+        sd = wind_std_ms if wind_std_ms is not None else self._v.get("wind_10m_std")      # estimated from the gust model: (gust - mean) / 3
         lines = ["OpenRocket launch conditions", f"  Launch altitude (m):               {g('elevation'):.1f}", f"  Average wind speed (m/s):          {g('wind_10m') if 'wind_10m' in self._v else g('wind_speed'):.1f}"]
         if sd is not None and (self._v.get('wind_10m') or self._v.get('wind_speed')):
             spd = self._v.get('wind_10m', self._v.get('wind_speed'))
-            lines.append(f"  Wind standard deviation (m/s):     {sd:.2f}   (turbulence intensity {100 * sd / max(spd, 1e-6):.0f} %)")
+            lines.append(f"  Wind standard deviation (m/s):     {sd:.2f}   (turbulence intensity {100 * sd / max(spd, 1e-6):.0f} %, estimated from the gust model)")
         lines += [f"  Wind direction (deg, from):        {self._v.get('wind_10m_from_deg', self._v['wind_from_deg']):.0f}", f"  Temperature (C):                   {g('temperature'):.1f}",
                   f"  Station pressure (mbar):           {g('station_pressure'):.1f}"]
         return "\n".join(lines)

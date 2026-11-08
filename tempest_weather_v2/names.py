@@ -114,7 +114,7 @@ def unit_label(name, units="us"):
 
 def format_value(name, value_si, units="us"):
     v = to_units(name, value_si, units)
-    digits = {"pressure": 2 if units == "us" else 1, "density": 5 if units == "us" else 3, "ratio": 3, "shear": 4 if units == "si" else 2}.get(VARIABLES[name][1], 1)
+    digits = {"pressure": 2 if units == "us" else 1, "density": 5 if units == "us" else 3, "ratio": 3, "shear": 4 if units == "si" else 2, "length_m": 3}.get(VARIABLES[name][1], 1)
     if name.endswith("_deg"):
         digits = 0
     return f"{v:.{digits}f}"

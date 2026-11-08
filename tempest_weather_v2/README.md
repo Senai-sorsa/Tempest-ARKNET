@@ -16,3 +16,4 @@ Rules: stdlib + numpy only; every module has tests in `tests/`; run them with `P
 | `sites.py` + `data/sites.toml` registry, user sites, tz guess, declination | 0.1, I-5 | done, tested |
 | `results.py` `Weather` (table, attributes in chosen units, RASAero / OpenRocket exports) | I-2, 1.5 | done |
 | `stats.py` best-fit distributions + tail check; `Coupled` (whole_sample, gaussian_copula, t_copula with exact conditional Student-t) | 2, 3 | done, tested |
+| `launch.py` `Launch` (immutable, lazy cached pool; `weather()` incl. percentiles / RAS profiles, `distribution()`, `couple()`, `atmospheres()`, `engine()`, `observe()`, `save()` / `load()`, trust line, provenance) | 1, 2, 3, 4, 5, I-1, I-4, I-7, I-8 | done, tested on the real NM/TX assets (11 tests); `sounding="auto"` waits for R2 |
