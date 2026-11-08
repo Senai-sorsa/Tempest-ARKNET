@@ -25,6 +25,16 @@ from tempest_weather.sources.indices import Indices
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))      # default only; the assets carry their own grid and the check in atmosphere_set uses it
 M_CAL = 199
+OPTIONS = {"permute_blocks": False}   # IL-139 (opt-in): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows
+
+
+def _cut(x, groups, n, rng, *also):
+    """(groups * M_CAL, D) rows -> first n rows. With OPTIONS['permute_blocks'] and a partial last block, the members of every block are permuted first (the same permutation for the arrays in `also`,
+    which share the row order); otherwise exactly x[:n] as before. -> x_cut, *also_cut."""
+    if OPTIONS["permute_blocks"] and groups * M_CAL > n:
+        perm = (np.argsort(rng.random((groups, M_CAL)), axis=1) + (np.arange(groups) * M_CAL)[:, None]).reshape(-1)
+        x, also = x[perm], tuple(a[perm] if a is not None and len(a) == len(perm) else a for a in also)
+    return (x[:n],) + tuple(a[:n] if a is not None else None for a in also)
 _ASSETS = {}
 
 
@@ -182,7 +192,7 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
     x = era[None, None, :] + res
     i = 3 * _core.NH
     x[..., i:i + _core.NH] = np.clip(x[..., i:i + _core.NH], 0, 100)
-    x = _core.calibrate(A["modep_calib"], x, clip=False).reshape(groups * M_CAL, -1)[:n]
+    x = _cut(_core.calibrate(A["modep_calib"], x, clip=False).reshape(groups * M_CAL, -1), groups, n, rng)[0]
     nh = _core.NH
     sta = A.get("sta")
     if sta is not None:                                            # F-11: where the station correction beat the network on 2021-23 (RH 12-18 km), serve it: a + b ERA5 + a leftover profile of the same group and moisture class
@@ -240,7 +250,7 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     x = _core.calibrate(A["modef_calib"], x, clip=False)
     tpl = A["modef_tpl"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]          # real forecast-error profiles of the nearest tested lead
     ranks = np.argsort(np.argsort(tpl[rng.integers(0, len(tpl), (groups, M_CAL))], axis=1), axis=1)
-    x = np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1)[:n]
+    x = _cut(np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1), groups, n, rng)[0]
     x[:, i:i + nh] = np.clip(x[:, i:i + nh], 0, 100)
     if A.get("modef_ridge") is not None:                          # IL-80: half of the samples (per row, at random) from the per-lead ridge + its own residual pool: CRPS skill +0.005 / +0.005 / +0.007 / +0.015 at 1 / 3 / 5 / 7 d
         r = A["modef_ridge"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]
@@ -337,8 +347,8 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     if phys is None:
         phys = A["net"].profiles(cond, rng)
         if not predicted:
-            phys = _post_process(A, _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)), t_utc.timetuple().tm_yday, sh, row_pt[::M_CAL], g).reshape(total, -1)[:n]
-            cond = cond[:n]
+            phys, cond = _cut(_post_process(A, _core.calibrate(A["calib"], phys.reshape(groups, M_CAL, -1)), t_utc.timetuple().tm_yday, sh, row_pt[::M_CAL], g).reshape(total, -1),
+                              groups, n, rng, cond)
     nh = _core.NH
     w_site = None
     if A["head"] is not None:                                         # the vertical-wind head saw grid-elevation inputs: sample BEFORE the site shift

@@ -121,3 +121,25 @@ def test_il140_pit_keep_order_flag_default_unchanged_and_ranks_kept():
     from tempest.calibrate import pit_recal
     tab = {"ginv": ginv, "groups": groups}
     assert np.allclose(pit_recal.apply(tab, x, keep_order=True), b, atol=1e-5)
+
+
+def test_il139_cut_default_is_plain_slice_and_flag_permutes_inside_blocks():
+    from tempest_weather import api
+    M = api.M_CAL
+    groups, n = 2, M + 50
+    x = np.arange(groups * M, dtype=float)[:, None] * np.ones((1, 3))
+    c = x.copy()
+    rng = np.random.default_rng(0)
+    out, c_out = api._cut(x, groups, n, rng, c)
+    assert np.array_equal(out, x[:n]) and np.array_equal(c_out, c[:n])         # default: exactly x[:n]
+    api.OPTIONS["permute_blocks"] = True
+    try:
+        out, c_out = api._cut(x, groups, n, np.random.default_rng(0), c)
+        assert out.shape == (n, 3) and np.array_equal(out, c_out)                # companions follow the same rows
+        assert set(out[:M, 0]) == set(range(M))                                  # block 0 stays whole
+        last = out[M:, 0]
+        assert set(last) <= set(range(M, 2 * M)) and not np.array_equal(last, np.arange(M, M + 50))   # a random subset of block 1, not its first rows
+        full, = api._cut(x, groups, groups * M, np.random.default_rng(0))
+        assert np.array_equal(full, x)                                           # whole blocks: nothing is permuted
+    finally:
+        api.OPTIONS["permute_blocks"] = False
