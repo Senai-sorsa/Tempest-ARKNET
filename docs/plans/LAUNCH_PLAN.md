@@ -112,6 +112,8 @@ Builds on loop 3, without repeating it: studt was rejected for shape, and the L3
    - Check whether the balloon correction under-spreads it.
    - Fix whatever the table points to: a calibration fix first, a retrain only if needed.
 4. **Accept:** 99.9th-percentile shear within 5 % in all bands, and u 1-5 km skill vs Gaussian ≥ 0 on 2024-25 balloons.
+   - **Gate split (2026-11-07):** float vs int16 parity of the 99.9th shear within **1 %** (quantisation should cost almost nothing; same as the INT8 gate). Model vs ERA5 within 5 % per band. Model vs held-out balloons within 10 % (an extreme quantile has sampling noise, and ERA5 itself under-states balloon shear, so matching ERA5 alone is not enough).
+   - Tail ideas to try: IL-103 to IL-108 in `docs/logs/AUTOPILOT.md`.
 
 **Cost:** ~1 day. One GPU scoring pass.
 

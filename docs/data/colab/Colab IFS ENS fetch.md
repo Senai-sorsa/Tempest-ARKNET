@@ -65,7 +65,9 @@ Free Colab allows only a few sessions at once per Google account. If a second on
 ### Cell 1: install and mount Drive
 
 ```python
-!pip -q install gcsfs zarr xarray netCDF4 dask
+!pip -q install -U gcsfs "zarr>=3" xarray netCDF4 dask
+import zarr, xarray   # if this line fails, or cell 2 says "unrecognized engine 'zarr'": Runtime -> Restart session, then run cells 1-2 again
+print("zarr", zarr.__version__, "xarray", xarray.__version__)
 from google.colab import drive
 drive.mount('/content/drive')
 ```
@@ -204,6 +206,8 @@ def read_var(short, t, L):
         if np.isfinite(a.values).all():
             return a.astype("float32")
         time.sleep(10 * (k + 1))
+    if bool(ds[LONG[short]].sel(time=t, prediction_timedelta=L).isnull().all()):
+        return None                                     # the store itself is empty here (whole globe NaN): a real gap, leave it NaN
     raise RuntimeError(f"still NaN after 6 tries: {short}, start {t}, lead {L}. Send this to Claude")
 
 todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]
@@ -218,16 +222,29 @@ for (y, m) in todo:
             bad = x[v].isnull().any([d for d in x[v].dims if d not in ("time", "prediction_timedelta")])
             holes |= {(v, i, j) for i, j in zip(*np.nonzero(bad.transpose("time", "prediction_timedelta").values))}
     T_, L_ = old["pilot"].time.values, old["pilot"].prediction_timedelta.values
+    if L_.dtype.kind == "m":                            # old files decode leads as timedelta; match the store's lead type
+        L_ = lead_index((L_ / np.timedelta64(1, "h")).astype(int))
     jobs = sorted(holes)
     with ThreadPoolExecutor(WORKERS) as pool:
         got = list(pool.map(lambda h: read_var(h[0], T_[h[1]], L_[h[2]]), jobs))
+    gaps = [(v, str(T_[i])[:13], int(L_[j])) for (v, i, j), a in zip(jobs, got) if a is None]
+    if gaps:
+        print(f"{y}-{m:02d}: {len(gaps)} real store gaps left as NaN: {gaps}", flush=True)
+        with open(f"{OUT}/store_gaps.txt", "a") as g:
+            g.writelines(f"{v} {t} {L}
+" for v, t, L in gaps)
     for (v, i, j), a in zip(jobs, got):
+        if a is None:
+            continue
         for b, (la, lo) in BOXES.items():
             x = old[b]
             piece = a.sel(latitude=lat_slice(la), longitude=slice(*lo))
             x[v][dict(time=i, prediction_timedelta=j)] = piece.transpose(*[d for d in x[v].dims if d in piece.dims]).values
     for b, x in old.items():
-        left = [v for v in x.data_vars if x[v].isnull().any()]
+        gap = {(v, i, j) for (v, i, j), a in zip(jobs, got) if a is None}
+        left = [v for v in x.data_vars if any((v, i, j) not in gap for i, j in zip(*np.nonzero(
+                x[v].isnull().any([d for d in x[v].dims if d not in ("time", "prediction_timedelta")])
+                .transpose("time", "prediction_timedelta").values)))]
         assert not left, f"{y}-{m:02d} {b}: still NaN in {left}"
         p = f"{OUT}/{b}/{y}{m:02d}_00z.nc"
         x.to_netcdf(p + ".part")
@@ -254,7 +271,9 @@ for b, (la, lo) in BOXES.items():
               and x.sizes["latitude"] == round((la[1] - la[0]) / 0.25) + 1
               and x.sizes["longitude"] == round((lo[1] - lo[0]) / 0.25) + 1
               and bool((x.time.dt.hour == 0).all())
-              and all(bool(np.isfinite(x[v]).all()) for v in x.data_vars))
+              # NaN allowed only as a whole (variable, start, lead) field: that is a real store gap (store_gaps.txt)
+              and all(bool((x[v].isnull().all(e) | x[v].notnull().all(e)).all())
+                      for v in x.data_vars for e in [[d for d in x[v].dims if d not in ("time", "prediction_timedelta")]]))
         if not ok:
             bad += 1; print("BAD", f, dict(x.sizes))
         x.close()
@@ -269,7 +288,7 @@ Expected shapes: pilot (latitude 13, longitude 29), Denver (9, 9), level 3, 7 le
 ## Copy to this PC
 
 1. Wait for `ALL DONE` in every part, and for cell 4 to print `OK` with all files present.
-2. In Google Drive (web), right-click `tempest_wb2_ifs_ens` and choose **Download** (from each account if you used more than one).
+2. In Google Drive (web), right-click `tempest_wb2_ifs_ens_v2` and choose **Download** (from each account if you used more than one).
 3. Unzip into **new** folders:
    - `tempest_wb2_ifs_ens_v2/pilot/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens\`
    - `tempest_wb2_ifs_ens_v2/denver/*` → `C:\Users\Senai\Tempest-ARKNET\data\raw\wb2_ifs_ens_denver\`

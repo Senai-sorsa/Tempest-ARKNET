@@ -93,3 +93,6 @@ Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after ap
 - `data/raw/era5_em_denver` (1.3 GB, Denver 2016-23). `era5_em_denver_full` (1991-2025) supersedes it.
 - `data/raw/era5_em` (30 GB, the older 18-variable NM/TX store) vs `era5_em80` (32 GB): which one the current datasets are built from has to be checked before pruning.
 - New IGRA stations will be kept as converted profiles only (~9 MB per station), not as derived text files (~140 MB).
+
+## 13. Off-machine backup (added 2026-11-07, risk found in the audit)
+Git has 14 local commits that origin/main does not (your rule: never push), and `data/` and `models/` are never in git. `models/` is 6.7 GB (2015 files), `data/train` is 85 GB and `data/raw` is 115 GB on one disk, with no copy anywhere else (the Colab zips in Downloads are the only second copy of the global HRES, ARCO fill and refetch data). One disk failure loses the trained models and days of downloads. Options if you approve: (a) copy `models/` plus the small configs to an external drive or cloud folder after each phase, (b) push the commits to a private repo, (c) keep the Colab zips until the stores are verified. Nothing done.

@@ -53,7 +53,9 @@ Cell 2 prints the portion when you run it, so you can check it against this tabl
 ### Cell 1: install and mount Drive
 
 ```python
-!pip -q install gcsfs zarr xarray netCDF4 dask
+!pip -q install -U gcsfs "zarr>=3" xarray netCDF4 dask
+import zarr, xarray   # if this line fails, or cell 2 says "unrecognized engine 'zarr'": Runtime -> Restart session, then run cells 1-2 again
+print("zarr", zarr.__version__, "xarray", xarray.__version__)
 from google.colab import drive
 drive.mount('/content/drive')
 ```

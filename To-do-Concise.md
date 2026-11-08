@@ -1,7 +1,8 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
 ## You
-- **Colab, long-range history (IL-118):** the listing and the date range are already checked (no action; starts 2016-2022, leads 0-40 days, 10 levels 10-1000 hPa, 20 hindcast years). Path: `gs://weatherbench2/datasets/ifs_extended_range/weekly/ifs-ext-reforecast-pressure-levels-weekly_avg_ens_mean.zarr` (plus the forecast set `ifs-ext-pressure-levels-weekly_avg_ens_mean.zarr`). **The notebook is written and tested: `docs/data/colab/Colab IFS extended range fetch.md`.** Paste cells 1-4 into a Colab notebook, run the one-month test (cell 3 with `TEST_ONE_MONTH = True`, then cell 4), set it to False and let it run, with 3 notebooks (`PARTS = 3`) to cut the time. About 1 GB output; unzip into `data/raw/wb2_ifs_extended\`. Downloads for IL-118 to IL-127 are approved up to **5 GB total** (2026-11-07).
+- **Long-range data (IL-118): DONE 2026-11-08.** `data/raw/wb2_ifs_extended/` is in place and checked (84 months x pilot/denver x fc/rf = 336 files, 646 MB, no bad files). Long-range download budget used: 0.65 of 5 GB (IL-118 to IL-127). Weekly-average meaning confirmed (lead k = 168 h window starting 12 h before day k, forward week).
+- **Waiting on you:** the IFS ensemble refetch (`Colab IFS ENS fetch.md`, `tempest_wb2_ifs_ens_v2`) arrives in about 10 h; unzip into `data/raw/wb2_ifs_ens\` (pilot) and `data/raw/wb2_ifs_ens_denver\` (denver) and tell Claude.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
