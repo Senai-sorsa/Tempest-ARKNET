@@ -436,7 +436,7 @@ All opt-in, off by default, tests in `tests/test_gate_fixes.py` and `tests/test_
 | IL-109 | `compare_headline.py --tol T` | code done; the 3-seed rerun that sets T waits for the GPU (after L3-44) |
 | IL-110 | `diag.tail_support`, `diag.block_bootstrap_ci`; `mc.csv` rows `tail` | code done (expected exceedances per column; 5,000 rows give 0.5 for a 99.99th percentile, so that threshold is set by about one row) |
 | IL-111 | `diag.headline` writes `skill15_gauss`, `margin_gauss_*`; `compare_headline.py --require-gauss` | code done |
-| IL-112 | - | waits for `igra_heights` |
+| IL-112 | done | measured 2026-11-08: gate +-15 % (0-1 km) / +-12 % (1-5 km) per station at the 95th percentile, pooled median +-5 %; see LOOP3 |
 | IL-128 | `scripts/il128_copula_tail_check.py` | synthetic test run 22:15: with a heavy-tailed pool (t, 3 dof, common factor) the Gaussian-copula rebuild gives 99.9th-percentile shear 3.6-4.8x the pool value (10-500 m: 145.7 vs 34.3; 6-18 km: 11.7 vs 3.2) - too HIGH, not smoothed as the review claimed (independent normal-score residuals are mapped through heavy tails). Direction on a real pool still unknown: rerun the script on a conditioned real pool (needs assets) |
 | IL-129 | `TempestFlightSimEngine(tail_extrap=True)` | code done |
 | IL-130 / IL-135 | `sample_sobol_batch(dryden_fixes=True)`; `dryden.synthesize(exact_n2, bl_floor0, w, h_pbl_from_profile, gust_params)` | code done |
