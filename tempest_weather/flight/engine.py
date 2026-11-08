@@ -30,11 +30,12 @@ def pool_matrix(atm):
 
 
 class TempestFlightSimEngine:
-    def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, **kw):
+    def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, tail_extrap=False, **kw):
         if atm is None:
             from tempest_weather import api
             atm, info = api.atmosphere_set(lat, lon, when, n=n_pool, seed=seed, assets=assets, **kw)
         self.atm, self.info, self.seed = atm, info or {}, seed
+        self.tail_extrap = bool(tail_extrap)   # IL-129: extend the marginals past the pool min/max with the outer-5 % slope (off = clamp, as before)
         self.names = feature_names()
         self.index = {k: i for i, k in enumerate(self.names)}
         self.pool = pool_matrix(atm)
@@ -56,11 +57,42 @@ class TempestFlightSimEngine:
         self._post = None
 
     # ---- marginals
+    TAIL_FRAC = 0.05
+
+    def _tail_slopes(self, j):
+        """(low, high) slope dz/dx of the normal score against the value over the outer 5 % of the pool column j (0 when flat)."""
+        key = ("_ts", j)
+        if key not in self.__dict__:
+            s, n = self._sorted[:, j], len(self._sorted)
+            k = max(int(self.TAIL_FRAC * n), 2)
+            zs = norm_ppf(self._probs)
+            lo = (zs[k] - zs[0]) / (s[k] - s[0]) if s[k] > s[0] else 0.0
+            hi = (zs[-1] - zs[-1 - k]) / (s[-1] - s[-1 - k]) if s[-1] > s[-1 - k] else 0.0
+            self.__dict__[key] = (float(lo), float(hi))
+        return self.__dict__[key]
+
     def _cdf(self, j, x):
+        if self.tail_extrap:
+            s = self._sorted[:, j]
+            lo, hi = self._tail_slopes(j)
+            if x > s[-1] and hi > 0:
+                return float(np.clip(norm_cdf(norm_ppf(self._probs[-1]) + hi * (x - s[-1])), 1e-6, 1 - 1e-6))
+            if x < s[0] and lo > 0:
+                return float(np.clip(norm_cdf(norm_ppf(self._probs[0]) + lo * (x - s[0])), 1e-6, 1 - 1e-6))
         return float(np.clip(np.interp(x, self._sorted[:, j], self._probs), 1e-6, 1 - 1e-6))
 
     def _ppf(self, j, v):
-        return np.interp(v, self._probs, self._sorted[:, j])
+        out = np.interp(v, self._probs, self._sorted[:, j])
+        if self.tail_extrap:
+            s = self._sorted[:, j]
+            lo, hi = self._tail_slopes(j)
+            v = np.asarray(v, float)
+            z = norm_ppf(np.clip(v, 1e-12, 1 - 1e-12))
+            if hi > 0:
+                out = np.where(v > self._probs[-1], s[-1] + (z - norm_ppf(self._probs[-1])) / hi, out)
+            if lo > 0:
+                out = np.where(v < self._probs[0], s[0] + (z - norm_ppf(self._probs[0])) / lo, out)
+        return out
 
     # ---- module 2
     def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5):
@@ -162,16 +194,19 @@ class TempestFlightSimEngine:
         return out
 
     # ---- the one-call contract (blueprint section "Unified integration")
-    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03):
+    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=False):
         """One vectorised call for a simulator. u_sobol_matrix (N, >= k_atmo [+ 4]): columns 0 .. k_atmo-1 drive the leading atmosphere modes; if the matrix has 4 more columns they are the
         1-cos gust (altitude, wavelength, direction, magnitude). -> dict with the coarse batch (u, v, T, RH, p, rho, a ... on the 44 heights), `fine` (Dryden fields on dz_fine_m) and
-        `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for."""
+        `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes=True switches on the Gemini-review fixes IL-130/IL-135 (exact N^2, no
+        boundary-layer leak above the layer, resolved w added, layer depth from the profile, gust peak from the sample's own gust law); off (default) = the previous output."""
         from tempest_weather.flight import avionics, dryden
         u = np.asarray(u_sobol_matrix, float)
         batch = self.sample_sobol(u[:, :k_atmo])
         if include_dryden_turbulence:
             gust = tuple(u[:, k_atmo + i] for i in range(4)) if u.shape[1] >= k_atmo + 4 else None
-            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m)
+            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m,
+                                             **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True, h_pbl_from_profile=True,
+                                                     gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_fixes else {}))
         if include_avionics_bias:
             z_true = self.elev + np.concatenate([[0.0], batch["z"]])
             p = np.concatenate([batch["sp"][:, None], batch["p"]], 1)

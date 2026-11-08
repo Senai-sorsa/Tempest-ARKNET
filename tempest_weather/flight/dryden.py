@@ -14,23 +14,45 @@ numpy only. Reproducible: the same seed gives the same field.
 """
 import numpy as np
 
-KAPPA, G = 0.40, 9.80665
+KAPPA, G, CP = 0.40, 9.80665, 1004.7
 
 
-def envelopes(z, u, v, T, z0=0.03, h_pbl=1200.0, ell_cat=20.0):
-    """z (nz,) heights above ground (m); u, v, T (N, nz) on that grid -> dict of (N, nz) arrays: sigma_u, sigma_w, L_u, L_w, ri."""
+def pbl_height(z, T, ri_crit_dtheta=1.0, default=1200.0):
+    """Per-sample boundary-layer depth (m) from the profile (IL-135): the first height where the potential temperature has risen by `ri_crit_dtheta` K above its lowest-level value
+    (dry adiabat, theta = T + g z / cp); clamped to 200 .. 3000 m, `default` if the profile never gets there. T (N, nz) on z (nz,) -> (N,)."""
+    theta = T + (G / CP) * z[None, :]
+    rise = theta - theta[:, :1]
+    hit = rise >= ri_crit_dtheta
+    idx = hit.argmax(1)
+    h = np.where(hit.any(1), z[idx], default)
+    return np.clip(h, 200.0, 3000.0)
+
+
+def envelopes(z, u, v, T, z0=0.03, h_pbl=1200.0, ell_cat=20.0, exact_n2=False, bl_floor0=False):
+    """z (nz,) heights above ground (m); u, v, T (N, nz) on that grid -> dict of (N, nz) arrays: sigma_u, sigma_w, L_u, L_w, ri.
+    h_pbl: a number or one value per profile (N,). Opt-in fixes (IL-130): exact_n2 uses N^2 = (g / T)(dT/dz + g / cp) (the linearised theta made N^2 31 % low at 10 km, 45 % at 18 km);
+    bl_floor0 lets the boundary-layer factor go to 0 above the layer and adds a 0.05 m/s background (the 0.05 floor leaked surface turbulence up to 18 km)."""
     z_s = np.maximum(z, 2.0)
     speed = np.hypot(u, v)
     v10 = np.array([np.interp(10.0, z_s, s) for s in speed])
     u_star = KAPPA * np.maximum(v10, 0.5) / np.log(10.0 / z0)
-    theta = T * (1.0 + 0.0098 * z_s[None, :] / np.maximum(T, 200.0))
-    dth = np.gradient(theta, z_s, axis=1)
     du, dv = np.gradient(u, z_s, axis=1), np.gradient(v, z_s, axis=1)
     shear2 = np.maximum(du ** 2 + dv ** 2, 1e-6)
-    ri = (G / np.maximum(theta, 200.0)) * dth / shear2
+    if exact_n2:
+        n2 = (G / np.maximum(T, 150.0)) * (np.gradient(T, z_s, axis=1) + G / CP)
+        ri = n2 / shear2
+    else:
+        theta = T * (1.0 + 0.0098 * z_s[None, :] / np.maximum(T, 200.0))
+        dth = np.gradient(theta, z_s, axis=1)
+        ri = (G / np.maximum(theta, 200.0)) * dth / shear2
     cat = np.sqrt(shear2) * ell_cat * np.clip((0.25 - ri) / 0.25, 0.0, 1.0)
-    pbl = np.clip(1.0 - z_s / h_pbl, 0.05, 1.0) ** 0.75
-    sigma_w = 1.3 * u_star[:, None] * pbl[None, :] + cat
+    hp = np.asarray(h_pbl, float).reshape(-1, 1) if np.ndim(h_pbl) else float(h_pbl)
+    if bl_floor0:
+        pbl = np.clip(1.0 - z_s[None, :] / hp, 0.0, 1.0) ** 0.75
+        sigma_w = 1.3 * u_star[:, None] * pbl + 0.05 + cat
+    else:
+        pbl = np.clip(1.0 - z_s[None, :] / hp, 0.05, 1.0) ** 0.75
+        sigma_w = 1.3 * u_star[:, None] * pbl + cat
     ratio = np.where(z_s < 305.0, 1.0 / (0.177 + 0.000823 * np.minimum(z_s, 305.0)) ** 0.4, 1.0)
     sigma_u = sigma_w * ratio[None, :]
     L_w = np.clip(np.where(z_s < 305.0, 0.5 * z_s, 152.0), 2.5, 533.0)
@@ -44,10 +66,13 @@ def one_minus_cos(z, z_start, half_len, peak):
     return np.where(inside, 0.5 * peak * (1.0 - np.cos(np.pi * (z - z_start) / half_len)), 0.0)
 
 
-def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200.0, ell_cat=20.0, nsub=8, z_top=None):
+def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200.0, ell_cat=20.0, nsub=8, z_top=None, w=None, exact_n2=False, bl_floor0=False,
+               h_pbl_from_profile=False, gust_params=None):
     """Fine-grid fields for N profiles. z_coarse (nz,) heights above ground, u, v, T (N, nz). gust: None or (u_alt, u_len, u_dir, u_mag) uniforms in (0, 1) (scalars or (N,) arrays) for the
     1-cos gust: start altitude over 0 .. 12 km, half-wavelength 15 .. 150 m, direction 0 .. 2 pi, peak 3 .. 15 m/s. -> dict: z, u_total, v_total, w_total (N, nzf), u_turb, v_turb, w_turb,
-    gust_u, gust_v, sigma_u, sigma_w."""
+    gust_u, gust_v, sigma_u, sigma_w.
+    Opt-in fixes (all off = the old behaviour): w (N, nz) resolved vertical wind added to w_total (IL-130); exact_n2, bl_floor0 (see `envelopes`); h_pbl_from_profile estimates the layer depth
+    per profile (IL-135); gust_params = (gust_mu, gust_beta) arrays (N,) draw the 1-cos peak from the sample's own gust law (Gumbel-type, mean mu, scale beta) instead of uniform 3-15 m/s (IL-135)."""
     z_coarse = np.asarray(z_coarse, float)
     u, v, T = (np.atleast_2d(np.asarray(a, float)) for a in (u, v, T))
     N = len(u)
@@ -55,7 +80,9 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
     zf = np.arange(z_coarse[0], z_top + dz, dz)
     interp = lambda a: np.stack([np.interp(zf, z_coarse, r) for r in a])
     uf, vf, Tf = interp(u), interp(v), interp(T)
-    env = envelopes(zf, uf, vf, Tf, z0, h_pbl, ell_cat)
+    if h_pbl_from_profile:
+        h_pbl = pbl_height(zf, Tf)
+    env = envelopes(zf, uf, vf, Tf, z0, h_pbl, ell_cat, exact_n2=exact_n2, bl_floor0=bl_floor0)
     rng = np.random.default_rng(seed)
     nz = len(zf)
     ug, vg, wg = np.zeros((N, nz)), np.zeros((N, nz)), np.zeros((N, nz))
@@ -89,8 +116,12 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
         start = zf[0] + ua * min(zf[-1] - zf[0], 12000.0)
         half = 15.0 + ul * 135.0
         peak = 3.0 + um * 12.0
+        if gust_params is not None:                                       # the sample's own gust law: quantile um of a Gumbel with location mu, scale beta
+            mu, beta = (np.broadcast_to(np.asarray(g, float), (N,)) for g in gust_params)
+            peak = np.maximum(mu - beta * np.log(-np.log(np.clip(um, 1e-6, 1 - 1e-6))), 0.0)
         ang = 2.0 * np.pi * ud
         shape = np.stack([one_minus_cos(zf, start[k], half[k], peak[k]) for k in range(N)])
         gu, gv = shape * np.cos(ang)[:, None], shape * np.sin(ang)[:, None]
-    return dict(z=zf, u_total=uf + ug + gu, v_total=vf + vg + gv, w_total=wg, u_turb=ug, v_turb=vg, w_turb=wg, gust_u=gu, gust_v=gv,
+    wres = interp(np.atleast_2d(np.asarray(w, float))) if w is not None else 0.0
+    return dict(z=zf, u_total=uf + ug + gu, v_total=vf + vg + gv, w_total=wg + wres, u_turb=ug, v_turb=vg, w_turb=wg, gust_u=gu, gust_v=gv,
                 sigma_u=env["sigma_u"], sigma_w=env["sigma_w"], L_u=env["L_u"], L_w=env["L_w"], ri=env["ri"])
