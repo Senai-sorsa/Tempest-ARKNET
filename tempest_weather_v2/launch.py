@@ -248,16 +248,27 @@ class Launch:
             eng_obs[("wind_v", 10.0)] = -spd * np.cos(np.radians(frm))
         if "temperature" in o:
             eng_obs[("temp_K", 2.0)] = names.parse_quantity(o["temperature"], "temperature", self.units) + 273.15
+        if "station_pressure" in o:
+            eng_obs[("pressure_Pa", 0.0)] = names.parse_quantity(o["station_pressure"], "pressure", self.units) * 100.0
+        elif "altimeter" in o:                                           # a sea-level altimeter setting (METAR "A3002"): back to pad pressure through the standard atmosphere
+            elev = float(base._ensure_pool()["samples"]["elevation_m"])
+            eng_obs[("pressure_Pa", 0.0)] = float(W.station_pressure_hpa(names.parse_quantity(o["altimeter"], "pressure", self.units), elev)) * 100.0
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, sounding=None):
-        """A NEW Launch conditioned on launch-day measurements at the pad (10 m wind and direction, 2 m temperature). `sounding="auto"` needs the sounding module (R2)."""
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None):
+        """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
+        (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
+        `sounding="auto"` needs the sounding module (R2, not built)."""
+        if station_pressure is not None and altimeter is not None:
+            raise ValueError("give station_pressure or altimeter, not both")
         if sounding is not None:
             raise NotImplementedError("sounding conditioning comes with the R2 module (tempest_weather_v2.sounding); pass wind_10m / wind_from_deg / temperature for now")
         obs = dict(self._obs)
-        for k, v in (("wind_10m", wind_10m), ("wind_from_deg", wind_from_deg), ("temperature", temperature)):
+        for k, v in (("wind_10m", wind_10m), ("wind_from_deg", wind_from_deg), ("temperature", temperature), ("station_pressure", station_pressure), ("altimeter", altimeter)):
             if v is not None:
                 obs[k] = v
+        if ("station_pressure" in obs and "altimeter" in obs) and (station_pressure is not None or altimeter is not None):
+            obs.pop("altimeter" if station_pressure is not None else "station_pressure")      # the newer value replaces an earlier one of the other kind
         if "wind_from_deg" in obs and "wind_10m" not in obs:
             raise ValueError("a wind direction needs a wind speed too (wind_10m=...)")
         if not obs:

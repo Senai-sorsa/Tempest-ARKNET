@@ -449,14 +449,14 @@ All opt-in, off by default, tests in `tests/test_gate_fixes.py` and `tests/test_
 | IL-138 | `condition_on_observations(inflate_decay_m=...)` | code done |
 | IL-139 | `api.OPTIONS["permute_blocks"]=True` | code done |
 | IL-140 | `pit_apply(keep_order=True)`, `pit_recal.apply(keep_order=True)` | code done |
-| IL-141 | `trust --smooth-w-m SIGMA` | code done; refit + L3-29/L3-33 rerun wait for the GPU |
+| IL-141 | `trust --smooth-w-m SIGMA` | **verdict 02:25 Nov 8 (L3-47): NEUTRAL, stays off** (Denver +0.0099 = +0.0099, physics rows unchanged) |
 | IL-142 | `debias --rh-logit` | code done; refit + L3-34 rerun wait for the GPU |
 | F1/F2 | `sample_sobol(run_id=...)`, `sample_sobol_batch(run_id=...)`, `dryden.synthesize(run_id, block)` | code done: different run_id gives different noise; n=600 starts with the n=300 rows |
 | S1 | `dryden.synthesize(exact_ar=True)`, `sample_sobol_batch(exact_ar=True)` | code done: exact AR(2) step, no burn-in; std/sigma 0.99-1.01 and lag-1 correlation matches (1 - d/2L)exp(-d/L); the Euler version gave 0.98-1.04 |
 | F3/F6/C3 | `engine.to_samples(batch)`, `engine.conditioned(obs)`, `engine.check_outputs(batch)` | code done (additive) |
 | IL-116 | `score --mask-filled` (IL-143) | exclude-filled part covered; the 80 km truth-source column waits for A1 |
 | IL-117 | `tests/test_gemini_fixes.py::test_il117...` | closed: `to_heights.cds_levels` is the only reader of `era5_cds`; `profiles_from_levels` drops levels at or below the surface; 5-month grib-vs-nc comparison still open |
-| IL-143 | `score --mask-filled` (dataset needs `fill_top_idx`) | code done; L3-43 rescore waits for the GPU |
+| IL-143 | `score --mask-filled` (dataset needs `fill_top_idx`) | **verdict 02:16 Nov 8 (L3-46): the L3-43 DROP stands** (+0.0154 -> +0.0155) |
 
 ## Flight-sim trial findings, 2026-11-08 (`flight_sim_trial/FINDINGS.md`, deletable folder, untracked)
 | IL | Finding | Next |

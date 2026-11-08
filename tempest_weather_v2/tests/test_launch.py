@@ -170,3 +170,17 @@ def test_past_mode_without_a_store_warns_loudly_and_a_store_path_is_accepted(mon
     if os.path.exists(store):
         ok = Launch("spaceport_america", "2022-06-24 09:17", mode="past", n=100, era5_store=store).weather()
         assert "fallback-mode" not in ok.flags and "Past date" in ok.trust
+
+
+def test_observe_accepts_pad_pressure_and_altimeter_setting(launch):
+    from tempest_weather_v2 import weather_calc as W
+    base = launch.weather(all=True)
+    cond = launch.observe(station_pressure="25.00 inHg")                              # about 0.4 inHg below the median pad pressure
+    r = cond.weather(all=True)
+    assert abs(r.station_pressure - 25.00) < 0.05 and r.station_pressure < base.station_pressure - 0.2
+    a_hpa = float(W.altimeter_setting_hpa(base.si("station_pressure") - 8.0, 1400.6))   # an altimeter setting 8 hPa lower than the median
+    c2 = launch.observe(altimeter=f"{a_hpa:.2f} hPa")
+    assert abs(c2.weather(all=True).si("station_pressure") - (base.si("station_pressure") - 8.0)) < 0.6
+    with pytest.raises(ValueError, match="not both"):
+        launch.observe(station_pressure="25 inHg", altimeter="29.9 inHg")
+    assert "conditioned on 1 measurements" in cond.trust
