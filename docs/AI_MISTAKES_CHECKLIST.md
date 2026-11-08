@@ -1,0 +1,54 @@
+# Common AI / ML mistakes and our own past mistakes: the checklist
+
+Use: after every 3 trials (a trial = one experiment, fix or idea that produced a verdict), run section C on the last three and add one dated line to section D. If an item fails, fix the claim or the work before moving on.
+
+## A. Common mistakes (any AI-assisted or ML work)
+1. **Truth contamination / leakage.** The reference data was already used by the thing being tested (assimilated, trained on, or tuned against). Ask: did the model or the comparison source ever see this truth?
+2. **Fit and test overlap.** Anything fitted (weights, scales, thresholds, gates) must be fitted on years or cases that are not the scoring cases. Count the years.
+3. **Reusing the dev test set** for many decisions: its scores drift optimistic. Note how many decisions have used it.
+4. **Single seed, tiny gain.** A change smaller than the seed-to-seed spread is not a result. Compare with the measured noise (paired day-block sd), not with zero.
+5. **Several changes in one run.** The gain or loss cannot be attributed. Say so, or run them one at a time.
+6. **Wrong or weak baseline.** Compare with the strongest simple baseline (climatology, persistence, the previous best), on exactly the same rows.
+7. **Averages hiding the damage.** A mean gain can hide a loss in one band, variable, regime or tail. Look at every band and at the tails.
+8. **Metric not matching the goal.** Skill on levels is not skill on apogee, shear or the 10 m wind. Say which metric answers the real question.
+9. **Silent fallback.** A path quietly does something else (climate instead of past, default instead of measured). Every fallback must be loud (warning, flag, trust line).
+10. **Units, signs, frames.** Scale factors (0.1 m/s), wind "from" vs "to", feet vs metres, geometric vs geopotential height, UTC vs local, ASL vs AGL. Check one number by hand.
+11. **Overclaiming.** "Done", "validated", "better" without the run, the numbers or the caveat. State what was tested and what was not.
+12. **Stale or wrong memory of the code.** Re-read the file before editing or describing it; a summary can be wrong.
+13. **Untested edge path.** The tests pass but never reach the new code path (a flag that is never switched on, a fake fetch that hides the live format). Run the real path once.
+14. **Confusing a lab condition with the real use.** Near-analysis is not a day-ahead forecast; station sites are not the launch pad; 21 levels are not 44.
+15. **Optimising what is easy to measure.** More samples, more weight on a loss term, a different threshold: ask whether the mechanism of the error was found first.
+16. **Hidden randomness.** Seeds, draw order of sampled cases, hash-ordered sets. Reproduce a number before trusting it.
+17. **Data quality.** Missing values encoded as numbers, NaN holes, duplicates, partial downloads, wrong time stamps. Count them before use.
+18. **Scope creep and collateral damage.** Changing unrelated code, committing data or models, touching files that belong to another session. Read `git diff` before every commit.
+19. **Extrapolating beyond the domain.** Applying a fit outside the years, stations, heights or regimes it was fitted on.
+20. **Treating absence of evidence as evidence.** "No effect seen" with a test that could not have seen one (too few cases, wrong layer).
+
+## B. Mistakes we have made in this project (so far)
+1. "Wind spread too narrow" was true for balloon/season-specific cases but not at ASOS: climate mode is calibrated there (corrected, IL-144).
+2. Past mode silently fell back to climate when the ERA5 store was missing (fixed: loud warning, `era5_store`).
+3. Observation weights were assumed, not measured (replaced by weights fitted on station pairs, L2).
+4. The engine pinned the observed column so the weights had no effect (found by test; soft conditioning added).
+5. Tests for a standard day assumed the wrong height convention (geometric vs geopotential).
+6. A PIT test used the wrong default ordering (keep_order).
+7. Floor / age model: a single exponential did not match the measured age table (replaced).
+8. Shell scripts: a function named `tr` called `tr` and recursed (about 1,300 processes); heredoc quoting broke several scripts; a queue waited for a RAM threshold that was never met; Smart App Control blocked the venv Python.
+9. `.gitignore` `data/` hid the package data files (added a negation).
+10. Benchmark script first included hours outside the tool's solar window (filter added).
+11. The 3-flight / branch validation: only 3 of 38 branch flights are inside the domain; the mean error did not improve, so "validated" is not claimable (stated in the validation file).
+12. C4b (L8) changed three things in one single-seed run: attribution impossible, gain within a plausible noise range.
+13. IL-151's penalty acted above 2 km while the excess is at the surface: the mechanism was not located before the experiment.
+14. L5 planned a data route (ARCO point extraction) that is physically impractical (whole-globe chunks): check data layout and size before planning.
+15. I described the IFS-ensemble NaN months wrongly and suggested a rerun that could not help (read the notebook notes first).
+16. **HRRR evidence is contaminated (found at the first checklist run, see D1):** the stations used as truth (ASOS TCS and MAF) are most likely assimilated by HRRR, so HRRR's 10 m score at those points is optimistic for a pad with no nearby station. Meanwhile ERA5, behind the tool's past mode, does not assimilate those winds. The "-35 %" is an upper bound until tested at independent stations.
+
+## C. The check (after every 3 trials; answer for each of the last three)
+- Truth: did any compared source see the truth (A1)? Fit years separate from test years (A2)? Dev-test use counted (A3)?
+- Size: effect larger than seed noise or bootstrap interval (A4)? One change at a time (A5)? Strongest baseline, same rows (A6)?
+- Detail: every band, regime and tail looked at (A7)? Metric matches the question (A8)?
+- Honesty: every fallback loud (A9)? Units and signs checked by hand once (A10)? Claim says what was and was not tested (A11, A14)?
+- Real path: new code run once on the live path, not only a fake (A13)? Data counted for NaN and duplicates (A17)?
+- Hygiene: `git diff` read, only named files staged, no data or models committed (A18).
+
+## D. Check log (newest last)
+- **D1, 2026-11-08, trials L8, L11, L12 (HRRR):** found B16 (HRRR truth contamination): trust line, `hrrr.py` docstring and the plan now say "tested at HRRR-assimilated airport stations; an independent-station check is queued (L12b)". L8 attribution caveat (B12) and L11 mechanism (B13) already recorded. Real path for `observe_hrrr` was run live once (archive path). Fit years (2021-23) and test years (2024-25) are separate; the 2024-25 set has been used for many decisions (A3: count about 20, treat as optimistic).
