@@ -171,11 +171,12 @@ def main():
     ap.add_argument("--out", default="data/pilot/profiles.zarr")
     ap.add_argument("--hours", default="12-23,0-4", help="UTC hours to keep, e.g. 5-11 (the night hours the default leaves out) or all")
     ap.add_argument("--last-year", type=int, help="leave out later years (e.g. 2025: no 2026 holdout data in the store)")
+    ap.add_argument("--first-year", type=int, help="leave out earlier years (e.g. 1991: the CDS/ARCO fill starts there)")
     a = ap.parse_args()
     hours = parse_hours(a.hours)
 
     ds = open_raw(a.raw)
-    ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(hours) & (ds.valid_time.dt.year <= (a.last_year or 9999)))
+    ds = ds.sel(valid_time=ds.valid_time.dt.hour.isin(hours) & (ds.valid_time.dt.year <= (a.last_year or 9999)) & (ds.valid_time.dt.year >= (a.first_year or 0)))
     use_cds = os.path.isdir(a.cds) and any(f.endswith((".grib", ".nc")) for f in os.listdir(a.cds))
     if use_cds:
         have = {f[:6] for f in os.listdir(a.cds) if f.endswith((".grib", ".nc"))}

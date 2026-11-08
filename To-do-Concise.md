@@ -1,7 +1,7 @@
 # To-do (concise) — updated every check-in; done items are deleted
 
 ## You
-- Colab: global HRES pull (ASK_LATER 9, global Mode F, not urgent): `docs/data/colab/Colab HRES global fetch.md` (tested, ~7 GB, ~8-35 h Colab). Box refetch already done.
+- `fetch_cds` (CDS grib download) is now redundant: all 420 months exist (ARCO nc fill). Stopping it frees Wi-Fi for the fetch chain; I was not allowed to stop it, say if you want it stopped.
 - Watch ISP data cap: ~2.5 TB more to transfer by ~Nov 7 evening.
 - Optional: read `docs/reviews/triage/GLOBAL_REVIEW_TRIAGE.md` (external review: 7 claims wrong, rest scheduled below).
 - Optional: read `docs/reviews/triage/GEMINI_REVIEW_TRIAGE.md` (Gemini review: 3 fixes applied; idea 1 tested and rejected; idea 3 waits for IGRA; idea 2 removed).
@@ -17,6 +17,7 @@
 ## Left to check — numbered, in run order
 L3-36 done 01:24: debias DROP (redundant once trust is on; stack stays +0.0100). L3-38 03:29: all-hours KEEP (day +0.0278 = +0.0277, night -0.0072 → +0.0274; `l3_h_all24` is the new NM/TX base). L3-37 done 02:20: Sobol noise DROP (neutral, -0.0002 over 3 seeds). pytest 208 passed (11:40, after review fixes d997f62).
 Queued tests (one GPU job at a time, ~30 min per data run, ~5-10 min per score):
+**L3-44 running (18:42)**: 21-level NM/TX rebuild + retrain (`scripts/ap_l3_lev21.sh`), verdict ~20:30; global HRES (84 months) arrived, waits for G0's loader.
 1. Base for both stacks is now `l3_h_all24` (L3-42 NM/TX KEEP: day -0.0001 over 3 seeds, night +0.0274; L3-40/41 Denver KEEP). Known costs: Denver day t2m -0.005 (fallback: p2f stack by day), night rh2m cov99 0.9976 over-cover. GPU idle until IGRA/global data arrive (L3-27).
 2. Any further winners stacked on all24 and rescored with 3 seeds (`--seed 0/1/2`): the seed's choice of the 5,000 held-out rows alone spans 0.0025 in skill15 (L3-37), so a single-seed headline is only good to about ±0.001.
 
