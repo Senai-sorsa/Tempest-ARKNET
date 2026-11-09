@@ -86,3 +86,19 @@ def test_observe_latest_skips_a_station_whose_report_is_impossible_and_uses_the_
     only_bad = lambda url: bad if "station=TCS" in url else b"station,valid,metar\n"
     with pytest.raises(LookupError, match="rejected for impossible values"):
         L.observe_latest(fetch=only_bad, max_km=200.0)
+
+
+def test_wind_persistence_from_a_lag_table():
+    """M1: monotone decay with lag, slower aloft, interpolation between lags, sd factor."""
+    import numpy as np
+    from tempest_weather import _core
+    from tempest_weather_v2.persistence import persistence_sd_factor, wind_persistence
+    nh = len(_core.HEIGHTS)
+    lag = np.arange(13)[:, None]
+    tau = np.concatenate([np.linspace(6, 30, nh)] * 4)[None, :]                    # decay time grows with height (hours)
+    table = np.exp(-lag / tau)[None].repeat(4, 0)
+    r0, r3, r6 = (wind_persistence(table, 0, h, [10, 5000]) for h in (0, 3, 6))
+    assert np.allclose(r0, 1.0) and np.all(r3 < 1) and np.all(r6 < r3) and r3[1] > r3[0]
+    half = wind_persistence(table, 1, 2.5, [10])[0]
+    assert wind_persistence(table, 1, 3, [10])[0] < half < wind_persistence(table, 1, 2, [10])[0]
+    assert np.allclose(persistence_sd_factor([1.0, 0.0]), [0.0, np.sqrt(2.0)])
