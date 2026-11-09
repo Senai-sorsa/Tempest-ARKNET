@@ -1,0 +1,12 @@
+
+TCS: 8925 hours 2024-25, ASOS mean speed 4.42 m/s, calm reports 0.084
+  ERA5 10 m field (u10, v10)       MAE u 1.69 v 1.77 (mean 1.73); speed bias -0.91 m/s; speed correlation 0.75; vector corr u 0.75 v 0.81
+  ERA5 profile store at 10 m       MAE u 1.69 v 1.77 (mean 1.73); speed bias -0.91 m/s; speed correlation 0.75; vector corr u 0.75 v 0.81
+  ASOS 1 h earlier (persistence)   MAE u 1.77 v 1.67 (mean 1.72); speed bias +0.01 m/s; speed correlation 0.76; vector corr u 0.73 v 0.83
+
+MAF: 10124 hours 2024-25, ASOS mean speed 5.45 m/s, calm reports 0.033
+  ERA5 10 m field (u10, v10)       MAE u 1.35 v 1.43 (mean 1.39); speed bias -0.78 m/s; speed correlation 0.82; vector corr u 0.89 v 0.90
+  ERA5 profile store at 10 m       MAE u 1.35 v 1.43 (mean 1.39); speed bias -0.78 m/s; speed correlation 0.82; vector corr u 0.89 v 0.90
+  ASOS 1 h earlier (persistence)   MAE u 1.36 v 1.38 (mean 1.37); speed bias -0.06 m/s; speed correlation 0.80; vector corr u 0.87 v 0.90
+
+reference: tool past-mode median MAE 1.61, HRRR near-analysis MAE 1.04 (earlier runs, 240 cases)
