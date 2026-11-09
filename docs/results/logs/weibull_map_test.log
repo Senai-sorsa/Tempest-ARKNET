@@ -1,0 +1,6 @@
+168 cells (fit odd years, test even years)
+KS to held-out ASOS speeds: tool median 0.186 (p90 0.284) -> mapped 0.086 (p90 0.149); mapped better in 91 % of cells
+calm share: ASOS 0.060, tool 0.009, mapped 0.059
+Weibull k median: ASOS 2.22, tool 2.05, mapped 2.23
+p99 median: ASOS 11.3, tool 11.3, mapped 11.3
+mean quantile-quantile distance to the held-out ASOS (m/s): tool 0.74, mapped 0.42

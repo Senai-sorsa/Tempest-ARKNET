@@ -198,3 +198,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - G6 part: Dryden Reynolds-stress option `uw_corr` (opt-in) built and tested; von Karman and apogee effect still open.
 - GW-E part 3 / W10: WTK pad 10 m speed is 0.92 (TCS) and 0.89 (MAF) of the airports on average, 0.83 at night, ~1.0 in the afternoon; pad Weibull k 1.4-2.0 (tool 2.05), calm share 4-6 % at night (tool 0.9 %).
 - GW-G check: USCRN basin / TCS airport 10 m ratio 0.48-0.66 before 08 h, ~0.95 in the afternoon, 0.7-0.9 in the evening; WTK pad agrees in shape (0.83-1.0) but not magnitude; no basin flag built, hourly site calibration (M6) is the supported route.
+- W5 Weibull/quantile speed map (fit odd years, test even years, 168 cells): KS 0.186 -> 0.086, calm share 0.009 -> 0.059 (obs 0.060), k 2.05 -> 2.23 (obs 2.22), p99 unchanged; positive where station data exist, ships via sitecal quantile (M6), Launch wiring and CRPS check open.
