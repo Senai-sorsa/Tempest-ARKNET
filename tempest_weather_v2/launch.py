@@ -485,7 +485,7 @@ class Launch:
         if dom["status"] == "edge":
             text += f"; near the edge of what the model was trained on ({dom['reason']})"
         if self._hrrr:
-            text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted at airport stations that HRRR assimilates, so optimistic for a remote pad; not validated beyond near-analysis)"
+            text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted at airport stations that HRRR assimilates; at an independent basin station HRRR was no better than ERA5, so expect no gain at a remote pad; not validated beyond near-analysis)"
         if self._measurements():
             text += f"; conditioned on {len(self._measurements())} measurements (not yet validated)"
             o = self._obs

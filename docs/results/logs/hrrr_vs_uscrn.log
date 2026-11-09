@@ -1,0 +1,10 @@
+USCRN Las Cruces 20 N (independent, 1.5 m): 21067 hours, truth mean 2.43 m/s
+  HRRR 10 m    correlation 0.839   RMSE after the best single scale (x0.67) 0.996   MAE 0.761
+  ERA5 10 m    correlation 0.841   RMSE after the best single scale (x0.77) 0.977   MAE 0.745
+  persistence  correlation 0.897   RMSE after the best single scale (x0.97) 0.821   MAE 0.576
+
+ASOS Truth or Consequences (assimilated by HRRR, 10 m): 17842 hours, truth mean 4.30 m/s
+  HRRR 10 m    correlation 0.873   RMSE after the best single scale (x1.02) 1.405   MAE 1.060
+  ERA5 10 m    correlation 0.737   RMSE after the best single scale (x1.13) 2.003   MAE 1.523
+  persistence  correlation 0.758   RMSE after the best single scale (x0.92) 1.952   MAE 1.452
+

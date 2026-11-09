@@ -1,0 +1,12 @@
+
+TCS: fit 14597 hours 2021-23, test 9756 hours 2024-25 (ASOS mean speed 4.35 m/s)
+  raw ERA5 10 m wind                       test MAE 1.733  speed bias -0.89
+  log-law from 50 m   z0 0.01   test MAE 1.774 speed bias -0.88 | stability-aware (stable z0 1) MAE 1.767 bias -0.94
+  log-law from 100 m  z0 0.03   test MAE 1.798 speed bias -1.02 | stability-aware (stable z0 1) MAE 1.792 bias -1.08
+  log-law from 200 m  z0 0.003  test MAE 1.794 speed bias -0.98 | stability-aware (stable z0 1) MAE 1.789 bias -1.04
+
+MAF: fit 15870 hours 2021-23, test 10427 hours 2024-25 (ASOS mean speed 5.40 m/s)
+  raw ERA5 10 m wind                       test MAE 1.392  speed bias -0.78
+  log-law from 50 m   z0 0.003  test MAE 1.465 speed bias -0.36 | stability-aware (stable z0 1) MAE 1.443 bias -0.42
+  log-law from 100 m  z0 0.003  test MAE 1.517 speed bias -0.21 | stability-aware (stable z0 1) MAE 1.465 bias -0.39
+  log-law from 200 m  z0 0.003  test MAE 1.528 speed bias -0.38 | stability-aware (stable z0 1) MAE 1.474 bias -0.62

@@ -1,0 +1,16 @@
+
+TCS: test 9756 hours; ASOS mean speed 4.35
+  raw ERA5 10 m                                  MAE 1.733  speed bias -0.89  speed corr 0.734
+  (a) ridge on ERA5 u, v at 5 heights, dT, harmonics MAE 1.680  speed bias -0.93  speed corr 0.750
+  (b) speed factor by direction sector x stability MAE 1.760  speed bias -0.27  speed corr 0.740
+  (c) quantile map of the speed                  MAE 1.803  speed bias -0.17  speed corr 0.722
+  (d) sector factor, then quantile map           MAE 1.978  speed bias +0.58  speed corr 0.727
+  factors by sector (stable | unstable), first 8: 1.55|1.30 1.59|1.30 1.00|1.29 1.00|1.29 1.00|1.39 1.00|1.22 1.00|1.15 1.00|0.93
+
+MAF: test 10427 hours; ASOS mean speed 5.40
+  raw ERA5 10 m                                  MAE 1.392  speed bias -0.78  speed corr 0.816
+  (a) ridge on ERA5 u, v at 5 heights, dT, harmonics MAE 1.394  speed bias -0.35  speed corr 0.823
+  (b) speed factor by direction sector x stability MAE 1.369  speed bias -0.04  speed corr 0.826
+  (c) quantile map of the speed                  MAE 1.393  speed bias -0.04  speed corr 0.811
+  (d) sector factor, then quantile map           MAE 1.618  speed bias +0.90  speed corr 0.818
+  factors by sector (stable | unstable), first 8: 1.17|1.22 1.03|1.21 1.17|1.17 1.17|1.16 1.16|1.20 1.15|1.24 1.09|1.23 0.94|1.20

@@ -2,7 +2,7 @@
 
 HRRR comes from Open-Meteo (keyless, through `_net`): the historical-forecast archive for past times (model ncep_hrrr_conus; the stitched first hours of each run, i.e. a near-analysis) and the forecast API for times
 up to about two days ahead. Test L1 (scripts/hrrr_vs_asos.py, 240 station cases 2024-25, TCS and MAF): HRRR 10 m wind CRPS 1.04 against 1.17 for the tool's past mode and 1.98 for its climate mode; the fitted combination
-(shift the past-mode median to HRRR's value, spread x0.8) scored 0.76. CAVEAT (docs/AI_MISTAKES_CHECKLIST.md B16): the truth stations (ASOS TCS, MAF) are airport stations that HRRR very likely assimilates, so these scores are optimistic for a pad with no station nearby; an independent-station check is queued (plan L12b). Only the NEAR-ANALYSIS value was tested: at a forecast lead of many hours the skill is not measured (flagged by `Launch.observe_hrrr`).
+(shift the past-mode median to HRRR's value, spread x0.8) scored 0.76. INDEPENDENT CHECK 2026-11-08 (scripts/hrrr_vs_uscrn.py): at a station HRRR does not assimilate (USCRN Las Cruces 20 N) HRRR 10 m wind had NO advantage over ERA5 (correlation 0.839 against 0.841); at the assimilated airport TCS it did (0.873 against 0.737). CAVEAT (docs/AI_MISTAKES_CHECKLIST.md B16): the truth stations (ASOS TCS, MAF) are airport stations that HRRR very likely assimilates, so these scores are optimistic for a pad with no station nearby; an independent-station check is queued (plan L12b). Only the NEAR-ANALYSIS value was tested: at a forecast lead of many hours the skill is not measured (flagged by `Launch.observe_hrrr`).
 """
 from datetime import datetime, timedelta, timezone
 
