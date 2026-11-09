@@ -85,3 +85,20 @@ def test_adaptive_conformal_restores_coverage_of_an_overconfident_ensemble():
     assert abs(ac.coverage - 0.90) < 0.02 and ac.stretch > 2.0       # adaptive stretching brings it back (the ensemble is about 2x too narrow)
     with pytest.raises(ValueError):
         AdaptiveConformal(1.5)
+
+
+def test_physical_atmosphere_metrics_explain_a_wind_driven_result():
+    """Gemini bug 1: the share of the variance due to the atmosphere is measured with physical quantities, not the sample index."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, units="si", seed=4)
+    atms = L.atmospheres(150)
+    z0 = atms[0].elevation_m
+
+    def simulate(atm, drag_scale=1.0):
+        w = atm.wind(z0 + 100.0)
+        return 4000.0 / drag_scale - 40.0 * float(np.hypot(w[1], w[2]))
+    r = run(simulate, atms, VehiclePriors(drag_scale=("normal", 0.02)), n=300, seed=1)
+    assert set(r.atm_metrics) == {"pad_air_density", "mean_wind_0_200m", "mean_wind_0_3km"}
+    c = r.contributions()
+    assert c["atmosphere: mean_wind_0_200m"] > 0.3 and c["atmosphere: mean_wind_0_200m"] > c["atmosphere (by its sample index; use varying atmospheres)"]
+    e = r.explained()
+    assert e["atmosphere_gain"] > 0.3 and e["r2_all"] >= e["r2_vehicle"]

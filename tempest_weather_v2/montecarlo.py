@@ -81,7 +81,8 @@ class VehiclePriors:
 
 
 class MCResult:
-    def __init__(self, values, params, atm_index):
+    def __init__(self, values, params, atm_index, atm_metrics=None):
+        self.atm_metrics = atm_metrics or {}          # name -> per-atmosphere number (pad air density, mean wind below 200 m / 3 km); filled by run()
         self.values = np.asarray(values, float)
         self.params = params
         self.atm_index = np.asarray(atm_index, int)
@@ -108,11 +109,44 @@ class MCResult:
             out[name] = float(np.corrcoef(np.argsort(np.argsort(x)), y)[0, 1] ** 2) if np.std(x) > 0 else 0.0
         a = self.atm_index.astype(float)
         out["atmosphere (by its sample index; use varying atmospheres)"] = 0.0 if np.std(a) == 0 else float(np.corrcoef(np.argsort(np.argsort(a)), y)[0, 1] ** 2)
+        for name, m in self.atm_metrics.items():                           # Gemini bug 1: the sample index is not a physical quantity (its rank correlation with the apogee is chance); the physical metrics are
+            x = np.asarray(m, float)[self.atm_index]
+            out[f"atmosphere: {name}"] = float(np.corrcoef(np.argsort(np.argsort(x)), y)[0, 1] ** 2) if np.std(x) > 0 else 0.0
         return out
+
+    def explained(self):
+        """Joint rank regression of the result on all vehicle parameters (r2_vehicle) and on vehicle parameters plus the physical atmosphere metrics (r2_all); atmosphere_gain = r2_all - r2_vehicle is the part
+        of the variance the atmosphere adds once the vehicle is accounted for (the first-order shares of `contributions` can overlap). Needs atmosphere metrics (set by run())."""
+        y = np.argsort(np.argsort(self.values)).astype(float)
+        rk = lambda x: np.argsort(np.argsort(x)).astype(float)
+        names = list(self.params[0]) if self.params else []
+        veh = [rk(np.array([p[n] for p in self.params], float)) for n in names if np.std([p[n] for p in self.params]) > 0]
+        atm = [rk(np.asarray(m, float)[self.atm_index]) for m in self.atm_metrics.values() if np.std(np.asarray(m, float)[self.atm_index]) > 0]
+
+        def r2(cols):
+            if not cols or len(y) <= len(cols) + 2:
+                return 0.0
+            X = np.column_stack([np.ones(len(y))] + cols)
+            beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+            res = y - X @ beta
+            return float(1.0 - res.var() / y.var())
+        rv, ra = r2(veh), r2(veh + atm)
+        return dict(r2_vehicle=rv, r2_all=ra, atmosphere_gain=max(ra - rv, 0.0))
 
     def summary(self):
         v = self.values
         return dict(n=int(len(v)), mean=float(v.mean()), sd=float(v.std(ddof=1)) if len(v) > 1 else 0.0, p5=self.interval(90)[0], p50=float(np.median(v)), p95=self.interval(90)[1])
+
+
+def atmosphere_metrics(atm):
+    """Physical summary numbers of one reader: air density at the pad, mean wind speed from the pad to 200 m and to 3 km (in the reader's units); None when the reader cannot give them."""
+    try:
+        z0 = float(atm.elevation_m)
+        rho = float(np.asarray(atm.air(z0 + 1.0))[2])
+        sp = lambda top: float(np.mean(np.linalg.norm(np.asarray(atm.wind_many(z0 + np.linspace(10.0, top, 24))), axis=-1)))
+        return dict(pad_air_density=rho, mean_wind_0_200m=sp(200.0), mean_wind_0_3km=sp(3000.0))
+    except Exception:  # noqa: BLE001  (a custom reader without these attributes: the index-based share remains)
+        return None
 
 
 def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
@@ -132,7 +166,9 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
         if not math.isfinite(v):
             raise ValueError(f"the simulator returned {v} for atmosphere {int(idx[k])} and parameters {params[k]}")
         vals.append(v)
-    return MCResult(vals, params, idx)
+    per = [atmosphere_metrics(atmospheres[k]) for k in range(m)]
+    metrics = {key: np.array([d[key] for d in per]) for key in per[0]} if all(d is not None for d in per) else {}
+    return MCResult(vals, params, idx, metrics)
 
 
 def calibrate_vehicle_sigma(errors_pct, atmosphere_sd_pct):
