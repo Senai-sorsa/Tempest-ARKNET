@@ -1,0 +1,20 @@
+TCS: fit 200, test 200 hours
+MAF: fit 200, test 200 hours
+basin: test 200 hours (2019-22, local 10-18 h)
+class night blh tercile 0 (edges [ 404. 1333.] m): 83 fit hours, factor 1.3
+class night blh tercile 1 (edges [ 404. 1333.] m): 40 fit hours, factor 1.4
+class night blh tercile 2 (edges [ 404. 1333.] m): 24 fit hours, factor 1.1
+class day blh tercile 0 (edges [ 404. 1333.] m): 51 fit hours, factor 1.6
+class day blh tercile 1 (edges [ 404. 1333.] m): 93 fit hours, factor 1.2
+class day blh tercile 2 (edges [ 404. 1333.] m): 109 fit hours, factor 1.3
+
+site  set     variant          n    CRPS   MAE(median)  cov90
+TCS   test   plain (x1.0)     200  1.105   1.497      0.74
+TCS   test   fixed x1.2       200  1.088   1.497      0.79
+TCS   test   regime factor    200  1.085   1.497      0.83
+MAF   test   plain (x1.0)     200  0.937   1.319      0.86
+MAF   test   fixed x1.2       200  0.934   1.319      0.92
+MAF   test   regime factor    200  0.944   1.319      0.93
+BASIN test   plain (x1.0)     200  0.779   1.057      0.91
+BASIN test   fixed x1.2       200  0.793   1.057      0.94
+BASIN test   regime factor    200  0.802   1.057      0.96

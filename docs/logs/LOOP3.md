@@ -232,3 +232,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - IL-167 column blend: in-box +0.0005 to +0.0013 over base (below full C4w), Denver equal to base (C4w's temperature cost removed): kept as the single-model-over-regions recipe, not adopted for the tool.
 - P1 difference assimilation: neutral (raw and difference both about -10 % CRPS vs none, equal to each other: the tool's median is the same at station and pad).
 - P2 gust as a measurement of the 300-750 m wind (MAF, physical gusts + balloons): -2.3 % MAE in mixed air, ~0 at night: too small to wire.
+- P4 regime-dependent spread: FAIL (helps TCS slightly, hurts MAF, over-widens the basin; the factor is a site property). P1 + P2 + P4 point the same way: the ground-wind gap is site-specific -> IL-168 / P7 site-representativeness model from static descriptors.
