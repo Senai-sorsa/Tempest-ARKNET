@@ -102,3 +102,25 @@ def test_physical_atmosphere_metrics_explain_a_wind_driven_result():
     assert c["atmosphere: mean_wind_0_200m"] > 0.3 and c["atmosphere: mean_wind_0_200m"] > c["atmosphere (by its sample index; use varying atmospheres)"]
     e = r.explained()
     assert e["atmosphere_gain"] > 0.3 and e["r2_all"] >= e["r2_vehicle"]
+
+
+def test_sobol_sampling_indices_and_bootstrap_band():
+    """M8: scrambled Sobol sampling keeps the priors' mean / sd; Sobol indices recover a known additive model; the bootstrap band contains the estimate."""
+    from tempest_weather_v2.montecarlo import bootstrap_percentile, sobol_indices
+    p = VehiclePriors(a=("normal", 0.1), b=("normal", 0.1))
+    s = p.sample(1024, np.random.default_rng(0), "sobol")
+    x = np.array([d["a"] for d in s])
+    assert abs(x.mean() - 1) < 0.005 and abs(x.std() - 0.1) < 0.005
+
+    class Atm:                                    # a toy atmosphere reader: its number is its index scaled
+        def __init__(self, k):
+            self.k = k
+    atms = [Atm(k / 31.0) for k in range(32)]
+    sim = lambda atm, a=1.0, b=1.0: 4.0 * (a - 1.0) + 1.0 * (b - 1.0) + 0.2 * (atm.k - 0.5)            # additive: variances 0.16, 0.01, 0.2^2/12 = 0.0033
+    res = sobol_indices(sim, atms, p, n=512, seed=1, n_boot=60)
+    tot = 0.16 + 0.01 + 0.2 ** 2 / 12
+    assert abs(res["a"]["first"] - 0.16 / tot) < 0.06 and res["a"]["first"] > 0.8
+    assert abs(res["a"]["total"] - res["a"]["first"]) < 0.08                                           # additive: no interaction
+    assert res["atmosphere"]["first"] < 0.08 and res["b"]["first"] < 0.12
+    est, lo, hi = bootstrap_percentile(np.random.default_rng(0).normal(size=400), 95)
+    assert lo < est < hi and hi - lo < 0.6

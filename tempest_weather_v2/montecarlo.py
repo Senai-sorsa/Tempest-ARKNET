@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal"]
+__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile"]
 
 
 def latin_hypercube(n, d, rng):
@@ -27,6 +27,66 @@ def latin_hypercube(n, d, rng):
     for j in range(d):
         u[:, j] = u[rng.permutation(n), j]
     return u
+
+
+def sobol_unit(n, d, rng):
+    """(n, d) scrambled Sobol points in (0, 1) (randomised quasi-Monte Carlo; needs scipy, imported here so the module stays numpy-only otherwise). Best with n a power of 2; other n work but lose
+    the balance guarantee."""
+    try:
+        from scipy.stats import qmc
+    except ImportError as e:  # pragma: no cover
+        raise ImportError("method='sobol' needs scipy (scipy.stats.qmc)") from e
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return qmc.Sobol(d, scramble=True, seed=int(rng.integers(2 ** 31))).random(n)
+
+
+def bootstrap_percentile(values, q=95.0, level=95.0, n_boot=500, seed=0):
+    """M8: percentile q of `values` with a bootstrap band -> (estimate, lo, hi) at `level` % confidence. Use it to see how many runs a tail percentile needs: rerun with larger n until (hi - lo) is small enough."""
+    v = np.asarray(values, float)
+    rng = np.random.default_rng(seed)
+    est = np.percentile(v, q, axis=None)
+    bs = np.percentile(v[rng.integers(0, len(v), (n_boot, len(v)))], q, axis=1)
+    a = (100.0 - level) / 2.0
+    return float(est), float(np.percentile(bs, a)), float(np.percentile(bs, 100.0 - a))
+
+
+def sobol_indices(simulate, atmospheres, priors, n=256, seed=0, n_boot=200):
+    """M8: Sobol sensitivity indices of the result to each vehicle parameter and to the atmosphere (the atmosphere is one input: a uniformly chosen member of `atmospheres`). Saltelli (2010) first-order and
+    Jansen total-effect estimators with the A / B / AB_i design: n (d + 2) simulator calls for d inputs (vehicle parameters + the atmosphere). -> dict name -> dict(first, total, first_ci, total_ci) (95 % bootstrap).
+    First-order = the share of the variance this input explains alone; total = including all its interactions (total >= first up to noise)."""
+    names = list(priors.spec) + ["atmosphere"]
+    d = len(names)
+    m = len(atmospheres)
+    rng = np.random.default_rng(seed)
+    AB = sobol_unit(n, 2 * d, rng)
+    A, B = AB[:, :d], AB[:, d:]
+
+    def f(U):
+        par = priors.from_unit(U[:, :d - 1]) if d > 1 else [{} for _ in range(len(U))]
+        return np.array([float(simulate(atmospheres[min(int(U[k, -1] * m), m - 1)], **par[k])) for k in range(len(U))])
+    yA, yB = f(A), f(B)
+    yAB = []
+    for i in range(d):
+        C = A.copy()
+        C[:, i] = B[:, i]
+        yAB.append(f(C))
+    var = np.var(np.concatenate([yA, yB]), ddof=1)
+    if var <= 0:
+        return {nm: dict(first=0.0, total=0.0, first_ci=(0.0, 0.0), total_ci=(0.0, 0.0)) for nm in names}
+
+    def est(idx):
+        v = np.var(np.concatenate([yA[idx], yB[idx]]), ddof=1)
+        v = v if v > 0 else var
+        return [(np.mean(yB[idx] * (yAB[i][idx] - yA[idx])) / v, 0.5 * np.mean((yA[idx] - yAB[i][idx]) ** 2) / v) for i in range(d)]
+    full = est(np.arange(n))
+    boots = np.array([est(rng.integers(0, n, n)) for _ in range(n_boot)])          # (n_boot, d, 2)
+    out = {}
+    for i, nm in enumerate(names):
+        out[nm] = dict(first=float(full[i][0]), total=float(full[i][1]), first_ci=tuple(float(x) for x in np.percentile(boots[:, i, 0], [2.5, 97.5])),
+                       total_ci=tuple(float(x) for x in np.percentile(boots[:, i, 1], [2.5, 97.5])))
+    return out
 
 
 def _ppf_normal(p):
@@ -71,7 +131,13 @@ class VehiclePriors:
         names = list(self.spec)
         if not names:
             return [dict() for _ in range(n)]
-        u = latin_hypercube(n, len(names), rng) if method == "lhs" else rng.random((n, len(names)))
+        u = latin_hypercube(n, len(names), rng) if method == "lhs" else sobol_unit(n, len(names), rng) if method == "sobol" else rng.random((n, len(names)))
+        return self.from_unit(u)
+
+    def from_unit(self, u):
+        """(n, d) uniforms in (0, 1) -> list of n parameter dicts (the transform `sample` uses)."""
+        names = list(self.spec)
+        n = len(u)
         cols = {}
         for j, name in enumerate(names):
             kind, sd = self.spec[name]

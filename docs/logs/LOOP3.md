@@ -201,3 +201,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - W5 Weibull/quantile speed map (fit odd years, test even years, 168 cells): KS 0.186 -> 0.086, calm share 0.009 -> 0.059 (obs 0.060), k 2.05 -> 2.23 (obs 2.22), p99 unchanged; positive where station data exist, ships via sitecal quantile (M6), Launch wiring and CRPS check open.
 - M6 wired: `Launch.calibrate_site(cal)` applies a sitecal ratio/hourly/quantile calibration to the sampled wind speed (faded out by 300 m, gust re-evaluated), test added.
 - M3: twcrps_ensemble added; W5 quantile map CRPS -4.4 %, twCRPS(8 m/s) -2.0 % on held-out ASOS climate distribution.
+- M8: scrambled Sobol sampling, Saltelli/Jansen Sobol indices with bootstrap bands and bootstrap percentile bands added to the harness; known-model test passes.
