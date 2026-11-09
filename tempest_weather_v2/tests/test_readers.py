@@ -170,3 +170,18 @@ def test_perturbation_is_added_to_the_wind_and_zero_at_the_ground():
     b, q = base.wind(1000.0 + 300.0), pert.wind(1000.0 + 300.0)                  # (up, east, north)
     assert q[1] - b[1] == pytest.approx(2.0, abs=1e-4) and q[2] - b[2] == pytest.approx(-1.0, abs=1e-4) and q[0] - b[0] == pytest.approx(0.5, abs=1e-4)
     assert pert.wind(1000.0)[1] == pytest.approx(base.wind(1000.0)[1], abs=1e-4)     # nothing is added at the pad node
+
+
+def test_rocketpy_inputs_are_one_coherent_atmosphere_in_si():
+    """M17: pairs of (altitude ASL, value) for pressure, temperature, wind_u (east) and wind_v (north) that agree with the reader's own lookups."""
+    import numpy as np
+    from tempest_weather_v2 import Launch
+    atm = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2, units="us").atmospheres(20)[3]
+    d = atm.rocketpy_inputs(step_m=250.0)
+    assert set(d) == {"pressure", "temperature", "wind_u", "wind_v"}
+    assert all(len(v) == len(d["pressure"]) > 10 for v in d.values())
+    assert d["pressure"][0][0] == atm.elevation_m and d["pressure"][0][1] > 70000 and 250 < d["temperature"][0][1] < 330
+    assert d["pressure"][-1][1] < d["pressure"][0][1]
+    ref = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2, units="si").atmospheres(20)[3]
+    alt, u = d["wind_u"][8]
+    assert np.isclose(ref.wind(alt)[1], u, atol=1e-3) and np.isclose(ref.wind(alt)[2], d["wind_v"][8][1], atol=1e-3)

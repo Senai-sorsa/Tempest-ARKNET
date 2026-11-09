@@ -204,3 +204,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - M8: scrambled Sobol sampling, Saltelli/Jansen Sobol indices with bootstrap bands and bootstrap percentile bands added to the harness; known-model test passes.
 - M1: wind persistence by height and lag read from the existing ERA5 coherence lag table (10 m: 0.95 / 0.8 / 0.65 / 0.43 at 1 / 3 / 6 / 12 h; 2 km 0.98 / 0.92 / 0.82 / 0.65); `persistence.py` added; ERA5 is an upper bound for fine structure.
 - M2: harness option wind_age (persistence increment, sqrt(2(1-rho)) x pool sd, frozen perturbation via Atmosphere.perturbed); tested.
+- M17: Atmosphere.rocketpy_inputs() exports one coherent atmosphere as RocketPy custom-atmosphere pairs (SI); RocketPy itself not installed, so not run against it.
