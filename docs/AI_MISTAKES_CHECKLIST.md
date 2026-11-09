@@ -60,6 +60,8 @@ Use: after every 3 trials (a trial = one experiment, fix or idea that produced a
 27. **Two queues that wait for each other (2026-11-09, the day after B26).** `ap_g_c4w.sh` and `ap_g_lmap80.sh` each waited for 'no other queue' with a pattern that matched the other one, so both waited forever (stopping either was refused by the permission check; the steps were run by a direct sequential runner instead). Rule: never have two waiting queues at once; put the next GPU steps into the SAME runner, in order (a queue of queues needs a priority, not a symmetric wait).
 28. **CPU analyses started beside a GPU score (2026-11-09).** Scores hold 11-14 GB of the 31 GB; three tool-pool analyses (M4, Monahans benchmark, IL-164) started next to scores were stopped by Claude Code's low-memory guard, which then forbids restarting them without the user. Rule: run analyses that build tool pools or read the ERA5 store only between GPU steps (check free RAM >= 12 GB first), keep light work (docs, small fits) for the time a score runs.
 
+**Noise yardstick (measured 2026-11-09, for A4):** the same generator retrained with another training seed changes the mean skill15 by about 0.0005 and single bands by up to +-0.003 (rh2m +-0.005); score-seed noise (same model, other sampling seed) is about the same size. A single-training-seed effect smaller than that is not a result.
+
 ## C. The check (after every 3 trials; answer for each of the last three)
 - Truth: did any compared source see the truth (A1)? Fit years separate from test years (A2)? Dev-test use counted (A3)?
 - Size: effect larger than seed noise or bootstrap interval (A4)? One change at a time (A5)? Strongest baseline, same rows (A6)?
