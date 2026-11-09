@@ -237,7 +237,7 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_a
     """Call simulate(atmosphere, **vehicle_parameters) n times with atmosphere k and a sampled vehicle parameter set; return an MCResult.
     atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order.
     wind_age (M2, opt-in): the correlation `rho` of the wind anomaly with itself over the age of the latest wind measurement (array over the model heights, see persistence.wind_persistence); every run then adds a
-    frozen wind change with sd sqrt(2 (1 - rho)) x the pool sd (NASA: total = system dispersion + wind in-persistence increment). Needs atmospheres from Launch.atmospheres().
+    frozen wind change with sd sqrt(2 (1 - rho)) x the pool sd (NASA: total = system dispersion + wind in-persistence increment). Needs atmospheres from Launch.atmospheres() of a Launch that has been CONDITIONED on the measurement (observe): on an unconditioned pool the full spread is already there and the increment double counts.
     """
     priors = priors or VehiclePriors()
     m = len(atmospheres)

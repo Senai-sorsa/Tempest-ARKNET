@@ -30,7 +30,7 @@ from tempest_weather_v2.timeutil import Window, WindowError
 
 __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
-INFLATE_DECAY_M = 1500.0      # Gemini bug 2: the 1.5 variance inflation of a conditioned column used to apply at every height (variance above the prior far from the observation); it now fades with distance from the observed height
+INFLATE_DECAY_M = None        # Gemini bug 2 was NOT a bug: the scalar 1.5 inflation at every height is what the balloon check (s6_condition_eval.py) found calibrated; fading it with distance (1500 m tried) drops the 90 % coverage of the unobserved upper levels from 0.88-0.94 back to 0.82-0.85 and loses a little CRPS. None = the scalar (as before the audit); a number in metres switches the fading on
 
 FORMAT_VERSION = 1
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")

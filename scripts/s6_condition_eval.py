@@ -25,6 +25,7 @@ ap.add_argument("--n", type=int, default=150)
 ap.add_argument("--assets", default=None)
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--inflate", type=float, nargs="*", default=[1.0, 1.5, 2.0])
+ap.add_argument("--decay", type=float, nargs="*", default=[], help="inflate 1.5 with the variance inflation fading with distance from the observed heights (inflate_decay_m, metres)")
 ap.add_argument("--localize", type=float, nargs="*", default=[], help="G1: extra methods, inflate 1.5 with a Gaspari-Cohn taper of this half-width in metres")
 a = ap.parse_args()
 rng = np.random.default_rng(a.seed)
@@ -57,6 +58,9 @@ for k in pick:
     for infl in a.inflate:
         eng.condition_on_observations(noisy, sensor_sigma=SIG, inflate=infl)
         schur[f"schur x{infl:g}"] = eng.sample_sobol(u)
+    for D in a.decay:
+        eng.condition_on_observations(noisy, sensor_sigma=SIG, inflate=1.5, inflate_decay_m=D)
+        schur[f"schur x1.5 decay{D:g}"] = eng.sample_sobol(u)
     for L in a.localize:
         eng.condition_on_observations(noisy, sensor_sigma=SIG, inflate=1.5, localize_m=L)
         schur[f"schur x1.5 loc{L:g}"] = eng.sample_sobol(u)
@@ -77,5 +81,5 @@ free = g.xs("free", level="method")
 out = []
 for (var, band, m), r in g.iterrows():
     out.append(dict(var=var, band=band, method=m, mae=r.mae, crps=r.crps, crps_vs_free=f"{(1 - r.crps / free.loc[(var, band), 'crps']) * 100:+.1f} %", cov90=r.cov90))
-print(f"{len(t) // (6 * (len(a.inflate) + len(a.localize) + 2))} soundings scored; effective sample size of the weights: median {t.ess.median():.1f} of 1024")
+print(f"{len(t) // (6 * (len(a.inflate) + len(a.decay) + len(a.localize) + 2))} soundings scored; effective sample size of the weights: median {t.ess.median():.1f} of 1024")
 print(pd.DataFrame(out).round(3).to_string(index=False))
