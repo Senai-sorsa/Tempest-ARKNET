@@ -316,3 +316,19 @@ def test_sequence_keeps_samples_coherent_over_hours():
     a = [np.array([s[i].wind(z)[1] for i in range(150)]) for s in seq]
     assert len(seq) == 2 and len(seq[0]) == 150
     assert np.corrcoef(a[0], a[1])[0, 1] > 0.4
+
+
+def test_calibrate_site_rescales_ground_wind_and_fades_aloft():
+    """M6 / W5 wiring: a ratio calibration of 0.8 lowers the 10 m speed by 20 %, nothing at 300 m and above; the original Launch is unchanged."""
+    from tempest_weather_v2.sitecal import fit_site
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=200, seed=3)
+    ref = np.linspace(1, 8, 300)
+    cal = fit_site(ref, 0.8 * ref, method="ratio")
+    C = L.calibrate_site(cal)
+    a, b = L._ensure_pool()["samples"], C._ensure_pool()["samples"]
+    sp = lambda s, j: np.hypot(s["u"][:, j], s["v"][:, j])
+    assert abs(sp(b, 0).mean() / sp(a, 0).mean() - 0.8) < 0.01
+    z = np.asarray(a["height_agl"])
+    j = int(np.argmin(np.abs(z - 500)))
+    assert np.allclose(sp(b, j), sp(a, j), rtol=1e-4)
+    assert "ground-wind-site-calibrated-ratio" in C._ensure_pool()["flags"] and "ground-wind-site-calibrated-ratio" not in L._ensure_pool()["flags"]

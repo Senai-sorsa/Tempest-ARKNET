@@ -79,7 +79,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, _pool=None, _obs=None, _hrrr=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -93,6 +93,7 @@ class Launch:
         self._elevation_arg = elevation
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
+        self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off
         self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
         if not 0.5 <= self.past_wind_spread <= 3.0:
             raise ValueError("past_wind_spread must be between 0.5 and 3 (1.0 = off, 1.2 = the value fitted against station winds)")
@@ -129,7 +130,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, _obs=self._obs, _hrrr=self._hrrr)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, site_cal=self._site_cal, _obs=self._obs, _hrrr=self._hrrr)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -207,6 +208,27 @@ class Launch:
         out["gust_mu"], out["gust_beta"] = mu, beta
         return out
 
+    def calibrate_site(self, cal):
+        """M6 / W5: a new Launch whose sampled wind speeds are corrected with a site calibration from `tempest_weather_v2.sitecal.fit_site` (a month or more of pad anemometer data against this tool's
+        speeds at the same hours; method "ratio", "hourly" or "quantile"; "hourly" uses the UTC hour of each sample, so fit it with UTC hours). The speed at every height is rescaled by the correction found
+        at the lowest model height, fading to none by 300 m (the record says nothing about the air above); direction is kept. The gust law is evaluated again."""
+        return self.with_(site_cal=cal)
+
+    def _apply_site_cal(self, pool):
+        from tempest_weather_v2 import sitecal
+        s = dict(pool["samples"])
+        u, v = np.asarray(s["u"], float), np.asarray(s["v"], float)
+        sp = np.hypot(u[:, 0], v[:, 0])
+        hrs = np.asarray(pool["launch_times"]).astype("datetime64[h]").astype(np.int64) % 24
+        new = sitecal.apply_site(self._site_cal, sp, hrs)
+        ratio = np.where(sp > 1e-6, new / np.maximum(sp, 1e-6), 1.0)
+        z = np.asarray(_core.HEIGHTS, float)
+        taper = np.clip(1.0 - (z - z[0]) / (300.0 - z[0]), 0.0, 1.0)
+        f = 1.0 + (ratio[:, None] - 1.0) * taper[None, :]
+        s["u"], s["v"] = (u * f).astype(np.float32), (v * f).astype(np.float32)
+        s = self._regust(s, pool["launch_times"])
+        return dict(pool, samples=s, flags=list(pool["flags"]) + ["ground-wind-site-calibrated-" + self._site_cal["method"]])
+
     def _apply_hrrr(self, pool):
         """C3: move the near-ground u, v of every sample so the median is HRRR's 10 m wind (weight 1.0) and the spread about it is x0.8, both fading out by 300 m (fitted in scripts/hrrr_vs_asos.py)."""
         from tempest_weather_v2 import hrrr
@@ -282,6 +304,8 @@ class Launch:
             flags.append("window-hours-independent")
         self._pool = dict(samples=samples, launch_times=times, infos=infos, modes={k: v / n for k, v in mode_count.items()}, elevation_source=esrc, flags=flags,
                           day_share=r.day_share, window=r.description)
+        if self._site_cal is not None:
+            self._pool = self._apply_site_cal(self._pool)
         return self._pool
 
     def _measurements(self):
