@@ -226,3 +226,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - C4w CONFIRMED: training seed 100 pair +0.0276 -> +0.0308 (seed 0 pair +0.0015); 0-1 km u +0.0064 on both seeds, no humidity cost, gains aloft on both seeds. KEEP for the new base (L21).
 - L21 step 1: l21 + C4w + lapse map beats l21 + lapse map on 3 day seeds + night (skill15 +0.0017 to +0.0021, all PASS, physics rows kept): new NM/TX base.
 - Shipped-model C4w (generator_80_c4w + its stack + lapse map) beats the shipped stack + lapse map on score seeds 0 / 1 / 2 (+0.0013 / +0.0016 / +0.0013, all PASS, RH 0-1 km +0.002-0.005): candidate tool model, export_final.sh updated (not run).
+- Denver zero-shot with the shipped-model C4w: FAIL (+0.0100 -> +0.0084, temperature worse in every band, wind unchanged; one seed): C4w not for Denver; seed-100 pair queued on NM/TX and Denver.
