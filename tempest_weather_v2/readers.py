@@ -353,7 +353,7 @@ class Atmosphere:
         raise ValueError(f"launch altitude {launch_altitude_m:.1f} m differs from the atmosphere's site elevation {self.elevation_m:.1f} m by more than {tolerance_m} m; "
                          "give the pad elevation when you generate the atmosphere, or anchor(..., on_mismatch='shift')")
 
-    def rocketpy_inputs(self, step_m=100.0):
+    def rocketpy_inputs(self, step_m=100.0, reference="asl"):
         """M17: this one coherent atmosphere as the inputs of RocketPy's custom atmosphere (SI, heights above sea level): dict(pressure, temperature, wind_u, wind_v), each a list of (altitude_m, value) pairs
         with wind_u east and wind_v north. Use one per run so the wind, temperature and pressure of a run come from the same sampled day (RocketPy's own dispersion samples its inputs independently):
             env.set_atmospheric_model(type="custom_atmosphere", **atm.rocketpy_inputs())     # env = rocketpy.Environment(...) with the pad's latitude / longitude / elevation"""
@@ -365,7 +365,10 @@ class Atmosphere:
             vec = self.wind_many(alts)
         finally:
             self._ft, self.reference, self._perm, self._sign = saved
-        pair = lambda v: [(float(z), float(x)) for z, x in zip(alts, v)]
+        off = 0.0 if reference == "asl" else self.elevation_m if reference == "agl" else None
+        if off is None:
+            raise ValueError("reference must be 'asl' (heights above sea level) or 'agl' (above the pad): the RocketPy docs say only 'height in meters', so check once which your Environment expects")
+        pair = lambda v: [(float(z) - off, float(x)) for z, x in zip(alts, v)]
         return dict(pressure=pair(p), temperature=pair(T), wind_u=pair(vec[:, 1]), wind_v=pair(vec[:, 2]))
 
     def to_openrocket_csv(self, path, step_m=100.0):

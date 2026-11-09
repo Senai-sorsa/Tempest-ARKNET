@@ -137,7 +137,9 @@ def test_wind_persistence_increment_widens_the_wind_dependent_result():
         return float(w[1])
     nh = len(atms.samples["height_agl"])
     base = run(sim, atms, n=300, seed=1)
-    same = run(sim, atms, n=300, seed=1, wind_age=np.ones(nh))
-    wide = run(sim, atms, n=300, seed=1, wind_age=np.full(nh, 0.7))
+    same = run(sim, atms, n=300, seed=1, wind_age=np.ones(nh), conditioned=True)
+    wide = run(sim, atms, n=300, seed=1, wind_age=np.full(nh, 0.7), conditioned=True)
+    with pytest.raises(ValueError):
+        run(sim, atms, n=10, seed=1, wind_age=np.full(nh, 0.7))                  # not declared conditioned: refused
     assert abs(same.values.std() / base.values.std() - 1) < 0.02
     assert wide.values.std() > 1.2 * base.values.std()

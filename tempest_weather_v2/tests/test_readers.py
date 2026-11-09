@@ -185,3 +185,13 @@ def test_rocketpy_inputs_are_one_coherent_atmosphere_in_si():
     ref = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2, units="si").atmospheres(20)[3]
     alt, u = d["wind_u"][8]
     assert np.isclose(ref.wind(alt)[1], u, atol=1e-3) and np.isclose(ref.wind(alt)[2], d["wind_v"][8][1], atol=1e-3)
+
+
+def test_rocketpy_inputs_reference_can_be_agl():
+    from tempest_weather_v2 import Launch
+    atm = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2).atmospheres(20)[1]
+    a, g = atm.rocketpy_inputs(250.0), atm.rocketpy_inputs(250.0, reference="agl")
+    assert g["pressure"][0][0] == 0.0 and abs(a["pressure"][0][0] - atm.elevation_m) < 1e-6 and a["wind_u"][5][1] == g["wind_u"][5][1]
+    import pytest
+    with pytest.raises(ValueError):
+        atm.rocketpy_inputs(reference="x")

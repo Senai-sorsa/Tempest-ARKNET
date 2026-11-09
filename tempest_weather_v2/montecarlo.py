@@ -233,7 +233,7 @@ def persistence_perturbations(atmospheres, rho, n, rng, smooth_m=300.0):
     return out
 
 
-def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None):
+def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None, conditioned=False):
     """Call simulate(atmosphere, **vehicle_parameters) n times with atmosphere k and a sampled vehicle parameter set; return an MCResult.
     atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order.
     wind_age (M2, opt-in): the correlation `rho` of the wind anomaly with itself over the age of the latest wind measurement (array over the model heights, see persistence.wind_persistence); every run then adds a
@@ -247,6 +247,8 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_a
     rng = np.random.default_rng(seed)
     idx = np.concatenate([rng.permutation(m) for _ in range(math.ceil(n / m))])[:n]
     params = priors.sample(n, rng, method)
+    if wind_age is not None and not conditioned:
+        raise ValueError("wind_age adds the change since the last measurement on top of the spread that is left AFTER that measurement; pass conditioned=True only for atmospheres from a Launch that was conditioned with observe(...) (on an unconditioned pool the increment double counts)")
     pert = persistence_perturbations(atmospheres, wind_age, n, rng) if wind_age is not None else None
     vals = []
     for k in range(n):
