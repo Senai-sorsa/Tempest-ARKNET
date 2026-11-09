@@ -107,3 +107,7 @@ Until you answer: no 2026 data is used for anything; the plan's Group E waits fo
 ## 15. Needs the user: pad truth (added 2026-11-09, plan item P5)
 - A wind record from the pad itself (anemometer, even one month, 10 m if possible; `docs/templates/pad_observations.csv` has the format). One month cut the median wind error by about 25 % in tests.
 - The raw flight logs (GPS track, especially the descent under the parachute) of the validation rockets in the flight_sim branch: the drift is a wind profile at the exact pad and hour, the pad truth several checks are waiting for.
+
+## 16. Needs the user: a package install for radar winds (added 2026-11-09, plan item P3)
+NEXRAD VAD wind profiles (the radar's wind every 300 m up to about 10 km, every few minutes, free; El Paso KEPZ stands next to the EPZ balloon site) come as NWS Level III NVW files, which need a decoder: MetPy (`pip install metpy` into the project venv, pure Python, BSD licence) is the usual one. Installing packages is your call, so P3 waits. With it: compare VAD winds with EPZ balloons, then feed them to the existing conditioning (500-2000 m data gave +15-17 % aloft).
+Also (P7, optional): `rasterio` would let the site model use the NLCD land-cover roughness map; without it P7 uses terrain only.
