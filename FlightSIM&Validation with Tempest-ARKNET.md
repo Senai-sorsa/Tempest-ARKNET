@@ -184,3 +184,12 @@ The rerun reproduces the earlier run (past mode 5.80 % now against 5.81 %; clima
 
 ### What this changes in the plan
 Added V9 (pad weather observations for the three launch hours as the missing truth) and D1 (README and trust line: "atmospheric uncertainty only"). Nothing in the tool code needs to change because of this run.
+
+## Daily log (one block per calendar day, newest last; plan section 4)
+### 2026-11-08 (first block, written late in the day by the second audit)
+- Health: disk 109 GB free, RAM 16 GB free, GPU idle at 0 %, no orphan queue scripts (the detached queues ended), `git status` shows only files of earlier or other sessions plus the untracked `flight_sim_trial/`.
+- Tests: see the full-suite result in `docs/AUDIT_2026-11-08.md` (second audit section); `tempest_weather_v2` suite 97 passed before the audit.
+- Flight-sim regression: section 12 above is the rerun (3 flights x 7 atmosphere variants x 100 atmospheres): mean absolute error past mode 5.80 % (earlier 5.81 %), climate 7.37 %, standard day at the true pad 6.15 %, branch as filed 5.21 %.
+- Ground-wind smoke: see the second audit section (run after the full suite).
+- Doc sync: `To-do-Concise.md` status block, `docs/data/DATA_NEEDS.md` section 6, AUTOPILOT rows IL-147 / IL-156, `FIVE_DAY_PLAN.md` boxes all updated.
+
