@@ -251,3 +251,35 @@ def test_observation_guards_refuse_impossible_values_and_keep_real_extremes():
     assert abs(heat.temperature - 45.0) < 0.5
     ok = L.observe(wind_10m="4 m/s", wind_from_deg=200, temperature="28 C").weather(all=True)
     assert not any(f.startswith("observation-far-outside") for f in ok.flags)
+
+
+def test_percentile_window_is_symmetric_near_the_edges_and_advice_by_date():
+    import numpy as np
+    from datetime import datetime as _dt, timezone as _tz
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=1024, units="si", seed=3)
+    pool = L._ensure_pool()
+    d = L._derive(pool["samples"], pool["launch_times"])
+    ws = d["wind_speed"]
+    rank = (np.argsort(np.argsort(ws)) + 0.5) / len(ws)
+    for p in (1, 99):
+        r = L.weather(percentile=p, all=True)
+        sel_rank = np.abs(rank - p / 100.0) <= max(min(max(0.05, 12.5 / len(ws)), p / 100.0, 1 - p / 100.0), 6.0 / len(ws))
+        assert abs(np.median(rank[sel_rank]) - p / 100.0) < 0.004            # the companion fields now describe the p-th percentile day, not a day 2 points inside
+    past = Launch("spaceport_america", "2020-06-16 10:00", mode="ai", n=64, units="si").trust
+    assert "in the past" in past and "mode='past'" in past
+    soon = Launch("spaceport_america", "2026-11-12 10:00", mode="ai", n=64, units="si", now=_dt(2026, 11, 9, 12, 0)).trust
+    assert "days away" in soon and "forecast" in soon
+    far = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64, units="si").trust
+    assert "in the past" not in far and "days away" not in far
+
+
+def test_ground_wind_profile_rows():
+    import numpy as np
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="si", seed=4)
+    g = L.ground_wind_profile()
+    assert g["units"] == "m/s" and g["heights_m"][0] == 10.0 and g["heights_m"][-1] == 200.0 and len(g["speed"][50]) == len(g["heights_m"])
+    assert all(a <= b <= c for a, b, c in zip(g["speed"][10], g["speed"][50], g["speed"][90])) and g["mean_0_200m"][10] <= g["mean_0_200m"][50] <= g["mean_0_200m"][90]
+    s = L._ensure_pool()["samples"]
+    assert g["speed"][50][0] == pytest.approx(float(np.median(np.hypot(s["u"][:, 0], s["v"][:, 0]))))
+    us = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="us", seed=4).ground_wind_profile()
+    assert us["units"] == "mph" and us["speed"][50][0] == pytest.approx(g["speed"][50][0] / 0.44704, rel=1e-6)

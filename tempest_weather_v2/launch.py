@@ -463,6 +463,24 @@ class Launch:
             text = "Mixed: " + ", ".join(f"{100 * v:.0f}% {'forecast' if k == 'forecast' else 'climate' if k == 'ai' else 'past'}" for k, v in sorted(m.items(), key=lambda kv: -kv[1])) + " (window spans a mode limit)"
         if "fallback-mode" in p["flags"]:
             text += " (the mode you asked for was not available: see flags)"
+        if len(m) == 1 and next(iter(m)) == "ai":          # F1: a climate answer for a date that has a better source
+            try:
+                r_ = self.resolved_window()
+                t_first = r_.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+                now_ = self._now
+                if isinstance(now_, str):                     # the tool's convention: `now` is a naive UTC datetime or an ISO string
+                    now_ = datetime.fromisoformat(now_)
+                if not isinstance(now_, datetime):
+                    now_ = datetime.now(timezone.utc)
+                if now_.tzinfo is None:
+                    now_ = now_.replace(tzinfo=timezone.utc)
+                days = (t_first - now_).total_seconds() / 86400.0
+                if days < 0:
+                    text += "; this date is in the past: mode='past' gives that day's ERA5 corrected to balloons (needs the ERA5 store), or observe_latest() / observe_metar() for what was measured"
+                elif days <= 10:
+                    text += f"; the launch is {days:.1f} days away: a forecast exists (mode='forecast'), and observe_latest() adds what is measured"
+            except Exception:    # noqa: BLE001  the advice must never break the trust line
+                pass
         dom = self.domain()
         if dom["status"] == "edge":
             text += f"; near the edge of what the model was trained on ({dom['reason']})"
@@ -573,6 +591,7 @@ class Launch:
             else:
                 rank = (np.argsort(np.argsort(d[by])) + 0.5) / n
                 width = max(0.05, 12.5 / n)
+                width = max(min(width, p / 100.0, 1.0 - p / 100.0), 6.0 / n)      # V7: near 0 or 100 the window is shrunk symmetrically (it used to be cut off on one side, so the companion fields of the 99th percentile day described a 97th percentile day)
                 sel = np.abs(rank - p / 100.0) <= width
                 label = f"{self.local_time_note}  |  {p:g}th percentile of {by} (other fields: typical values for such a day, {int(sel.sum())} atmospheres)"
         vals = {}
@@ -598,6 +617,20 @@ class Launch:
             flags.append("gust-model-not-available")
         site_decl = self._site.declination() if self._site else W.declination_deg(self.lat, self.lon, 2026.9)
         return Weather(vals, units=self.units, all_fields=all, label=label, flags=flags, provenance=self.provenance, trust=self.trust, declination=site_decl, notes=notes)
+
+    def ground_wind_profile(self, percentiles=(10, 50, 90)):
+        """The wind between the ground and 200 m, the layer that moves a rocket's apogee most after the pad air (flight-sim test 2026-11-08): -> {"units": "m/s" or "mph", "heights_m": [...], "speed": {p: [speed at each height]}, "mean_0_200m": {p: value}},
+        percentiles of the sampled atmospheres in the Launch's units. Heights are above the pad."""
+        pool = self._ensure_pool()
+        s = pool["samples"]
+        h = np.asarray(s["height_agl"], float)
+        sel = h <= 200.0
+        sp = np.hypot(np.asarray(s["u"], float), np.asarray(s["v"], float))[:, sel]
+        k = 1.0 if self.units == "si" else 1.0 / 0.44704
+        ps = [float(p) for p in percentiles]
+        return dict(units="m/s" if self.units == "si" else "mph", heights_m=[float(x) for x in h[sel]],
+                    speed={p: [float(v) * k for v in np.percentile(sp, p, axis=0)] for p in ps},
+                    mean_0_200m={p: float(np.percentile(sp.mean(1), p)) * k for p in ps})
 
     # ---- Call 2: distribution()
     def distribution(self, variables, spread="full"):
