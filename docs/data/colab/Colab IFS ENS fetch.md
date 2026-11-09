@@ -205,9 +205,9 @@ def read_var(short, t, L):
         a = (a.sel(level=LEVELS) if "level" in a.dims else a).load()
         if np.isfinite(a.values).all():
             return a.astype("float32")
+        if k == 1 and bool(ds[LONG[short]].sel(time=t, prediction_timedelta=L).isnull().all()):
+            return None                                 # empty on two reads, whole globe NaN: a real store gap, leave it NaN, skip the other retries
         time.sleep(10 * (k + 1))
-    if bool(ds[LONG[short]].sel(time=t, prediction_timedelta=L).isnull().all()):
-        return None                                     # the store itself is empty here (whole globe NaN): a real gap, leave it NaN
     raise RuntimeError(f"still NaN after 6 tries: {short}, start {t}, lead {L}. Send this to Claude")
 
 todo = [(y, m) for (y, m) in MINE if not all(os.path.exists(f"{OUT}/{b}/{y}{m:02d}_00z.nc") for b in BOXES)]

@@ -64,3 +64,11 @@ F3 -> F1/F2/S1 (+F9, F6, C3) = **Section 1**; then N/I -> F7 + top height -> R1/
 
 ## Not changed
 `tempest/` (the research package), the trained models, the frozen pilot routing, and the gates in `docs/plans/fixing issues.md` are not touched by this plan.
+
+## Gemini findings: where they go (added 2026-11-08; details in `docs/plans/fixing issues.md` section G)
+
+- **Section 1 (correctness; flag off by default):** G2 clamped tails (IL-129), G3-G5 Dryden N^2, boundary-layer floor and resolved w (IL-130, same rewrite as S1/F1/F2), G6-G7 pad node and altitude conversion (IL-131), G9 `w` after reordering (IL-133), G10 surface-pressure spread (IL-134), G17 block slicing (IL-139, same as S5).
+- **Section 2A (flexibility; these change numbers, so before validation):** G1 whole-profile selection (IL-128, with F5), G8 site shift (IL-132), G12 per-sample boundary-layer height and gust peak (IL-135, with R1), G15 conditioning inflation (IL-138).
+- **Calibration experiments (research package, run through the usual 3-seed checks):** IL-137, IL-140, IL-141, IL-142, IL-143.
+- **Low priority:** IL-136.
+
