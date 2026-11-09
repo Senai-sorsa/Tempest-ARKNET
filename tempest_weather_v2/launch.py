@@ -30,6 +30,8 @@ from tempest_weather_v2.timeutil import Window, WindowError
 
 __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
+INFLATE_DECAY_M = 1500.0      # Gemini bug 2: the 1.5 variance inflation of a conditioned column used to apply at every height (variance above the prior far from the observation); it now fades with distance from the observed height
+
 FORMAT_VERSION = 1
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")
 Z0_DEFAULT = 0.03
@@ -187,6 +189,24 @@ class Launch:
             self._pool = pool
         return pool
 
+    def _regust(self, samples, launch_times):
+        """Gemini bug 3: the gust law (mean and scale of the gust excess) is a function of the 10 m wind speed; after the wind is moved by an observation or by HRRR it has to be evaluated again, otherwise the reported gust stays at the prior's value (a pinned 25 m/s wind with gust = wind). Returns samples (a new dict) with gust_mu / gust_beta recomputed, or the input if the pool has no gust law."""
+        if "gust_mu" not in samples:
+            return samples
+        g = api._assets(self.assets)["gust"]
+        if g is None:
+            return samples
+        ws = np.hypot(np.asarray(samples["u"], float)[:, 0], np.asarray(samples["v"], float)[:, 0])
+        hrs = np.asarray(launch_times).astype("datetime64[h]")
+        mu, beta = np.empty(len(ws), np.float32), np.empty(len(ws), np.float32)
+        for h in np.unique(hrs):
+            m = hrs == h
+            t = np.datetime64(h, "s").astype(datetime).replace(tzinfo=timezone.utc)
+            mu[m], beta[m] = api._gust_params(g, ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
+        out = dict(samples)
+        out["gust_mu"], out["gust_beta"] = mu, beta
+        return out
+
     def _apply_hrrr(self, pool):
         """C3: move the near-ground u, v of every sample so the median is HRRR's 10 m wind (weight 1.0) and the spread about it is x0.8, both fading out by 300 m (fitted in scripts/hrrr_vs_asos.py)."""
         from tempest_weather_v2 import hrrr
@@ -199,6 +219,7 @@ class Launch:
             x = np.median(x, axis=0, keepdims=True) + (x - np.median(x, axis=0, keepdims=True)) * (1.0 + (hrrr.SPREAD_SCALE - 1.0) * taper)
             x = x + hrrr.HRRR_WEIGHT * (target - med) * taper
             s[k] = x.astype(np.float32)
+        s = self._regust(s, pool["launch_times"])
         return dict(pool, samples=s, hrrr_applied=True, flags=list(pool["flags"]) + ["ground-wind-anchored-to-HRRR"])
 
     def _ensure_pool_raw(self, n=None):
@@ -286,14 +307,16 @@ class Launch:
         base = Launch.with_(self, _obs=None)
         eng_obs = self._obs_to_engine(base)
         sig = self._sensor_sigma(base, eng_obs)
-        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None)       # weighted observations are soft: the observed columns move with the error, they are not pinned
-        u = np.random.default_rng(np.random.SeedSequence([self.seed, 2])).random((n, 16))
+        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M)       # weighted observations are soft: the observed columns move with the error, they are not pinned
+        from tempest_weather_v2.montecarlo import latin_hypercube       # Gemini bug 9: stratified, not plain random, uniforms for the conditioned pool (the unconditioned pool uses Sobol)
+        u = latin_hypercube(n, 16, np.random.default_rng(np.random.SeedSequence([self.seed, 2])))
         out = eng.sample_sobol(u)
         s = {k: np.asarray(out[k], np.float32) for k in ("u", "v", "T", "RH", "p", "rho", "a", "t2m", "sp", "rh2m") if k in out}
         s["w"] = np.asarray(out["w"], np.float32) if "w" in out else np.zeros_like(s["u"])
         for k in ("gust_mu", "gust_beta"):
             if k in out:
                 s[k] = np.asarray(out[k], np.float32)
+        s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n))
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
         s["elevation_m"] = elev

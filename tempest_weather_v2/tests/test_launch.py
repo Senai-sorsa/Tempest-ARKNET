@@ -295,3 +295,14 @@ def test_speed_distributions_are_positive_families_weibull_or_lognormal():
         assert 1.2 < w["params"]["shape"] < 4.0
     t = L.distribution(["temperature"])["temperature"]
     assert t["type"] is not None                                                   # other variables are untouched
+
+
+def test_gust_law_follows_the_observed_wind():
+    """Gemini bug 3: after observe(wind_10m=25 m/s) the gust law must be evaluated at the new wind, not left at the prior's value."""
+    base = Launch(32.94, -106.91, "2027-06-16 10:00", tz="America/Denver", seed=3, n=60)
+    pool0 = base._ensure_pool()["samples"]
+    if "gust_mu" not in pool0:
+        pytest.skip("no gust law in these assets")
+    hot = base.observe(wind_10m="25 m/s", wind_from_deg=270)
+    mu_hot = np.asarray(hot._ensure_pool()["samples"]["gust_mu"])
+    assert mu_hot.mean() > np.asarray(pool0["gust_mu"]).mean() + 3.0
