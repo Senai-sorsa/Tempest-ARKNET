@@ -267,5 +267,6 @@ def shear_apply(table, x, smooth=9, smooth_m=None):
     delta = np.cumsum(d * (g[..., None, :] - 1.0), axis=-1)
     delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
     rough = delta - (delta @ gauss_smoother(HEIGHTS, smooth_m).T if smooth_m else _uniform_filter_nearest(delta, smooth))   # smooth_m (opt-in): Gaussian of that width in metres
+    rough = rough - rough[..., :1]                                                    # Gemini bug 5: pin the height-0 wind (same line as in tempest/calibrate/shear_map.py)
     out[..., :2 * NH] = (uv + rough).reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
     return out

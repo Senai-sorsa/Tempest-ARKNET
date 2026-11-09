@@ -121,6 +121,9 @@ def split(year, cond, names, cfg):
     if val.sum() < 0.02 * len(year) or min(cnt_t) == 0:                                          # review 1.5: minimum support on both sides
         raise ValueError(f"block validation split has too little support: {int(val.sum())} validation rows, training rows per year min {min(cnt_t)}")
     print(f"block validation: {int(val.sum()):,} validation rows ({100 * val.mean():.1f} %), years without validation rows: {[int(y) for y, c in zip(yrs, cnt_v) if c == 0]}", flush=True)
+    if int(np.max(year)) >= 2021:                                                                   # Gemini bug 10: block validation draws validation rows from every year, so with data from 2021 on the calibration / test years are partly seen in training
+        import warnings
+        warnings.warn("val_block_frac > 0 with training data up to year %d: validation blocks come from every year, so years from 2021 on that are used for calibration or test are partly inside training; cut the data with --max-year 2022 first." % int(np.max(year)), stacklevel=2)
     return tr, val
 
 
