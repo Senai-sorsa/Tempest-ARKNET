@@ -46,6 +46,8 @@ Use: after every 3 trials (a trial = one experiment, fix or idea that produced a
 
 18. A cause was named from one seed (calibration "creates" surface jumps, 2.7x ERA5): on seeds 1 and 2 the calibrated row is only 1.1-1.2x ERA5 and the raw network is too smooth. Always read a physics row on at least two seeds before designing a fix (L14a, found before building).
 
+19. A vehicle-dependent number (apogee error of three flights) was the yardstick for an input that is a small part of it (the atmosphere). Report the input-level error (atmosphere against observations) and the end-to-end error side by side; never conclude from the end-to-end number alone (flight-sim rerun, 2026-11-08).
+
 ## C. The check (after every 3 trials; answer for each of the last three)
 - Truth: did any compared source see the truth (A1)? Fit years separate from test years (A2)? Dev-test use counted (A3)?
 - Size: effect larger than seed noise or bootstrap interval (A4)? One change at a time (A5)? Strongest baseline, same rows (A6)?
