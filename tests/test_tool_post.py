@@ -147,3 +147,21 @@ def test_pit_apply_matches_training_code_and_damp_is_half_way():
         assert np.allclose(_core.pit_apply(tab["ginv"], tab["groups"], x, d), pit_recal.apply(tab, x, d), atol=1e-5)
     full, half = (_core.pit_apply(tab["ginv"], tab["groups"], x, d, keep_order=False) for d in (1.0, 0.5))   # the half-way identity is stated on the sorted members (keep_order=False)
     assert np.allclose(half, 0.5 * (np.sort(x, 1) + full), atol=1e-5)
+
+
+def test_widen_temperature_keeps_the_dewpoint():
+    """Gemini bug 8: widening the temperature must move the relative humidity so the dewpoint stays."""
+    from tempest_weather import _core, bias
+    rng = np.random.default_rng(1)
+    nh = 44
+    h = np.r_[10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000, np.arange(2500, 18001, 500)].astype(float)
+    phys = np.zeros((600, 4 * nh + 3))
+    phys[:, 2 * nh:3 * nh] = 280 + 2.0 * rng.normal(size=(600, 1))
+    phys[:, 3 * nh:4 * nh] = 50.0
+    phys[:, 4 * nh] = 281 + 2.0 * rng.normal(size=600)
+    phys[:, 4 * nh + 2] = 50.0
+    old = phys.copy()
+    dew = lambda p: np.log(p[:, 4 * nh + 2] / 100.0 * _core.es_liquid(p[:, 4 * nh]))          # ln(vapour pressure): constant when the dewpoint is
+    st = {"temperature_2m": {"7": {"b": [0.0] * 24, "n": [40] * 24, "se": [0.1] * 24, "sd": [3.0] * 24}}}
+    assert bias.widen_temperature(phys, st, 7.0, 12, nh, heights=h) > 1.0
+    assert np.allclose(dew(phys)[phys[:, 4 * nh + 2] < 100], dew(old)[phys[:, 4 * nh + 2] < 100], atol=1e-6)

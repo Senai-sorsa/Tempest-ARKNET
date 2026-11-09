@@ -100,9 +100,15 @@ def widen_temperature(phys, state, lead_days, hour_utc, nh, max_factor=1.6, scal
     k0 = min(sd_obs / sd_s, max_factor)
     z = np.asarray(heights if heights is not None else np.arange(nh), float)
     k = 1.0 + (k0 - 1.0) * np.exp(-z / scale_m)
+    from tempest_weather._core import es_liquid
+    t_old, t2_old = phys[:, i_t * nh:(i_t + 1) * nh].copy(), phys[:, 4 * nh].copy()
     blk = phys[:, i_t * nh:(i_t + 1) * nh]
     med = np.median(blk, axis=0, keepdims=True)
     phys[:, i_t * nh:(i_t + 1) * nh] = med + (blk - med) * k[None, :]
     m2 = np.median(phys[:, 4 * nh])
     phys[:, 4 * nh] = m2 + (phys[:, 4 * nh] - m2) * k0
+    if phys.shape[1] > 4 * nh + 2 and np.all(t_old > 150) and np.all(t2_old > 150):            # Gemini bug 8: keep the dewpoint when the temperature is widened (relative humidity follows, in %), as the site shift does
+        r = i_t + 1
+        phys[:, r * nh:(r + 1) * nh] = np.clip(phys[:, r * nh:(r + 1) * nh] * es_liquid(t_old) / es_liquid(phys[:, i_t * nh:(i_t + 1) * nh]), 0.0, 100.0)
+        phys[:, 4 * nh + 2] = np.clip(phys[:, 4 * nh + 2] * es_liquid(t2_old) / es_liquid(phys[:, 4 * nh]), 0.0, 100.0)
     return float(k0)
