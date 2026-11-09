@@ -80,7 +80,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, past_era5_anchor=False, _pool=None, _obs=None, _hrrr=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, past_era5_anchor=True, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -94,7 +94,7 @@ class Launch:
         self._elevation_arg = elevation
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
-        self.past_era5_anchor = bool(past_era5_anchor)         # M5c: PAST mode only: centre the near-ground wind ensemble on the ERA5 10 m wind (speed CRPS -5 % / -11 % at TCS / MAF; with past_wind_spread=1.2 -8 % / -13 %). Off by default
+        self.past_era5_anchor = bool(past_era5_anchor)         # M5c: PAST mode only: centre the near-ground wind ensemble on the ERA5 10 m wind (speed CRPS -5 % / -11 % at TCS / MAF; with past_wind_spread=1.2 -8 % / -13 %). ON by default since 2026-11-09: GW-F confirmed it at a third, non-airport site (USCRN basin, 2019-22: CRPS 0.764 -> 0.744 by day, 0.891 -> 0.845 at other hours); False = the plain past ensemble
         self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off
         self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
         if not 0.5 <= self.past_wind_spread <= 3.0:
@@ -728,6 +728,65 @@ class Launch:
         n = int(n or self.n)
         sub = {k: (v[:n] if isinstance(v, np.ndarray) and v.ndim >= 1 and len(v) >= n and k not in ("height_agl", "height_asl") else v) for k, v in s.items()}
         return AtmosphereSet(sub, launch_times=pool["launch_times"][:n], **reader_kw)
+
+    def stress(self, variable="wind_10m", quantile=0.999, side="upper", n=200, strata=8, values=None):
+        """A5 (roadmap): atmospheres for a RARE ground-level event beyond what the pool holds (a 1-in-1000 storm wind, freeze or heat wave; the Uri freeze at Midland lay below all
+        600 climate samples). The tail of the pool's own 10 m wind speed or 2 m temperature beyond its 95th (or 5th) percentile is fitted with a generalised Pareto law (probability-weighted
+        moments, shape held in -0.5 .. 0.3), `strata` values are read off it at equal probability steps beyond `quantile`, and for each value the Launch is CONDITIONED on it with observe()
+        (pinned), so the profile above follows the event with the learned correlations and every guard / flag of observe applies. Opt-in; the ordinary pool is unchanged.
+        variable: "wind_10m" (m/s; direction drawn from the pool's own windiest 5 %) or "temperature" (C); side "upper" or "lower" (only "upper" for wind).
+        LIMIT: the tail comes from the tool's OWN climate; it cannot invent an event the training years never had (a cold tail often fits as bounded: at Midland in February the
+        1-in-1000 freeze reads about -12 C while the Uri freeze of 2021 was -17.2 C). Pass `values=[...]` (SI: m/s or C, e.g. the site's record) to condition on given extremes instead;
+        `quantile` then only labels the probability you assign to them.
+        -> AtmosphereSet of about n atmospheres with `.stress` = dict(variable, side, quantile, probability (the share of real cases at least this extreme, = 1 - quantile), values (per stratum, SI), flags)."""
+        if variable not in ("wind_10m", "temperature"):
+            raise ValueError("variable must be 'wind_10m' or 'temperature'")
+        if side not in ("upper", "lower") or (variable == "wind_10m" and side != "upper"):
+            raise ValueError("side must be 'upper' (wind) or 'upper' / 'lower' (temperature)")
+        if not 0.95 < float(quantile) < 1.0:
+            raise ValueError("quantile must be between 0.95 and 1 (the tail fit uses the pool beyond its 5 % end)")
+        if self._obs:
+            raise ValueError("stress() conditions on the extreme value itself; call it on a Launch without observations")
+        s = self._ensure_pool()["samples"]
+        u0, v0 = np.asarray(s["u"], float)[:, 0], np.asarray(s["v"], float)[:, 0]
+        x = np.hypot(u0, v0) if variable == "wind_10m" else np.asarray(s["t2m"], float) - 273.15
+        sign = 1.0 if side == "upper" else -1.0
+        y = sign * x
+        thr = float(np.quantile(y, 0.95))
+        e = np.sort(y[y > thr] - thr)
+        if len(e) < 10:
+            raise ValueError("the pool is too small for a tail fit (needs at least 200 samples)")
+        b0 = e.mean()
+        a1 = np.mean(e * (len(e) - 1 - np.arange(len(e))) / max(len(e) - 1, 1))    # Hosking-Wallis moment a1 = E[X (1 - F)] on the sorted exceedances
+        xi = float(np.clip(2.0 - b0 / max(b0 - 2 * a1, 1e-12), -0.5, 0.3))     # k = a0 / (a0 - 2 a1) - 2, xi = -k
+        sig = max(2 * b0 * a1 / max(b0 - 2 * a1, 1e-12), 1e-6)
+        k = int(strata)
+        levels = float(quantile) + (1.0 - float(quantile)) * (np.arange(k) + 0.5) / k
+        p = (levels - 0.95) / 0.05
+        ex = sig / xi * ((1 - p) ** (-xi) - 1) if abs(xi) > 1e-6 else -sig * np.log(1 - p)
+        values = sign * (thr + ex) if values is None else np.asarray(values, float).ravel()
+        k = len(values)
+        rng = np.random.default_rng(np.random.SeedSequence([self.seed, 5]))
+        if variable == "wind_10m":
+            top = np.flatnonzero(np.hypot(u0, v0) >= np.quantile(np.hypot(u0, v0), 0.95))
+            dirs = (np.degrees(np.arctan2(-u0[top], -v0[top])) % 360.0)[rng.integers(0, len(top), k)]
+        per = max(1, -(-int(n) // k))
+        parts, used = [], []
+        for j in range(k):
+            obs = dict(wind_10m=f"{values[j]:.3f} m/s", wind_from_deg=float(dirs[j])) if variable == "wind_10m" else dict(temperature=f"{values[j]:.3f} C")
+            a = self.observe(**obs).atmospheres(per)
+            parts.append(a.samples)
+            used.append(float(values[j]))
+        out = {}
+        for key, val in parts[0].items():
+            if isinstance(val, np.ndarray) and val.ndim >= 1 and len(val) == per and key not in ("height_agl", "height_asl"):
+                out[key] = np.concatenate([pp[key] for pp in parts])
+            else:
+                out[key] = val
+        res = AtmosphereSet(out, None)
+        res.stress = dict(variable=variable, side=side, quantile=float(quantile), probability=1.0 - float(quantile), values=used, gpd_shape=xi, gpd_scale=sig, threshold=sign * thr,
+                          flags=["stress-tail-extrapolated-gpd", "conditioned-on-the-extreme-value"])
+        return res
 
     def sequence(self, offsets=(0, 1, 2, 3), n=None, **reader_kw):
         """G2 / M11 (Gemini bug 4): the SAME n atmospheres over several hours as one coherent sequence (sample j is one weather system followed through the hours), for hold-time and window-slip Monte Carlo.

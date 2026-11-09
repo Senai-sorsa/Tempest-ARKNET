@@ -62,6 +62,7 @@ def main():
     ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
     ap.add_argument("--post-cell", type=int, default=0, help="with --post-templates: one template set per block of N x N grid points (8 = 2 degrees; stored as uint8 ranks) instead of one for the whole box")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
+    ap.add_argument("--post-lmap", help="L21b / IL-162: lapse-rate quantile map npz (tempest.calibrate.lapse_map output, fitted on THIS model's stack) applied after the shear map; opt-in")
     ap.add_argument("--post-pit", help="PIT recalibration table npz (scripts/il86_fit.py output); loop 2 H1, opt-in, off by default")
     ap.add_argument("--post-pit-damp", type=float, default=0.5, help="strength of --post-pit (0.5 = the tested half-way map)")
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
@@ -94,7 +95,7 @@ def main():
             arrays[f"calib/{k}"] = cal[k]
     if a.head:
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
-    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit)
+    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit or a.post_lmap)
     if a.post_templates:
         from tempest.calibrate.shuffle import cell_keys
         from tempest.generator.sample import to_physical
@@ -137,6 +138,9 @@ def main():
         sm = np.load(a.post_smap)
         arrays["post/smap_grid"], arrays["post/smap_gain"] = sm["grid"], sm["gain"]
         assert "edges" not in sm.files, "7-group maps need an edges asset (not exported yet)"
+    if a.post_lmap:
+        lm = np.load(a.post_lmap)
+        arrays["post/lmap_xk"], arrays["post/lmap_yk"] = lm["xk"], lm["yk"]
     if a.post_pit:
         pt = np.load(a.post_pit)
         arrays["post/pit_ginv"], arrays["post/pit_groups"], arrays["post/pit_damp"] = pt["ginv"], pt["groups"], np.array(a.post_pit_damp)

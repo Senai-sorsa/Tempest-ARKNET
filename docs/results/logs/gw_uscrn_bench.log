@@ -1,0 +1,17 @@
+USCRN wind QC: using 2019-2022
+
+local 10-18 h (log-law scaling valid): 250 hours 2019-2022, USCRN scaled to 10 m mean 4.36 m/s
+  variant                  CRPS   MAE(median)  cov90  mean speed
+  raw ERA5 10 m           1.163     1.163      nan    3.59
+  tool climate            1.322     1.904     0.95    4.34
+  tool past               0.764     1.034     0.90    4.06
+  past + anchor           0.744     0.989     0.90    4.04
+  past + anchor + x1.2    0.750     0.993     0.95    4.22
+
+other hours (log law NOT valid in stable air: the scaled truth is too high or too low; read with care): 178 hours 2019-2022, USCRN scaled to 10 m mean 2.39 m/s
+  variant                  CRPS   MAE(median)  cov90  mean speed
+  raw ERA5 10 m           1.016     1.016      nan    2.38
+  tool climate            1.238     1.843     0.84    3.43
+  tool past               0.891     1.263     0.79    2.99
+  past + anchor           0.845     1.207     0.81    2.95
+  past + anchor + x1.2    0.924     1.345     0.83    3.17

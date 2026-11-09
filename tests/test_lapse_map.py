@@ -45,3 +45,14 @@ def test_lowest_level_is_not_moved():
     samples, truth = make(40, 60, 1.6, 0), make(40, 60, 1.0, 1)[:, 0]
     after = LM.apply(LM.fit(samples, truth), samples)
     assert np.allclose(after[..., LM.T0], samples[..., LM.T0], atol=1e-4)
+
+
+def test_runtime_lapse_apply_matches_the_training_side_map():
+    """L21b: tempest_weather._core.lapse_apply (numpy, shipped) equals tempest.calibrate.lapse_map.apply within 1e-5 K on samples with a rough tail."""
+    from tempest_weather import _core
+    samples, truth = make(20, 40, 1.6, 3), make(20, 40, 1.0, 4)[:, 0]
+    table = LM.fit(samples, truth)
+    a = LM.apply(table, samples)
+    b = _core.lapse_apply({k: np.asarray(v) for k, v in table.items()}, samples)
+    assert np.abs(a - b).max() < 1e-5
+    assert np.abs(a - samples).max() > 0.1                                                # the map did something, so the parity is not trivial

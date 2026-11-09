@@ -295,6 +295,9 @@ def run_importance(simulate, atmospheres, threshold, priors=None, n=200, tilt=2.
     (1 / m) / q, so P(value > threshold) stays unbiased for the pool's distribution while the windy atmospheres that make the rare outcome are simulated far more often (tilt 2 moves the mean
     normal score to about 2, the windiest 2-3 %). Vehicle parameters are drawn from their priors as in run(). The pool bounds the reach: a pool of m atmospheres cannot show a wind more extreme than
     its own most extreme sample, so make the pool large (atmospheres are cheap, the simulator is not; m >= 20 / p) and check ISResult.effective_n().
+    CAUTION (checked 2026-11-09 against 3000 crude runs): the estimate is unbiased, but when the rare outcome is driven partly by inputs the tilt does not target (vehicle scale factors,
+    other air) and the effective n is small (< about 20), the reported standard error can be far too small: with 150 runs one draw read 0.0017 +- 0.0003 where the truth was 0.0080
+    (300 runs: 0.0080 +- 0.0023). Use n >= 300, tilt the metric that drives the outcome, and confirm once against a short crude run.
     metric: a key of atmosphere_metrics() ("mean_wind_0_200m", "mean_wind_0_3km", "pad_air_density"), a callable reader -> number, or an array of one number per atmosphere."""
     priors = priors or VehiclePriors()
     m = len(atmospheres)

@@ -339,7 +339,7 @@ def test_calibrate_site_rescales_ground_wind_and_fades_aloft():
 
 
 def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
-    """M5c: the opt-in flag adds era5_anchor=1.0 to the call; default adds nothing (the call is unchanged)."""
+    """M5c / GW-F: the anchor is on by default (era5_anchor=1.0 in the call; it acts in past mode only); past_era5_anchor=False adds nothing (the old call)."""
     from tempest_weather import api
     seen = []
     real = api.atmosphere_set
@@ -348,8 +348,8 @@ def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
         seen.append(dict(k))
         return real(*a, **k)
     monkeypatch.setattr(api, "atmosphere_set", spy)
+    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1, past_era5_anchor=False)._ensure_pool()
     Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1)._ensure_pool()
-    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1, past_era5_anchor=True)._ensure_pool()
     assert "era5_anchor" not in seen[0] and seen[1].get("era5_anchor") == 1.0
 
 
@@ -381,3 +381,21 @@ def test_measured_wind_gust_law_matches_station_gust_factors():
     finally:
         LM.MEASURED_GUST_LAW = old
     assert np.median(d2["gust"] / d2["wind_10m"]) > np.median(d["gust"] / d["wind_10m"]) + 0.2       # the switch restores the model-wind law
+
+
+def test_stress_conditions_the_profile_on_a_rare_tail_value():
+    """A5: stress() reads a 1-in-1000 value off a GPD fit to the pool's own tail and conditions on it; the profile above follows; given values are used as they are; bad input refused."""
+    import numpy as np
+    L = Launch(31.9425, -102.2019, "2021-02-16 08:00", tz="America/Chicago", mode="ai", n=1024, units="si", seed=3, elevation=872)
+    s = L._ensure_pool()["samples"]
+    w = np.hypot(s["u"][:, 0], s["v"][:, 0])
+    B = L.stress("wind_10m", 0.999, n=40)
+    assert len(B) == 40 and B.stress["probability"] == pytest.approx(0.001) and min(B.stress["values"]) > np.quantile(w, 0.99)
+    assert np.median(np.hypot(B.samples["u"][:, 6], B.samples["v"][:, 6])) > np.median(np.hypot(s["u"][:, 6], s["v"][:, 6]))      # the wind aloft follows the storm
+    A = L.stress("temperature", 0.999, "lower", n=16, values=[-17.2, -15.0])
+    assert A.stress["values"] == [-17.2, -15.0] and len(A) == 16
+    assert np.median(A.samples["T"][:, 8]) < np.median(s["T"][:, 8]) - 5.0                                                       # the cold reaches 1 km
+    with pytest.raises(ValueError):
+        L.stress("wind_10m", side="lower")
+    with pytest.raises(ValueError):
+        L.stress("temperature", quantile=0.5)
