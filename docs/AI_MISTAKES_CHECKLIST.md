@@ -50,6 +50,8 @@ Use: after every 3 trials (a trial = one experiment, fix or idea that produced a
 
 20. A 5-year median difference (tool for one year's date against a multi-year ASOS median) was read as a model artifact (noisy trend slopes). Comparing like with like year by year showed it was mostly monthly weather and ENSO noise; the test of the supposed fix (year clamp) was neutral. Before naming a cause from a mean difference, compare the same period, one year at a time, and size the noise of the reference (V1 follow-up, 2026-11-08).
 
+21. A ratio conditioned on a noisy denominator (80 m speed given the 10 m class) was read as a shape error: station and balloon 10 m winds are noisy, reanalysis ones are not, so the conditional ratio falls with wind for noisy sources and rises for smooth ones even when the means agree. Compare ratios of means, or regress with the noise in mind, before calling a profile wrong (V2, 2026-11-08).
+
 ## C. The check (after every 3 trials; answer for each of the last three)
 - Truth: did any compared source see the truth (A1)? Fit years separate from test years (A2)? Dev-test use counted (A3)?
 - Size: effect larger than seed noise or bootstrap interval (A4)? One change at a time (A5)? Strongest baseline, same rows (A6)?
