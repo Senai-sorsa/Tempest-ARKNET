@@ -1,0 +1,10 @@
+168 cells (TCS + MAF, month x local hour 8-20); 10 m speed
+                ASOS    ERA5    tool
+Weibull k       2.23    2.34    2.05
+calm < 0.5     0.061   0.012   0.009
+p99 (m/s)       11.5     8.9    11.3
+mean (m/s)      4.82    4.11    4.66
+KS distance (median / p90): ASOS-ERA5 0.215 / 0.379; ASOS-tool 0.166 / 0.277; ERA5-tool 0.189 / 0.330
+mean |k_tool - k_ERA5| 0.35; mean |k_ERA5 - k_ASOS| 0.22
+  TCS: k ASOS/ERA5/tool 2.03/2.05/1.96; calm 0.090/0.021/0.012; KS ERA5-tool 0.201
+  MAF: k ASOS/ERA5/tool 2.41/2.49/2.11; calm 0.032/0.003/0.006; KS ERA5-tool 0.187
