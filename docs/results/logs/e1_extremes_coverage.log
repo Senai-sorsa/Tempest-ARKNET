@@ -1,0 +1,20 @@
+
+TCS 2 m temperature: 28904 reports 2015-2025. share of reports below the tool's quantile (ideal = the level):
+  q01:0.013  q05:0.057  q25:0.254  q50:0.510  q75:0.744  q95:0.942  q99:0.989   beyond the tool's samples: below all 0.0012, above all 0.0013
+
+TCS 10 m wind speed: 28904 reports 2015-2025. share of reports below the tool's quantile (ideal = the level):
+  q01:0.090  q05:0.091  q25:0.291  q50:0.533  q75:0.747  q95:0.929  q99:0.979   beyond the tool's samples: below all 0.0896, above all 0.0057
+
+MAF 2 m temperature: 31054 reports 2015-2025. share of reports below the tool's quantile (ideal = the level):
+  q01:0.016  q05:0.064  q25:0.267  q50:0.518  q75:0.737  q95:0.944  q99:0.989   beyond the tool's samples: below all 0.0007, above all 0.0014
+
+MAF 10 m wind speed: 31054 reports 2015-2025. share of reports below the tool's quantile (ideal = the level):
+  q01:0.032  q05:0.050  q25:0.243  q50:0.490  q75:0.729  q95:0.939  q99:0.986   beyond the tool's samples: below all 0.0324, above all 0.0024
+Uri freeze (Texas), Feb 2021 (temperature): 54 reports; median percentile in the tool 0.00; most extreme report -17.2 C at percentile 0.000; share outside all samples 0.37
+Uri freeze (Texas), Feb 2021 (wind speed): 54 reports; median percentile in the tool 0.39; most extreme report 9.8 m/s at percentile 0.958; share outside all samples 0.06
+cold January 2025 (temperature): 234 reports; median percentile in the tool 0.21; most extreme report -11.7 C at percentile 0.000; share outside all samples 0.00
+cold January 2025 (wind speed): 234 reports; median percentile in the tool 0.41; most extreme report 15.4 m/s at percentile 0.998; share outside all samples 0.14
+heat dome June 2023 (temperature): 155 reports; median percentile in the tool 0.90; most extreme report 37.8 C at percentile 1.000; share outside all samples 0.03
+heat dome June 2023 (wind speed): 155 reports; median percentile in the tool 0.57; most extreme report 11.8 m/s at percentile 1.000; share outside all samples 0.05
+heat wave June 2021 (temperature): 42 reports; median percentile in the tool 0.53; most extreme report 37.8 C at percentile 0.925; share outside all samples 0.00
+heat wave June 2021 (wind speed): 42 reports; median percentile in the tool 0.39; most extreme report 7.2 m/s at percentile 0.853; share outside all samples 0.02

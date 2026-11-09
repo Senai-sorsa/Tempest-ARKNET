@@ -1,0 +1,5 @@
+200 rows with a group of >= 60 training days
+nearest-training-day distance (standardised, 32636 leave-one-out training days): median 10.66, 5th percentile 7.93
+real held-out days (2024-25 truth):  median 10.95, 5th percentile 8.74
+generated, raw network         median 10.83, 5th percentile 8.32, share closer than the training 5th percentile 0.026, share closer than 0.5 x that 0.0000
+generated, range-calibrated    median 11.46, 5th percentile 8.65, share closer than the training 5th percentile 0.015, share closer than 0.5 x that 0.0000

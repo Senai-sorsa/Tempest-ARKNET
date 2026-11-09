@@ -1,0 +1,13 @@
+900 fit cases, 240 test cases
+  s0n0:  145 fit cases  r = 0.93/0.95  k = 0.7/0.7
+  s0n1:  135 fit cases  r = 0.88/0.91  k = 0.8/0.7
+  s1n0:  214 fit cases  r = 1.00/1.00  k = 0.7/0.7
+  s1n1:  192 fit cases  r = 0.89/0.92  k = 0.8/0.6
+  s2n0:  148 fit cases  r = 0.92/1.00  k = 0.8/0.7
+  s2n1:   66 fit cases  r = 1.00/1.00  k = 0.8/0.7
+  pooled: r = 0.96/1.00  k = 0.8/0.7
+variant                                CRPS u   CRPS v    mean
+fixed observe_hrrr (r 1.0, k 0.8)       0.776    0.741   0.758
+pooled fit                              0.781    0.744   0.763
+regime fit                              0.788    0.744   0.766
+paired change regime fit - fixed: +0.0077 (bootstrap 95 % interval +0.0022 .. +0.0141, n = 240)

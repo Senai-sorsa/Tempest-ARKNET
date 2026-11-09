@@ -1,0 +1,11 @@
+fitted on 240 cases (2021-23): HRRR weight r = 0.98 (u), 1.00 (v); remaining past-mode spread scale k = 0.8, 0.8
+240 test cases (2024-25) with ASOS truth and HRRR values
+variant                                CRPS u   CRPS v    mean   bias u / v
+HRRR (near-analysis, deterministic)     1.045    1.029   1.037   -0.14 / -0.23
+tool climate mode (ensemble CRPS)       2.021    1.939   1.980   -0.50 / +0.38
+tool past mode (ensemble CRPS)          1.173    1.157   1.165   -0.08 / +0.22
+tool past mode median only (MAE)        1.607    1.614   1.611   +0.00 / +0.00
+past + HRRR (fitted r 0.98/1.00, k 0.8/0.8)    0.779    0.741   0.760   -0.13 / -0.23
+HRRR centre + past spread x 1.2         0.794    0.770   0.782   -0.14 / -0.23
+mean of HRRR and past median + spread    0.914    0.872   0.893   -0.11 / -0.00
+wind SPEED mean abs error: HRRR 1.05 m/s, tool past median 1.58, tool climate median 2.97
