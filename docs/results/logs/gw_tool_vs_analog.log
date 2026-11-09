@@ -1,0 +1,10 @@
+
+TCS: 250 test hours (2024-25), ASOS mean speed 4.61 m/s
+  raw ERA5 10 m:        MAE 1.664
+  tool past ensemble:   MAE of median 1.997   CRPS 1.460   90 % coverage 0.84   mean 4.30
+  analog ensemble:      MAE of median 1.333   CRPS 0.968   90 % coverage 0.89   mean 4.18
+
+MAF: 250 test hours (2024-25), ASOS mean speed 5.24 m/s
+  raw ERA5 10 m:        MAE 1.276
+  tool past ensemble:   MAE of median 1.912   CRPS 1.407   90 % coverage 0.89   mean 5.46
+  analog ensemble:      MAE of median 1.006   CRPS 0.734   90 % coverage 0.94   mean 5.16
