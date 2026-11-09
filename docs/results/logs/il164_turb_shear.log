@@ -1,0 +1,6 @@
+soundings: fit 2021-23 160, test 2024-25 160 (00Z, EPZ + MAF); tool n = 60 per sounding
+shear quantiles p50 / p90 / p99 (m/s per km), ratio tool / balloon; the turbulence factor per band is fitted on 2021-23 (smallest mean |log ratio| over the three quantiles)
+  0-1 km   balloon test [  9.1  32.  103.4] | profile only [0.82 0.66 0.46] | + turbulence x1 [1.08 1.12 0.88] | + turbulence x0.5 (fitted) [0.9  0.79 0.6 ]
+  1-5 km   balloon test [ 6.  13.1 22. ] | profile only [0.82 0.8  0.81] | + turbulence x1 [0.82 0.81 0.81] | + turbulence x6 (fitted) [0.86 0.85 0.87]
+  5-12 km  balloon test [ 5.8 12.8 23.7] | profile only [0.89 0.89 0.84] | + turbulence x1 [0.89 0.89 0.84] | + turbulence x6 (fitted) [0.91 0.9  0.85]
+  12-18 km balloon test [10.4 19.7 30.7] | profile only [0.68 0.76 0.8 ] | + turbulence x1 [0.68 0.76 0.8 ] | + turbulence x6 (fitted) [0.69 0.76 0.81]
