@@ -50,7 +50,7 @@ Cap long jobs at 12 of the 20 CPU threads (`source scripts/cap_cpu.sh` first). C
 
 ## Docs
 
-[docs/plans/PLAN.md](docs/plans/PLAN.md) (plan and results), [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md), [docs/plans/TOOL_PLAN.md](docs/plans/TOOL_PLAN.md) (older tool plan),
+[ATTRIBUTION.md](ATTRIBUTION.md) (data sources and how to credit them), [examples/monte_carlo_quickstart.py](examples/monte_carlo_quickstart.py) (Monte Carlo workflow), [docs/plans/PLAN.md](docs/plans/PLAN.md) (plan and results), [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md), [docs/plans/TOOL_PLAN.md](docs/plans/TOOL_PLAN.md) (older tool plan),
 [docs/research/research-notes.md](docs/research/research-notes.md), [docs/agent/ASK_LATER.md](docs/agent/ASK_LATER.md) (items waiting for the user). **All documents, by kind: [docs/README.md](docs/README.md).**
 
 ## License
