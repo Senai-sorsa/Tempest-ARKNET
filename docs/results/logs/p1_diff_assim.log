@@ -1,0 +1,21 @@
+TCS: 120 hours of 2023, sources ONM (94 km), LRU (110 km)
+MAF: 120 hours of 2023, sources FST (133 km), PEQ (139 km)
+
+pad  source part   method       n    CRPS u,v  CRPS speed  MAE speed  cov90 speed
+MAF  PEQ  day    difference    82     1.855      1.211      1.693    0.93
+MAF  PEQ  day    none          82     2.079      1.295      1.790    0.94
+MAF  PEQ  day    raw           82     1.870      1.222      1.719    0.93
+MAF  PEQ  other  difference    38     1.880      1.504      2.141    0.92
+MAF  PEQ  other  none          38     1.935      1.590      2.220    0.89
+MAF  PEQ  other  raw           38     1.860      1.482      2.111    0.92
+TCS  LRU  day    difference    72     1.712      1.352      1.878    0.82
+TCS  LRU  day    none          72     1.985      1.607      2.247    0.78
+TCS  LRU  day    raw           72     1.736      1.353      1.890    0.83
+TCS  LRU  other  difference    48     1.789      1.266      1.555    0.88
+TCS  LRU  other  none          48     1.918      1.303      1.710    0.85
+TCS  LRU  other  raw           48     1.719      1.278      1.608    0.88
+
+all pads and sources: method CRPS u,v / CRPS speed / MAE speed / cov90 (paired rows)
+  none        1.996 / 1.437 / 1.979 / 0.87  (n 240)
+  raw         1.798 / 1.313 / 1.810 / 0.89  (n 240)
+  difference  1.803 / 1.311 / 1.792 / 0.88  (n 240)
