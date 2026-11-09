@@ -99,12 +99,14 @@ def sample_cases(rng, years, n, asos, st_list):
 
 
 def run_set(cases, asos, m, seed0, with_past=True):
-    res = dict(truth=[], ai=[], past=[], prev1=[], prev3=[], obs1=[], obs3=[], cases=cases)
+    res = dict(truth=[], ai=[], past=[], prevp1=[], prev1=[], prev3=[], obs1=[], obs3=[], cases=cases)
     for k, (st, h) in enumerate(cases):
         res["truth"].append(asos[st][h])
         res["ai"].append(np.stack(ensemble(st, h, m, "ai", seed0 + k)))
         if with_past:
             res["past"].append(np.stack(ensemble(st, h, m, "past", seed0 + k)))
+        hp1 = h - timedelta(hours=1)
+        res["prevp1"].append(np.stack(ensemble(st, hp1, m, "past", seed0 + k + 104729)) if (with_past and valid_hour(st, hp1)) else None)
         for lag in (1, 3):
             hp = h - timedelta(hours=lag)
             res[f"prev{lag}"].append(np.stack(ensemble(st, hp, m, "ai", seed0 + k + 7919)) if valid_hour(st, hp) else None)
@@ -187,6 +189,38 @@ def main():
             ens.append(e)
         report(f"V3 persistence: ASOS report {lag} h earlier (r = {rr[0]:.2f}, {rr[1]:.2f})", np.array(ens), tt[ti])
         report(f"   same cases, V0 for comparison", ta[ti], tt[ti])
+    # V2b: past mode with the spread inflated about the median (ERA5 smooths the ground wind: past-mode spread/rmse is 0.77)
+    if test["past"]:
+        fp, tp = np.array(fit["past"]), np.array(test["past"])
+        kp = []
+        for c in range(2):
+            kp.append(min((np.mean([crps(np.median(fp[i, c]) + k * (fp[i, c] - np.median(fp[i, c])), ft[i, c]) for i in range(len(ft))]), k) for k in np.arange(0.8, 3.1, 0.1))[1])
+        print(f"   V2b fitted past-mode spread scale k (u, v) = {kp[0]:.1f}, {kp[1]:.1f}")
+        v2b = np.stack([np.median(tp[:, c, :], 1, keepdims=True) + kp[c] * (tp[:, c, :] - np.median(tp[:, c, :], 1, keepdims=True)) for c in range(2)], 1)
+        report("V2b past mode + spread inflation (k fitted 2021-23)", v2b, tt)
+        # V6: past mode + persistence from the ASOS report 1 h earlier (the shift regressed on the earlier past-mode anomaly), then the spread scale fitted again
+        fi = [i for i in range(len(ft)) if fit["prevp1"][i] is not None and fit["obs1"][i] is not None]
+        ti = [i for i in range(len(tt)) if test["prevp1"][i] is not None and test["obs1"][i] is not None]
+        if len(fi) >= 30 and len(ti) >= 30:
+            r6, k6 = [], []
+            for c in range(2):
+                x = np.array([fit["obs1"][i][c] - np.median(fit["prevp1"][i][c]) for i in fi])
+                y = np.array([fit["truth"][i][c] - np.median(fit["past"][i][c]) for i in fi])
+                r6.append(float(np.clip((x * y).sum() / max((x * x).sum(), 1e-9), 0.0, 0.99)))
+                sc = []
+                for k in np.arange(0.5, 2.6, 0.1):
+                    sc.append((np.mean([crps(np.median(fit["past"][i][c]) + r6[c] * (fit["obs1"][i][c] - np.median(fit["prevp1"][i][c])) + k * (fit["past"][i][c] - np.median(fit["past"][i][c])), fit["truth"][i][c]) for i in fi]), k))
+                k6.append(min(sc)[1])
+            ens = []
+            for i in ti:
+                e = np.empty((2, tp.shape[2]))
+                for c in range(2):
+                    med = np.median(test["past"][i][c])
+                    e[c] = med + r6[c] * (test["obs1"][i][c] - np.median(test["prevp1"][i][c])) + k6[c] * (test["past"][i][c] - med)
+                ens.append(e)
+            report(f"V6 past mode + persistence 1 h (r = {r6[0]:.2f}, {r6[1]:.2f}; k = {k6[0]:.1f}, {k6[1]:.1f})", np.array(ens), tt[ti])
+            report("   same cases, V2 past mode", tp[ti], tt[ti])
+            report("   same cases, V0 climate mode", ta[ti], tt[ti])
     # V4: local climatology blend at weight w (rank-preserving): sort the ensemble and the climatology samples, mix their quantiles
     ref = set(range(2000, 2021))
     best_w = None
