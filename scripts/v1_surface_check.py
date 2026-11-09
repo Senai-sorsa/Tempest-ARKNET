@@ -31,11 +31,17 @@ def asos(station, tz):
             for r in csv.DictReader(f):
                 try:
                     t = datetime.strptime(r["valid"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone(z)
-                    kt, d, tf = float(r["sknt"]), float(r["drct"] or 0.0), float(r["tmpf"])
+                    kt, tf = float(r["sknt"]), float(r["tmpf"])
+                    d = float(r["drct"]) if (r["drct"] or "").strip() else None
                 except (ValueError, KeyError):
                     continue
                 h = (t.hour + (1 if t.minute >= 30 else 0)) % 24
-                rows.setdefault((t.month, h), []).append((-kt * KT * np.sin(np.radians(d)), -kt * KT * np.cos(np.radians(d)), (tf - 32.0) / 1.8))
+                if kt > 0 and d is None:        # variable direction (3 % of reports): keep the speed, leave the direction out (it used to be read as north)
+                    uv = (np.nan, np.nan)
+                else:
+                    d = d or 0.0
+                    uv = (-kt * KT * np.sin(np.radians(d)), -kt * KT * np.cos(np.radians(d)))
+                rows.setdefault((t.month, h), []).append((uv[0], uv[1], (tf - 32.0) / 1.8, kt * KT))
     return rows
 
 
@@ -60,7 +66,7 @@ def main():
                     continue
                 u, v = s["u"][:, 0], s["v"][:, 0]
                 tool = dict(spd=float(np.median(np.hypot(u, v))), dir=direction(u.mean(), v.mean()), t=float(np.median(s["t2m"]) - 273.15))
-                ob = dict(spd=float(np.median(np.hypot(a[:, 0], a[:, 1]))), dir=direction(a[:, 0].mean(), a[:, 1].mean()), t=float(np.median(a[:, 2])))
+                ob = dict(spd=float(np.median(a[:, 3])), dir=direction(np.nanmean(a[:, 0]), np.nanmean(a[:, 1])), t=float(np.median(a[:, 2])))
                 dd = (tool["dir"] - ob["dir"] + 180.0) % 360.0 - 180.0
                 out.append(dict(station=name, month=m, hour=h, n_obs=len(a), spd_tool=tool["spd"], spd_obs=ob["spd"], dir_tool=tool["dir"], dir_obs=ob["dir"], dir_diff=dd, t_tool=tool["t"], t_obs=ob["t"]))
         print(name, "done", flush=True)
