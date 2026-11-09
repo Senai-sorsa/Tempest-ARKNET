@@ -164,7 +164,7 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
         peak = 3.0 + um * 12.0
         if gust_params is not None:                                       # the sample's own gust law: quantile um of a Gumbel with location mu, scale beta
             mu, beta = (np.broadcast_to(np.asarray(g, float), (N,)) for g in gust_params)
-            peak = np.maximum(mu - beta * np.log(-np.log(np.clip(um, 1e-6, 1 - 1e-6))), 0.0)
+            peak = np.maximum(mu - beta * np.log(-np.log(np.clip(um, 1e-6, 1 - 1e-6))) - np.hypot(uf[:, 0], vf[:, 0]), 0.0)     # the law is for the TOTAL gust G = max(gust, wind) (tempest/gust/model.py): the 1-cos amplitude on top of the mean wind is G minus that wind
         ang = 2.0 * np.pi * ud
         shape = np.stack([one_minus_cos(zf, start[k], half[k], peak[k]) for k in range(N)])
         gu, gv = shape * np.cos(ang)[:, None], shape * np.sin(ang)[:, None]

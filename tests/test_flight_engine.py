@@ -94,3 +94,22 @@ def test_dryden_reynolds_stress_is_opt_in_and_keeps_the_vertical_variance():
     c = lambda r, i: np.corrcoef(r["u_turb"][:, i], r["w_turb"][:, i])[0, 1]
     assert c(b, i50) < -0.2 and abs(c(a, i50)) < 0.15 and abs(c(b, i1500)) < 0.15
     assert abs(b["w_turb"][:, i50].std() / a["w_turb"][:, i50].std() - 1) < 0.1
+
+
+def test_gust_law_is_capped_in_strong_wind_and_dryden_adds_only_the_excess():
+    """Gust law: unchanged up to 12 m/s, gust factor held above (20 m/s used to give a median gust of 59 m/s); Dryden gust amplitude = total gust minus the mean wind."""
+    from tempest_weather import api
+    from tempest_weather.flight import dryden
+    g = dict(theta=np.array([0.5, 1.0, 0.1, 0, 0, 0, 0, 0.0]), phi=np.array([0.0, 0.05, 0.0, 0, 0, 0, 0, 0.0]))
+    lo = np.array([3.0, 12.0])
+    mu0, b0 = api._gust_params(g, lo, 100, 12.0)
+    assert np.allclose(mu0, [0.5 + 3 + 0.09, 0.5 + 12 + 1.44])
+    mu, b = api._gust_params(g, np.array([12.0, 24.0]), 100, 12.0)
+    assert np.isclose(mu[1], 2 * mu[0]) and np.isclose(b[1], 2 * b[0])                      # factor held: twice the wind, twice the gust
+    z = np.array([10, 50, 100, 200.0])
+    N = 400
+    u = np.full((N, 4), 8.0)
+    v, T = np.zeros((N, 4)), np.full((N, 4), 290.0)
+    gp = (np.full(N, 9.0), np.full(N, 0.5))                                                  # total gust about 9 m/s at an 8 m/s wind: excess about 1 m/s
+    r = dryden.synthesize(z, u, v, T, seed=1, gust=tuple(np.full(N, x) for x in (0.0, 0.5, 0.0, 0.5)), gust_params=gp)
+    assert np.hypot(r["gust_u"], r["gust_v"]).max() < 3.0

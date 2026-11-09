@@ -166,12 +166,19 @@ def _gust_station(lat, lon):
     return 1.0 if d["TCS"] < d["MAF"] else 0.0
 
 
+GUST_WS_CAP = 12.0     # m/s, the highest 10 m wind at which the gust law is evaluated directly (see _gust_params)
+
+
 def _gust_params(g, ws, doy, hour, station=0.0):
-    """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports)."""
+    """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports). Above GUST_WS_CAP the law is held at the gust FACTOR (location and scale per m/s) of the cap: the airport reports it was
+    fitted on have few winds above 12 m/s and the ws^2 term then runs away (20 m/s gave a median gust of 59 m/s); a storm must not produce an impossible gust."""
+    ws0 = np.asarray(ws, float)
+    ws = np.minimum(ws0, GUST_WS_CAP)
     a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
     X = np.stack([np.ones_like(ws), ws, ws ** 2 / 10.0, np.full_like(ws, np.sin(a)), np.full_like(ws, np.cos(a)), np.full_like(ws, np.sin(h)),
                   np.full_like(ws, np.cos(h)), np.full_like(ws, station)], 1)
-    return X @ g["theta"], np.exp(np.clip(X @ g["phi"], -5, 5))
+    k = np.where(ws > 0, ws0 / np.maximum(ws, 1e-9), 1.0)
+    return (X @ g["theta"]) * k, np.exp(np.clip(X @ g["phi"], -5, 5)) * k
 
 
 STATIONS = [(31.8728, -106.6981), (31.9475, -102.1894)]  # Santa Teresa, Midland: the station index the past-date network was trained with
