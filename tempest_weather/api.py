@@ -181,6 +181,24 @@ def _gust_params(g, ws, doy, hour, station=0.0):
     return (X @ g["theta"]) * k, np.exp(np.clip(X @ g["phi"], -5, 5)) * k
 
 
+ANCHOR_SPREAD = 1.0         # spread factor of the near-ground wind about its median when anchored on ERA5: 1.0 = unchanged (narrowing to 0.8 or 0.6 made the CRPS and the coverage worse, scripts/gw_past_anchor.py)
+ANCHOR_TOP_M = 300.0
+
+
+def _anchor_to_era5(phys, e, weight, nh):
+    """Past mode: shift the median of the 10 m u, v samples toward the ERA5 10 m wind (weight 1 = onto it) and scale the spread about the median by ANCHOR_SPREAD, both tapering linearly to nothing at ANCHOR_TOP_M. Returns a copy."""
+    z = np.asarray(_core.HEIGHTS, float)
+    taper = np.clip(1.0 - (z - z[0]) / (ANCHOR_TOP_M - z[0]), 0.0, 1.0)
+    out = phys.copy()
+    for off, key in ((0, "u"), (nh, "v")):
+        x = out[:, off:off + nh].astype(float)
+        med = np.median(x, axis=0, keepdims=True)
+        x = med + (x - med) * (1.0 + (ANCHOR_SPREAD - 1.0) * taper)
+        x = x + weight * (float(e[key][0]) - float(np.median(out[:, off]))) * taper
+        out[:, off:off + nh] = x.astype(phys.dtype)
+    return out
+
+
 STATIONS = [(31.8728, -106.6981), (31.9475, -102.1894)]  # Santa Teresa, Midland: the station index the past-date network was trained with
 
 
@@ -273,8 +291,9 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
 
 
-def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None):
-    """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
+def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None, era5_anchor=0.0):
+    """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls.
+    era5_anchor (opt-in, past mode only; 0 = off): weight in 0-1 of re-centring the median of the near-ground wind ensemble on the ERA5 10 m wind, fading out by 300 m (gw_past_anchor.py, 250 hours: speed CRPS -5 % at TCS, -11 % at MAF; not yet confirmed on other seeds or hours)."""
     if assets is None:                                                   # R-7: the asset set that covers the place; none covers it -> the default set answers with its clear refusal
         assets = region_assets(lat, lon)
     A = _assets(assets)
@@ -331,7 +350,9 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             _, e = _past_phys(A, store, lat, lon, t_utc, M_CAL, rng)
             phys = np.tile(np.concatenate([e["u"], e["v"], e["T"], e["RH"], [e["t2m"], e["sp"], e["rh2m"]]]).astype(np.float32), (n, 1))
         else:
-            phys, _ = _past_phys(A, store, lat, lon, t_utc, n, rng)
+            phys, e_past = _past_phys(A, store, lat, lon, t_utc, n, rng)
+            if era5_anchor:
+                phys = _anchor_to_era5(phys, e_past, float(era5_anchor), _core.NH)
         cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
     elif used == "forecast":
         try:

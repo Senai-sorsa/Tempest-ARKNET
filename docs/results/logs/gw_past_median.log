@@ -1,0 +1,14 @@
+
+TCS: 150 hours, ASOS mean speed 3.93
+  ERA5 10 m speed              mean 3.48  MAE 1.390  bias -0.45
+  speed of the median vector   mean 3.47  MAE 1.543  bias -0.46
+  median of ensemble speeds    mean 3.96  MAE 1.391  bias +0.03
+  mean of ensemble speeds      mean 4.06  MAE 1.386  bias +0.13
+  median-vector shift from ERA5: u +0.25 v +0.12 (mean), mean |shift| 0.72 m/s; ensemble speed sd 1.39
+
+MAF: 150 hours, ASOS mean speed 5.12
+  ERA5 10 m speed              mean 4.46  MAE 1.276  bias -0.67
+  speed of the median vector   mean 4.64  MAE 1.340  bias -0.48
+  median of ensemble speeds    mean 4.88  MAE 1.296  bias -0.24
+  mean of ensemble speeds      mean 4.95  MAE 1.265  bias -0.18
+  median-vector shift from ERA5: u +0.28 v -0.22 (mean), mean |shift| 0.78 m/s; ensemble speed sd 1.34

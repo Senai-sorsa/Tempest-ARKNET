@@ -12,7 +12,9 @@ import xarray as xr
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
+os.environ.setdefault("TEMPEST_ERA5_STORE", os.path.join(REPO, "data", "pilot", "profiles.zarr"))      # without it mode "past" silently falls back to the climate generator (A9)
 import ground_wind_bench as gw   # noqa: E402
+from tempest_weather import api   # noqa: E402
 from gw_analog import feats, hours_of   # noqa: E402
 from gw_extrapolate_down import load   # noqa: E402
 from tempest.scoring.score import crps_ensemble   # noqa: E402
@@ -20,6 +22,8 @@ from tempest.scoring.score import crps_ensemble   # noqa: E402
 ap = argparse.ArgumentParser()
 ap.add_argument("--n", type=int, default=250)
 a = ap.parse_args()
+_i = api.atmosphere_set(*gw.STATIONS["TCS"][:2], "2024-06-12T20:00:00+00:00", n=20, mode="past", seed=0, elevation=gw.STATIONS["TCS"][2])[1]
+assert _i["mode"] == "past", f"past mode not available: {_i['quality']}"
 z = xr.open_zarr(os.path.join(REPO, "data", "pilot", "profiles.zarr"))
 K = 40
 W = np.array([1.0, 1.0, 1.0, 1.0, 0.6, 1.2, 1.2, 0.8, 0.8])

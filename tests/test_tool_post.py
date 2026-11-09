@@ -165,3 +165,23 @@ def test_widen_temperature_keeps_the_dewpoint():
     st = {"temperature_2m": {"7": {"b": [0.0] * 24, "n": [40] * 24, "se": [0.1] * 24, "sd": [3.0] * 24}}}
     assert bias.widen_temperature(phys, st, 7.0, 12, nh, heights=h) > 1.0
     assert np.allclose(dew(phys)[phys[:, 4 * nh + 2] < 100], dew(old)[phys[:, 4 * nh + 2] < 100], atol=1e-6)
+
+
+def test_anchor_to_era5_recentres_the_ground_median_and_fades_out():
+    """Past-mode ERA5 anchor: the median 10 m wind moves onto the ERA5 value, nothing changes at 300 m and above, the spread is kept, the input is not modified."""
+    from tempest_weather import _core, api
+    nh = len(_core.HEIGHTS)
+    rng = np.random.default_rng(0)
+    phys = np.zeros((400, 4 * nh + 3), np.float32)
+    phys[:, :nh] = 3.0 + rng.normal(0, 1.0, (400, nh))
+    phys[:, nh:2 * nh] = -1.0 + rng.normal(0, 1.0, (400, nh))
+    before = phys.copy()
+    e = dict(u=np.full(nh, 6.0), v=np.full(nh, 2.0))
+    out = api._anchor_to_era5(phys, e, 1.0, nh)
+    assert np.array_equal(phys, before)
+    assert abs(np.median(out[:, 0]) - 6.0) < 1e-4 and abs(np.median(out[:, nh]) - 2.0) < 1e-4
+    far = int(np.argmin(np.abs(_core.HEIGHTS - 500)))
+    assert np.allclose(out[:, far], phys[:, far], atol=1e-5)
+    assert abs(out[:, 0].std() / phys[:, 0].std() - 1) < 1e-4
+    half = api._anchor_to_era5(phys, e, 0.5, nh)
+    assert abs(np.median(half[:, 0]) - (np.median(phys[:, 0]) + 0.5 * (6.0 - np.median(phys[:, 0])))) < 1e-4
