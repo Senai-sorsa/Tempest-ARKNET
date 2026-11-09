@@ -188,8 +188,8 @@ Added V9 (pad weather observations for the three launch hours as the missing tru
 ## Daily log (one block per calendar day, newest last; plan section 4)
 ### 2026-11-08 (first block, written late in the day by the second audit)
 - Health: disk 109 GB free, RAM 16 GB free, GPU idle at 0 %, no orphan queue scripts (the detached queues ended), `git status` shows only files of earlier or other sessions plus the untracked `flight_sim_trial/`.
-- Tests: see the full-suite result in `docs/AUDIT_2026-11-08.md` (second audit section); `tempest_weather_v2` suite 97 passed before the audit.
+- Tests: full suite (`tests` + `tempest_weather_v2/tests`) 335 passed, 2 warnings (5 min 47 s); after the observe_latest fix `tempest_weather_v2/tests` 98 passed.
 - Flight-sim regression: section 12 above is the rerun (3 flights x 7 atmosphere variants x 100 atmospheres): mean absolute error past mode 5.80 % (earlier 5.81 %), climate 7.37 %, standard day at the true pad 6.15 %, branch as filed 5.21 %.
-- Ground-wind smoke: see the second audit section (run after the full suite).
+- Ground-wind smoke (120 fit / 120 test cases, log `docs/results/logs/gw_smoke_2026-11-08.log`): 10 m wind CRPS climate 2.131, past 1.182, past + persistence 1 h 1.141, past with spread x1.1/1.3 1.167; same ordering and the same lessons as run 1 (240 cases: climate 1.838, past 1.126). The absolute values moved by up to 16 % between the two case samples (climate 1.84 -> 2.13), so a smoke run of 120 cases is too small to show a trend; compare variants within one run only.
 - Doc sync: `To-do-Concise.md` status block, `docs/data/DATA_NEEDS.md` section 6, AUTOPILOT rows IL-147 / IL-156, `FIVE_DAY_PLAN.md` boxes all updated.
 
