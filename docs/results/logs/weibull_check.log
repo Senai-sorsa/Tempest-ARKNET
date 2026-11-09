@@ -1,0 +1,7 @@
+168 cells. Weibull shape k: ASOS median 2.23 (range 1.57-3.15), tool median 2.05 (range 1.69-2.68); mean |k_tool - k_ASOS| 0.22
+scale c: ASOS median 5.67, tool median 5.30 m/s; p99 speed: ASOS median 11.5, tool 11.4 m/s (tool/ASOS ratio median 0.98)
+calm share (< 0.5 m/s): ASOS 0.061, tool 0.009; KS distance tool vs ASOS speed distribution: median 0.167, 90th percentile 0.267
+mean speed ratio tool/ASOS median 1.04
+  TCS: k ASOS 2.03 tool 1.95; p99 ASOS 11.2 tool 10.3; calm ASOS 0.090 tool 0.012
+  MAF: k ASOS 2.41 tool 2.12; p99 ASOS 11.9 tool 12.6; calm ASOS 0.032 tool 0.006
+Spaceport America June noon, tool: skewness of u -0.05, of v -0.02, of speed +0.84; Weibull k of the speed 2.05

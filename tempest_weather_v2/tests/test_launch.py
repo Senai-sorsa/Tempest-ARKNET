@@ -283,3 +283,15 @@ def test_ground_wind_profile_rows():
     assert g["speed"][50][0] == pytest.approx(float(np.median(np.hypot(s["u"][:, 0], s["v"][:, 0]))))
     us = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="us", seed=4).ground_wind_profile()
     assert us["units"] == "mph" and us["speed"][50][0] == pytest.approx(g["speed"][50][0] / 0.44704, rel=1e-6)
+
+
+def test_speed_distributions_are_positive_families_weibull_or_lognormal():
+    L = Launch("spaceport_america", "2027-07-16 10:00", mode="ai", n=1024, units="si", seed=3)
+    d = L.distribution(["wind_speed", "wind_10m", "wind_3km", "gust"])
+    for k, r in d.items():
+        assert r["type"] in ("weibull", "lognormal"), (k, r["type"])               # wind_speed and wind_3km used to pick a Gumbel, which allows negative speeds
+    w = d["wind_10m"]
+    if w["type"] == "weibull":
+        assert 1.2 < w["params"]["shape"] < 4.0
+    t = L.distribution(["temperature"])["temperature"]
+    assert t["type"] is not None                                                   # other variables are untouched

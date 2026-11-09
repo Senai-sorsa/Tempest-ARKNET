@@ -1,0 +1,12 @@
+
+TCS: 29903 fit pairs, 1500 test hours 2023-25; speed autocorrelation 0.75, Weibull-space 0.67
+  climatological Weibull of the cell             CRPS 1.450  90 % coverage 0.84
+  previous speed x lognormal factor              CRPS 1.195  90 % coverage 0.76
+  linear persistence of the speed anomaly        CRPS 1.035  90 % coverage 0.76
+  AR(1) in Weibull-copula space (rho 0.67)       CRPS 1.072  90 % coverage 0.78
+
+MAF: 35327 fit pairs, 1500 test hours 2023-25; speed autocorrelation 0.79, Weibull-space 0.76
+  climatological Weibull of the cell             CRPS 1.506  90 % coverage 0.86
+  previous speed x lognormal factor              CRPS 1.008  90 % coverage 0.83
+  linear persistence of the speed anomaly        CRPS 0.923  90 % coverage 0.81
+  AR(1) in Weibull-copula space (rho 0.76)       CRPS 0.925  90 % coverage 0.85

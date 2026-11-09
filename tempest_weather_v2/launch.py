@@ -643,7 +643,12 @@ class Launch:
             key = names.resolve_name(name)
             if key not in d:
                 raise ValueError(f"{key} has no per-sample values here")
-            r = stats.fit_best(d[key])
+            if names.VARIABLES[key][1] == "speed" and float(np.min(d[key])) > 0.0:       # wind speeds are positive and Weibull-like (shape about 1.5-3): never offer a family that allows negative speeds (Gumbel, normal, Student-t)
+                r = stats.fit_best(d[key], families=("weibull", "lognormal"))
+                if r["type"] is None:
+                    r = stats.fit_best(d[key])
+            else:
+                r = stats.fit_best(d[key])
             r["units"] = names.unit_label(key, self.units)
             r["quantiles_display"] = {p: float(names.to_units(key, v, self.units)) for p, v in r["quantiles"].items()}
             r["spread"] = "full" if spread == "full" else "full (typical-only spread not separable: flagged spread-typical-unavailable)"
