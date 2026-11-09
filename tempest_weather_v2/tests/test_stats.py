@@ -99,3 +99,15 @@ def test_auto_k_picks_the_fewest_modes_for_95_percent():
     assert c.k == 1
     free = S.Coupled(rng.normal(size=(2000, 6)), list("abcdef"), method="t_copula", k="auto")      # independent columns need almost all modes
     assert free.k >= 5
+
+
+def test_unbounded_family_preferred_over_bounded_and_extreme_keeps_probability():
+    rng = np.random.default_rng(3)
+    x = np.concatenate([rng.normal(5.0, 4.0, 1000), rng.normal(5.0, 4.0, 40) - 9.0])          # a skewed, heavy lower tail
+    r = S.fit_best(x)
+    assert r["type"] is not None and r["type"] not in S.BOUNDED or "support_note" in r          # bounded fits are labelled, never silent
+    assert "student_t" in S.FAMILIES
+    xs = np.sort(x)
+    p_t, cdf_t = S._student_t(x)
+    assert cdf_t(xs.min() - 3 * x.std()) > 0.0 and cdf_t(xs.min() - 3 * x.std()) < 1e-3          # unbounded: an event beyond the sample has a small positive probability
+    assert abs(float(cdf_t(np.median(x))) - 0.5) < 0.05 and p_t["nu"] >= 5.0

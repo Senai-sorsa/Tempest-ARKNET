@@ -84,7 +84,18 @@ def _beta(x):
     return dict(a=a, b=b, lo=lo, hi=hi), lambda v: np.interp((np.asarray(v, float) - lo) / (hi - lo), g, c, left=0.0, right=1.0)
 
 
-FAMILIES = {"normal": _normal, "lognormal": _lognormal, "weibull": _weibull, "gumbel": _gumbel, "beta": _beta}
+def _student_t(x):
+    """Location-scale Student-t (heavy, unbounded tails): nu from the excess kurtosis (4 + 6 / kurt, kept in 5..60), scale from the standard deviation. Unbounded, so an event beyond the sample keeps a small probability."""
+    m, sd = float(x.mean()), float(x.std()) + 1e-12
+    kurt = float(np.mean(((x - m) / sd) ** 4) - 3.0)
+    nu = float(np.clip(4.0 + 6.0 / kurt, 5.0, 60.0)) if kurt > 1e-3 else 60.0
+    sc = sd * math.sqrt((nu - 2.0) / nu)
+    g, c = _t_table(nu)
+    return dict(mu=m, scale=sc, nu=nu), lambda v: np.interp((np.asarray(v, float) - m) / sc, g, c, left=0.0, right=1.0)
+
+
+FAMILIES = {"normal": _normal, "lognormal": _lognormal, "weibull": _weibull, "gumbel": _gumbel, "beta": _beta, "student_t": _student_t}
+BOUNDED = {"beta"}            # families whose support ends at (just beyond) the sample: an event outside the sample has probability 0
 
 
 def _ppf_from_cdf(cdf, lo, hi, q):
@@ -113,7 +124,7 @@ def fit_best(x, families=None):
         return out
     xs = np.sort(x)
     ecdf_hi, ecdf_lo = np.arange(1, len(xs) + 1) / len(xs), np.arange(0, len(xs)) / len(xs)
-    best = None
+    best, cands = None, []
     for name in (families or FAMILIES):
         r = FAMILIES[name](x)
         if r is None:
@@ -123,10 +134,18 @@ def fit_best(x, families=None):
         ks = float(max(np.abs(F - ecdf_hi).max(), np.abs(F - ecdf_lo).max()))
         ok, terr = tail_check(x, cdf)
         cand = dict(type=name, params=params, ks=ks, tail_err=terr, fit_ok=ok)
+        cands.append(cand)
         if best is None or (cand["fit_ok"], -cand["ks"]) > (best["fit_ok"], -best["ks"]):
             best = cand
+    if best is not None and best["type"] in BOUNDED:      # a bounded fit makes anything beyond the sample impossible; prefer an unbounded family that fits about as well (KS within 0.01) so storms and heat waves keep a probability
+        alts = [c for c in cands if c["type"] not in BOUNDED and c["fit_ok"] and c["ks"] <= best["ks"] + 0.01]
+        if alts:
+            best = min(alts, key=lambda c: c["ks"])
+            best["note"] = "unbounded family preferred over a bounded one that fits about as well, so events beyond the sample keep a probability"
     if best is not None:
         out.update(best)
+        if best["type"] in BOUNDED:
+            out["support_note"] = "bounded fit: probability of values beyond the sample is zero; rare extremes need a larger n or an unbounded family"
     return out
 
 
