@@ -416,7 +416,7 @@ class Launch:
     def trust(self):
         p = self._ensure_pool()
         m = p["modes"]
-        names_ = {"ai": "Climate estimate: typical range for this date, not a forecast", "past": "Past date: ERA5 corrected to balloons", "forecast": "Forecast (ECMWF), tested on 2022 data"}
+        names_ = {"ai": "Climate estimate: typical range for this date, not a forecast (an unusual day such as strong wind or a heat wave sits in its tails; for a specific launch use past mode, a forecast or observe_latest)", "past": "Past date: ERA5 corrected to balloons", "forecast": "Forecast (ECMWF), tested on 2022 data"}
         if len(m) == 1:
             text = names_.get(next(iter(m)), f"mode {next(iter(m))}")
         else:
@@ -440,7 +440,7 @@ class Launch:
                 if "_age_h" in o:
                     detail.append(f"{o['_age_h']:.1f} h old")
                 text += " (" + ", ".join(detail) + "; gain fitted on station pairs, see obs.py)"
-        return text
+        return text + ". The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)"
 
     @property
     def provenance(self):

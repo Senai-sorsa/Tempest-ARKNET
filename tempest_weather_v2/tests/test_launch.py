@@ -224,3 +224,9 @@ def test_domain_inside_edge_outside():
     assert far["status"] == "edge" and "model grid height" in far["reason"]
     out = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64).domain()                                  # no asset set covers it
     assert out["status"] == "outside" and out["region"] is None
+
+
+def test_trust_line_says_atmosphere_only_and_gives_climate_advice():
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64, units="si")
+    t = L.trust
+    assert "atmosphere only" in t and "not of the rocket" in t and "observe_latest" in t
