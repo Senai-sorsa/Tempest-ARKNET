@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.cdsapirc
+
+# downloaded and generated data stays out of git
+data/
+*.grib
+*.nc
+*.parquet
+models/
+.ecmwfdatastoresrc
+.pytest_cache/
+out/
+tempest_weather/assets/
+tempest_weather/assets_*/
+!docs/data/
+!tempest_weather_v2/data/

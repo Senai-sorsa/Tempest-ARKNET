@@ -1,0 +1,174 @@
+"""Draw profiles from a trained generator checkpoint."""
+import numpy as np
+import torch
+
+from tempest.generator.model import Generator, make_generator
+from tempest.profiles.diff import from_diff
+from tempest.profiles.to_heights import HEIGHTS, PROFILE
+
+SURFACE = ["t2m", "sp", "rh2m"]  # same order as build_dataset.SURFACE
+RH_TARGET = "rh"  # "dpd": humidity was learned as ln(T - Td + 1 K); set by train.load_npz / Sampler, see rh_from_dpd
+
+
+def set_rh_target(mode: str) -> None:
+    global RH_TARGET
+    if mode not in ("rh", "dpd"):
+        raise ValueError(f"rh_target must be 'rh' or 'dpd', got {mode!r}")
+    RH_TARGET = mode
+
+
+def es_liquid(t):
+    """Saturation vapour pressure over liquid water (Pa), T in K; the formula behind to_heights.liquid_rh."""
+    return 611.21 * np.exp(17.502 * (t - 273.16) / (t - 32.19))
+
+
+def dpd_from_rh(t, rh):
+    """T (K) and RH over liquid water (%) -> learned humidity coordinate ln(T - Td + 1 K); RH floored at 0.5 %."""
+    y = np.log(np.clip(rh, 0.5, 100.0) / 100.0 * es_liquid(t) / 611.21)
+    td = (y * 32.19 - 17.502 * 273.16) / (y - 17.502)  # inverse of the vapour-pressure formula
+    return np.log1p(np.maximum(t - td, 0.0))
+
+
+def rh_from_dpd(t, lnd):
+    """Inverse of dpd_from_rh: RH (%) <= 100 by construction (a negative depression is clipped to saturation)."""
+    td = t - np.maximum(np.expm1(np.clip(lnd, None, 5.0)), 0.0)
+    return 100.0 * es_liquid(td) / es_liquid(t)
+
+
+def to_physical(raw: np.ndarray) -> np.ndarray:
+    """(..., 179) raw targets (differences) -> (..., 179) physical: 4 x 44 profile values, then t2m, sp, rh2m.
+    Range rule: RH and rh2m clipped to 0-100 %. No lapse-rate cap: the 13-level ERA5 training profiles
+    themselves cool faster than dry-adiabatic up to ~2 km on hot afternoons (interpolation from 2 m), so a
+    cap would fight the training data; revisit after the CDS boundary-layer merge."""
+    n, p = len(HEIGHTS), len(PROFILE)
+    prof = from_diff(raw[..., :n * p].reshape(*raw.shape[:-1], p, n))
+    rest = raw[..., n * p:]
+    if RH_TARGET == "dpd":  # humidity was learned as ln(dewpoint depression + 1): rebuild RH from T
+        prof = np.array(prof, dtype=np.float64)
+        i_t, i_rh = PROFILE.index("T"), PROFILE.index("RH")
+        prof[..., i_rh, :] = rh_from_dpd(prof[..., i_t, :], prof[..., i_rh, :])
+        rest = np.array(rest, dtype=np.float64)
+        rest[..., SURFACE.index("rh2m")] = rh_from_dpd(rest[..., SURFACE.index("t2m")], rest[..., SURFACE.index("rh2m")])
+        prof, rest = prof.astype(raw.dtype), rest.astype(raw.dtype)
+    return clip_ranges(np.concatenate([prof.reshape(*raw.shape[:-1], n * p), rest], axis=-1))
+
+
+def clip_ranges(phys: np.ndarray) -> np.ndarray:
+    """(..., 179) physical values -> same with RH and rh2m clipped to 0-100 % (in place)."""
+    n = len(HEIGHTS)
+    i = PROFILE.index("RH") * n
+    phys[..., i:i + n] = np.clip(phys[..., i:i + n], 0, 100)
+    j = n * len(PROFILE) + SURFACE.index("rh2m")
+    phys[..., j] = np.clip(phys[..., j], 0, 100)
+    return phys
+
+
+def standard_pressure(z):
+    """Standard-atmosphere pressure (Pa) at elevation z (m). Subtracted from the sp target in training, so the
+    model learns weather (~500 Pa) instead of re-learning elevation (~10,000 Pa across the box)."""
+    return 101325.0 * (1 - 2.25577e-5 * np.asarray(z, np.float64)) ** 5.25588
+
+
+LAPSE = 0.0065        # K per m, standard atmosphere
+SHIFT_SCALE = 1500.0  # m: the site-elevation temperature shift fades with height above the ground, exp(-z / SHIFT_SCALE)
+
+
+def _es(t):
+    return 611.21 * np.exp(17.502 * (t - 273.16) / (t - 32.19))
+
+
+def to_site(phys: np.ndarray, z_grid, z_site) -> np.ndarray:
+    """(..., 179) physical values at the ERA5 grid elevation -> values at the site elevation (in place).
+    sp: hypsometric equation. t2m: standard lapse rate. The temperature profile above ground follows with a shift that fades with height,
+    -lapse * dz * exp(-z / 1500 m), so there is no jump between the 2 m and the 10 m value; humidity keeps its dew point (RH changes with T, kept <= 100 %)
+    at 2 m and on the profile with the same fading weight."""
+    dz = np.asarray(z_site, np.float64) - np.asarray(z_grid, np.float64)
+    nh = len(HEIGHTS)
+    j = nh * len(PROFILE)
+    t = phys[..., j + SURFACE.index("t2m")]
+    phys[..., j + SURFACE.index("sp")] *= np.exp(-9.80665 * dz / (287.05 * (t - LAPSE * dz / 2)))
+    w = np.exp(-HEIGHTS / SHIFT_SCALE)
+    dz_ = np.asarray(dz)[..., None] if np.ndim(dz) else dz
+    iT, iR = PROFILE.index("T") * nh, PROFILE.index("RH") * nh
+    T_old = phys[..., iT:iT + nh].copy()
+    T_new = T_old - LAPSE * dz_ * w
+    rh_old = phys[..., iR:iR + nh]
+    phys[..., iR:iR + nh] = np.clip(rh_old * _es(T_old) / _es(T_new) * w + rh_old * (1 - w), 0, 100)       # dew point kept where the shift acts
+    phys[..., iT:iT + nh] = T_new
+    ir = j + SURFACE.index("rh2m")
+    phys[..., ir] = np.clip(phys[..., ir] * _es(t) / _es(t - LAPSE * dz), 0, 100)
+    phys[..., j + SURFACE.index("t2m")] = t - LAPSE * dz
+    return phys
+
+
+def sobol_normal(n_blocks: int, m: int, dim: int) -> torch.Tensor:
+    """Randomised quasi-Monte Carlo noise (L3-37) -> (n_blocks * m, dim) N(0, 1), block b = rows b*m .. b*m+m-1.
+    One scrambled Sobol set of m points, shifted by an independent uniform per block (Cranley-Patterson) and mapped through the
+    normal quantile: each block is still an unbiased draw, but its m points fill the noise space more evenly than m random ones.
+    Uses torch's global RNG (score.py seeds it), so --seed still changes the draw.
+    shortcut: m = 199 is not a power of 2, so the Sobol balance is not exact; try m = 256 if L3-37 shows a gain."""
+    seed = int(torch.randint(0, 2**31 - 1, (1,)))
+    p = torch.quasirandom.SobolEngine(dim, scramble=True, seed=seed).draw(m, dtype=torch.float64)
+    u = (p[None] + torch.rand(n_blocks, 1, dim, dtype=torch.float64)) % 1.0
+    return torch.special.ndtri(u.clamp(1e-9, 1 - 1e-9)).reshape(n_blocks * m, dim).float()
+
+
+class Sampler:
+    """Loads one trained model, or an ensemble file {"members": [...]}; samples are split evenly over members.
+    qmc_m = m (score.py --qmc) draws the noise with sobol_normal, one Sobol set per m consecutive rows (one condition's samples)."""
+    qmc_m = 0
+
+    def __init__(self, ckpt, device=None):
+        if not isinstance(ckpt, dict):
+            ckpt = torch.load(ckpt, map_location="cpu", weights_only=True)
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.members = []
+        for k in ckpt.get("members", [ckpt]):
+            c = k["cfg"]
+            model = make_generator(c.get("arch", "mlp"), k["n_cond"], k["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=k.get("linear_cols"), **({"interactions": True} if c.get("interactions") else {}), **({"product_pairs": k["product_pairs"]} if k.get("product_pairs") else {}), **k.get("model_kw", {}))
+            model.load_state_dict(k["state"])
+            self.members.append((model.to(self.device).eval(), {n: v.to(self.device) for n, v in k["norm"].items()}))
+        k0 = ckpt.get("members", [ckpt])[0]
+        self.sp_offset = k0.get("sp_offset")                      # [target col, cond col], or None (old files)
+        self.rh_target = k0.get("rh_target", "rh")                # a model trained on dpd targets needs the inverse
+        self.cond_names = list(k0["cond_names"]) if k0.get("cond_names") else None
+        self._activate()
+
+    def _activate(self):
+        """The humidity target and the input-column list are module-level settings (features.FEATURES, RH_TARGET). Every sampler re-applies ITS OWN before it samples, so
+        two models or datasets with different settings can be used alternately in one process (review item F-4)."""
+        set_rh_target(self.rh_target)
+        if self.cond_names is not None:
+            from tempest.generator import features
+            union = set(features.BASE_FEATURES) | set(features.P2_FEATURES)
+            if set(self.cond_names) <= union:                                                          # a climate generator; the mode P / mode F residual networks have their own inputs
+                if self.cond_names not in (features.BASE_FEATURES, features.P2_FEATURES):              # normalisation is positional: an unknown order or a duplicate gives plausible, wrong output (review 1.7 / 5.5)
+                    raise ValueError(f"checkpoint feature list {self.cond_names} is neither the base nor the P2 schema in its exact order")
+                features.set_active(self.cond_names)
+
+    @torch.inference_mode()
+    def __call__(self, cond: np.ndarray) -> np.ndarray:
+        """cond (N, F) raw features, one row per sample (drivers already drawn) -> (N, D) raw targets.
+        Row i goes to member i % K, so repeated rows (one query, many samples) are shared evenly."""
+        self._activate()
+        c = torch.as_tensor(cond, dtype=torch.float32, device=self.device)
+        m0 = self.members[0][0]
+        out = torch.empty(len(c), getattr(m0, "n_out", None) or m0.head[-1].out_features, device=self.device)
+        eps = None
+        if self.qmc_m:
+            if len(c) % self.qmc_m or not isinstance(m0, Generator):  # TokenGenerator draws its own noise
+                raise ValueError(f"qmc needs whole blocks of m = {self.qmc_m} rows and an mlp generator")
+            eps = sobol_normal(len(c) // self.qmc_m, self.qmc_m, m0.noise_dim).to(self.device)
+        for i, (model, n) in enumerate(self.members):
+            kw = {"eps": eps[i::len(self.members)]} if eps is not None else {}
+            out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1, **kw)[:, 0] * n["ts"] + n["tm"]
+        out = out.cpu().numpy()
+        if self.sp_offset is not None:
+            j, e = self.sp_offset
+            out[:, j] += standard_pressure(cond[:, e]).astype(np.float32)
+        return out
+
+    def profiles(self, cond: np.ndarray) -> np.ndarray:
+        """Like __call__, but physical profiles with the range rules applied (see to_physical)."""
+        out = self(cond)               # activates this sampler's settings
+        return to_physical(out)

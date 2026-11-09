@@ -1,0 +1,25 @@
+# Locked global holdout places (docs/plans/GLOBAL_PLAN.md §3.1). Never fetched into training stores, never used for training,
+# tuning or calibration before stage G6. tempest.ingest.fetch_global drops every point within radius_deg of these.
+radius_deg = 1.0
+seed = 20261106  # the per-WMO-region IGRA picks below were drawn with this seed (fetch_global.pick_igra_holdouts)
+igra = ["CTM00064650", "CHM00051656", "BRM00082824", "USM00072318", "IDM00096163", "GLM00004320", "AYM00089662"]  # one per WMO region I-VII
+
+[[site]]
+name = "Wallops"
+lat = 37.9
+lon = -75.5
+
+[[site]]
+name = "Kwajalein"
+lat = 8.7
+lon = 167.7
+
+[[site]]
+name = "Esrange"
+lat = 67.9
+lon = 21.1
+
+[[site]]
+name = "Woomera"
+lat = -31.2
+lon = 136.8

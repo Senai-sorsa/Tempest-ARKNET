@@ -1,0 +1,19 @@
+# Built-in sites. elevation_m is the pad ground elevation above sea level; tz is the IANA zone for local wall-clock times.
+# declination_deg is approximate (degrees east of true north, 2026); replace it with the NOAA calculator value for your pad if you align a rail with a compass.
+[[site]]
+name = "spaceport_america"
+lat = 32.99
+lon = -106.97
+elevation_m = 1400.6          # 4595 ft, the launch elevation of the flight_sim example
+tz = "America/Denver"
+declination_deg = 7.9
+aliases = ["spaceport", "spaceport america", "sa", "irec"]
+
+[[site]]
+name = "midland"
+lat = 31.94
+lon = -102.19
+elevation_m = 875.0
+tz = "America/Chicago"
+declination_deg = 5.6
+aliases = ["midland tx", "maf"]

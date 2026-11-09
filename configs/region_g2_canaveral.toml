@@ -1,0 +1,11 @@
+# G2 box (docs/plans/GLOBAL_PLAN.md G2): Cape Canaveral FL, deep convection. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
+# Used with TEMPEST_REGION=configs/region_g2_canaveral.toml (scripts/fetch_chain.sh fetches it into data/raw/era5_g2_canaveral).
+name = "g2_canaveral"
+lat_north = 29.5
+lat_south = 27.5
+lon_west = -81.5
+lon_east = -79.5
+step = 0.25
+
+[stations]
+USM00074794 = [28.4667, -80.55, 3.0]   # Cape Canaveral

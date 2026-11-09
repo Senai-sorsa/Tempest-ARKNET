@@ -1,0 +1,36 @@
+[project]
+name = "tempest-arknet"
+version = "0.1.0"
+description = "Coherent atmospheric profile samples for Monte Carlo flight simulation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cfgrib>=0.9.15.1",
+    "dask>=2026.8.0",
+    "eccodes>=2.50.0",
+    "ecmwf-datastores-client>=0.5.3",
+    "icechunk>=2.3.1",
+    "matplotlib>=3.11.2",
+    "numcodecs[pcodec]>=0.17.1",
+    "numpy>=2.0",
+    "pandas>=3.1.0",
+    "scipy>=1.18.1",
+    "torch==2.11.0",
+    "xarray>=2026.9.0",
+    "zarr>=3",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+# GPU build of torch (CUDA 12.8 supports the RTX 50 series); everything else from PyPI.
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

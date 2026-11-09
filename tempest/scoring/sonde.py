@@ -1,0 +1,274 @@
+"""Scorecard against real weather balloons (IGRA radiosondes) in the held-out years: the honest test.
+
+    python -m tempest.scoring.sonde --model models/generator_pilot.pt --data data/train/pilot.npz
+                                    [--profiles data/pilot/profiles.zarr] [--m 50] [--device cpu]
+
+Truth is each 00Z balloon (about 17 h local solar time; 12Z is ~05 h, outside the training window) at Santa
+Teresa NM and Midland TX in the model's held-out years, on the 44 heights above the launch site. The model is
+queried at the nearest grid point, surface T and pressure moved to the launch elevation. Baselines are built from the same station's balloons in the training years,
+same calendar month: climatology (real past soundings) and a Gaussian (monthly mean + correlated spread,
+Earth-GRAM / Range Reference Atmosphere style). Same scores and charts as tempest.scoring.score, saved to
+<model>_sonde.score.csv and <model>_sonde_report/.
+"""
+import argparse
+
+import numpy as np
+import pandas as pd
+import torch
+import xarray as xr
+
+from tempest.calibrate import spread, trust
+from tempest.calibrate.station import ELEV, STATIONS, nearest_point, read_igra
+from tempest.generator.build_dataset import solar_hour
+from tempest.generator.features import FEATURES, drivers, features
+from tempest.generator.sample import SURFACE, Sampler, to_site
+from tempest.generator.train import load_npz
+from tempest.ingest import indices
+from tempest.profiles.to_heights import HEIGHTS, PROFILE
+from tempest.scoring import diag
+from tempest.scoring.report import report
+from tempest.scoring.score import band_masks, coverage90, crps_ensemble, gaussian_samples, group_keys, physical_names, var_slices, variogram_score
+
+DRIVERS = ["oni", "wwv", "qbo30", "qbo50"]
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model", required=True)
+    ap.add_argument("--data", required=True, help="the training file, only for its year range")
+    ap.add_argument("--profiles", default="data/pilot/profiles.zarr", help="for grid-point coordinates and elevation")
+    ap.add_argument("--igra", default="data/raw/igra")
+    ap.add_argument("--indices", default="data/raw/indices")
+    ap.add_argument("--first-year", type=int, default=1991)
+    ap.add_argument("--m", type=int, help="samples per row (default: the calibration's m, else 50)")
+    ap.add_argument("--device")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
+    ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
+    ap.add_argument("--last-test-year", type=int, help="score only up to this year")
+    ap.add_argument("--station-calib-year", type=int, help="also fit a balloon range calibration (pooled per variable x "
+                    "height band) on this year's soundings and apply it on top; must be before --first-test-year")
+    ap.add_argument("--station-calib-from-year", type=int, help="fit the balloon calibration on from-year..station-calib-year "
+                    "(default: just that year); one year's quirks did not carry over")
+    ap.add_argument("--trust", help="trust-layer weights from tempest.calibrate.trust (needs --calib); blends the calibrated "
+                    "samples toward the dataset's 15-year climatology before they are moved to the launch site (outputs get a _trust suffix)")
+    ap.add_argument("--offset-from-year", type=int, help="IL-72: fit a median offset per variable x band on the balloons of offset-from-year..offset-to-year and apply it (outputs get an _off suffix)")
+    ap.add_argument("--offset-to-year", type=int)
+    ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib), applied at grid level; outputs get a _shift suffix")
+    ap.add_argument("--shear-table", action="store_true", help="IL-103: also print and write the vector-shear quantiles of balloons, model draws and climatology draws by height band")
+    ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib), applied at grid level; outputs get a _smap suffix")
+    ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
+    ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
+    ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="unknown drivers: analog draw (default) or ridge index forecast (what the tool serves)")
+    ap.add_argument("--driver-lead", type=int, default=6)
+    ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
+                    "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
+    a = ap.parse_args()
+    rng = np.random.default_rng(a.seed)
+    torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
+
+    ckpt = torch.load(a.model, map_location="cpu", weights_only=True)
+    sampler = Sampler(ckpt, device=a.device)
+    histories = [c.get("history") for c in ckpt.get("members", [ckpt])]
+    dset = load_npz(a.data)
+    last = int(dset["year"].max())
+    held_from = a.first_test_year or (last - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1)  # an explicit first test year is used as given
+    last = min(last, a.last_test_year or last)
+    cal = spread.load(a.calib, a.model)
+    a.m = a.m or (int(cal["m"]) if cal else 50)
+    scal = a.station_calib_year
+    if scal and scal >= held_from:
+        raise SystemExit("--station-calib-year must be before the first scored year")
+    sfrom = a.station_calib_from_year or scal
+    start = min(held_from, sfrom or held_from, a.offset_from_year or held_from)
+    draw0 = lambda rep, n: (spread.apply(cal, sampler.profiles(rep).reshape(n, a.m, -1)) if cal
+                            else sampler.profiles(rep).reshape(n, a.m, -1))  # calibrated at grid elevation, then moved
+    tw = qpool = ref_cond = None
+    if a.trust:
+        if not cal:
+            raise SystemExit("--trust needs --calib")
+        tw = trust.load(a.trust, a.model, a.calib)
+        ref_cond = np.asarray(dset["cond"])
+        qpool = trust.ClimPool(group_keys(ref_cond), dset["year"], dset["target"], (held_from - int(tw["clim_years"]), held_from - 1), a.m)
+
+    post = []  # grid-level steps after the range calibration (IL-11..13), all optional
+    if a.shift or a.shear_tail or a.seasonal or a.shear_map:
+        if not cal:
+            raise SystemExit("--shift / --shear-tail / --seasonal need --calib")
+        if a.shift:
+            from tempest.calibrate import shift as shift_mod
+            _sh = dict(np.load(a.shift))
+            post.append(lambda x, mo: shift_mod.apply(_sh, x))
+        if a.shear_tail:
+            from tempest.calibrate import shear_tail as st_mod
+            _st, _prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
+            post.append(lambda x, mo: st_mod.apply(_st, x, _prng))
+        if a.shear_map:
+            from tempest.calibrate import shear_map as smap_mod
+            _sm = dict(np.load(a.shear_map))
+            post.append(lambda x, mo: smap_mod.apply(_sm, x))
+        if a.seasonal:
+            from tempest.calibrate import seasonal as seas_mod
+            _se = dict(np.load(a.seasonal))
+            post.append(lambda x, mo: seas_mod.apply(_se, x, np.full(len(x), mo)))
+
+    def draw(rep, n, q=None, mo=None):
+        x = draw0(rep, n)
+        for f in post:
+            x = f(x, mo)
+        return trust.apply_full(tw, x, q) if tw is not None else x
+    ds = xr.open_zarr(a.profiles)
+    tbl = indices.load(a.indices)
+    gm = indices.gmst_table(a.indices) if "gmst" in FEATURES else None
+
+    truth, clim, gauss, known, unknown, months, sids, years = [], [], [], [], [], [], [], []
+    clim15, days = [], []  # recent-years baseline and day ids for the headline table
+    for sid, (slat, slon) in STATIONS.items():
+        t, prof, sfc = read_igra(f"{a.igra}/{sid}-drvd.txt.zip", a.first_year, last)
+        phys = np.concatenate([prof.reshape(len(t), -1), sfc], 1)
+        ok = (t.hour == 0) & np.isfinite(phys).all(1)
+        late = np.asarray(t.year >= start) & np.asarray(t.hour == 0)
+        print(f"{sid}: {int((late & ~ok).sum())} of {int(late.sum())} held-out 00Z soundings dropped as incomplete "
+              "(shortcut: scored on complete ones only; per-height scoring would keep them)", flush=True)
+        t, phys = t[ok], phys[ok]
+        tr, va = np.flatnonzero(t.year < held_from), np.flatnonzero(t.year >= start)
+        print(f"{sid}: {len(va):,} complete held-out 00Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
+        p = nearest_point(ds, slat, slon)
+        lat, lon, z = (float(ds[k].values[p]) for k in ("lat", "lon", "z_sfc"))
+        for mo in range(1, 13):
+            v, r = va[t.month[va] == mo], tr[t.month[tr] == mo]
+            if len(v) == 0:
+                continue
+            draws = r[rng.integers(0, len(r), (len(v), a.m))]
+            truth.append(phys[v])
+            months.append(t.month[v].to_numpy())
+            sids.append(np.full(len(v), sid))
+            years.append(t.year[v].to_numpy())
+            clim.append(phys[draws])
+            r15 = r[t.year[r] >= held_from - 15]
+            clim15.append(phys[r15[rng.integers(0, len(r15), (len(v), a.m))]] if len(r15) else phys[draws])
+            days.append(t.year[v].to_numpy().astype(np.int64) * 1000 + t.dayofyear[v].to_numpy())
+            gauss.append(gaussian_samples(phys[r].astype(np.float64), len(v), a.m, rng))
+            tv = t[v]
+            cond = features(lat, lon, z, z, tv.dayofyear.to_numpy(), solar_hour(tv, np.array([lon]))[0],
+                            tv.year.to_numpy(), *indices.at(tbl, tv)[:, [0, 3, 1, 2]].T,  # at(): oni, qbo30, qbo50, wwv
+                            **indices.feature_extras(FEATURES, tbl, gm, tv))
+            rep = np.repeat(cond, a.m, axis=0)
+            q = qpool.quantiles(trust.keys_like(ref_cond, cond)) if qpool else None  # grid-level climatology of this group
+            known.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
+            dc = [FEATURES.index(k) for k in drivers()]
+            td = t[draws.ravel()]
+            if a.driver_mode == "ridge":                                                      # F-13: the drivers the tool serves (ridge index forecast), default off
+                from tempest.scoring import ridge_drivers
+                ridge_drivers.fill(rep, cond, tv.year.to_numpy(), a.m, a.driver_lead, rng, table=tbl)
+            else:
+              rep[:, dc] = features(0, 0, 0, 0, 0, 0, 0, *indices.at(tbl, td)[:, [0, 3, 1, 2]].T,
+                                    **({k: (v if k == 'oni_lag3' else 0) for k, v in indices.feature_extras(FEATURES, tbl, gm, td).items()}))[:, dc]
+            unknown.append(to_site(draw(rep, len(v), q, mo), z, ELEV[sid]))
+    truth, years = np.concatenate(truth), np.concatenate(years)
+    sets = [(k, np.concatenate(x)) for k, x in (("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown))]
+    months, sids = np.concatenate(months), np.concatenate(sids)
+    if a.offset_from_year:  # IL-72: median offset per variable x height band from the balloons of the fit years only (e.g. 2022-23, after the sensor change); applied to every sounding
+        from tempest.generator.sample import clip_ranges
+        f = (years >= a.offset_from_year) & (years <= a.offset_to_year)
+        assert a.offset_to_year < held_from, "the offset must be fitted on years before the scored years"
+        kn = dict(sets)["known"]
+        resid = truth[f] - np.median(kn[f], axis=1)
+        shift = np.zeros(truth.shape[1])
+        for _, _, sel in band_masks():
+            shift[sel] = np.median(resid[:, sel])
+        sets = [(k, clip_ranges((x + shift[None, None, :]).astype(x.dtype)) if k in ("known", "unknown") else x) for k, x in sets]
+        print(f"balloon offset fitted on {int(f.sum())} soundings of {a.offset_from_year}-{a.offset_to_year}: median shift T {np.median(shift[2 * len(HEIGHTS):3 * len(HEIGHTS)]):+.2f} K, RH {np.median(shift[3 * len(HEIGHTS):4 * len(HEIGHTS)]):+.1f} %", flush=True)
+    if scal:  # balloon calibration: fit on the fit year, apply to all, then keep only the scored years
+        f = (years >= sfrom) & (years <= scal)
+        groups = np.zeros(truth.shape[1], int)
+        for g, (_, _, sel) in enumerate(band_masks()):
+            groups[sel] = g
+        st = spread.table(*spread.parts(dict(sets)["known"][f], truth[f], keep=a.m), groups)
+        np.savez(a.model.rsplit(".", 1)[0] + ".sonde_calib.npz", **st, groups=groups, fit_year=scal, from_year=sfrom, m=a.m)
+        sets = [(k, spread.apply(st, x) if k in ("known", "unknown") else x) for k, x in sets]
+        print(f"balloon calibration fit on {int(f.sum())} soundings of {sfrom}-{scal}", flush=True)
+    keep = years >= held_from
+    truth, months, sids = truth[keep], months[keep], sids[keep]
+    clim15, days = np.concatenate(clim15)[keep], np.concatenate(days)[keep]
+    sets = [(k, x[keep]) for k, x in sets]
+    print(f"{len(truth):,} balloon profiles scored, m = {a.m}", flush=True)
+
+    res = pd.DataFrame({"column": physical_names()})
+    n = len(HEIGHTS)
+    if a.shear_table:   # IL-103 / IL-104: vector-shear quantiles of the balloons, the model draws and the balloon climatology draws, by height band (m/s per km)
+        iu, iv = PROFILE.index("u") * n, PROFILE.index("v") * n
+        dz_km = np.diff(HEIGHTS) / 1000.0
+        mid = np.asarray(HEIGHTS)[1:]
+        sh = lambda x: np.hypot(np.diff(x[..., iu:iu + n], axis=-1), np.diff(x[..., iv:iv + n], axis=-1)) / dz_km
+        qs = [0.5, 0.9, 0.99, 0.999]
+        rows_sh = []
+        for bname, lo, hi in (("0-1 km", 0, 1000), ("1-5 km", 1000, 5000), ("5-12 km", 5000, 12000), ("12-18 km", 12000, 18001)):
+            m = (mid > lo) & (mid <= hi)
+            row = {"band": bname}
+            for k, x in [("balloon", truth)] + [(k, x) for k, x in sets if k in ("clim", "known", "unknown")]:
+                v = sh(x)[..., m].ravel()
+                v = v[np.isfinite(v)]
+                for q, val in zip(qs, np.quantile(v, qs)):
+                    row[f"{k}_p{q * 100:g}"] = val
+            rows_sh.append(row)
+        sht = pd.DataFrame(rows_sh)
+        print("vector shear quantiles (m/s per km): balloon | clim (balloon climatology draws) | known (model, grid drivers)")
+        for r in rows_sh:
+            print(f"  {r['band']:9} " + "   ".join(f"p{q * 100:g}: {r[f'balloon_p{q * 100:g}']:6.1f} | {r[f'clim_p{q * 100:g}']:6.1f} | {r[f'known_p{q * 100:g}']:6.1f}" for q in qs), flush=True)
+        sht.to_csv(a.model.rsplit(".", 1)[0] + "_sonde_shear.csv", index=False)
+    vs = pd.DataFrame([{"var": v, **{f"vs_{k}": variogram_score(x[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n]).mean()
+                                     for k, x in sets}} for i, v in enumerate(PROFILE)])
+    for k in ("gauss", "known", "unknown"):
+        vs[f"vs_skill_{k}"] = 1 - vs[f"vs_{k}"] / vs["vs_clim"]
+    for k, x in sets:
+        res[f"crps_{k}"] = crps_ensemble(x, truth).mean(0)
+        res[f"cov90_{k}"] = coverage90(x, truth).mean(0)
+        res[f"cov99_{k}"] = coverage90(x, truth, 0.99).mean(0)
+        med = np.median(x, 1)
+        res[f"mae_{k}"] = np.abs(med - truth).mean(0)
+        res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
+    for k in ("gauss", "known", "unknown"):
+        res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "")
+    res.to_csv(stem + ".score.csv", index=False)
+
+    rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
+    summary = pd.DataFrame([dict(var=v, band=b, crps_clim=r.crps_clim.mean(), crps_known=r.crps_known.mean(),
+                                 skill_gauss=1 - r.crps_gauss.mean() / r.crps_clim.mean(),
+                                 skill_known=1 - r.crps_known.mean() / r.crps_clim.mean(),
+                                 skill_unknown=1 - r.crps_unknown.mean() / r.crps_clim.mean(),
+                                 cov90_known=r.cov90_known.mean(), cov90_clim=r.cov90_clim.mean(),
+                                 cov90_gauss=r.cov90_gauss.mean(), cov99_known=r.cov99_known.mean(),
+                                 cov99_clim=r.cov99_clim.mean(), cov99_gauss=r.cov99_gauss.mean()) for v, b, r in rows])
+    with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
+        print(summary.to_string(index=False))
+        print("\nbest-guess error (median of the samples vs the truth; physical units, lower is better):")
+        print(pd.DataFrame([dict(var=v, band=b, mae_clim=r.mae_clim.mean(), mae_known=r.mae_known.mean(),
+                                 rmse_clim=np.sqrt((r.rmse_clim ** 2).mean()), rmse_known=np.sqrt((r.rmse_known ** 2).mean()),
+                                 mae_skill=1 - r.mae_known.mean() / r.mae_clim.mean()) for v, b, r in rows]).to_string(index=False))
+        print("\nprofile shape (variogram score, skill vs climatology):")
+        print(vs.to_string(index=False))
+    known = dict(sets)["known"]
+    n = len(HEIGHTS)
+    print("\nwhole-profile 99 % coverage (all 44 heights inside at once):  " + "  ".join(
+        f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
+        f" (clim {coverage90(dict(sets)['clim'][..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
+        for i, v in enumerate(PROFILE)))
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks()), stem + "_headline.csv")
+    diag.report(stem, known, truth, physical_names(), band_masks(), months, var_slices())
+    if a.extras:
+        from tempest.scoring import extras  # late import, only for the flag
+        extras.write(stem, dict(sets)["unknown"], truth, band_masks(), months, physical_names(), "unknown")
+    for sid in np.unique(sids):  # a station-specific failure shows up here
+        r = sids == sid
+        print(f"DIAG station {sid}: n={int(r.sum())} cov99={coverage90(known[r], truth[r], 0.99).mean():.4f} "
+              f"cov90={coverage90(known[r], truth[r]).mean():.4f}")
+    report(stem + "_report", res, vs, (known < truth[:, None]).sum(1), (truth[:3], known[:3]), histories, PROFILE,
+           HEIGHTS, SURFACE, truth_label="truth (balloon)")
+    summary.to_csv(f"{stem}_report/summary.csv", index=False)
+    print(f"wrote {stem}.score.csv and charts to {stem}_report/")
+
+
+if __name__ == "__main__":
+    main()

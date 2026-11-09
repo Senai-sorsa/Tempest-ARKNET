@@ -1,0 +1,14 @@
+# Site registry for the forecast logger and (later) the snapshot job. Add a [[site]] block to log another place.
+[[site]]
+name = "spaceport_america"
+lat = 32.99
+lon = -106.97
+elevation = 1400
+active = true
+
+[[site]]
+name = "midland"
+lat = 31.94
+lon = -102.19
+elevation = 875
+active = true

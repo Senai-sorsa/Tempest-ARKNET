@@ -1,0 +1,11 @@
+# G2 box (docs/plans/GLOBAL_PLAN.md G2): Vandenberg / Pt Mugu CA, marine layer and sea breeze. 2 x 2 degrees like Denver, >= 7.7 deg from every holdout (checked 2026-11-06).
+# Used with TEMPEST_REGION=configs/region_g2_vandenberg.toml (scripts/fetch_chain.sh fetches it into data/raw/era5_g2_vandenberg).
+name = "g2_vandenberg"
+lat_north = 35.5
+lat_south = 33.5
+lon_west = -121.0
+lon_east = -119.0
+step = 0.25
+
+[stations]
+USM00072393 = [34.75, -120.5666, 100.0]   # Vandenberg AFB (launch height approximate: IGRA lists none)
