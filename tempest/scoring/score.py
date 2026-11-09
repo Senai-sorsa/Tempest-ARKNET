@@ -45,6 +45,13 @@ def crps_ensemble(x, y):
     return 2 / m ** 2 * ((x - y[:, None]) * (m * (y[:, None] < x) - i + 0.5)).sum(1)
 
 
+def twcrps_ensemble(x, y, threshold):
+    """M3: threshold-weighted CRPS for the upper tail (chaining function v(z) = max(z, threshold)): only differences above `threshold` count, so a forecast is judged on strong winds /
+    extremes and not on the calm bulk. Same shapes as crps_ensemble; threshold in the units of x (a scalar, or an array broadcast against y). threshold = -inf gives the ordinary CRPS."""
+    t = np.asarray(threshold, float)
+    return crps_ensemble(np.maximum(x, t[..., None, None] if t.ndim else t), np.maximum(y, t))
+
+
 def coverage90(x, y, p=0.9):
     """Truth inside the ensemble's central p range: the k-th lowest to k-th highest of m samples, k = (1-p)/2 (m+1).
     A perfect ensemble then holds the truth (m+1-2k)/(m+1) of the time (= p when (1-p)/2 (m+1) is whole, e.g.

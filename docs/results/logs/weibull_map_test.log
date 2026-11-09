@@ -4,3 +4,4 @@ calm share: ASOS 0.060, tool 0.009, mapped 0.059
 Weibull k median: ASOS 2.22, tool 2.05, mapped 2.23
 p99 median: ASOS 11.3, tool 11.3, mapped 11.3
 mean quantile-quantile distance to the held-out ASOS (m/s): tool 0.74, mapped 0.42
+climate-distribution CRPS of the speed against held-out ASOS (200 reports per cell): tool 1.484 -> mapped 1.418; twCRPS above 8 m/s: tool 0.2408 -> mapped 0.2361

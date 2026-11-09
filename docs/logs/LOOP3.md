@@ -200,3 +200,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - GW-G check: USCRN basin / TCS airport 10 m ratio 0.48-0.66 before 08 h, ~0.95 in the afternoon, 0.7-0.9 in the evening; WTK pad agrees in shape (0.83-1.0) but not magnitude; no basin flag built, hourly site calibration (M6) is the supported route.
 - W5 Weibull/quantile speed map (fit odd years, test even years, 168 cells): KS 0.186 -> 0.086, calm share 0.009 -> 0.059 (obs 0.060), k 2.05 -> 2.23 (obs 2.22), p99 unchanged; positive where station data exist, ships via sitecal quantile (M6), Launch wiring and CRPS check open.
 - M6 wired: `Launch.calibrate_site(cal)` applies a sitecal ratio/hourly/quantile calibration to the sampled wind speed (faded out by 300 m, gust re-evaluated), test added.
+- M3: twcrps_ensemble added; W5 quantile map CRPS -4.4 %, twCRPS(8 m/s) -2.0 % on held-out ASOS climate distribution.
