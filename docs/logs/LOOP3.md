@@ -206,3 +206,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - M2: harness option wind_age (persistence increment, sqrt(2(1-rho)) x pool sd, frozen perturbation via Atmosphere.perturbed); tested.
 - M17: Atmosphere.rocketpy_inputs() exports one coherent atmosphere as RocketPy custom-atmosphere pairs (SI); RocketPy itself not installed, so not run against it.
 - Gust law audit: median gust at 20 m/s wind was 59 m/s (ws^2 runaway) -> law held at the 12 m/s gust factor above 12 m/s (unchanged below); Dryden gust_params path added the TOTAL gust to the wind (twice too large) -> now the excess only. Tests added.
+- M5 analog ensemble for ground wind: TCS speed MAE 1.67 -> 1.40, CRPS 1.38 (clim) -> 1.01; MAF MAE 1.34 -> 1.15, CRPS 1.43 -> 0.83; ridge on the same features no better at TCS; strong winds under-forecast; tool not yet scored on the same rows (M5b).

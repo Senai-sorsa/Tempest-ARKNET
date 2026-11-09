@@ -1,0 +1,14 @@
+
+TCS: library 44056 hours 2015-23, test 9756 hours 2024-25 (ASOS mean speed 4.35 m/s), K = 40
+  raw ERA5 10 m (one value):    speed MAE 1.673  bias -0.89
+  ridge on the features:        speed MAE 1.677  vector MAE 1.664
+  analog median speed:          speed MAE 1.403  analog-mean vector MAE 1.640
+  CRPS of speed: climatology 1.379   analog ensemble 1.010   (90 % interval coverage: clim 0.92, analog 0.89)
+  strong wind (>= 8 m/s, n 1152): analog median 7.71 vs obs 10.16; raw ERA5 7.17; ridge 7.06
+
+MAF: library 47683 hours 2015-23, test 10427 hours 2024-25 (ASOS mean speed 5.40 m/s), K = 40
+  raw ERA5 10 m (one value):    speed MAE 1.337  bias -0.78
+  ridge on the features:        speed MAE 1.175  vector MAE 1.394
+  analog median speed:          speed MAE 1.148  analog-mean vector MAE 1.395
+  CRPS of speed: climatology 1.433   analog ensemble 0.829   (90 % interval coverage: clim 0.90, analog 0.92)
+  strong wind (>= 8 m/s, n 1668): analog median 8.10 vs obs 9.98; raw ERA5 7.50; ridge 8.26
