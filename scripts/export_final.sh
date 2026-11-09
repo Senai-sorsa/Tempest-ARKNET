@@ -4,7 +4,7 @@
 # Add --modep models/modeP_post.pt if F-11 part 2 is kept (and drop the plain models/modeP.pt); mode F is included (modeF_v2).
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
 OUT=${1:-tempest_weather/assets}
-M=models/generator_80_p2f
+M=models/generator_80_c4w          # 2026-11-09: the shipped recipe + C4w (near-ground vector-wind loss), its own calibration / shear map / lapse map; vs generator_80_p2f + lapse map: skill15 +0.0013 / +0.0016 / +0.0013 (score seeds 0 / 1 / 2), RH 0-1 km +0.002-0.005, coverage error better; was models/generator_80_p2f
 PYTHONPATH=. .venv/Scripts/python -W ignore -m tempest.export_tool --model $M.pt --calib $M.calib2021.npz \
   --head models/whead_clean.pt --wcalib models/whead_clean.wcalib2021.npz --gust models/gust_model.npz \
   --coherence models/coherence_lagcorr.npz --coherence-dist models/coherence_distcorr.npz --coherence-regimes models/coherence_regimes.npz --post-templates data/train/pilot80_dpd.npz --post-cell 8 --post-smap $M.shearmap2021_cell8.npz --post-lmap $M.lapsemap2021.npz \
