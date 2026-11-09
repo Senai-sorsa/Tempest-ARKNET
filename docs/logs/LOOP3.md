@@ -231,3 +231,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - Denver zero-shot C4w loss repeats on training seed 100 (T worse in every band): C4w is in-box only. IL-167 blend in-box: +0.0012 / +0.0013 over base + lapse map, -0.0005 / -0.0008 below the full C4w stack (seeds 0, 1).
 - IL-167 column blend: in-box +0.0005 to +0.0013 over base (below full C4w), Denver equal to base (C4w's temperature cost removed): kept as the single-model-over-regions recipe, not adopted for the tool.
 - P1 difference assimilation: neutral (raw and difference both about -10 % CRPS vs none, equal to each other: the tool's median is the same at station and pad).
+- P2 gust as a measurement of the 300-750 m wind (MAF, physical gusts + balloons): -2.3 % MAE in mixed air, ~0 at night: too small to wire.

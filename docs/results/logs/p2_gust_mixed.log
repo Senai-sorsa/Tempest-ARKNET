@@ -1,0 +1,11 @@
+MAF: 5132 soundings with a one-minute record at the launch hour (2016-2023)
+
+00Z (18 h local, mixed): fit 1594, test 940 soundings; mean speed aloft 7.47 m/s
+  ws10                 MAE 2.006 m/s  R2 0.479  coefficients [2.476 0.922]
+  ws10 + gust excess   MAE 1.960 m/s  R2 0.508  coefficients [2.078 0.796 0.475]
+  gain of the gust: MAE +2.3 %
+
+12Z (06 h local, stable): fit 1583, test 934 soundings; mean speed aloft 10.67 m/s
+  ws10                 MAE 3.076 m/s  R2 0.232  coefficients [6.389 1.151]
+  ws10 + gust excess   MAE 3.068 m/s  R2 0.233  coefficients [6.358 0.97  0.552]
+  gain of the gust: MAE +0.3 %
