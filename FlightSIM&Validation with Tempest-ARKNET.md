@@ -185,6 +185,38 @@ The rerun reproduces the earlier run (past mode 5.80 % now against 5.81 %; clima
 ### What this changes in the plan
 Added V9 (pad weather observations for the three launch hours as the missing truth) and D1 (README and trust line: "atmospheric uncertainty only"). Nothing in the tool code needs to change because of this run.
 
+
+## 13. Hybrid version: standard air + Tempest wind, turbulence and gusts (2026-11-08, same three flights, past mode, 100 atmospheres)
+
+**What was built.** Instead of replacing the whole atmosphere, `Atmosphere(samples, k, air="standard")` (in `tempest_weather_v2/readers.py`, tested) keeps the 1976 standard atmosphere at the pad elevation for temperature, pressure and density (dry; the input it needs is only the pad elevation that the sample set already carries, optionally `delta_t_k` for an "ISA + x K" day) and takes everything else from Tempest: the wind profile of the past-mode atmosphere (u, v, w), and optionally `perturbation=` fields: Dryden turbulence (`u_turb`, `v_turb`, `w_turb`, strength 1.2-2.4 m/s rms below 200 m) and the 1-cos discrete gust of the Tempest engine, added as frozen fields versus height (the flight simulator's wind interface takes altitude only, so there is no time-varying gust). Scripts: `tempest_run/gen_atmospheres3.py`, `fly3.py`, `analyze3.py`; tables in `tempest_run/summary3.md`, flights in `flights3.csv`.
+
+**Scenarios** (everything but air and wind is the branch's frozen rocket setup): S0 branch as filed; S1 basic standard atmosphere at the true pad, no wind; B full Tempest past-mode atmosphere (the earlier "Tempest past"); **H0 standard air + Tempest wind; H1 = H0 + turbulence; H2 = H1 + discrete gust.**
+
+### Result: apogee error against the measured apogee (median of 100 atmospheres)
+| flight (truth ft) | S0 branch | S1 basic standard | B full Tempest | **H0 standard air + Tempest wind** | H1 + turbulence | H2 + gust |
+|---|---|---|---|---|---|---|
+| Prometheus (12789) | +7.7 % | +7.7 % | +8.8 % | **+5.8 %** | +5.8 % | +5.8 % |
+| Juno III (10541) | +5.5 % | +5.0 % | +4.7 % | **+3.0 %** | +3.1 % | +3.1 % |
+| Heart of Steel (30411) | -2.5 % | -5.7 % | -3.9 % | **-5.8 %** | -5.8 % | -5.8 % |
+| **mean absolute error** | 5.21 % | 6.15 % | 5.80 % | **4.89 %** | 4.92 % | 4.91 % |
+| mean signed error | +3.57 % | +2.32 % | +3.20 % | **+1.01 %** | +1.04 % | +1.02 % |
+
+The hybrid is the best of all variants on mean absolute error: 1.26 points better than the basic standard atmosphere (6.15 -> 4.89), 0.91 better than the full Tempest atmosphere (5.80 -> 4.89) and 0.32 better than the branch as filed (5.21 -> 4.89). It is closer than the basic standard atmosphere for Prometheus and Juno III and level with it for Heart of Steel (-5.8 % against -5.7 %).
+
+### Paired effects (same atmosphere index k, median apogee in ft)
+| flight | wind (H0 - S1) | Tempest air instead of standard air (B - H0) | turbulence (H1 - H0) | gust (H2 - H1) | sd H0 | sd H1 | sd H2 |
+|---|---|---|---|---|---|---|---|
+| Prometheus | -244 | +390 | +5 | 0 | 178 | 206 | 206 |
+| Juno III | -204 | +172 | -10 | 0 | 94 | 125 | 126 |
+| Heart of Steel | -27 | +573 | -3 | -5 | 167 | 183 | 184 |
+
+### How to read it (and the caveat that matters)
+1. **Real wind improves the apogee estimate for the two Spaceport Cup flights:** it lowers the apogee by 200-250 ft (1.6-2 %), the right direction, and the effect is large against the atmosphere-to-atmosphere scatter (sd 94-178 ft).
+2. **Turbulence and gusts change nothing in the median apogee** (within 10 ft) but widen the spread by 15-35 % (sd 94 -> 125 ft for Juno III). The truth stays outside the whole sample for every variant (rank 0.00 for Prometheus, 0.00-0.01 for Juno III, 1.00 for Heart of Steel). With this simulator the gust is a frozen function of height, so what is tested is the effect of a wind profile with fine structure, not a time-varying gust.
+3. **Why the hybrid wins here, and why that is probably not a verdict on the air:** the simulator reads 5-8 % high on Prometheus and Juno III, and Tempest's real air (warmer, thinner) adds 170-570 ft more apogee. Keeping the standard air removes that addition, which cancels part of the rocket model's own error. For Heart of Steel, where the simulator reads LOW, the full Tempest air moves the answer toward the truth (-3.9 % against -5.8 %). So the hybrid's lower error comes from partly cancelling a vehicle bias, not from a better description of the air; had the vehicle model been fixed, the full Tempest atmosphere should do better, not worse. **The experiment cannot separate the two.**
+4. **Only three flights.** The difference between the hybrid (4.89 %) and the branch as filed (5.21 %) is 0.32 points, far inside what three flights can resolve; the differences to the basic standard atmosphere (1.26 points) and the physical sign of the wind effect are consistent across the two Cup flights, but no more than that.
+5. **Conclusion for the product:** offering the hybrid as an option is useful and now exists (`air="standard"` plus the wind and `perturbation=` inputs): users who trust their own air model can take Tempest's wind alone, and the wind is where the tool adds most (lever from the earlier sections). It is not shown to be more accurate than the full atmosphere; it is the more conservative choice when the vehicle model is known to be biased.
+
 ## Daily log (one block per calendar day, newest last; plan section 4)
 ### 2026-11-08 (first block, written late in the day by the second audit)
 - Health: disk 109 GB free, RAM 16 GB free, GPU idle at 0 %, no orphan queue scripts (the detached queues ended), `git status` shows only files of earlier or other sessions plus the untracked `flight_sim_trial/`.
