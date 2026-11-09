@@ -332,3 +332,18 @@ def test_calibrate_site_rescales_ground_wind_and_fades_aloft():
     j = int(np.argmin(np.abs(z - 500)))
     assert np.allclose(sp(b, j), sp(a, j), rtol=1e-4)
     assert "ground-wind-site-calibrated-ratio" in C._ensure_pool()["flags"] and "ground-wind-site-calibrated-ratio" not in L._ensure_pool()["flags"]
+
+
+def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
+    """M5c: the opt-in flag adds era5_anchor=1.0 to the call; default adds nothing (the call is unchanged)."""
+    from tempest_weather import api
+    seen = []
+    real = api.atmosphere_set
+
+    def spy(*a, **k):
+        seen.append(dict(k))
+        return real(*a, **k)
+    monkeypatch.setattr(api, "atmosphere_set", spy)
+    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1)._ensure_pool()
+    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1, past_era5_anchor=True)._ensure_pool()
+    assert "era5_anchor" not in seen[0] and seen[1].get("era5_anchor") == 1.0

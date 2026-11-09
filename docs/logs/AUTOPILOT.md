@@ -512,3 +512,7 @@ L26 height-convolution generator, L27 PCA-basis decoder, L28 gradient-boosted gr
 ## Assumption checks V1-V8 (user 2026-11-08, in the to-do list before L16)
 V1 surface climate vs ASOS by month x hour (includes the training target), V2 low-level wind profile shape 10-200 m vs HRRR 80 m / IGRA / ERA5, V3 balloon scores seen vs unseen stations (IL-114), V4 memorisation / novelty (M15), V5 which bands fall below the Gaussian baseline, V6 density and pad pressure vs balloons and ASOS, V7 weather(percentile) consistency, V8 independence of the apogee validation flights. Why these: the balloon check changed the reading of the shear rows; each of these tests an assumption that so far was taken from a single reference (ERA5, a headline number, three flights).
 - 2026-11-09 failure ledger: G1 localisation (neutral/negative), G4 Murphy-Koop (no measurable gain) -> 2 of 3 toward the next sideline idea.
+
+## Sidelined 2026-11-09 (user: the 15 least useful of the 52 open plan items; kept, not scheduled; reasons in the plan lines marked `[s]`)
+G9, G12, M7, G11, L22, L27, L29, L28, G10, M14, M13, W7, G7, G8, L13.
+Closed as done the same day: GW-E, GW-G, W10, M11.

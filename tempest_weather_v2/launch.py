@@ -79,7 +79,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, _pool=None, _obs=None, _hrrr=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, past_era5_anchor=False, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -93,6 +93,7 @@ class Launch:
         self._elevation_arg = elevation
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
+        self.past_era5_anchor = bool(past_era5_anchor)         # M5c: PAST mode only: centre the near-ground wind ensemble on the ERA5 10 m wind (speed CRPS -5 % / -11 % at TCS / MAF; with past_wind_spread=1.2 -8 % / -13 %). Off by default
         self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off
         self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
         if not 0.5 <= self.past_wind_spread <= 3.0:
@@ -130,7 +131,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, site_cal=self._site_cal, _obs=self._obs, _hrrr=self._hrrr)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, site_cal=self._site_cal, past_era5_anchor=self.past_era5_anchor, _obs=self._obs, _hrrr=self._hrrr)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -266,7 +267,7 @@ class Launch:
         infos_flags = []
         for gi, (t_utc, pos) in enumerate(groups):
             iso = t_utc.replace(tzinfo=timezone.utc).isoformat()
-            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store)
+            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store, **({"era5_anchor": 1.0} if self.past_era5_anchor else {}))
             if elev_m is None:
                 elev_m = float(info["elevation_m"])
             if self.past_wind_spread != 1.0 and info.get("mode") == "past":

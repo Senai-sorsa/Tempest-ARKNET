@@ -1,0 +1,56 @@
+
+TCS: 250 hours (2024-25), ASOS mean 4.61 m/s; raw ERA5 10 m MAE 1.664
+  variant                                            CRPS   MAE(med)  cov90  mean
+  analog ensemble (needs the station record)         0.968  1.333    0.89   4.18
+  tool+anchor + site:quantile                        1.031  1.385    0.89   5.07
+  tool+anchor + site:ratio                           1.034  1.403    0.80   5.00
+  tool+anchor widen x1.4                             1.042  1.415    0.86   4.64
+  tool+anchor widen x1.2                             1.047  1.427    0.82   4.39
+  tool+anchor widen x1.2 + site:ratio                1.064  1.441    0.87   5.27
+  tool+anchor + site:hourly                          1.068  1.454    0.79   5.01
+  tool+anchor widen x1.2 + site:quantile             1.069  1.458    0.93   5.36
+  tool+anchor                                        1.079  1.464    0.78   4.16
+  tool widen x1.4                                    1.082  1.477    0.84   4.68
+  tool widen x1.2                                    1.092  1.497    0.80   4.43
+  tool+anchor widen x1.2 + site:hourly               1.100  1.502    0.86   5.29
+  tool + site:ratio                                  1.112  1.518    0.80   5.05
+  tool + site:quantile                               1.113  1.530    0.86   5.13
+  tool+anchor widen x1.4 + site:ratio                1.126  1.540    0.88   5.57
+  tool widen x1.2 + site:ratio                       1.131  1.543    0.84   5.33
+  tool                                               1.133  1.546    0.74   4.21
+  tool widen x1.2 + site:quantile                    1.140  1.558    0.90   5.42
+  tool+anchor widen x1.4 + site:quantile             1.141  1.561    0.94   5.69
+  tool + site:hourly                                 1.145  1.561    0.80   5.06
+  tool+anchor widen x1.4 + site:hourly               1.165  1.598    0.88   5.59
+  tool widen x1.2 + site:hourly                      1.168  1.593    0.83   5.34
+  tool widen x1.4 + site:ratio                       1.187  1.609    0.86   5.63
+  tool widen x1.4 + site:quantile                    1.206  1.636    0.92   5.74
+  tool widen x1.4 + site:hourly                      1.226  1.672    0.86   5.65
+
+MAF: 250 hours (2024-25), ASOS mean 5.24 m/s; raw ERA5 10 m MAE 1.276
+  variant                                            CRPS   MAE(med)  cov90  mean
+  analog ensemble (needs the station record)         0.734  1.006    0.94   5.16
+  tool+anchor widen x1.2                             0.833  1.156    0.90   5.00
+  tool+anchor widen x1.4                             0.837  1.139    0.94   5.16
+  tool+anchor + site:hourly                          0.838  1.121    0.87   5.64
+  tool+anchor                                        0.845  1.179    0.86   4.86
+  tool+anchor + site:ratio                           0.847  1.151    0.88   5.63
+  tool+anchor widen x1.2 + site:hourly               0.873  1.148    0.92   5.80
+  tool+anchor + site:quantile                        0.878  1.181    0.91   5.66
+  tool+anchor widen x1.2 + site:ratio                0.878  1.167    0.92   5.79
+  tool+anchor widen x1.2 + site:quantile             0.914  1.176    0.95   5.84
+  tool+anchor widen x1.4 + site:hourly               0.923  1.201    0.92   5.99
+  tool+anchor widen x1.4 + site:ratio                0.927  1.214    0.92   5.97
+  tool widen x1.2                                    0.938  1.310    0.88   5.17
+  tool widen x1.4                                    0.941  1.307    0.90   5.33
+  tool                                               0.953  1.326    0.83   5.04
+  tool+anchor widen x1.4 + site:quantile             0.970  1.234    0.96   6.06
+  tool + site:ratio                                  1.049  1.448    0.81   5.84
+  tool + site:hourly                                 1.052  1.445    0.82   5.85
+  tool widen x1.2 + site:ratio                       1.067  1.473    0.83   5.99
+  tool widen x1.2 + site:hourly                      1.073  1.472    0.86   6.01
+  tool widen x1.4 + site:ratio                       1.103  1.521    0.88   6.17
+  tool + site:quantile                               1.109  1.525    0.85   5.89
+  tool widen x1.4 + site:hourly                      1.111  1.523    0.88   6.19
+  tool widen x1.2 + site:quantile                    1.131  1.559    0.88   6.07
+  tool widen x1.4 + site:quantile                    1.174  1.610    0.92   6.29
