@@ -124,3 +124,20 @@ def test_sobol_sampling_indices_and_bootstrap_band():
     assert res["atmosphere"]["first"] < 0.08 and res["b"]["first"] < 0.12
     est, lo, hi = bootstrap_percentile(np.random.default_rng(0).normal(size=400), 95)
     assert lo < est < hi and hi - lo < 0.6
+
+
+def test_wind_persistence_increment_widens_the_wind_dependent_result():
+    """M2: with wind_age (rho < 1) the result spread grows by the persistence increment; rho = 1 changes nothing in the spread."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, units="si", seed=4)
+    atms = L.atmospheres(150)
+    z0 = atms[0].elevation_m
+
+    def sim(atm):
+        w = atm.wind(z0 + 300.0)
+        return float(w[1])
+    nh = len(atms.samples["height_agl"])
+    base = run(sim, atms, n=300, seed=1)
+    same = run(sim, atms, n=300, seed=1, wind_age=np.ones(nh))
+    wide = run(sim, atms, n=300, seed=1, wind_age=np.full(nh, 0.7))
+    assert abs(same.values.std() / base.values.std() - 1) < 0.02
+    assert wide.values.std() > 1.2 * base.values.std()

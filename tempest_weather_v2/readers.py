@@ -176,6 +176,8 @@ class Atmosphere:
             raise ValueError(f"above_top must be one of {_POLICIES}, not {above_top!r}")
         if air not in ("model", "standard"):
             raise ValueError("air must be 'model' (Tempest's air) or 'standard' (1976 standard atmosphere at the pad elevation; the wind stays Tempest's)")
+        self._ctor = (samples, k, dict(frame=frame, units=units, reference=reference, direction=direction, above_top=above_top, pad_node=pad_node, pad_wind_factor=pad_wind_factor, decay_scale_m=decay_scale_m,
+                                       elevation_m=elevation_m, launch_time=launch_time, index=index, air=air, delta_t_k=delta_t_k))       # M2: lets `perturbed` rebuild the reader
         s = standard_air_samples(samples, elevation_m, delta_t_k) if air == "standard" else normalise_samples(samples, elevation_m)
         self.air_source = air
         self.elevation_m = s["elevation_m"]
@@ -194,6 +196,11 @@ class Atmosphere:
         self._ft = units == "us"
         self._n = len(self._t.u)
         self._sgn = tuple(float(x) for x in self._sign)
+
+    def perturbed(self, perturbation):
+        """A copy of this reader with a frozen wind perturbation (dict z, east, north, up; see `perturbation=`) added to the wind tables; used by the harness for the wind-persistence increment."""
+        samples, k, kw = self._ctor
+        return Atmosphere(samples, k, perturbation=perturbation, **kw)
 
     # ---- coordinate handling
     def _agl(self, alt):

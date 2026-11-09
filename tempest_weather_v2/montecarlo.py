@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile"]
+__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile", "persistence_perturbations"]
 
 
 def latin_hypercube(n, d, rng):
@@ -215,9 +215,30 @@ def atmosphere_metrics(atm):
         return None
 
 
-def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
+def persistence_perturbations(atmospheres, rho, n, rng, smooth_m=300.0):
+    """M2: n frozen wind perturbations (dict z, east, north) for the persistence increment: the change of the wind between the last measurement and launch. At every height the sd is
+    sqrt(2 (1 - rho)) times the sd of that wind component over `atmospheres` (an AtmosphereSet: its samples are the spread of the air at launch), smoothed over about `smooth_m` metres in height.
+    rho: correlation of the wind anomaly with itself over the age (array over the model heights, from persistence.wind_persistence)."""
+    s = atmospheres.samples
+    z = np.asarray(s["height_agl"], float)
+    k = np.sqrt(2.0 * np.clip(1.0 - np.asarray(rho, float), 0.0, 2.0))
+    sd = {key: np.asarray(s[key], float).std(0) * k for key in ("u", "v")}
+    dz = max(float(np.median(np.diff(z))), 1.0)
+    ker = np.exp(-0.5 * (np.arange(-12, 13) * dz / float(smooth_m)) ** 2)
+    ker /= np.sqrt((ker ** 2).sum())                                    # keeps the variance of white noise after smoothing
+    out = []
+    for _ in range(int(n)):
+        e = {key: np.convolve(rng.standard_normal(len(z) + 24), ker, "valid")[:len(z)] * sd[key] for key in ("u", "v")}
+        out.append(dict(z=z, east=e["u"], north=e["v"]))
+    return out
+
+
+def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None):
     """Call simulate(atmosphere, **vehicle_parameters) n times with atmosphere k and a sampled vehicle parameter set; return an MCResult.
-    atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order."""
+    atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order.
+    wind_age (M2, opt-in): the correlation `rho` of the wind anomaly with itself over the age of the latest wind measurement (array over the model heights, see persistence.wind_persistence); every run then adds a
+    frozen wind change with sd sqrt(2 (1 - rho)) x the pool sd (NASA: total = system dispersion + wind in-persistence increment). Needs atmospheres from Launch.atmospheres().
+    """
     priors = priors or VehiclePriors()
     m = len(atmospheres)
     if m == 0:
@@ -226,9 +247,13 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
     rng = np.random.default_rng(seed)
     idx = np.concatenate([rng.permutation(m) for _ in range(math.ceil(n / m))])[:n]
     params = priors.sample(n, rng, method)
+    pert = persistence_perturbations(atmospheres, wind_age, n, rng) if wind_age is not None else None
     vals = []
     for k in range(n):
-        v = float(simulate(atmospheres[int(idx[k])], **params[k]))
+        atm = atmospheres[int(idx[k])]
+        if pert is not None:
+            atm = atm.perturbed(pert[k])
+        v = float(simulate(atm, **params[k]))
         if not math.isfinite(v):
             raise ValueError(f"the simulator returned {v} for atmosphere {int(idx[k])} and parameters {params[k]}")
         vals.append(v)
