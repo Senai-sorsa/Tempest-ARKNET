@@ -58,3 +58,11 @@ def test_full_distribution_fit_moves_the_bulk_too():
     med = lambda a: np.median(SM._band_values(SM.shears(a[..., :2 * SM.NH].reshape(*a.shape[:-1], 2, SM.NH).astype(float))[1])[1])
     tm = np.median(SM._band_values(SM.shears(truth[:, :2 * SM.NH].reshape(300, 2, SM.NH).astype(float))[1])[1])
     assert abs(med(y) - tm) < abs(med(x) - tm)                                  # the median shear moves toward the truth's
+
+
+def test_lowest_level_is_not_moved():
+    """Gemini bug 5: the wind at height 0 stays as sampled."""
+    x = _profiles(300, 30, 1.0, 0)
+    truth = _profiles(300, 1, 1.8, 1)[:, 0]
+    y = SM.apply(SM.fit(x, truth), x)
+    assert np.allclose(y[..., 0], x[..., 0], atol=1e-4) and np.allclose(y[..., NH], x[..., NH], atol=1e-4)

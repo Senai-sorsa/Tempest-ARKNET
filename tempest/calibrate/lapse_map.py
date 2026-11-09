@@ -50,6 +50,7 @@ def apply(table, x, chunk=512):
     delta = np.cumsum(-L2 * DZ - dT, axis=-1)
     delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
     rough = delta - uniform_filter1d(delta, SMOOTH, axis=-1, mode="nearest")
+    rough = rough - rough[..., :1]                                            # Gemini bug 5: pin the lowest level (constant shift per sample, every lapse rate unchanged)
     out[..., T0:T0 + NH] = (t + rough).astype(x.dtype)
     return out
 

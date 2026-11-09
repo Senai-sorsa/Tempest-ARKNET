@@ -59,6 +59,7 @@ def apply(table, x, chunk=256, smooth_m=None):
         rough = delta - delta @ (w / w.sum(1, keepdims=True)).T
     else:
         rough = delta - uniform_filter1d(delta, SMOOTH, axis=-1, mode="nearest")
+    rough = rough - rough[..., :1]                                            # Gemini bug 5: the high-pass left the lowest level changed; a constant shift per sample keeps every shear and pins the height-0 wind
     new = uv + rough
     out[..., :2 * NH] = new.reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
     return out

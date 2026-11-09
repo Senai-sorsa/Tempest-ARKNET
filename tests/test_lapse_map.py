@@ -38,3 +38,10 @@ def test_identity_when_samples_already_match_truth_and_file_roundtrip(tmp_path):
     np.savez(tmp_path / "m.npz", **table)
     again = dict(np.load(tmp_path / "m.npz"))
     assert np.allclose(LM.apply(again, samples), after)
+
+
+def test_lowest_level_is_not_moved():
+    """Gemini bug 5: the high-pass in the map must leave the surface level (index 0) alone."""
+    samples, truth = make(40, 60, 1.6, 0), make(40, 60, 1.0, 1)[:, 0]
+    after = LM.apply(LM.fit(samples, truth), samples)
+    assert np.allclose(after[..., LM.T0], samples[..., LM.T0], atol=1e-4)
