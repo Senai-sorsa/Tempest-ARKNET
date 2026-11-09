@@ -61,3 +61,20 @@ def test_one_call_contract_returns_coarse_fine_and_avionics_columns():
     assert np.abs(b["fine"]["gust_u"]).max() + np.abs(b["fine"]["gust_v"]).max() > 0          # the last four columns placed a gust
     a = b["avionics"]
     assert a["altimeter_bias_m"].shape == (6, NH + 1) and np.isfinite(a["refractivity_N"]).all()
+
+
+def test_localisation_taper_is_opt_in_and_limits_the_reach_of_an_observation():
+    """G1: off = unchanged; on = a pinned 10 m wind moves levels near it as before and far levels much less."""
+    from tempest_weather.flight.engine import _gaspari_cohn
+    assert _gaspari_cohn(0.0, 1000.0) == 1.0 and _gaspari_cohn(2500.0, 1000.0) == 0.0 and 0 < _gaspari_cohn(1000.0, 1000.0) < 1
+    pool = synthetic_pool()
+    u = np.random.default_rng(2).random((3000, 12))
+    obs = {("wind_u", 10.0): 9.0}
+    a = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs).sample_sobol(u)
+    a2 = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs, localize_m=None).sample_sobol(u)
+    b = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs, localize_m=500.0).sample_sobol(u)
+    assert np.array_equal(a["u"], a2["u"])
+    free = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).sample_sobol(u)
+    far = 20
+    assert abs(b["u"][:, far].mean() - free["u"][:, far].mean()) < 0.3 * abs(a["u"][:, far].mean() - free["u"][:, far].mean())
+    assert np.allclose(b["u"][:, 0], 9.0)

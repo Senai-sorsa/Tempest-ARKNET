@@ -31,6 +31,17 @@ def pool_matrix(atm):
     return np.concatenate([atm["u"], atm["v"], atm["T"], atm["RH"], atm["t2m"][:, None], atm["sp"][:, None], atm["rh2m"][:, None]], 1).astype(np.float64)
 
 
+def _gaspari_cohn(d, half_width):
+    """Gaspari-Cohn compactly supported correlation function of distance d (support 2 x half_width)."""
+    r = np.abs(np.asarray(d, float)) / float(half_width)
+    out = np.zeros_like(r)
+    a, b = r <= 1.0, (r > 1.0) & (r < 2.0)
+    ra, rb = r[a], r[b]
+    out[a] = -0.25 * ra ** 5 + 0.5 * ra ** 4 + 0.625 * ra ** 3 - (5.0 / 3.0) * ra ** 2 + 1.0
+    out[b] = (1.0 / 12.0) * rb ** 5 - 0.5 * rb ** 4 + 0.625 * rb ** 3 + (5.0 / 3.0) * rb ** 2 - 5.0 * rb + 4.0 - (2.0 / 3.0) / rb
+    return out
+
+
 class TempestFlightSimEngine:
     def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, tail_extrap=True, **kw):
         if atm is None:
@@ -97,12 +108,14 @@ class TempestFlightSimEngine:
         return out
 
     # ---- module 2
-    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False):
+    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False, localize_m=None):
         """obs: {(variable, height_m): measured value}; variables wind_u, wind_v (m/s), temp_K, rh_pct, pressure_Pa (surface, height 0). Heights must be model heights (10, 50, 100 ... 18000 m)
         or 2 m for temp_K / rh_pct. sensor_sigma: physical standard deviation of the sensors (one number or {variable: sigma}); default: practically exact pins. inflate: factor on the posterior variance of the unobserved columns (1.0 = the pure Schur complement; 1.5 is the default: the check in
         scripts/s6_condition_eval.py found the pure version too sharp: 90 % intervals held 80-86 % of balloons, 88-92 % with 1.5).
         inflate_decay_m (IL-138, opt-in; None = the single scalar): the variance of every unobserved column is multiplied by 1 + (inflate - 1) exp(-d / inflate_decay_m), d = distance in metres from the
-        column's height to the nearest observed height: the sharpness the pure update has near a measurement is corrected there, and columns far from every measurement (still close to the prior) are not widened."""
+        column's height to the nearest observed height: the sharpness the pure update has near a measurement is corrected there, and columns far from every measurement (still close to the prior) are not widened.
+        localize_m (G1, opt-in; None = off): Gaspari-Cohn taper of the covariance between observed and unobserved columns with their height distance (half-width in metres, zero beyond 2x), so a pinned 10 m wind cannot move the
+        stratosphere through a noisy long-range correlation. Not yet judged on balloons: keep off until `scripts/` shows it wins."""
         idx, y = [], []
         for (var, h), val in obs.items():
             k = (var, float(h))
@@ -121,6 +134,11 @@ class TempestFlightSimEngine:
             lat_sig = np.maximum(sig / self._sd[idx], 1e-3)              # physical sensor sd -> latent units (about the sd of the column)
         C11 = self.corr[np.ix_(idx, idx)] + np.diag(lat_sig ** 2)
         C21 = self.corr[np.ix_(un, idx)]
+        taper = None
+        if localize_m:
+            hh = np.array([n[1] if n[1] > 0 else 0.0 for n in self.names])
+            taper = _gaspari_cohn(np.abs(hh[:, None] - hh[idx][None, :]), float(localize_m))             # (P, len(idx))
+            C21 = C21 * taper[un]
         gain = np.linalg.solve(C11, C21.T).T
         mu = gain @ y
         S = self.corr[np.ix_(un, un)] - gain @ C21.T
@@ -132,7 +150,7 @@ class TempestFlightSimEngine:
             S = S * f[:, None] * f[None, :]
             scale = 1.0
         if soft:                  # opt-in: noisy observations do NOT pin their columns; the full Gaussian posterior over every column (the observed ones included) given the observations and their errors
-            C_all = self.corr[:, idx]
+            C_all = self.corr[:, idx] if taper is None else self.corr[:, idx] * taper
             g_all = np.linalg.solve(C11, C_all.T).T
             un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T
         w, v = np.linalg.eigh(0.5 * (S + S.T))
