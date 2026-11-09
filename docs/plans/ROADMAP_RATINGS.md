@@ -1,0 +1,39 @@
+# Roadmap: from the current ratings to 9/10 for Monte Carlo and 8/10 for apogee / accuracy boosting (written 2026-11-08)
+
+Current ratings (judgment, evidence in the audits and in `FlightSIM&Validation with Tempest-ARKNET.md`): atmospheric Monte Carlo usefulness 7, apogee Monte Carlo 4, accuracy boosting of the apogee prediction 3, overall accuracy 6.
+
+## The structural fact behind both targets
+In the flight-sim test the whole atmosphere moves apogee by about 4-5 % at most (real air +1.5..3 %, real wind -2..-3 %, and a further 2-3 points for a windy day with the right ground wind), while the rocket model is off by 5-8 % (two rockets high, one low, the same pattern in RASAero and RocketPy). The atmosphere pool covers 2-7 % of apogee and the measured apogee falls outside the whole sampled distribution in 18 of 20 cases. So:
+- **9/10 for Monte Carlo** is reachable mainly by work on the TOOL (coverage, calibration of the ground wind, honest total uncertainty, time-varying gusts, validation on many flights).
+- **8/10 for apogee boosting is NOT reachable by the atmosphere tool alone.** It needs the vehicle error to fall to about 2 % (or to be calibrated per vehicle), so that the atmosphere becomes the largest remaining term, and it needs a validation set of 20-30 in-domain flights to show it.
+
+## Part A: Monte Carlo usefulness 7 -> 9 (atmospheric) and 4 -> 8 (apogee)
+| # | Work | Why it moves the rating | Done by | Acceptance test |
+|---|---|---|---|---|
+| A1 | **Total-uncertainty harness**: one call that samples atmospheres AND vehicle parameters (drag coefficient scale, as-flown mass, thrust/impulse scale, rail friction, launch-rail tip-off) and returns an apogee / landing distribution; vehicle priors fitted on flights with known truth | the atmosphere pool alone is badly over-confident for apogee (truth outside in 18/20) | me (code, in `tempest_weather_v2` or `Validation/`); needs vehicle priors from the user's simulator results | on >= 20 flights, the measured apogee lies inside the central 90 % interval in 85-95 % of cases |
+| A2 | **Pad-level ground wind validated and calibrated** (0-200 m): independent 10 m wind records near the pads (Cup / IREC weather, mesonet, Jornada), spread factor so coverage of the 90 % range is 0.88-0.92 (past mode is 0.79 now, spread/error ratio 0.72) | 0-200 m wind is the lever (corr -0.85..-0.92 with apogee) | user (data) + me | past-mode 10 m wind CRPS at the pad no worse than at the airports, coverage 0.88-0.92 |
+| A3 | **Time-varying gusts and turbulence** along the flight (the simulator's wind interface takes altitude only today): a wind object with time or along-track distance, Dryden fields keyed to the trajectory | frozen fields change the spread but not the median; real gust loading, weathercocking at rail exit, recovery drift need time structure | me + the simulator owner (interface) | landing-dispersion and rail-exit wind distributions against flights with GPS tracks |
+| A4 | **Balloon-matched fine-scale shear** (IL-164): turbulence strength set so profile + turbulence reproduces balloon shear (the model carries about 80 % in the free troposphere, 45 % at 0-1 km) | shear loads and drift | me | shear quantiles within 10 % of balloons (instrument-consistent years only) at EPZ / MAF |
+| A5 | **Rare tails built into the pool** (1-in-1000 and rarer): tail extrapolation of the pool (EGPD) with a flag, so winter storms and heat waves of the 1-in-1000 class are present | Uri-class cold is outside a 600-1024 pool today | me | extreme events of 2015-25 inside the pool at their observed frequency |
+| A6 | **Coverage**: CONUS first (the launch sites that matter: Spaceport America, Black Rock, Brothers OR, Argonia KS, Midland, Huntsville, ...), then global; domain check (inside / edge / outside) calibrated per region | the tool serves two boxes; 35 of 38 flights are out of reach | G stages on the supercomputer (user) | leave-region-out skill >= climatology with 90 % coverage in 87-93 % in every box |
+| A7 | **Forecast mode validated** on several years, all hours, the ensemble-spread features (IFS ensemble, now on disk), 1-7 days | the launch decision needs forecast MC; today one year and afternoon only | me (L14 / L29) | CRPS skill versus climatology and PIT within 0.02 of uniform on 2022-2025 for leads 1-7 d |
+| A8 | **Independent validation of the joint structure**: unseen balloon stations, non-assimilated sources (aircraft, surface), the 0-1 km tail on instrument-consistent years | joint coherence is what Monte Carlo needs | G data + me | skill at unseen stations within 0.02 of seen ones |
+| A9 | **Plugs and batch API**: RocketPy, OpenRocket, RASAero, the user's simulator, EDITH; `N` atmospheres with seeds, Sobol option, saved pools | adoption | me | one worked example per tool |
+
+## Part B: accuracy boosting of the apogee 3 -> 8
+| # | Work | Why | Done by | Acceptance test |
+|---|---|---|---|---|
+| B1 | **Reduce or calibrate the vehicle error** (thrust curve / as-flown impulse, as-flown mass, drag table and Reynolds correction, rail friction and guide length, motor ignition delay): the simulator's 5-8 % over-prediction on two rockets and 4 % under on the third | the atmosphere can add at most 4-5 %; with 5-8 % vehicle error it cannot show a gain | the user / the simulator branch (outside this tool) | vehicle error on a no-weather reference (flights with measured weather) <= 2 % mean absolute |
+| B2 | **A validation set of 20-30 in-domain flights** with date, hour, site, measured apogee and the designs (Spaceport America Cup and IREC publish results every year; Midland / Argonia / Black Rock launches) | three flights cannot resolve effects below 1-2 points (the branch's own estimate: about 140 flights for 0.35 points) | user (data) + me (lookup, ingest) | paired comparison with confidence interval excluding 0 |
+| B3 | **Pad weather records for every validation flight** (wind, temperature, pressure at the pad) | gives an atmosphere-level yardstick that does not depend on the vehicle (F3 / V9) | user + me | pad temperature within 1.5 K, pad wind speed within 1.5 m/s (median), 0-200 m mean wind within 15 % on those hours |
+| B4 | **Use the launch-day inputs**: pad observation (anemometer, METAR) and a forecast, through `observe`, with the fitted weights, as the default workflow; the hybrid (`air="standard"` + Tempest wind) as an option | the largest single atmospheric gain was observing the ground wind (Juno III: +4.7 % -> +2.0 %) | me (workflow, documentation, tests) | on the validation set the observed-wind variant beats the climate / past variants by >= 1 point |
+| B5 | **Decide the air model on the larger set**: full Tempest air versus standard air plus Tempest wind (the hybrid won on 3 flights partly by cancelling the vehicle bias) | avoid shipping the wrong default | me, after B1/B2 | the better variant by paired test with >= 20 flights |
+| B6 | **Report end-to-end and atmosphere-level errors side by side** in every validation (checklist B19) | stop concluding from the apogee alone | me | in every report |
+
+## Ratings expected when each block is done
+- Atmospheric Monte Carlo 7 -> 8 with A2, A3, A4, A5, A9; -> 9 with A6 (coverage) and A8 (independent validation of the joint structure).
+- Apogee Monte Carlo 4 -> 7 with A1 (total uncertainty) and B2; -> 8 with B1 (vehicle error) so that the sampled distribution is not 2-4x too narrow.
+- Accuracy boosting 3 -> 5 with B2 + B3 + B4 (it is shown on many flights, even if the vehicle error is still large); -> 8 only with B1.
+
+## What I can start now (no user input, in plan order)
+A5 (tail extrapolation), A4/IL-164 (balloon-matched turbulence), A3 design (time-varying wind object), A1 (harness skeleton with vehicle-scale parameters), A7/L14/L29 (forecast features), A9 (examples), B4 documentation; V9 / F3 / F4 prepare B3. Needs the user: B1, B2 data, B3 data, A2 data, A6 compute.
