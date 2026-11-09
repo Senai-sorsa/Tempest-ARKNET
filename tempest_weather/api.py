@@ -173,9 +173,31 @@ def _gust_station(lat, lon):
 GUST_WS_CAP = 12.0     # m/s, the highest 10 m wind at which the gust law is evaluated directly (see _gust_params)
 
 
+# W8d: the PHYSICAL gust (highest 5-second peak in the 10 minutes before the report), fitted on ASOS ONE-MINUTE data 2016-2020 (scripts/gust_1min.py; TCS + MAF), instead of the METAR gust
+# group, which is only written for about 10 kt peak-to-lull variation (and never below 14 kt), so the METAR-fitted laws learned gust = wind at light winds (median factor 1.00; the
+# physical factor is 1.44 at 2-5 m/s, 1.40 at 5-8, 1.38 at 8-12, 1.33-1.35 above). Validation 2021-23 against the physical gust (39,118 hours): measured-wind law CRPS 1.73 -> 0.61,
+# 90 % coverage 0.42 -> 0.89; model-wind law 1.34 -> 1.06, median factor 1.00 -> 1.40 (observed 1.44). Gumbel of the total gust, features 1, min(ws, 20), min(ws, 20)^2 / 10,
+# sin / cos day of year, sin / cos UTC hour, station; draws clipped at the wind. GUST_PHYSICAL = False restores the METAR-convention laws (asset law and W8c).
+GUST_PHYSICAL = True
+GUST_PHYS_MEASURED = dict(theta=(0.16972, 1.29927, -0.01981, 0.04733, -0.15682, -0.34964, 0.24143, 0.29770), phi=(-0.63631, 0.05833, -0.00158, 0.05074, -0.08359, -0.16047, 0.17639, 0.17495))
+GUST_PHYS_MODEL = dict(theta=(3.25937, 0.15392, 0.93780, 0.12288, -0.39788, -0.65199, 0.56084, 0.53527), phi=(-0.22505, 0.16732, -0.04382, 0.03208, -0.05818, 0.04936, 0.04311, 0.29220))
+GUST_PHYS_MODEL_CAP = 9.0      # m/s of MODEL wind; above it the gust factor is held (the ws^2 term rises to factor 2.3 at 20 m/s where ERA5 has few cases)
+
+
+def _gust_physical(law, cap, ws, doy, hour, station):
+    ws0 = np.asarray(ws, float)
+    w = np.clip(ws0, 0.0, cap)
+    a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
+    X = np.stack([np.ones_like(w), w, w ** 2 / 10.0, np.full_like(w, np.sin(a)), np.full_like(w, np.cos(a)), np.full_like(w, np.sin(h)), np.full_like(w, np.cos(h)), np.full_like(w, station)], 1)
+    k = np.where(w > 0, ws0 / np.maximum(w, 1e-9), 1.0)
+    return (X @ np.asarray(law["theta"])) * k, np.exp(np.clip(X @ np.asarray(law["phi"]), -6, 4)) * k
+
+
 def _gust_params(g, ws, doy, hour, station=0.0):
     """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports). Above GUST_WS_CAP the law is held at the gust FACTOR (location and scale per m/s) of the cap: the airport reports it was
     fitted on have few winds above 12 m/s and the ws^2 term then runs away (20 m/s gave a median gust of 59 m/s); a storm must not produce an impossible gust."""
+    if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), model-wind law
+        return _gust_physical(GUST_PHYS_MODEL, GUST_PHYS_MODEL_CAP, ws, doy, hour, station)
     ws0 = np.asarray(ws, float)
     ws = np.minimum(ws0, GUST_WS_CAP)
     a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
@@ -199,6 +221,8 @@ GUST_MEASURED_WS_CAP = 20.0   # m/s; above it the excess is held at the cap's gu
 
 def _gust_params_measured(ws, doy, hour, station=0.0):
     """(gust_mu, gust_beta) of the gust for a MEASURED 10 m wind ws (m/s); hour = UTC hour. Draws must be clipped at the wind (G >= ws by definition): the clipped mass is the share of hours without a gust group."""
+    if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), measured-wind law
+        return _gust_physical(GUST_PHYS_MEASURED, GUST_MEASURED_WS_CAP, ws, doy, hour, station)
     ws0 = np.asarray(ws, float)
     w = np.clip(ws0, 0.0, GUST_MEASURED_WS_CAP)
     a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0

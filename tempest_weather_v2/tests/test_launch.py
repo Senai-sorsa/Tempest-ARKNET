@@ -353,20 +353,24 @@ def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
     assert "era5_anchor" not in seen[0] and seen[1].get("era5_anchor") == 1.0
 
 
-def test_measured_wind_gust_law_matches_station_gust_factors():
-    """W8c: after observe(wind_10m=...) the gust uses the law fitted on MEASURED winds: no gust group most hours at light wind, gust factor about 1.3-1.4 in strong wind (stations 1.36-1.43),
-    held above 20 m/s; the model-wind law fed the same wind gave factors of 2.4-4.8 above 16 m/s."""
+def test_measured_wind_gust_law_matches_station_gust_factors(monkeypatch):
+    """W8c / W8d: after observe(wind_10m=...) the gust uses the law fitted on MEASURED winds. Physical gust (default, one-minute data): factor about 1.4 at light wind and 1.3-1.4 in strong
+    wind (stations 1.44 / 1.38 / 1.33), held above 20 m/s. METAR convention (GUST_PHYSICAL = False): no gust group most hours at light wind. The model-wind law fed the same wind gave 2.4-4.8."""
     import numpy as np
     from tempest_weather import api
     rng = np.random.default_rng(0)
+    assert api.GUST_PHYSICAL is True
 
     def draws(ws):
         mu, beta = api._gust_params_measured(np.full(4000, ws), 172, 18.0, 1.0)
         return np.maximum(mu - beta * np.log(-np.log(rng.random(4000).clip(1e-12, 1 - 1e-12))), ws)
     light, strong, storm = draws(3.0), draws(14.0), draws(30.0)
-    assert (light == 3.0).mean() > 0.85                                          # stations: about 95 % of 2-5 m/s hours have no gust group
+    assert 1.25 < np.median(light) / 3.0 < 1.75                                  # physical gust at light wind: about 1.44 x the wind (one-minute data)
     assert 1.2 < np.median(strong) / 14.0 < 1.5 and 1.15 < np.median(storm) / 30.0 < 1.6
     assert np.all(np.isfinite(storm)) and np.percentile(storm, 99) / 30.0 < 2.2   # a storm never produces an impossible gust
+    monkeypatch.setattr(api, "GUST_PHYSICAL", False)
+    assert (draws(3.0) == 3.0).mean() > 0.85                                    # METAR convention: about 95 % of 2-5 m/s hours have no gust group
+    monkeypatch.setattr(api, "GUST_PHYSICAL", True)
     base = Launch(32.94, -106.91, "2027-06-16 10:00", tz="America/Denver", seed=3, n=200)
     if "gust_mu" not in base._ensure_pool()["samples"]:
         pytest.skip("no gust law in these assets")

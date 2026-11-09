@@ -96,9 +96,10 @@ def test_dryden_reynolds_stress_is_opt_in_and_keeps_the_vertical_variance():
     assert abs(b["w_turb"][:, i50].std() / a["w_turb"][:, i50].std() - 1) < 0.1
 
 
-def test_gust_law_is_capped_in_strong_wind_and_dryden_adds_only_the_excess():
-    """Gust law: unchanged up to 12 m/s, gust factor held above (20 m/s used to give a median gust of 59 m/s); Dryden gust amplitude = total gust minus the mean wind."""
+def test_gust_law_is_capped_in_strong_wind_and_dryden_adds_only_the_excess(monkeypatch):
+    """Gust law (asset law, GUST_PHYSICAL = False): unchanged up to 12 m/s, gust factor held above (20 m/s used to give a median gust of 59 m/s); Dryden gust amplitude = total gust minus the mean wind."""
     from tempest_weather import api
+    monkeypatch.setattr(api, "GUST_PHYSICAL", False)
     from tempest_weather.flight import dryden
     g = dict(theta=np.array([0.5, 1.0, 0.1, 0, 0, 0, 0, 0.0]), phi=np.array([0.0, 0.05, 0.0, 0, 0, 0, 0, 0.0]))
     lo = np.array([3.0, 12.0])
@@ -113,3 +114,17 @@ def test_gust_law_is_capped_in_strong_wind_and_dryden_adds_only_the_excess():
     gp = (np.full(N, 9.0), np.full(N, 0.5))                                                  # total gust about 9 m/s at an 8 m/s wind: excess about 1 m/s
     r = dryden.synthesize(z, u, v, T, seed=1, gust=tuple(np.full(N, x) for x in (0.0, 0.5, 0.0, 0.5)), gust_params=gp)
     assert np.hypot(r["gust_u"], r["gust_v"]).max() < 3.0
+
+
+def test_physical_gust_laws_have_station_gust_factors_and_hold_the_factor_in_storms():
+    """W8d: physical-gust laws (one-minute ASOS data): model-wind law median factor 1.3-1.8 at 6-9 m/s and the factor held above 9 m/s; measured-wind law 1.3-1.5 at 6-16 m/s; finite, sane storms."""
+    from tempest_weather import api
+    L = lambda q: -np.log(-np.log(q))
+    med = lambda mu, b, w: np.maximum(mu + b * L(0.5), w) / w
+    w = np.array([6.0, 9.0, 18.0, 36.0])
+    mu, b = api._gust_params(None, w, 172, 18.0, 1.0)
+    f = med(mu, b, w)
+    assert np.all((f[:2] > 1.3) & (f[:2] < 1.8)) and np.allclose(f[2:], f[1], rtol=1e-6)        # held factor above the cap (9 m/s)
+    mu, b = api._gust_params_measured(np.array([6.0, 10.0, 16.0, 40.0]), 172, 18.0, 1.0)
+    f = med(mu, b, np.array([6.0, 10.0, 16.0, 40.0]))
+    assert np.all((f > 1.25) & (f < 1.65))                                                       # June early afternoon (18 UTC) is the gustiest hour: 1.52 at 6 m/s (stations 5-8 m/s: median 1.40, p90 1.71)
