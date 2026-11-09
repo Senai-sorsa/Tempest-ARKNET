@@ -195,3 +195,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - G2 done as `Launch.sequence` (hour-to-hour correlation 0.81 / 0.73 at 1 / 2 h); G3 analysed: blocks repeat the same 199 copula points, marginals unaffected, fix needs several templates per cell (export change), left open.
 - G4 checked: Magnus vs Murphy-Koop differ 0.06-0.2 % in the troposphere (RH at fixed dewpoint <= 0.1 pp), no change; G1 localisation taper built opt-in (localize_m), balloon evaluation still open.
 - G1 localisation taper on balloons: DROP. Untapered conditioning +15..+17 % CRPS (2.5-12 km), every Gaspari-Cohn half-width (500/1000/2000 m) loses most or all of it (-5..+0.3 %); the long-range correlation carries real information.
+- G6 part: Dryden Reynolds-stress option `uw_corr` (opt-in) built and tested; von Karman and apogee effect still open.

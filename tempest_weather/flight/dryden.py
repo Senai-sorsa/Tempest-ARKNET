@@ -84,7 +84,7 @@ def one_minus_cos(z, z_start, half_len, peak):
 
 
 def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200.0, ell_cat=20.0, nsub=8, z_top=None, w=None, exact_n2=False, bl_floor0=False,
-               h_pbl_from_profile=False, gust_params=None, run_id=None, block=256, exact_ar=False, _rng=None):
+               h_pbl_from_profile=False, gust_params=None, run_id=None, block=256, exact_ar=False, _rng=None, uw_corr=None):
     """Fine-grid fields for N profiles. z_coarse (nz,) heights above ground, u, v, T (N, nz). gust: None or (u_alt, u_len, u_dir, u_mag) uniforms in (0, 1) (scalars or (N,) arrays) for the
     1-cos gust: start altitude over 0 .. 12 km, half-wavelength 15 .. 150 m, direction 0 .. 2 pi, peak 3 .. 15 m/s. -> dict: z, u_total, v_total, w_total (N, nzf), u_turb, v_turb, w_turb,
     gust_u, gust_v, sigma_u, sigma_w.
@@ -103,7 +103,7 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
             g = None if gust is None else tuple(sub(x) for x in gust)
             gp = None if gust_params is None else tuple(sub(x) for x in gust_params)
             parts.append(synthesize(z_coarse, u[sl], v[sl], T[sl], dz, seed, g, z0, sub(h_pbl) if np.ndim(h_pbl) else h_pbl, ell_cat, nsub, z_top, None if w is None else np.asarray(w, float)[sl],
-                                    exact_n2, bl_floor0, h_pbl_from_profile, gp, run_id, block, exact_ar, np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), b0 // block]))))
+                                    exact_n2, bl_floor0, h_pbl_from_profile, gp, run_id, block, exact_ar, np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), b0 // block])), uw_corr=uw_corr))
         return {k: (parts[0][k] if k == "z" else np.concatenate([p[k] for p in parts])) for k in parts[0]}
     z_top = z_top or z_coarse[-1]
     zf = np.arange(z_coarse[0], z_top + dz, dz)
@@ -150,6 +150,12 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
                 x2 += h * (-x1 / tau ** 2 - 2 * x2 / tau) + np.sqrt(h) * rng.standard_normal(N) / tau ** 2
                 x1 += h * x2
             out[:, i] = env["sigma_u"][:, i] * np.sqrt(tau) * (x1 + np.sqrt(3.0) * tau * x2)
+    if uw_corr:                                                               # G6 (opt-in): Reynolds stress. The turbulent vertical wind is anti-correlated with the along-mean-wind horizontal turbulence in the boundary layer
+        spd = np.maximum(np.hypot(uf, vf), 1e-6)                              # (u'w' = -rho sigma_u sigma_w, rho about 0.35 at the ground, fading to 0 at the top of the layer); w keeps its variance
+        u_par = (ug * uf + vg * vf) / spd
+        hp = np.broadcast_to(np.asarray(h_pbl, float).reshape(-1, 1) if np.ndim(h_pbl) else float(h_pbl), (N, nz))
+        rho = float(uw_corr) * np.clip(1.0 - zf[None, :] / hp, 0.0, 1.0) ** 1.5
+        wg = np.sqrt(1.0 - rho ** 2) * wg - rho * env["sigma_w"] * u_par / np.maximum(env["sigma_u"], 1e-9)
     gu = gv = np.zeros((N, nz))
     if gust is not None:
         ua, ul, ud, um = (np.broadcast_to(np.asarray(g, float), (N,)) for g in gust)

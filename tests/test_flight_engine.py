@@ -78,3 +78,19 @@ def test_localisation_taper_is_opt_in_and_limits_the_reach_of_an_observation():
     far = 20
     assert abs(b["u"][:, far].mean() - free["u"][:, far].mean()) < 0.3 * abs(a["u"][:, far].mean() - free["u"][:, far].mean())
     assert np.allclose(b["u"][:, 0], 9.0)
+
+
+def test_dryden_reynolds_stress_is_opt_in_and_keeps_the_vertical_variance():
+    """G6: uw_corr anticorrelates w' with the along-wind u' near the ground, fading with height; default unchanged."""
+    from tempest_weather.flight import dryden
+    z = np.array([10, 50, 100, 200, 500, 1000, 2000.0])
+    N = 800
+    u, v, T = np.tile(8 + 0 * z, (N, 1)), np.zeros((N, 7)), np.tile(290 - 0.0065 * z, (N, 1))
+    a = dryden.synthesize(z, u, v, T, seed=1)
+    a0 = dryden.synthesize(z, u, v, T, seed=1, uw_corr=None)
+    b = dryden.synthesize(z, u, v, T, seed=1, uw_corr=0.35)
+    assert np.array_equal(a["w_turb"], a0["w_turb"])
+    i50, i1500 = np.searchsorted(b["z"], 50), np.searchsorted(b["z"], 1500)
+    c = lambda r, i: np.corrcoef(r["u_turb"][:, i], r["w_turb"][:, i])[0, 1]
+    assert c(b, i50) < -0.2 and abs(c(a, i50)) < 0.15 and abs(c(b, i1500)) < 0.15
+    assert abs(b["w_turb"][:, i50].std() / a["w_turb"][:, i50].std() - 1) < 0.1
