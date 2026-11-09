@@ -103,6 +103,11 @@ def physical_names():
     return [f"{v}_{int(h)}" for v in PROFILE for h in HEIGHTS] + SURFACE
 
 
+def PROFILE_T_START(profile, heights):
+    """First column of the temperature block in the physical vector."""
+    return profile.index("T") * len(heights)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
@@ -121,6 +126,8 @@ def main():
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
     ap.add_argument("--debias", help="L3-34: per point x month x 4-hour-bin mean-error table from tempest.scoring.debias (needs --calib), applied after the calibration maps; outputs get a _debias suffix")
+    ap.add_argument("--year-clamp", type=int, help="L14e: hold the year feature of the scored rows at this year (the straight-line year slopes are not extrapolated beyond it)")
+    ap.add_argument("--year-shift", type=float, default=0.0, help="with --year-clamp: pooled warming, K per year, added to t2m and T up to 10 km for the years beyond the clamp")
     ap.add_argument("--shuffle-w", type=float, default=1.0, help="IL-161: with --shuffle, weight of the template ranks against the network's own order (1 = the plain Schaake shuffle)")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
@@ -192,6 +199,9 @@ def main():
         gauss[sel] = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), a.m, rng)
 
     rep = np.repeat(cond[va], a.m, axis=0)
+    if a.year_clamp:   # L14e: the year slope is learned per place, season, hour and height; beyond the clamp year the feature stays at the clamp (optionally plus a pooled warming shift below)
+        iy = FEATURES.index("year")
+        rep[:, iy] = np.minimum(rep[:, iy], float(a.year_clamp))
     known = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         known = spread.apply(cal, known)
@@ -204,6 +214,13 @@ def main():
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         unknown = spread.apply(cal, unknown)
+    if a.year_clamp and a.year_shift:   # pooled warming (K per year) for t2m and the troposphere (T up to 10 km) for the years beyond the clamp
+        from tempest.generator.sample import HEIGHTS as _H, PROFILE as _P
+        nh = len(_H)
+        cols = np.concatenate([[nh * len(_P)], PROFILE_T_START(_P, _H) + np.flatnonzero(np.asarray(_H) <= 10000.0)])
+        dy = np.maximum(year[va].astype(float) - float(a.year_clamp), 0.0) * float(a.year_shift)
+        for arr in (known, unknown):
+            arr[..., cols] += dy[:, None, None]
     if a.pit_recal:
         from tempest.calibrate import pit_recal
         pt = dict(np.load(a.pit_recal))
@@ -276,7 +293,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
