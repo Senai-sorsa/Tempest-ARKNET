@@ -1,0 +1,68 @@
+"""A1: total-uncertainty harness with a toy simulator."""
+import math
+
+import numpy as np
+import pytest
+
+from tempest_weather_v2 import Launch
+from tempest_weather_v2.montecarlo import MCResult, VehiclePriors, calibrate_vehicle_sigma, latin_hypercube, run
+
+
+def test_latin_hypercube_has_one_point_per_stratum():
+    u = latin_hypercube(50, 3, np.random.default_rng(0))
+    for j in range(3):
+        assert sorted(int(x * 50) for x in u[:, j]) == list(range(50))
+
+
+def test_priors_sample_means_and_validation():
+    p = VehiclePriors(a=("normal", 0.05), b=("lognormal", 0.1), c=("uniform", 0.2))
+    s = p.sample(4000, np.random.default_rng(1))
+    for k, sd in (("a", 0.05), ("b", 0.1)):
+        x = np.array([d[k] for d in s])
+        assert abs(x.mean() - 1.0) < 0.005 and abs(x.std() - sd) < 0.006               # mean 1 (the lognormal is mean-corrected), relative sd as asked
+    c = np.array([d["c"] for d in s])
+    assert 0.8 <= c.min() and c.max() <= 1.2
+    with pytest.raises(ValueError):
+        VehiclePriors(a=("beta", 0.1))
+    with pytest.raises(ValueError):
+        VehiclePriors(a=("normal", 0.0))
+    with pytest.raises(ValueError):
+        VehiclePriors(a=("uniform", 1.0))
+    assert VehiclePriors().sample(3, np.random.default_rng(0)) == [{}, {}, {}]
+
+
+def test_run_total_uncertainty_is_wider_than_atmosphere_alone_and_attributes_it():
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=120, units="si", seed=2)
+    atms = L.atmospheres(120)
+
+    def simulate(atm, drag_scale=1.0, impulse_scale=1.0):
+        wind = abs(atm.wind(1401.0 + 100.0)[1]) + abs(atm.wind(1401.0 + 100.0)[2])          # a stand-in: apogee falls with the ground wind, rises with impulse, falls with drag
+        return 4000.0 * impulse_scale / drag_scale - 12.0 * wind
+    atm_only = run(simulate, atms, VehiclePriors(), n=120, seed=3)
+    total = run(simulate, atms, VehiclePriors(drag_scale=("lognormal", 0.06), impulse_scale=("lognormal", 0.04)), n=120, seed=3)
+    assert total.summary()["sd"] > 2.0 * atm_only.summary()["sd"]
+    c = total.contributions()
+    assert c["drag_scale"] > 0.1 and c["impulse_scale"] > 0.05 and c["drag_scale"] <= 1.0
+    lo, hi = total.interval(90)
+    assert lo < total.summary()["p50"] < hi and total.coverage(total.summary()["p50"]) and not total.coverage(hi + 1000.0)
+    assert total.rank(total.values.min() - 1.0) == 0.0 and total.rank(total.values.max() + 1.0) == 1.0 and abs(total.rank(lo) - 0.05) < 0.02
+    same = run(simulate, atms, VehiclePriors(drag_scale=("lognormal", 0.06)), n=30, seed=5)
+    again = run(simulate, atms, VehiclePriors(drag_scale=("lognormal", 0.06)), n=30, seed=5)
+    assert np.array_equal(same.values, again.values)                                      # reproducible
+    longer = run(simulate, atms[:10], VehiclePriors(), n=25, seed=1)                      # n larger than the pool: atmospheres are reused
+    assert len(longer.values) == 25
+
+
+def test_run_refuses_a_non_finite_result_and_empty_input():
+    with pytest.raises(ValueError, match="returned"):
+        run(lambda atm: float("nan"), [object()] * 3, n=3)
+    with pytest.raises(ValueError, match="no atmospheres"):
+        run(lambda atm: 1.0, [], n=3)
+
+
+def test_calibrate_vehicle_sigma_from_flights():
+    r = calibrate_vehicle_sigma([7.7, 5.5, -2.5], [1.4, 0.9, 0.5])                        # the three testable flights (error %, atmosphere sd %)
+    assert r["n"] == 3 and not r["reliable"] and abs(r["bias_pct"] - 3.567) < 0.01 and 5.4 < r["vehicle_rms_pct"] < 5.7 and 4.0 < r["vehicle_scatter_pct"] < 4.7
+    assert calibrate_vehicle_sigma([0.1, -0.1], [1.0, 1.0])["vehicle_rms_pct"] == 0.0     # atmosphere spread alone explains it
+    with pytest.raises(ValueError):
+        calibrate_vehicle_sigma([1.0], [1.0, 2.0])
