@@ -1,0 +1,4 @@
+TCS u: 150 cases; coverage (2nd half) raw 0.75, fixed x1.3 0.84, adaptive 0.83; mean width raw 5.17 m/s, adaptive 6.02; final stretch 1.35
+TCS v: 150 cases; coverage (2nd half) raw 0.81, fixed x1.3 0.88, adaptive 0.88; mean width raw 5.56 m/s, adaptive 6.64; final stretch 1.30
+MAF u: 150 cases; coverage (2nd half) raw 0.73, fixed x1.3 0.85, adaptive 0.84; mean width raw 4.50 m/s, adaptive 5.39; final stretch 1.40
+MAF v: 150 cases; coverage (2nd half) raw 0.75, fixed x1.3 0.85, adaptive 0.85; mean width raw 4.79 m/s, adaptive 5.86; final stretch 1.45

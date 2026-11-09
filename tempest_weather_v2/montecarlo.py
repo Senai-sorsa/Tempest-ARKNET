@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube"]
+__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal"]
 
 
 def latin_hypercube(n, d, rng):
@@ -146,3 +146,35 @@ def calibrate_vehicle_sigma(errors_pct, atmosphere_sd_pct):
         raise ValueError("errors and atmosphere spreads need the same, non-zero length")
     atm = float(np.mean(a ** 2))
     return dict(vehicle_rms_pct=math.sqrt(max(float(np.mean(e ** 2)) - atm, 0.0)), vehicle_scatter_pct=math.sqrt(max(float(np.var(e)) - atm, 0.0)), bias_pct=float(e.mean()), n=int(e.size), reliable=bool(e.size >= 5))
+
+
+class AdaptiveConformal:
+    """M10: adaptive conformal calibration of a central quantile interval of an ensemble (online conformal inference, Gibbs and Candes 2021, in its padding form as used for AI weather ensembles). The interval is the
+    ensemble's central (1 - alpha) interval stretched about its centre by a factor s_t that moves after every verified case: s_t+1 = s_t + gamma (miss_t - alpha), miss_t = 1 when the observation fell outside the
+    stretched interval. The long-run share of misses converges to alpha WHATEVER the ensemble's own calibration (distribution-free, marginal over time, not conditional on the case). A quantile re-levelling would saturate at
+    the ensemble's min / max when the ensemble is too narrow; the stretch does not.
+    Use: ac = AdaptiveConformal(0.10); lo, hi = ac.interval(samples); ... later ac.update(observed, (lo, hi)). For the 10 m wind (past-mode coverage 0.79) and for the total apogee interval of `run`.
+    gamma: step size (0.01-0.1); larger adapts faster but jitters. s is kept in [0.05, 20]."""
+
+    def __init__(self, alpha=0.10, gamma=0.05):
+        if not 0.0 < alpha < 1.0 or gamma <= 0:
+            raise ValueError("alpha must be in (0, 1) and gamma positive")
+        self.alpha, self.gamma, self.stretch = float(alpha), float(gamma), 1.0
+        self.n, self.misses = 0, 0
+
+    def interval(self, samples):
+        x = np.asarray(samples, float)
+        lo, hi = np.quantile(x, self.alpha / 2.0), np.quantile(x, 1.0 - self.alpha / 2.0)
+        c, h = 0.5 * (lo + hi), 0.5 * (hi - lo)
+        return float(c - self.stretch * h), float(c + self.stretch * h)
+
+    def update(self, observed, interval):
+        miss = 0.0 if interval[0] <= observed <= interval[1] else 1.0
+        self.stretch = float(min(max(self.stretch + self.gamma * (miss - self.alpha), 0.05), 20.0))
+        self.n += 1
+        self.misses += int(miss)
+        return bool(miss)
+
+    @property
+    def coverage(self):
+        return 1.0 - self.misses / self.n if self.n else float("nan")

@@ -1,0 +1,8 @@
+
+TCS: 10179 hours in 2011, 2012; ASOS mean speed 4.08 m/s
+  WTK 2 km 10 m  MAE 1.979  speed bias +0.37  speed corr 0.680  vector corr u 0.68 v 0.74
+  ERA5 10 m      MAE 1.647  speed bias -0.59  speed corr 0.746  vector corr u 0.75 v 0.81
+
+MAF: 5346 hours in 2012; ASOS mean speed 5.25 m/s
+  WTK 2 km 10 m  MAE 1.538  speed bias -0.80  speed corr 0.708  vector corr u 0.82 v 0.86
+  ERA5 10 m      MAE 1.286  speed bias -0.61  speed corr 0.799  vector corr u 0.89 v 0.91

@@ -66,3 +66,22 @@ def test_calibrate_vehicle_sigma_from_flights():
     assert calibrate_vehicle_sigma([0.1, -0.1], [1.0, 1.0])["vehicle_rms_pct"] == 0.0     # atmosphere spread alone explains it
     with pytest.raises(ValueError):
         calibrate_vehicle_sigma([1.0], [1.0, 2.0])
+
+
+def test_adaptive_conformal_restores_coverage_of_an_overconfident_ensemble():
+    from tempest_weather_v2.montecarlo import AdaptiveConformal
+    rng = np.random.default_rng(0)
+    raw_miss, ac = 0, AdaptiveConformal(0.10, gamma=0.02)
+    n = 3000
+    for _ in range(n):
+        centre = rng.normal(0, 2.0)
+        ens = centre + rng.normal(0, 1.0, 100)              # the ensemble spread (sd 1) is half the real error (sd 2): coverage of the central 90 % would be about 0.63
+        y = centre + rng.normal(0, 2.0)
+        lo, hi = np.quantile(ens, [0.05, 0.95])
+        raw_miss += not (lo <= y <= hi)
+        i = ac.interval(ens)
+        ac.update(y, i)
+    assert 1 - raw_miss / n < 0.75                          # the raw interval is over-confident
+    assert abs(ac.coverage - 0.90) < 0.02 and ac.stretch > 2.0       # adaptive stretching brings it back (the ensemble is about 2x too narrow)
+    with pytest.raises(ValueError):
+        AdaptiveConformal(1.5)
