@@ -406,16 +406,20 @@ class Launch:
         t0 = r.cells_utc[len(r.cells_utc) // 2].astype("datetime64[s]").astype(datetime).replace(tzinfo=_tz.utc)
         stop = min(t0, now) if now is not None else t0                       # a report cannot be newer than the real clock
         elev = float(self._ensure_pool()["samples"]["elevation_m"]) if self._pool is not None else (self.elevation_info()[0] or 0.0)
-        tried = []
+        tried, rejected = [], []
         for sid, dist, el in O.nearest(self.lat, self.lon, k=k, max_km=max_km):
             t, m = O.latest_report(sid, stop, hours=hours, fetch=fetch)
             tried.append(sid)
             kw = m.observation_kwargs() if m is not None else {}
             if not kw:
                 continue
-            return self.observe(**kw, age_hours=(t0 - t).total_seconds() / 3600.0, distance_km=dist, elevation_diff_m=el - elev, source=f"METAR {sid} {t:%d %H:%MZ}")
+            try:
+                return self.observe(**kw, age_hours=(t0 - t).total_seconds() / 3600.0, distance_km=dist, elevation_diff_m=el - elev, source=f"METAR {sid} {t:%d %H:%MZ}")
+            except ValueError as e:          # a report with an impossible value (broken sensor, typo): skip this station and try the next one
+                rejected.append(f"{sid} ({str(e)[:70]})")
+                continue
         near = ", ".join(f"{i} {d:.0f} km" for i, d, _ in O.nearest(self.lat, self.lon, k=k, max_km=max_km)) or f"none within {max_km:.0f} km"
-        raise LookupError(f"no usable METAR in the {hours} h before launch from the nearest stations ({near}; tried {tried or 'none'}). Pass the report yourself with observe_metar(text).")
+        raise LookupError(f"no usable METAR in the {hours} h before launch from the nearest stations ({near}; tried {tried or 'none'}{"; rejected for impossible values: " + ", ".join(rejected) if rejected else ""}). Pass the report yourself with observe_metar(text).")
 
     # ---- C5: domain of applicability
     EDGE_DEG = 0.25            # within this many degrees of the trained box edge: "edge"

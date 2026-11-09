@@ -72,3 +72,17 @@ def test_observe_latest_end_to_end_and_errors():
     now = datetime(2027, 6, 16, 14, 0, tzinfo=timezone.utc)                                       # the real clock is before the 14:53 report: it cannot exist yet
     with pytest.raises(LookupError):
         L.observe_latest(fetch=fake, now=now.replace(hour=13, minute=0))
+
+
+def test_observe_latest_skips_a_station_whose_report_is_impossible_and_uses_the_next():
+    bad = b"station,valid,metar\nTCS,2027-06-16 14:53,KTCS 161453Z 22006KT 10SM CLR M99/M99 A3016\n"          # temperature M99: a broken sensor
+    good = b"station,valid,metar\nONM,2027-06-16 14:53,KONM 161453Z 24008KT 10SM CLR 24/08 A3014\n"
+
+    def fetch(url):
+        return bad if "station=TCS" in url else good if "station=LRU" in url else b"station,valid,metar\n"
+    L = Launch("spaceport_america", "2027-06-16 09:17", mode="ai", n=200, units="si")
+    c = L.observe_latest(fetch=fetch, max_km=200.0)
+    assert "METAR LRU" in c.trust
+    only_bad = lambda url: bad if "station=TCS" in url else b"station,valid,metar\n"
+    with pytest.raises(LookupError, match="rejected for impossible values"):
+        L.observe_latest(fetch=only_bad, max_km=200.0)
