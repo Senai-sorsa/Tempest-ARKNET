@@ -96,3 +96,10 @@ Nothing is pushed since commit 5864545 (user rule 2026-11-05: push only after ap
 
 ## 13. Off-machine backup (added 2026-11-07, risk found in the audit)
 Git has 14 local commits that origin/main does not (your rule: never push), and `data/` and `models/` are never in git. `models/` is 6.7 GB (2015 files), `data/train` is 85 GB and `data/raw` is 115 GB on one disk, with no copy anywhere else (the Colab zips in Downloads are the only second copy of the global HRES, ARCO fill and refetch data). One disk failure loses the trained models and days of downloads. Options if you approve: (a) copy `models/` plus the small configs to an external drive or cloud folder after each phase, (b) push the commits to a private repo, (c) keep the Colab zips until the stores are verified. Nothing done.
+
+## 14. Needs the user: the final test window (added 2026-11-09, new session)
+The one-time 2026 January-June test was already run on 2026-11-06 01:31-01:49 on the pilot model (`data/FINAL_TEST_DONE`, `FINAL_REPORT.md`). The 2026-11-09 handover still listed it as a future step; that is corrected. Running it again on the current system would reuse a seen test set. Options:
+- (a) Report the existing 2026 H1 result as it is (pilot model) and judge the current system only on 2024-25 (used for about 30 decisions, so optimistic).
+- (b) Open a NEW one-time window: 2026 July-October (ERA5 is published with about 5 days' delay; ASOS and IGRA for 2026 are partly on disk already in `data/asos_2026`, `data/igra_2026`). Download, lock file, run once at the very end. Recommended.
+- (c) Both: (a) for continuity, (b) as the real final test.
+Until you answer: no 2026 data is used for anything; the plan's Group E waits for this choice.
