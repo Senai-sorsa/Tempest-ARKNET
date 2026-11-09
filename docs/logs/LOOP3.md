@@ -228,3 +228,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - Shipped-model C4w (generator_80_c4w + its stack + lapse map) beats the shipped stack + lapse map on score seeds 0 / 1 / 2 (+0.0013 / +0.0016 / +0.0013, all PASS, RH 0-1 km +0.002-0.005): candidate tool model, export_final.sh updated (not run).
 - Denver zero-shot with the shipped-model C4w: FAIL (+0.0100 -> +0.0084, temperature worse in every band, wind unchanged; one seed): C4w not for Denver; seed-100 pair queued on NM/TX and Denver.
 - Shipped-model C4w confirmed on a second training seed (seed 100 pair +0.0024 mean skill15, near-ground wind, T and RH all up): tool candidate stands.
+- Denver zero-shot C4w loss repeats on training seed 100 (T worse in every band): C4w is in-box only. IL-167 blend in-box: +0.0012 / +0.0013 over base + lapse map, -0.0005 / -0.0008 below the full C4w stack (seeds 0, 1).
