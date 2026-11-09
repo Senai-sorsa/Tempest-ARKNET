@@ -103,3 +103,7 @@ The one-time 2026 January-June test was already run on 2026-11-06 01:31-01:49 on
 - (b) Open a NEW one-time window: 2026 July-October (ERA5 is published with about 5 days' delay; ASOS and IGRA for 2026 are partly on disk already in `data/asos_2026`, `data/igra_2026`). Download, lock file, run once at the very end. Recommended.
 - (c) Both: (a) for continuity, (b) as the real final test.
 Until you answer: no 2026 data is used for anything; the plan's Group E waits for this choice.
+
+## 15. Needs the user: pad truth (added 2026-11-09, plan item P5)
+- A wind record from the pad itself (anemometer, even one month, 10 m if possible; `docs/templates/pad_observations.csv` has the format). One month cut the median wind error by about 25 % in tests.
+- The raw flight logs (GPS track, especially the descent under the parachute) of the validation rockets in the flight_sim branch: the drift is a wind profile at the exact pad and hour, the pad truth several checks are waiting for.
