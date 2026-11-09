@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--offset-from-year", type=int, help="IL-72: fit a median offset per variable x band on the balloons of offset-from-year..offset-to-year and apply it (outputs get an _off suffix)")
     ap.add_argument("--offset-to-year", type=int)
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib), applied at grid level; outputs get a _shift suffix")
+    ap.add_argument("--shear-table", action="store_true", help="IL-103: also print and write the vector-shear quantiles of balloons, model draws and climatology draws by height band")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib), applied at grid level; outputs get a _smap suffix")
     ap.add_argument("--seasonal", help="monthly width factors from tempest.calibrate.seasonal (needs --calib), applied at grid level per launch month; outputs get a _seas suffix")
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
@@ -195,6 +196,27 @@ def main():
 
     res = pd.DataFrame({"column": physical_names()})
     n = len(HEIGHTS)
+    if a.shear_table:   # IL-103 / IL-104: vector-shear quantiles of the balloons, the model draws and the balloon climatology draws, by height band (m/s per km)
+        iu, iv = PROFILE.index("u") * n, PROFILE.index("v") * n
+        dz_km = np.diff(HEIGHTS) / 1000.0
+        mid = np.asarray(HEIGHTS)[1:]
+        sh = lambda x: np.hypot(np.diff(x[..., iu:iu + n], axis=-1), np.diff(x[..., iv:iv + n], axis=-1)) / dz_km
+        qs = [0.5, 0.9, 0.99, 0.999]
+        rows_sh = []
+        for bname, lo, hi in (("0-1 km", 0, 1000), ("1-5 km", 1000, 5000), ("5-12 km", 5000, 12000), ("12-18 km", 12000, 18001)):
+            m = (mid > lo) & (mid <= hi)
+            row = {"band": bname}
+            for k, x in [("balloon", truth)] + [(k, x) for k, x in sets if k in ("clim", "known", "unknown")]:
+                v = sh(x)[..., m].ravel()
+                v = v[np.isfinite(v)]
+                for q, val in zip(qs, np.quantile(v, qs)):
+                    row[f"{k}_p{q * 100:g}"] = val
+            rows_sh.append(row)
+        sht = pd.DataFrame(rows_sh)
+        print("vector shear quantiles (m/s per km): balloon | clim (balloon climatology draws) | known (model, grid drivers)")
+        for r in rows_sh:
+            print(f"  {r['band']:9} " + "   ".join(f"p{q * 100:g}: {r[f'balloon_p{q * 100:g}']:6.1f} | {r[f'clim_p{q * 100:g}']:6.1f} | {r[f'known_p{q * 100:g}']:6.1f}" for q in qs), flush=True)
+        sht.to_csv(a.model.rsplit(".", 1)[0] + "_sonde_shear.csv", index=False)
     vs = pd.DataFrame([{"var": v, **{f"vs_{k}": variogram_score(x[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n]).mean()
                                      for k, x in sets}} for i, v in enumerate(PROFILE)])
     for k in ("gauss", "known", "unknown"):
