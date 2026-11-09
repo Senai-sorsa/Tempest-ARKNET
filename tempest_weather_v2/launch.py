@@ -698,6 +698,27 @@ class Launch:
         sub = {k: (v[:n] if isinstance(v, np.ndarray) and v.ndim >= 1 and len(v) >= n and k not in ("height_agl", "height_asl") else v) for k, v in s.items()}
         return AtmosphereSet(sub, launch_times=pool["launch_times"][:n], **reader_kw)
 
+    def sequence(self, offsets=(0, 1, 2, 3), n=None, **reader_kw):
+        """G2 / M11 (Gemini bug 4): the SAME n atmospheres over several hours as one coherent sequence (sample j is one weather system followed through the hours), for hold-time and window-slip Monte Carlo.
+        offsets: hours after the start of the launch window. -> list of AtmosphereSet, one per offset (same sample index = same trajectory). The ordinary pool keeps drawing each sample at its own random time
+        of the window, which is right for one launch at an unknown time; use this when the same flight is tried at several hours. Needs assets with a lag-correlation table (api.atmosphere_sequence)."""
+        n = int(n or self.n)
+        r = self.resolved_window()
+        elev_m, _, _ = self.elevation_info()
+        when = r.cells_utc[0].astype(datetime).replace(tzinfo=timezone.utc).isoformat()
+        kw = dict(elevation=elev_m, mode=self.mode, now=self._now, era5_store=self.era5_store)
+        atms, infos = api.atmosphere_sequence(self.lat, self.lon, when, offsets=tuple(offsets), n=n, seed=self.seed, assets=self.assets, **kw)
+        elev = float(infos[0]["elevation_m"])
+        out = []
+        for atm, info, o in zip(atms, infos, offsets):
+            smp = {k: np.asarray(atm[k], np.float32) for k in SAMPLE_KEYS if atm.get(k) is not None}
+            smp["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
+            smp["elevation_m"] = elev
+            smp["height_asl"] = (elev + smp["height_agl"]).astype(np.float32)
+            t = np.datetime64(datetime.fromisoformat(info["valid_utc"]).replace(tzinfo=None), "s")
+            out.append(AtmosphereSet(smp, launch_times=np.full(n, t), **reader_kw))
+        return out
+
     # ---- Call 5: engine()
     def engine(self, **kw):
         if self._engine is None:

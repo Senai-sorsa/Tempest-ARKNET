@@ -306,3 +306,13 @@ def test_gust_law_follows_the_observed_wind():
     hot = base.observe(wind_10m="25 m/s", wind_from_deg=270)
     mu_hot = np.asarray(hot._ensure_pool()["samples"]["gust_mu"])
     assert mu_hot.mean() > np.asarray(pool0["gust_mu"]).mean() + 3.0
+
+
+def test_sequence_keeps_samples_coherent_over_hours():
+    """G2 / M11: sample j is one weather system through the hours (the ordinary pool draws every sample independently)."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, seed=1)
+    seq = L.sequence((0, 1), n=150)
+    z = L.elevation_info()[0] + 1500.0
+    a = [np.array([s[i].wind(z)[1] for i in range(150)]) for s in seq]
+    assert len(seq) == 2 and len(seq[0]) == 150
+    assert np.corrcoef(a[0], a[1])[0, 1] > 0.4
