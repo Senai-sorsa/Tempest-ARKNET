@@ -135,3 +135,38 @@ def test_openrocket_csv_export(tmp_path):
     assert rows[0] == "altitude_m,temp_K,pressure_Pa,wind_speed_ms,wind_from_deg" and len(rows) > 30
     first = rows[1].split(",")
     assert abs(float(first[0]) - ELEV) < 0.1 and 0 <= float(first[4]) <= 360
+
+
+def test_standard_air_keeps_the_wind_and_matches_the_1976_atmosphere():
+    import numpy as np
+    from tempest_weather_v2.readers import Atmosphere, standard_air_samples
+    n, H = 3, np.array([10.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 3000.0, 8000.0])
+    rng = np.random.default_rng(0)
+    s = dict(height_agl=H, elevation_m=1401.0, u=rng.normal(size=(n, len(H))), v=rng.normal(size=(n, len(H))), T=np.full((n, len(H)), 300.0), RH=np.full((n, len(H)), 50.0), p=np.full((n, len(H)), 80000.0),
+             t2m=np.full(n, 310.0), sp=np.full(n, 86000.0), rh2m=np.full(n, 30.0))
+    model, std = Atmosphere(s, 1), Atmosphere(s, 1, air="standard")
+    assert std.air_source == "standard"
+    for alt in (1401.0, 2500.0, 5000.0):
+        assert model.wind(alt) == pytest.approx(std.wind(alt))                    # the wind is untouched
+    T, p, rho, a = std.air(1401.0)
+    assert T == pytest.approx(288.15 - 0.0065 * 1400.0, abs=0.2) and p == pytest.approx(85600.0, rel=0.004) and rho == pytest.approx(1.0689, rel=0.004)    # ISA at 1401 m: 279.05 K, about 856 hPa, 1.069 kg/m3
+    assert std.air(5401.0)[0] == pytest.approx(288.15 - 0.0065 * 5400.0, abs=0.3)
+    off = Atmosphere(s, 1, air="standard", delta_t_k=10.0)
+    assert off.air(1401.0)[0] == pytest.approx(T + 10.0, abs=0.01) and off.air(1401.0)[2] < rho
+    with pytest.raises(ValueError):
+        Atmosphere(s, 1, air="bogus")
+    assert standard_air_samples(s)["RH"].max() == 0.0
+
+
+def test_perturbation_is_added_to_the_wind_and_zero_at_the_ground():
+    import numpy as np
+    from tempest_weather_v2.readers import Atmosphere
+    H = np.array([10.0, 50.0, 100.0, 200.0, 500.0])
+    s = dict(height_agl=H, elevation_m=1000.0, u=np.ones((1, 5)), v=np.zeros((1, 5)), T=np.full((1, 5), 290.0), RH=np.full((1, 5), 40.0), p=np.full((1, 5), 90000.0),
+             t2m=np.array([291.0]), sp=np.array([91000.0]), rh2m=np.array([40.0]))
+    pz = np.arange(10.0, 600.0, 2.0)
+    base = Atmosphere(s, 0)
+    pert = Atmosphere(s, 0, perturbation=dict(z=pz, east=np.full(len(pz), 2.0), north=np.full(len(pz), -1.0), up=np.full(len(pz), 0.5)))
+    b, q = base.wind(1000.0 + 300.0), pert.wind(1000.0 + 300.0)                  # (up, east, north)
+    assert q[1] - b[1] == pytest.approx(2.0, abs=1e-4) and q[2] - b[2] == pytest.approx(-1.0, abs=1e-4) and q[0] - b[0] == pytest.approx(0.5, abs=1e-4)
+    assert pert.wind(1000.0)[1] == pytest.approx(base.wind(1000.0)[1], abs=1e-4)     # nothing is added at the pad node

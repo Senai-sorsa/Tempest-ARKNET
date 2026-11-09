@@ -23,7 +23,7 @@ import numpy as np
 from tempest_weather import _core
 from tempest_weather._core import GAMMA, G0, RD, RV, mixing_q
 
-__all__ = ["Atmosphere", "AtmosphereConditions", "AboveTopError", "normalise_samples"]
+__all__ = ["Atmosphere", "AtmosphereConditions", "AboveTopError", "normalise_samples", "standard_air_samples"]
 
 GRID_M = 10.0
 FT, INHG, SLUG_FT3 = 0.3048, 3386.389, 515.378819
@@ -84,6 +84,35 @@ def _tail(z_top, t_top, p_top, z_max=86000.0, step=100.0):
     return z, np.array(t), np.array(lnp)
 
 
+_STD_CACHE = {}
+
+
+def _standard_tables():
+    if "t" not in _STD_CACHE:
+        z, t, lnp = _tail(0.0, 288.15, 101325.0, z_max=50000.0, step=10.0)          # 1976 standard atmosphere from sea level, geometric height, dry air
+        _STD_CACHE["t"] = (z, t, lnp)
+    return _STD_CACHE["t"]
+
+
+def standard_air_samples(samples, elevation_m=None, delta_t_k=0.0):
+    """F-hybrid: a copy of the sample set whose AIR (T, p, humidity, and the pad values t2m, sp, rh2m) is the 1976 standard atmosphere at the pad elevation (+ delta_t_k, a constant temperature offset: the
+    'ISA + x K' day of a simulator), dry; the WIND (u, v, w) and everything else stay Tempest's. Input needed: nothing but the pad elevation that the sample set already carries."""
+    s = normalise_samples(samples, elevation_m)
+    zs, ts, lnps = _standard_tables()
+    alt = s["height_asl"]
+    t = np.interp(alt, zs, ts) + float(delta_t_k)
+    p = np.exp(np.interp(alt, zs, lnps))
+    n = len(np.asarray(s["u"]))
+    out = dict(s)
+    out["T"] = np.tile(t, (n, 1))
+    out["p"] = np.tile(p, (n, 1))
+    out["RH"] = np.zeros((n, len(alt)))
+    out["t2m"] = np.full(n, float(np.interp(s["elevation_m"], zs, ts)) + float(delta_t_k))
+    out["sp"] = np.full(n, float(np.exp(np.interp(s["elevation_m"], zs, lnps))))
+    out["rh2m"] = np.zeros(n)
+    return out
+
+
 class _Table:
     """The 10 m float32 tables of one atmosphere in SI, altitude measured above the pad (agl)."""
 
@@ -134,7 +163,7 @@ class Atmosphere:
     """Row k of a sample set as wind and air lookups (see the module docstring)."""
 
     def __init__(self, samples, k, *, frame="une", units="si", reference="asl", direction="to", above_top="hold", pad_node=True, pad_wind_factor=0.72,
-                 decay_scale_m=5000.0, elevation_m=None, launch_time=None, index=None):
+                 decay_scale_m=5000.0, elevation_m=None, launch_time=None, index=None, air="model", delta_t_k=0.0, perturbation=None):
         if frame not in _FRAMES:
             raise ValueError(f"frame must be one of {sorted(_FRAMES)}, not {frame!r}")
         if units not in ("si", "us"):
@@ -145,11 +174,21 @@ class Atmosphere:
             raise ValueError("direction must be 'to' or 'from'")
         if above_top not in _POLICIES:
             raise ValueError(f"above_top must be one of {_POLICIES}, not {above_top!r}")
-        s = normalise_samples(samples, elevation_m)
+        if air not in ("model", "standard"):
+            raise ValueError("air must be 'model' (Tempest's air) or 'standard' (1976 standard atmosphere at the pad elevation; the wind stays Tempest's)")
+        s = standard_air_samples(samples, elevation_m, delta_t_k) if air == "standard" else normalise_samples(samples, elevation_m)
+        self.air_source = air
         self.elevation_m = s["elevation_m"]
         self.index, self.launch_time = (k if index is None else index), launch_time
         self.frame, self.units, self.reference, self.direction, self.above_top = frame, units, reference, direction, above_top
         self._t = _Table(s, k, pad_node, pad_wind_factor, above_top, decay_scale_m)
+        if perturbation is not None:                       # turbulence / gust: a frozen field of east, north, up wind perturbations versus height above the pad, added to the wind tables (zero at the ground)
+            pz = np.asarray(perturbation["z"], float)
+            g = self._t.z0 + GRID_M * np.arange(len(self._t.u))
+            for name, key in (("u", "east"), ("v", "north"), ("w", "up")):
+                if perturbation.get(key) is not None:
+                    add = np.interp(g, pz, np.asarray(perturbation[key], float), left=0.0, right=0.0).astype(np.float32)
+                    setattr(self._t, name, getattr(self._t, name) + add)
         a, b, c, signs = _FRAMES[frame]
         self._perm, self._sign = (a, b, c), np.asarray(signs, np.float32) * (-1.0 if direction == "from" else 1.0)
         self._ft = units == "us"
