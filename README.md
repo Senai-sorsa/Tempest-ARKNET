@@ -44,6 +44,7 @@ python -m tempest.scoring.sonde --model models/X.pt --data D.npz --profiles P.za
 python -m tempest.output.atmosphere --lat 32.99 --lon -106.97 --when "2027-06-16 15:00" --out out/demo     # one call -> coupled atmosphere files
 python scripts/compare_headline.py OLD_headline.csv NEW_headline.csv           # the phase pass rule
 ```
+Flight validation: record the pad weather of every launch in [docs/templates/pad_observations.csv](docs/templates/pad_observations.csv) and check the tool against it with `python scripts/atmosphere_check.py FILE.csv` (judges the air directly, without the rocket model's error).
 Every new option is a flag that is off by default. Forecast logger: `python -m tempest.ops.logger --loop 12` and `python -m tempest.ops.logger_p4 --loop 24`.
 Cap long jobs at 12 of the 20 CPU threads (`source scripts/cap_cpu.sh` first). CDS key: `%USERPROFILE%\.ecmwfdatastoresrc` (never commit it).
 

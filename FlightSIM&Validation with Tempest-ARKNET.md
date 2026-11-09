@@ -217,6 +217,18 @@ The hybrid is the best of all variants on mean absolute error: 1.26 points bette
 4. **Only three flights.** The difference between the hybrid (4.89 %) and the branch as filed (5.21 %) is 0.32 points, far inside what three flights can resolve; the differences to the basic standard atmosphere (1.26 points) and the physical sign of the wind effect are consistent across the two Cup flights, but no more than that.
 5. **Conclusion for the product:** offering the hybrid as an option is useful and now exists (`air="standard"` plus the wind and `perturbation=` inputs): users who trust their own air model can take Tempest's wind alone, and the wind is where the tool adds most (lever from the earlier sections). It is not shown to be more accurate than the full atmosphere; it is the more conservative choice when the vehicle model is known to be biased.
 
+## 14. How independent are the three in-domain flights? (V8, 2026-11-09)
+| Flight | Day | Climate generator (trained 1991-2023, validation 2021-23) | Calibration fit (2021-23) | Past-mode network (trained 1991-2017) |
+|---|---|---|---|---|
+| Heart of Steel | 2017-06-22 | inside the training years | outside | inside the training years |
+| Prometheus | 2022-06-24 | inside (validation years) | inside | outside |
+| Juno III | 2023-06-23 | inside (validation years) | inside | outside |
+
+- **None of the three is an independent test of the climate generator** (all three days are inside its training span; training rows are ERA5-corrected profiles, so the network has seen the air of those days, not the flights). In past mode the ERA5 profile of the hour is an INPUT, which is the intended use; the learned balloon-minus-ERA5 residual has seen 2017 (Heart of Steel) but not 2022-23.
+- **Station corrections:** the balloon-correction stations are Santa Teresa (EPZ, about 120 km from the pad) and Midland (about 470 km); no balloon is launched at the pad, so the pad itself is never inside a truth set.
+- **Was any validation day used to choose a setting?** No default was changed because of these flights: every variant run on them (sections 12-13) stayed opt-in or was rejected; the ground-wind items they raised (items 1-4) were decided on station and balloon data (ASOS, USCRN, IGRA), not on the apogees.
+- **Honest count of independent test flights today: 0 for climate mode, 2 for past mode (Prometheus, Juno III), with the caveat that the recorded apogees may themselves be inaccurate (user note).** A decisive test needs Spaceport America Cup or Midland-area flights from 2024-25 or later (outside every training span), plus the 2026 final-test window.
+
 ## Daily log (one block per calendar day, newest last; plan section 4)
 ### 2026-11-08 (first block, written late in the day by the second audit)
 - Health: disk 109 GB free, RAM 16 GB free, GPU idle at 0 %, no orphan queue scripts (the detached queues ended), `git status` shows only files of earlier or other sessions plus the untracked `flight_sim_trial/`.

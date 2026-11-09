@@ -283,6 +283,10 @@ def test_ground_wind_profile_rows():
     assert g["speed"][50][0] == pytest.approx(float(np.median(np.hypot(s["u"][:, 0], s["v"][:, 0]))))
     us = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="us", seed=4).ground_wind_profile()
     assert us["units"] == "mph" and us["speed"][50][0] == pytest.approx(g["speed"][50][0] / 0.44704, rel=1e-6)
+    assert len(g["weibull_shape"]) == len(g["weibull_scale"]) == len(g["calm_share"]) == len(g["heights_m"])          # W9 shape rows
+    assert all(1.0 < x < 5.0 for x in g["weibull_shape"]) and all(0.0 <= x <= 1.0 for x in g["calm_share"])
+    assert us["weibull_scale"][0] == pytest.approx(g["weibull_scale"][0] / 0.44704, rel=1e-6) and us["weibull_shape"] == g["weibull_shape"]
+    assert g["speed"][10][0] < g["weibull_scale"][0] < g["speed"][90][0] * 1.2
 
 
 def test_speed_distributions_are_positive_families_weibull_or_lognormal():
@@ -347,3 +351,33 @@ def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
     Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1)._ensure_pool()
     Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1, past_era5_anchor=True)._ensure_pool()
     assert "era5_anchor" not in seen[0] and seen[1].get("era5_anchor") == 1.0
+
+
+def test_measured_wind_gust_law_matches_station_gust_factors():
+    """W8c: after observe(wind_10m=...) the gust uses the law fitted on MEASURED winds: no gust group most hours at light wind, gust factor about 1.3-1.4 in strong wind (stations 1.36-1.43),
+    held above 20 m/s; the model-wind law fed the same wind gave factors of 2.4-4.8 above 16 m/s."""
+    import numpy as np
+    from tempest_weather import api
+    rng = np.random.default_rng(0)
+
+    def draws(ws):
+        mu, beta = api._gust_params_measured(np.full(4000, ws), 172, 18.0, 1.0)
+        return np.maximum(mu - beta * np.log(-np.log(rng.random(4000).clip(1e-12, 1 - 1e-12))), ws)
+    light, strong, storm = draws(3.0), draws(14.0), draws(30.0)
+    assert (light == 3.0).mean() > 0.85                                          # stations: about 95 % of 2-5 m/s hours have no gust group
+    assert 1.2 < np.median(strong) / 14.0 < 1.5 and 1.15 < np.median(storm) / 30.0 < 1.6
+    assert np.all(np.isfinite(storm)) and np.percentile(storm, 99) / 30.0 < 2.2   # a storm never produces an impossible gust
+    base = Launch(32.94, -106.91, "2027-06-16 10:00", tz="America/Denver", seed=3, n=200)
+    if "gust_mu" not in base._ensure_pool()["samples"]:
+        pytest.skip("no gust law in these assets")
+    obs = base.observe(wind_10m="18 m/s", wind_from_deg=270)
+    d = obs._derive(obs._ensure_pool()["samples"])
+    assert np.median(d["gust"] / d["wind_10m"]) < 1.6
+    from tempest_weather_v2 import launch as LM
+    old, LM.MEASURED_GUST_LAW = LM.MEASURED_GUST_LAW, False
+    try:
+        o2 = base.observe(wind_10m="18 m/s", wind_from_deg=270)
+        d2 = o2._derive(o2._ensure_pool()["samples"])
+    finally:
+        LM.MEASURED_GUST_LAW = old
+    assert np.median(d2["gust"] / d2["wind_10m"]) > np.median(d["gust"] / d["wind_10m"]) + 0.2       # the switch restores the model-wind law

@@ -28,7 +28,7 @@ def components(atm, rng=None):
     shear = (np.hypot(du, dv) / (np.diff(HEIGHTS[z5]) / 1000.0)).max(1)
     if atm.get("gust_mu") is not None:
         u = np.clip(rng.random(len(wind)), 1e-12, 1 - 1e-12)
-        gust = np.maximum(atm["gust_mu"] - atm["gust_beta"] * np.log(-np.log(u)), 0.0)
+        gust = np.maximum(atm["gust_mu"] - atm["gust_beta"] * np.log(-np.log(u)), speed[:, 0])      # the law is for G = max(gust, wind): never below the 10 m wind (W8c)
     else:
         gust = 1.3 * speed[:, 0]                      # no gust model: a plain gust factor on the 10 m wind
     return dict(wind=wind, shear=shear, gust=gust, density=1.225 - atm["rho"][:, 0])

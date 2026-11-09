@@ -49,6 +49,8 @@ def _load_post(z, manifest):
         post["rank"], post["cell"] = z["post/rank"], int(z["post/cell"])
     if "post/smap_grid" in z.files:
         post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
+    if "post/lmap_xk" in z.files:                                       # L21b (opt-in asset, export_tool --post-lmap): lapse-rate quantile map after the shear map
+        post["lmap"] = dict(xk=z["post/lmap_xk"], yk=z["post/lmap_yk"])
     if "post/seasonal" in z.files:
         post["seasonal"] = z["post/seasonal"]
     if "post/pit_ginv" in z.files:
@@ -81,6 +83,8 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
             x = _core.shuffle_apply(x, np.broadcast_to(tpl, x.shape))
     if "smap" in post:
         x = _core.shear_apply(post["smap"], x)
+    if "lmap" in post:                                                   # L21b: the order the scorer uses (shuffle, shear map, lapse map)
+        x = _core.lapse_apply(post["lmap"], x)
     return x
 
 
@@ -181,7 +185,34 @@ def _gust_params(g, ws, doy, hour, station=0.0):
     return (X @ g["theta"]) * k, np.exp(np.clip(X @ g["phi"], -5, 5)) * k
 
 
-ANCHOR_SPREAD = 1.0         # spread factor of the near-ground wind about its median when anchored on ERA5: 1.0 = unchanged (narrowing to 0.8 or 0.6 made the CRPS and the coverage worse, scripts/gw_past_anchor.py)
+# W8c: the gust after a MEASURED sustained wind (Launch.observe(wind_10m=...)). The law above is a function of the MODEL (ERA5 / generator) wind; fed a station's wind it overstated the gust
+# (median factor 1.15 vs 1.00 reported, 2.4-4.8 vs 1.4 at 16+ m/s). Fitted on the OBSERVED wind (scripts/gust_measured_fit.py, ASOS TCS + MAF 2000-2020, winds >= 2 m/s) as a two-part law:
+# P(a gust group | ws, season, UTC hour, station) (logistic, features 1, min(ws, 20), min(ws, 20)^2 / 10, sin/cos day of year, sin/cos UTC hour, station) times a Gumbel of the excess gust - ws
+# (location and log-scale linear in the same features), carried in the runtime's (gust_mu, gust_beta) format as the Gumbel of the total gust whose draws clipped at the wind have the same
+# no-gust share and the same median reported gust ("add2 as Gumbel"). Validation 2021-23: CRPS 0.927 -> 0.510 (all), 4.14 -> 1.21 (12-16 m/s), 12.95 -> 1.40 (16+ m/s), 90 % coverage 0.94-0.98 in every band.
+# Same definition of the gust as the model-wind law (G = max(reported gust, wind): an hour without a METAR gust group counts as gust = wind; see plan W8d for the physical gust at low winds).
+GUST_MEASURED = dict(p=(-7.43023, 0.87712, -0.04187, 0.23106, -0.63393, -1.21744, 0.82497, 1.16042),
+                     loc=(5.60147, -0.61517, 0.34478, 0.12329, 0.04021, 0.09683, 0.03803, 0.23798),
+                     lbeta=(0.01688, -0.05168, 0.04379, 0.04383, -0.02242, -0.02208, 0.09563, 0.12847))
+GUST_MEASURED_WS_CAP = 20.0   # m/s; above it the excess is held at the cap's gust factor (few reports above 20 m/s)
+
+
+def _gust_params_measured(ws, doy, hour, station=0.0):
+    """(gust_mu, gust_beta) of the gust for a MEASURED 10 m wind ws (m/s); hour = UTC hour. Draws must be clipped at the wind (G >= ws by definition): the clipped mass is the share of hours without a gust group."""
+    ws0 = np.asarray(ws, float)
+    w = np.clip(ws0, 0.0, GUST_MEASURED_WS_CAP)
+    a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
+    X = np.stack([np.ones_like(w), w, w ** 2 / 10.0, np.full_like(w, np.sin(a)), np.full_like(w, np.cos(a)), np.full_like(w, np.sin(h)), np.full_like(w, np.cos(h)), np.full_like(w, station)], 1)
+    k = np.where(w > 0, ws0 / np.maximum(w, 1e-9), 1.0)                          # above the cap: excess grows with the wind (gust factor held)
+    p = np.clip(1.0 / (1.0 + np.exp(-(X @ np.asarray(GUST_MEASURED["p"])))), 1e-4, 1 - 1e-4)
+    beta_e = np.exp(np.clip(X @ np.asarray(GUST_MEASURED["lbeta"]), -6, 4))
+    med_e = np.maximum(X @ np.asarray(GUST_MEASURED["loc"]) - beta_e * np.log(-np.log(0.5)), 0.05) * k
+    L = lambda q: -np.log(-np.log(q))
+    beta = med_e / (L(1 - p / 2) - L(1 - p))
+    return ws0 - beta * L(1 - p), beta
+
+
+ANCHOR_SPREAD = 1.0        # spread factor of the near-ground wind about its median when anchored on ERA5: 1.0 = unchanged (narrowing to 0.8 or 0.6 made the CRPS and the coverage worse, scripts/gw_past_anchor.py)
 ANCHOR_TOP_M = 300.0
 
 

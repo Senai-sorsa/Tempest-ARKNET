@@ -143,3 +143,27 @@ def test_wind_persistence_increment_widens_the_wind_dependent_result():
         run(sim, atms, n=10, seed=1, wind_age=np.full(nh, 0.7))                  # not declared conditioned: refused
     assert abs(same.values.std() / base.values.std() - 1) < 0.02
     assert wide.values.std() > 1.2 * base.values.std()
+
+
+def test_importance_sampling_estimates_a_rare_probability_with_a_smaller_error():
+    """M9: tilting the draws toward the windy end of the pool and weighting back keeps P(value > limit) unbiased for the pool and needs far fewer simulator runs than crude Monte Carlo."""
+    from tempest_weather_v2.montecarlo import run_importance
+    x = np.random.default_rng(1).standard_normal(20000)                          # the pool: one "wind" number per atmosphere; the simulator returns it plus vehicle noise
+    pool = list(range(len(x)))
+    sim = lambda k, drag_scale=1.0: float(x[k]) * drag_scale
+    pri = VehiclePriors(drag_scale=("normal", 0.02))
+    truth = float(np.mean(x * 1.0 > 2.5))                                        # about 0.006
+    est, se, eff = [], [], []
+    for s in range(20):
+        r = run_importance(sim, pool, 2.5, priors=pri, n=400, tilt=2.5, metric=x, seed=s)
+        p, e = r.probability()
+        est.append(p), se.append(e), eff.append(r.effective_n())
+    assert abs(np.mean(est) - truth) < 3 * np.std(est) / np.sqrt(len(est)) + 0.0005
+    crude_se = math.sqrt(truth * (1 - truth) / 400)
+    assert np.mean(se) < 0.5 * crude_se and 5 < np.mean(eff) < 400                    # Kish effective n is about 16 at tilt 2.5: the weights spend the bulk to resolve the tail
+    flat = run_importance(sim, pool, 2.5, n=50, tilt=0.0, metric=x, seed=0)
+    assert np.allclose(flat.weights, 1.0)                                        # tilt 0 = crude Monte Carlo
+    r = run_importance(sim, pool, 2.5, n=2000, tilt=1.0, metric=x, seed=3)
+    assert abs(r.quantile(0.5) - np.median(x)) < 0.1                             # the weighted quantile undoes the tilt
+    with pytest.raises(ValueError):
+        run_importance(sim, pool, 2.5, metric=x[:10])

@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile", "persistence_perturbations"]
+__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile", "persistence_perturbations", "run_importance", "ISResult"]
 
 
 def latin_hypercube(n, d, rng):
@@ -262,6 +262,71 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_a
     per = [atmosphere_metrics(atmospheres[k]) for k in range(m)]
     metrics = {key: np.array([d[key] for d in per]) for key in per[0]} if all(d is not None for d in per) else {}
     return MCResult(vals, params, idx, metrics)
+
+
+class ISResult:
+    """run_importance output: values (n), weights (n, mean 1 over the pool's own distribution), atm_index (n), the tilted metric and the estimate of P(value > threshold)."""
+
+    def __init__(self, values, weights, atm_index, params, threshold, tilt):
+        self.values, self.weights, self.atm_index, self.params = np.asarray(values, float), np.asarray(weights, float), np.asarray(atm_index), params
+        self.threshold, self.tilt = threshold, tilt
+
+    def probability(self, threshold=None, above=True):
+        """-> (estimate, standard error) of P(value > threshold) (above=False: below) under the UNtilted pool; the plain weighted mean (unbiased), its error from the spread of the weighted terms."""
+        t = self.threshold if threshold is None else threshold
+        hit = (self.values > t) if above else (self.values < t)
+        term = self.weights * hit
+        return float(term.mean()), float(term.std(ddof=1) / math.sqrt(len(term)))
+
+    def effective_n(self):
+        """Kish effective sample size of the weights (n when the tilt is 0)."""
+        return float(self.weights.sum() ** 2 / (self.weights ** 2).sum())
+
+    def quantile(self, q):
+        """Weighted quantile (0-1) of the values under the untilted pool (self-normalised weights)."""
+        o = np.argsort(self.values)
+        c = np.cumsum(self.weights[o]) / self.weights.sum()
+        return float(self.values[o][min(np.searchsorted(c, q), len(c) - 1)])
+
+
+def run_importance(simulate, atmospheres, threshold, priors=None, n=200, tilt=2.0, metric="mean_wind_0_200m", seed=0, method="lhs"):
+    """M9: importance sampling for RARE outcomes (rail-exit or ground wind above a limit, landing outside a zone): crude Monte Carlo needs about 100 / p runs to see a probability p; here the runs are drawn from
+    the atmosphere pool with probability proportional to exp(tilt * z), z = the normal score of the atmosphere's rank in `metric` (Gaussian space of the wind quantile), and weighted back by
+    (1 / m) / q, so P(value > threshold) stays unbiased for the pool's distribution while the windy atmospheres that make the rare outcome are simulated far more often (tilt 2 moves the mean
+    normal score to about 2, the windiest 2-3 %). Vehicle parameters are drawn from their priors as in run(). The pool bounds the reach: a pool of m atmospheres cannot show a wind more extreme than
+    its own most extreme sample, so make the pool large (atmospheres are cheap, the simulator is not; m >= 20 / p) and check ISResult.effective_n().
+    metric: a key of atmosphere_metrics() ("mean_wind_0_200m", "mean_wind_0_3km", "pad_air_density"), a callable reader -> number, or an array of one number per atmosphere."""
+    priors = priors or VehiclePriors()
+    m = len(atmospheres)
+    if m < 2:
+        raise ValueError("need a pool of atmospheres")
+    if isinstance(metric, str):
+        per = [atmosphere_metrics(atmospheres[k]) for k in range(m)]
+        if any(d is None for d in per):
+            raise ValueError(f"these readers cannot give {metric!r}; pass metric as a callable or an array")
+        x = np.array([d[metric] for d in per], float)
+    elif callable(metric):
+        x = np.array([float(metric(atmospheres[k])) for k in range(m)], float)
+    else:
+        x = np.asarray(metric, float)
+        if x.shape != (m,):
+            raise ValueError("metric array needs one value per atmosphere")
+    r = np.argsort(np.argsort(x, kind="stable"), kind="stable")
+    z = _ppf_normal((r + 0.5) / m)
+    lq = float(tilt) * z
+    q = np.exp(lq - lq.max())
+    q /= q.sum()
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(m, size=int(n), replace=True, p=q)
+    w = (1.0 / m) / q[idx]
+    params = priors.sample(int(n), rng, method)
+    vals = []
+    for k in range(int(n)):
+        v = float(simulate(atmospheres[int(idx[k])], **params[k]))
+        if not math.isfinite(v):
+            raise ValueError(f"the simulator returned {v} for atmosphere {int(idx[k])} and parameters {params[k]}")
+        vals.append(v)
+    return ISResult(vals, w, idx, params, threshold, tilt)
 
 
 def calibrate_vehicle_sigma(errors_pct, atmosphere_sd_pct):

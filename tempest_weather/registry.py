@@ -59,7 +59,7 @@ def evaluate(atm, names, rng=None, score_fn=None):
             if atm.get("gust_mu") is None:
                 raise ValueError("gust10 needs the gust model (assets/model.npz has none)")
             u = np.clip(rng.random(len(atm["t2m"])), 1e-12, 1 - 1e-12)
-            v = np.maximum(atm["gust_mu"] - atm["gust_beta"] * np.log(-np.log(u)), 0.0)
+            v = np.maximum(atm["gust_mu"] - atm["gust_beta"] * np.log(-np.log(u)), np.hypot(atm["u"][:, 0], atm["v"][:, 0]))      # G = max(gust, wind): never below the 10 m wind (W8c)
         elif name == "flight_score":
             from tempest_weather import ranking
             v = (score_fn or ranking.flight_score)(atm)

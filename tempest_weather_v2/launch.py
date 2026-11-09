@@ -31,6 +31,7 @@ from tempest_weather_v2.timeutil import Window, WindowError
 __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
 INFLATE_DECAY_M = None        # Gemini bug 2 was NOT a bug: the scalar 1.5 inflation at every height is what the balloon check (s6_condition_eval.py) found calibrated; fading it with distance (1500 m tried) drops the 90 % coverage of the unobserved upper levels from 0.88-0.94 back to 0.82-0.85 and loses a little CRPS. None = the scalar (as before the audit); a number in metres switches the fading on
+MEASURED_GUST_LAW = True       # W8c (a plain mismatch, B23): after observe(wind_10m=...) the gust uses api._gust_params_measured, the law fitted on MEASURED winds (validation CRPS 0.93 -> 0.51, 16+ m/s 12.95 -> 1.40); False = the model-wind law as before
 
 FORMAT_VERSION = 1
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")
@@ -191,7 +192,7 @@ class Launch:
             self._pool = pool
         return pool
 
-    def _regust(self, samples, launch_times):
+    def _regust(self, samples, launch_times, measured=False):
         """Gemini bug 3: the gust law (mean and scale of the gust excess) is a function of the 10 m wind speed; after the wind is moved by an observation or by HRRR it has to be evaluated again, otherwise the reported gust stays at the prior's value (a pinned 25 m/s wind with gust = wind). Returns samples (a new dict) with gust_mu / gust_beta recomputed, or the input if the pool has no gust law."""
         if "gust_mu" not in samples:
             return samples
@@ -204,7 +205,8 @@ class Launch:
         for h in np.unique(hrs):
             m = hrs == h
             t = np.datetime64(h, "s").astype(datetime).replace(tzinfo=timezone.utc)
-            mu[m], beta[m] = api._gust_params(g, ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
+            law = api._gust_params_measured if measured else (lambda ws_, *a_: api._gust_params(g, ws_, *a_))       # W8c: a wind conditioned on a station measurement uses the law fitted on measured winds
+            mu[m], beta[m] = law(ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
         out = dict(samples)
         out["gust_mu"], out["gust_beta"] = mu, beta
         return out
@@ -341,7 +343,7 @@ class Launch:
         for k in ("gust_mu", "gust_beta"):
             if k in out:
                 s[k] = np.asarray(out[k], np.float32)
-        s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n))
+        s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n), measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
         s["elevation_m"] = elev
@@ -676,9 +678,13 @@ class Launch:
         sp = np.hypot(np.asarray(s["u"], float), np.asarray(s["v"], float))[:, sel]
         k = 1.0 if self.units == "si" else 1.0 / 0.44704
         ps = [float(p) for p in percentiles]
+        wb = [stats._weibull(c[c > 0.0]) if (c > 0.0).sum() >= 20 else None for c in sp.T]     # W9: Weibull shape / scale per height (what hub-height style wind statistics use); None where the fit fails
         return dict(units="m/s" if self.units == "si" else "mph", heights_m=[float(x) for x in h[sel]],
                     speed={p: [float(v) * k for v in np.percentile(sp, p, axis=0)] for p in ps},
-                    mean_0_200m={p: float(np.percentile(sp.mean(1), p)) * k for p in ps})
+                    mean_0_200m={p: float(np.percentile(sp.mean(1), p)) * k for p in ps},
+                    weibull_shape=[None if w is None else float(w[0]["shape"]) for w in wb],
+                    weibull_scale=[None if w is None else float(w[0]["scale"]) * k for w in wb],
+                    calm_share=[float(x) for x in (sp < 0.5).mean(0)])                     # share of samples below 0.5 m/s (stations: 3-9 % at 10 m; the ERA5-trained tool about 1 %, see scripts/w4_premise_check.py)
 
     # ---- Call 2: distribution()
     def distribution(self, variables, spread="full"):

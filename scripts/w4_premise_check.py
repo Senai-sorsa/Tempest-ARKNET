@@ -2,8 +2,10 @@
 generator, or is it already in its training source (ERA5)? A Weibull-space head trained on ERA5 can only fix the part the
 generator adds. Same 168 cells as scripts/weibull_check.py (TCS, MAF; month x local hour 8-20), ERA5 = profile store
 (data/pilot/profiles.zarr, nearest grid point, height 10 m, 2015-25), ASOS 2015-25, tool climate mode n = 600 (seed 5).
-    PYTHONPATH=. .venv/Scripts/python -W ignore scripts/w4_premise_check.py
+W9: this is also the speed-SHAPE check for any change of the tool's assets (k, calm share, p99, KS against stations and ERA5): pass --assets DIR.
+    PYTHONPATH=. .venv/Scripts/python -W ignore scripts/w4_premise_check.py [--assets DIR]
 """
+import argparse
 import os
 import sys
 
@@ -30,6 +32,9 @@ def local_cells(times_utc, values, tz):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--assets", default=None, help="tool asset directory to check (default: the shipped assets)")
+    assets = ap.parse_args().assets
     z = xr.open_zarr(os.path.join(REPO, "data", "pilot", "profiles.zarr"))
     rows = []
     for name, (lat, lon, el, tz) in ST.items():
@@ -50,7 +55,7 @@ def main():
                 if len(o) < 100 or len(e) < 50:
                     continue
                 try:
-                    s = Launch(lat, lon, f"2020-{m:02d}-15 {h:02d}:00", mode="ai", n=600, units="si", elevation=el, tz=tz, seed=5)._ensure_pool()["samples"]
+                    s = Launch(lat, lon, f"2020-{m:02d}-15 {h:02d}:00", mode="ai", n=600, units="si", elevation=el, tz=tz, seed=5, assets=assets)._ensure_pool()["samples"]
                 except Exception:   # noqa: BLE001
                     continue
                 tool = np.hypot(s["u"][:, 0], s["v"][:, 0])

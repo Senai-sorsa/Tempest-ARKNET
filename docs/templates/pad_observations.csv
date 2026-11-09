@@ -1,0 +1,8 @@
+# Pad weather observations for flight validation (F4). One row per launch. Fill what you have; leave a cell empty when unknown.
+# local_time is the pad's local clock time at liftoff (YYYY-MM-DD HH:MM); tz is an IANA zone (America/Denver for Spaceport America).
+# wind_speed_ms: sustained (about 2-minute mean) wind at the pad, m/s, measured at height_m above ground (10 m if a standard mast; give the real height otherwise).
+# wind_from_deg: direction the wind blows FROM, degrees true. temperature_c: air temperature. station_pressure_hpa: pressure at the pad (NOT the sea-level altimeter setting; put that in altimeter_hpa).
+# source: who measured it and how (pad anemometer, handheld Kestrel, event weather station, nearby airport ID and distance).
+# Check with: PYTHONPATH=. .venv/Scripts/python -W ignore scripts/atmosphere_check.py docs/templates/pad_observations.csv
+flight,local_time,tz,lat,lon,elevation_m,height_m,wind_speed_ms,wind_from_deg,temperature_c,station_pressure_hpa,altimeter_hpa,apogee_m,source
+example (not a real record),2027-06-16 10:00,America/Denver,32.939,-106.912,1401,10,4.5,200,31.0,858.0,,,"illustration only: replace with your own rows"
