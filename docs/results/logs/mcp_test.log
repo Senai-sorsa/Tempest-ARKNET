@@ -1,0 +1,56 @@
+
+2021, campaign length 1 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 1.017 | bias +0.715 | p90 error +0.991 | worst MAE 1.034 (best 1.000)
+  (a) ratio of means                       MAE 0.739 | bias -0.013 | p90 error -0.444 | worst MAE 0.781 (best 0.720)
+  (b) least-squares scale                  MAE 0.739 | bias -0.065 | p90 error -0.546 | worst MAE 0.810 (best 0.720)
+  (c) hour-of-day scales                   MAE 0.713 | bias -0.007 | p90 error -0.179 | worst MAE 0.759 (best 0.674)
+  (d) quantile (Weibull-type) mapping      MAE 0.758 | bias -0.067 | p90 error -0.131 | worst MAE 0.842 (best 0.697)
+
+2021, campaign length 2 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 1.017 | bias +0.715 | p90 error +0.980 | worst MAE 1.039 (best 0.980)
+  (a) ratio of means                       MAE 0.738 | bias -0.009 | p90 error -0.440 | worst MAE 0.767 (best 0.707)
+  (b) least-squares scale                  MAE 0.733 | bias -0.041 | p90 error -0.505 | worst MAE 0.756 (best 0.711)
+  (c) hour-of-day scales                   MAE 0.706 | bias -0.006 | p90 error -0.176 | worst MAE 0.737 (best 0.668)
+  (d) quantile (Weibull-type) mapping      MAE 0.744 | bias -0.043 | p90 error -0.065 | worst MAE 0.842 (best 0.687)
+
+2021, campaign length 3 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 1.017 | bias +0.715 | p90 error +0.970 | worst MAE 1.048 (best 0.967)
+  (a) ratio of means                       MAE 0.738 | bias -0.010 | p90 error -0.442 | worst MAE 0.774 (best 0.702)
+  (b) least-squares scale                  MAE 0.734 | bias -0.038 | p90 error -0.498 | worst MAE 0.771 (best 0.704)
+  (c) hour-of-day scales                   MAE 0.703 | bias -0.008 | p90 error -0.174 | worst MAE 0.737 (best 0.665)
+  (d) quantile (Weibull-type) mapping      MAE 0.739 | bias -0.034 | p90 error -0.085 | worst MAE 0.841 (best 0.675)
+
+2021, campaign length 6 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 1.017 | bias +0.715 | p90 error +0.943 | worst MAE 1.100 (best 0.935)
+  (a) ratio of means                       MAE 0.736 | bias -0.009 | p90 error -0.439 | worst MAE 0.803 (best 0.674)
+  (b) least-squares scale                  MAE 0.734 | bias -0.028 | p90 error -0.477 | worst MAE 0.804 (best 0.672)
+  (c) hour-of-day scales                   MAE 0.697 | bias -0.007 | p90 error -0.168 | worst MAE 0.763 (best 0.640)
+  (d) quantile (Weibull-type) mapping      MAE 0.730 | bias -0.018 | p90 error -0.072 | worst MAE 0.792 (best 0.651)
+
+2022, campaign length 1 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 0.972 | bias +0.632 | p90 error +0.910 | worst MAE 0.986 (best 0.954)
+  (a) ratio of means                       MAE 0.766 | bias -0.003 | p90 error -0.369 | worst MAE 0.820 (best 0.741)
+  (b) least-squares scale                  MAE 0.759 | bias -0.023 | p90 error -0.409 | worst MAE 0.799 (best 0.741)
+  (c) hour-of-day scales                   MAE 0.729 | bias +0.008 | p90 error -0.113 | worst MAE 0.856 (best 0.694)
+  (d) quantile (Weibull-type) mapping      MAE 0.795 | bias -0.066 | p90 error -0.034 | worst MAE 0.917 (best 0.719)
+
+2022, campaign length 2 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 0.972 | bias +0.632 | p90 error +0.886 | worst MAE 0.990 (best 0.938)
+  (a) ratio of means                       MAE 0.761 | bias -0.009 | p90 error -0.397 | worst MAE 0.792 (best 0.734)
+  (b) least-squares scale                  MAE 0.755 | bias -0.025 | p90 error -0.432 | worst MAE 0.777 (best 0.731)
+  (c) hour-of-day scales                   MAE 0.714 | bias -0.001 | p90 error -0.132 | worst MAE 0.793 (best 0.683)
+  (d) quantile (Weibull-type) mapping      MAE 0.780 | bias -0.056 | p90 error -0.039 | worst MAE 0.923 (best 0.714)
+
+2022, campaign length 3 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 0.972 | bias +0.632 | p90 error +0.873 | worst MAE 0.994 (best 0.929)
+  (a) ratio of means                       MAE 0.758 | bias -0.013 | p90 error -0.412 | worst MAE 0.796 (best 0.722)
+  (b) least-squares scale                  MAE 0.755 | bias -0.025 | p90 error -0.441 | worst MAE 0.790 (best 0.723)
+  (c) hour-of-day scales                   MAE 0.706 | bias -0.006 | p90 error -0.138 | worst MAE 0.735 (best 0.676)
+  (d) quantile (Weibull-type) mapping      MAE 0.773 | bias -0.048 | p90 error -0.034 | worst MAE 0.908 (best 0.696)
+
+2022, campaign length 6 month(s), mean over the start months (MAE m/s | bias | p90 error), worst start month MAE:
+  no correction (ERA5 10 m)                MAE 0.972 | bias +0.632 | p90 error +0.851 | worst MAE 1.018 (best 0.925)
+  (a) ratio of means                       MAE 0.756 | bias -0.014 | p90 error -0.416 | worst MAE 0.840 (best 0.697)
+  (b) least-squares scale                  MAE 0.756 | bias -0.016 | p90 error -0.424 | worst MAE 0.831 (best 0.688)
+  (c) hour-of-day scales                   MAE 0.697 | bias -0.011 | p90 error -0.140 | worst MAE 0.762 (best 0.656)
+  (d) quantile (Weibull-type) mapping      MAE 0.760 | bias -0.024 | p90 error -0.028 | worst MAE 0.837 (best 0.676)
