@@ -229,3 +229,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - Denver zero-shot with the shipped-model C4w: FAIL (+0.0100 -> +0.0084, temperature worse in every band, wind unchanged; one seed): C4w not for Denver; seed-100 pair queued on NM/TX and Denver.
 - Shipped-model C4w confirmed on a second training seed (seed 100 pair +0.0024 mean skill15, near-ground wind, T and RH all up): tool candidate stands.
 - Denver zero-shot C4w loss repeats on training seed 100 (T worse in every band): C4w is in-box only. IL-167 blend in-box: +0.0012 / +0.0013 over base + lapse map, -0.0005 / -0.0008 below the full C4w stack (seeds 0, 1).
+- IL-167 column blend: in-box +0.0005 to +0.0013 over base (below full C4w), Denver equal to base (C4w's temperature cost removed): kept as the single-model-over-regions recipe, not adopted for the tool.
