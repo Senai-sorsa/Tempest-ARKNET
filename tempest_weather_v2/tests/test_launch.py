@@ -230,3 +230,24 @@ def test_trust_line_says_atmosphere_only_and_gives_climate_advice():
     L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=64, units="si")
     t = L.trust
     assert "atmosphere only" in t and "not of the rocket" in t and "observe_latest" in t
+
+
+def test_observation_guards_refuse_impossible_values_and_keep_real_extremes():
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=200, units="si", seed=2)
+    for kw, text in ((dict(wind_10m="95 m/s", wind_from_deg=200), None), (dict(wind_10m="-5 m/s", wind_from_deg=200), "outside"), (dict(wind_10m="130 m/s", wind_from_deg=200), "outside"),
+                     (dict(temperature="-95 C"), "outside"), (dict(temperature="70 C"), "outside"), (dict(station_pressure="400 hPa"), None), (dict(station_pressure="2000 hPa"), "outside"),
+                     (dict(wind_10m="5 m/s", wind_from_deg=400), "outside"), (dict(wind_10m=float("nan"), wind_from_deg=10), "finite"), (dict(altimeter="500 hPa"), "outside")):
+        if text is None:
+            L.observe(**kw)
+        else:
+            with pytest.raises(ValueError, match=text):
+                L.observe(**kw)
+    with pytest.raises(ValueError, match="cannot be negative"):
+        L.observe(wind_10m="3 m/s", wind_from_deg=10, age_hours=-1.0)
+    storm = L.observe(wind_10m="35 m/s", wind_from_deg=250)                 # a real storm wind is inside the limits: accepted, trusted, flagged as far from the climate prior
+    r = storm.weather(all=True)
+    assert abs(r.wind_10m - 35.0) < 1.0 and any(f.startswith("observation-far-outside-the-prior") for f in r.flags)
+    heat = L.observe(temperature="45 C").weather(all=True)
+    assert abs(heat.temperature - 45.0) < 0.5
+    ok = L.observe(wind_10m="4 m/s", wind_from_deg=200, temperature="28 C").weather(all=True)
+    assert not any(f.startswith("observation-far-outside") for f in ok.flags)

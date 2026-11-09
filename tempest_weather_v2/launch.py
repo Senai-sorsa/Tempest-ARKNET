@@ -13,6 +13,7 @@ Windows (uncertain launch times) are drawn per sample; samples are grouped by UT
 """
 import hashlib
 import json
+import math
 import os
 import time as _time
 import warnings
@@ -298,8 +299,17 @@ class Launch:
         s["elevation_m"] = elev
         s["height_asl"] = (elev + s["height_agl"]).astype(np.float32)
         bp = base._ensure_pool()
+        far = []        # an observation many standard deviations from the prior is kept (real storms and heat waves are like that) but flagged, so a typo inside the physical limits does not pass unnoticed
+        bs = bp["samples"]
+        for key, name_, arr in ((("wind_u", 10.0), "wind", bs["u"][:, 0]), (("wind_v", 10.0), "wind", bs["v"][:, 0]), (("temp_K", 2.0), "temperature", bs["t2m"]), (("pressure_Pa", 0.0), "pressure", bs["sp"])):
+            if key in eng_obs:
+                sd = float(np.std(np.asarray(arr, float)))
+                z = abs(float(eng_obs[key]) - float(np.median(arr))) / max(sd, 1e-9)
+                if z > 4.0 and name_ not in far:
+                    far.append(name_)
+        flags_far = [f"observation-far-outside-the-prior-{'-'.join(far)}-kept-as-real-check-for-a-typo"] if far else []
         return dict(samples=s, launch_times=bp["launch_times"][:1].repeat(n), infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
-                    flags=list(bp["flags"]) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
+                    flags=list(bp["flags"]) + flags_far + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
 
     def _obs_to_engine(self, base):
         o, eng_obs = self._measurements(), {}
@@ -339,7 +349,33 @@ class Launch:
                 obs[k] = v
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
+        self._check_observation(obs)
         return self.with_(_obs=obs)
+
+    # physical limits of a surface observation: outside them the value is a typo, a wrong unit or a broken sensor, never weather. A real extreme (storm, heat wave, hard freeze) is INSIDE them and is trusted.
+    OBS_LIMITS = {"wind_10m": (0.0, 100.0, "m/s"), "wind_from_deg": (0.0, 360.0, "deg"), "temperature": (-90.0, 60.0, "C"), "station_pressure": (300.0, 1100.0, "hPa"), "altimeter": (850.0, 1100.0, "hPa")}
+
+    def _check_observation(self, obs):
+        """Refuse impossible values (NaN, negative speed, direction outside 0-360, temperature beyond the record range, pressure no weather produces) with a message naming the value and the unit read; accept everything else."""
+        kinds = {"wind_10m": "speed", "wind_from_deg": "angle", "temperature": "temperature", "station_pressure": "pressure", "altimeter": "pressure"}
+        for k, kind in kinds.items():
+            if k not in obs:
+                continue
+            try:
+                val = float(names.parse_quantity(obs[k], kind, self.units))
+            except ValueError as e:
+                raise ValueError(f"{k}: {e}") from e
+            lo, hi, unit = self.OBS_LIMITS[k]
+            if not math.isfinite(val):
+                raise ValueError(f"{k}={obs[k]!r} is not a finite number")
+            if val < lo or val > hi:
+                raise ValueError(f"{k}={obs[k]!r} reads as {val:.1f} {unit}, outside the physically possible {lo:g} to {hi:g} {unit} for a surface observation: check the number and the unit (units={self.units!r} applies to bare numbers)")
+        for k in ("_age_h", "_dist_km", "_dz_m"):
+            if k in obs and not math.isfinite(float(obs[k])):
+                raise ValueError(f"{k[1:]} is not a finite number")
+        for k in ("_age_h", "_dist_km"):
+            if k in obs and float(obs[k]) < 0:
+                raise ValueError(f"{k[1:]} cannot be negative")
 
     def observe_metar(self, text):
         """A NEW Launch conditioned on a METAR/SPECI report (wind, temperature, altimeter setting): `launch.observe_metar("KTCS 241553Z 19002KT 10SM CLR 23/12 A3012")`. The station is
