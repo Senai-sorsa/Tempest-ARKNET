@@ -530,3 +530,17 @@ V1 surface climate vs ASOS by month x hour (includes the training target), V2 lo
 ## Sidelined 2026-11-09 (user: the 15 least useful of the 52 open plan items; kept, not scheduled; reasons in the plan lines marked `[s]`)
 G9, G12, M7, G11, L22, L27, L29, L28, G10, M14, M13, W7, G7, G8, L13.
 Closed as done the same day: GW-E, GW-G, W10, M11.
+
+
+## SYNTHESIS 2026-11-10 01:45 (tick rule 5e: every 4th tick, about 2 h; session tempest-arknet-be)
+**What worked (numbers):**
+- Checking the SHIPPED tool, not the checkpoint: the Denver bundle was below climatology (-0.115); replaced (+0.017, every band better). The end-to-end audit (`scripts/tool_audit.py`) then matched the scorer by day in both boxes.
+- Using data already on disk instead of new training ideas: all-hours models give NM/TX night -0.069 -> +0.031 (ERA5) and -0.021 -> +0.016 (12Z balloons), Denver night -0.068 -> +0.015, day neutral on balloons (+0.0099 -> +0.0102). The 00Z + 12Z forecast refetch (on disk since Nov 6) showed the shipped mode F already has skill 0.67-0.74 at 05 / 11 h; window widened 14-20 -> 02-20 h. Denver mode F (first one) trained on the Denver refetch: skill 0.68 / 0.57 / 0.43 / 0.26 at 1 / 3 / 5 / 7 d.
+- Independent truth as referee: the 13- vs 21-level ERA5 disagreement (each model wins on its own truth) was settled by balloons in one run.
+**What failed or was neutral:** per-point shuffle templates (co-extremes 0.053 = block templates); shuffle in shear space (0.049-0.052); the 'half the real co-extremes' premise (truth rows too few: 7-22 joint events; the tool is 25 % below ERA5's 0.07); one CUDA out-of-memory on a Denver training seed (transient).
+**The pattern:** the big gains of this window came from closing gaps between what was decided and what ships (coverage of hours, shipped models, unused data), not from new model ideas; model-structure ideas (templates, shear space) stayed within noise. ERA5 cannot referee between versions of itself (B30); balloons can, at both 00Z and 12Z.
+**New ideas in the working direction (logged; the first two are queued):**
+- IL-173: install the all-hours sets (NM/TX as the default set; Denver as `assets_denver_allhours` used at night by the new routing), then the night versions of every check that was day-only: `tool_audit` night rows, past mode with the day + night ERA5 stores, P3 radar at 12Z (volumes cached), gust law at night.
+- IL-174: Denver forecast mode (models/modeF_den) into the Denver assets; NM/TX mode F v3 (trained on all three valid hours) vs shipped v2 paired on the same rows, export the winner.
+- IL-175: a 'shipped-vs-claimed' check per plan item at commit time: every KEEP line names the asset key or default it changes, and `tool_audit` + a manifest diff confirm it (stops B34 recurring).
+- IL-176: balloons at 12Z as a second referee for every future day / night decision (the 12Z soundings were never used before today; about 700 per station-year pair).
