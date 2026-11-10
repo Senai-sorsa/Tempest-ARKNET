@@ -544,3 +544,19 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-174: Denver forecast mode (models/modeF_den) into the Denver assets; NM/TX mode F v3 (trained on all three valid hours) vs shipped v2 paired on the same rows, export the winner.
 - IL-175: a 'shipped-vs-claimed' check per plan item at commit time: every KEEP line names the asset key or default it changes, and `tool_audit` + a manifest diff confirm it (stops B34 recurring).
 - IL-176: balloons at 12Z as a second referee for every future day / night decision (the 12Z soundings were never used before today; about 700 per station-year pair).
+
+
+## SYNTHESIS 2026-11-10 03:45 (tick rule 5e, second block of session tempest-arknet-be)
+**What worked (numbers):**
+- Installing what the evidence already supported, then auditing the shipped tool: all 480 audit rows served (night was 0 / 240); NM/TX night +0.025, Denver night +0.008, day unchanged.
+- Training on data that covers the missing hours: mode F v3 (all three valid hours) gains most where the old model had no data, 05 h solar +0.037 / +0.045 / +0.047 / +0.057 at 1 / 3 / 5 / 7 d, 17 h only +0.004..+0.010; confirmed on a real second seed (noise about 0.001).
+- Denver got what NM/TX had: forecast mode (0.68 at 1 d), post-processing (passes everywhere, small), both installed.
+- Night versions of the day-only checks: radar conditioning works at 12Z (+20 % at 2.5-5 km vs +32 % by day); past mode works with the night store; the gust law was already all-hours.
+**What failed or was neutral:** five tests that pinned 'night is refused' (updated, not a regression); P6W (wind term to 150 m) +0.0001 mean on one score seed, every 10-300 m wind column +0.001-0.0015 (inside noise so far); IL-170's skill gain is about Denver's seed noise.
+**Mistakes caught:** a seed option that never reached train() (B36); a scorer fallback to per-point templates printed and missed (B36); a units artefact (Weibull for degrees C) surfaced by the new model and fixed at the root.
+**The pattern:** where data that covers a gap exists, using it gives large, clean gains (night, morning forecasts, a second region); loss-shape tweaks on a well-tuned model give gains at the noise floor. Every 'day-only' assumption hid in a different place (window code, scorer, radar script, w head, templates): searching for the assumption, not the symptom, found them.
+**New ideas in the working direction:**
+- IL-177: W-NIGHT, retrain the w head on all hours (ERA5 w for UTC 05-11 from the raw hourly store; size check first); the last day-only component.
+- IL-178: grep the code base for every remaining hard-coded hour, month or region (`hour == 0`, `6.0, 21.0`, `SOLAR_`, box constants) and list each with whether it limits what ships (the assumption search that found five gaps today).
+- IL-179: Denver all-hours DAY cost (-0.0009 / -0.0004) came with a truth mismatch (trained on the filled file, scored on the unfilled one, the NM/TX 13- vs 21-level case again): referee it on Denver balloons (72469) at 00Z and 12Z before deciding whether one Denver set could serve all hours.
+- IL-180: P6W only if seed 1 + night + a second TRAINING seed agree; otherwise close it as neutral (the C4w family is near its ceiling on ERA5 truth; pad data, ASK_LATER 15, is the lever for the lowest 150 m).
