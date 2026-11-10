@@ -27,7 +27,7 @@ def anomalies(times, x, clim=None):
         mean, sd = np.zeros((len(x), 400, x.shape[2])), np.ones((len(x), 400, x.shape[2]))
         for k in np.unique(key):
             sel = key == k
-            mean[:, k], sd[:, k] = x[:, sel].mean(1), x[:, sel].std(1) + 1e-6
+            mean[:, k], sd[:, k] = np.nanmean(x[:, sel], 1), np.nanstd(x[:, sel], 1) + 1e-6   # NaN-aware (2026-11-10: the Denver store has missing heights at high-terrain points; identical for a store without NaNs)
         clim = (mean, sd)
     mean, sd = clim
     return (x - mean[:, key]) / sd[:, key], clim
@@ -46,7 +46,9 @@ def lag_corr(times, z):
         for s in range(4):
             m = ok & (season[: len(times) - tau] == s)
             am, bm = a[:, m], b[:, m]                                       # Pearson correlation inside the period: a trend or a shifted mean in the period must not count as correlation
-            rho[s, tau] = ((am * bm).mean((0, 1)) - am.mean((0, 1)) * bm.mean((0, 1))) / (am.std((0, 1)) * bm.std((0, 1)) + 1e-9)
+            j = np.isfinite(am) & np.isfinite(bm)   # NaN-aware (2026-11-10: the Denver store has missing heights at high-terrain points; identical for a store without NaNs)
+            am, bm = np.where(j, am, np.nan), np.where(j, bm, np.nan)
+            rho[s, tau] = (np.nanmean(am * bm, (0, 1)) - np.nanmean(am, (0, 1)) * np.nanmean(bm, (0, 1))) / (np.nanstd(am, (0, 1)) * np.nanstd(bm, (0, 1)) + 1e-9)
             cnt[s, tau] = m.sum() * len(z)
     return rho, cnt
 

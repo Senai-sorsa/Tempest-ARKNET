@@ -27,7 +27,7 @@ def anomalies(times, x, clim=None):
         mean, sd = np.zeros((len(x), 400, x.shape[2]), np.float32), np.ones((len(x), 400, x.shape[2]), np.float32)
         for k in np.unique(key):
             sel = key == k
-            mean[:, k], sd[:, k] = x[:, sel].mean(1), x[:, sel].std(1) + 1e-6
+            mean[:, k], sd[:, k] = np.nanmean(x[:, sel], 1), np.nanstd(x[:, sel], 1) + 1e-6   # NaN-aware (2026-11-10: the Denver store has missing heights at high-terrain points; identical for a store without NaNs)
         clim = (mean, sd)
     return (x - clim[0][:, key]) / clim[1][:, key], clim
 
@@ -40,13 +40,13 @@ def pair_corr(times, z, lat, lon, bins):
     for s in range(4):
         m = season == s
         zs = z[:, m]
-        zc = (zs - zs.mean(1, keepdims=True)) / (zs.std(1, keepdims=True) + 1e-9)
+        zc = (zs - np.nanmean(zs, 1, keepdims=True)) / (np.nanstd(zs, 1, keepdims=True) + 1e-9)   # NaN-aware (2026-11-10: the Denver store has missing heights at high-terrain points; identical for a store without NaNs)
         for bi, d in enumerate(bins):
             sel = np.argwhere(np.triu(np.abs(dist - d) < 2.0, 1)) if d > 0 else np.stack([np.arange(P), np.arange(P)], 1)
             if len(sel) == 0:
                 rho[s, bi] = np.nan
                 continue
-            rho[s, bi] = np.mean([ (zc[i] * zc[j]).mean(0) for i, j in sel], axis=0)
+            rho[s, bi] = np.nanmean([np.nanmean(zc[i] * zc[j], 0) for i, j in sel], axis=0)
     return rho, dist
 
 
@@ -92,10 +92,10 @@ def main():
     for v, name in enumerate(PROFILE):
         s = slice(v * nh, (v + 1) * nh)
         print(f"{name:>3}: rho at ~24 / 37 / 48 / 59 km (fit) {np.nanmean(rho[:, 1, s]):.3f}/{np.nanmean(rho[:, 4, s]):.3f}/{np.nanmean(rho[:, 5, s]):.3f}/{np.nanmean(rho[:, 7, s]):.3f}   mean |fit - 2023-25| {np.nanmean(np.abs(rho - rho2)[:, :, s]):.3f}  max {np.nanmax(np.abs(rho - rho2)[:, :, s]):.3f}", flush=True)
-    keep = [i for i in range(len(bins)) if not np.isnan(rho[:, i]).any()]               # a separation that does not occur between the grid points has no pairs: drop it
+    keep = [i for i in range(len(bins)) if not np.isnan(rho[:, i]).all()]   # 2026-11-10: was .any(), which dropped every bin when a few columns are missing at high-terrain points (Denver)               # a separation that does not occur between the grid points has no pairs: drop it
     bins, rho, rho2 = [bins[i] for i in keep], rho[:, keep], rho2[:, keep]
     np.savez(a.out, rho=rho.astype(np.float32), km=np.array(bins), rho_2023_25=rho2.astype(np.float32), fit_years="2005-2022")
-    print("wrote models/coherence_distcorr.npz")
+    print("wrote", a.out)
 
 
 if __name__ == "__main__":

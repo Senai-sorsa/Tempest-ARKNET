@@ -560,3 +560,17 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-178: grep the code base for every remaining hard-coded hour, month or region (`hour == 0`, `6.0, 21.0`, `SOLAR_`, box constants) and list each with whether it limits what ships (the assumption search that found five gaps today).
 - IL-179: Denver all-hours DAY cost (-0.0009 / -0.0004) came with a truth mismatch (trained on the filled file, scored on the unfilled one, the NM/TX 13- vs 21-level case again): referee it on Denver balloons (72469) at 00Z and 12Z before deciding whether one Denver set could serve all hours.
 - IL-180: P6W only if seed 1 + night + a second TRAINING seed agree; otherwise close it as neutral (the C4w family is near its ceiling on ERA5 truth; pad data, ASK_LATER 15, is the lever for the lowest 150 m).
+
+
+## SYNTHESIS 2026-11-10 05:50 (tick rule 5e, third block of session tempest-arknet-be)
+**What worked (numbers):**
+- Last day-only parts closed with data already on disk: the w head (omega store has all 24 h; `build_wdata --from-cond` matches the replayed day w to 7e-5 m/s; night w -1.6 % CRPS at 0-1 km, day equal) and mode F v3 (installed, morning +0.04..+0.06). NM/TX now ships every component for all hours (`scripts/shipped_check.py`).
+- Measuring before re-exporting: the all-hours time-correlation table equals the shipped day table within its own year-to-year noise (0.0005-0.011 vs 0.006-0.019), so nothing was re-exported.
+- Probing before downloading: IEM one-minute data exists for DEN and APA (not BJC); 20 station-years pulled in minutes; Earthmover gave Denver omega + fg10 in 4 minutes (not the slow CDS queue).
+**What failed or was neutral:** P6W (wind term to 150 m) closed neutral on two score seeds; the Denver balloon referee is impossible (IGRA 72469 ends 2022-07); first Denver correlation fits gave NaN / an empty table (missing heights at high-terrain points meeting non-NaN-aware means and an `any()` filter): fixed, rerunning; mistakes of the kind B36 (a misleading log line, 'wrote models/coherence_distcorr.npz', though the file written was the Denver one).
+**The pattern:** a region's parity is mostly plumbing (stores, grids, NaN handling, bins), and each piece of plumbing written for one box hides an assumption (29 longitudes, 0.25 degree at 32 N, no NaN). The modelling gains now come from coverage, not from loss tweaks.
+**New ideas in the working direction:**
+- IL-182: a region-pack test: run every fitter and exporter on a small synthetic region with NaN columns and a 9 x 9 grid in CI, so box-specific assumptions fail in a test instead of in a run (cheap; prevents the Denver class of bugs for G4 global).
+- IL-183: Denver gust law from DEN + APA one-minute data + Denver ERA5 fg10 / u10 (same gust_phys_fit recipe), validated on 2021-23 and on APA vs DEN cross-station.
+- IL-184: Denver w head from the Earthmover omega (`build_wdata --from-cond --w data/raw/era5_em_denver_full/w.zarr`), recipe as whead_a24.
+- IL-185: report the shipped state per region in FINAL_REPORT (the shipped_check table) so the final test documents exactly what was tested.
