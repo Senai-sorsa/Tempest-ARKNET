@@ -5,6 +5,7 @@ feature is missing (source gaps 2016-17) are dropped, never filled. Writes data/
 scripts/il6_modeF.py then use exactly these rows. Test year 2022 (the HRES rows end in 2022, so the decision's 2024 test is not possible).
     PYTHONPATH=. python -W ignore scripts/il14_ens_rows.py"""
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,8 @@ import xarray as xr
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC, OUT, ENS = (os.path.join(REPO, *p) for p in (("data", "modeF_v2"), ("data", "modeF_ens"), ("data", "raw", "wb2_ifs_ens")))
+if len(sys.argv) > 1 and sys.argv[1] == "denver":                               # IL-192: the same rows for the Denver box (data/modeF_v2_denver, data/raw/wb2_ifs_ens_denver)
+    SRC, OUT, ENS = (os.path.join(REPO, *p) for p in (("data", "modeF_v2_denver"), ("data", "modeF_ens_denver"), ("data", "raw", "wb2_ifs_ens_denver")))
 
 
 def main():
