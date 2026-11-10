@@ -5,7 +5,7 @@
 # forward, which is what the tool does for any future query.
 # Scored: (1) the CURRENT tool model (generator_80_c4w + calibration + shuffle c8 + shear map + lapse map, the bundled assets since 2026-11-09), (2) the PREVIOUS tool model
 # (generator_80_p2f + calibration + shuffle c8 + shear map, the bundle before), each with the 15-year climatology and the Gaussian (Earth-GRAM-style) baseline in the same headline,
-# on ERA5-type targets of July-October 2026 (all rows) and on the July-October 2026 balloons of Santa Teresa and Midland (balloon scorer: no lapse-map option, so both models without it).
+# on ERA5-type targets of July-October 2026 (5,000 random held-out rows, the scorer default used by every development score and the first final test; more rows do not fit in RAM: N x 199 x 179 floats per array) and on the July-October 2026 balloons of Santa Teresa and Midland (balloon scorer: no lapse-map option, so both models without it).
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
 [ "$CONFIRM_FINAL" = "yes" ] || { echo "set CONFIRM_FINAL=yes to run the one-time 2026 July-October final test"; exit 2; }
 [ -f data/FINAL_TEST_2026H2_DONE ] && { echo "the 2026 July-October final test was already run: $(cat data/FINAL_TEST_2026H2_DONE)"; exit 3; }
@@ -49,9 +49,9 @@ fi
 echo "started $(date '+%F %T')" > data/FINAL_TEST_2026H2_DONE
 N=models/generator_80_c4w P=models/generator_80_p2f
 cp $N.pt models/ft26_c4w.pt; cp $P.pt models/ft26_p2f.pt
-$PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4w.pt --data $D --m 199 --rows 1000000 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $N.calib2021.npz \
+$PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4w.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $N.calib2021.npz \
   --shuffle --template-cell 8 --shear-map $N.shearmap2021_cell8.npz --lapse-map $N.lapsemap2021.npz > $OUT/era5_c4w.log 2>&1
-$PY -W ignore -u -m tempest.scoring.score --model models/ft26_p2f.pt --data $D --m 199 --rows 1000000 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $P.calib2021.npz \
+$PY -W ignore -u -m tempest.scoring.score --model models/ft26_p2f.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $P.calib2021.npz \
   --shuffle --template-cell 8 --shear-map $P.shearmap2021_cell8.npz > $OUT/era5_p2f.log 2>&1
 for X in c4w p2f; do M=models/generator_80_$X
   $PY -W ignore -u -m tempest.scoring.sonde --model models/ft26_$X.pt --data $D --profiles data/pilot/profiles80.zarr --igra data/raw/igra_2026 --m 199 --first-test-year 2026 --last-test-year 2026 \

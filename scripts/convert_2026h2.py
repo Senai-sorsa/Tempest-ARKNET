@@ -42,20 +42,23 @@ def surface(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--months", nargs="*", default=["202607", "202608", "202609", "202610"])
+    ap.add_argument("--raw-out", default=RAW, help="output folder of the Earthmover-style stores (a scratch folder for a test run)")
+    ap.add_argument("--fill-out", default=FILL)
     a = ap.parse_args()
+    raw_out, fill_out = a.raw_out, a.fill_out
     for m in a.months:
         for k in ("pl1", "pl2", "pl3", "sfc"):
             if not os.path.exists(os.path.join(SRC, f"{k}_{m}.grib")):
                 raise SystemExit(f"missing {k}_{m}.grib: wait for scripts/fetch_final_window.py")
-    os.makedirs(RAW, exist_ok=True)
-    os.makedirs(FILL, exist_ok=True)
+    os.makedirs(raw_out, exist_ok=True)
+    os.makedirs(fill_out, exist_ok=True)
     static = xr.open_zarr(os.path.join(REPO, "data", "raw", "era5_em80", "u10.zarr"))[["lsm", "z_sfc"]].load()
     pls, sfcs = [], []
     for m in a.months:
         pl = xr.concat([open_grib(os.path.join(SRC, f"{k}_{m}.grib"))[["u", "v", "t", "r", "z"]] for k in ("pl1", "pl2", "pl3")], dim="isobaricInhPa").sortby("isobaricInhPa", ascending=False).load()
         assert sorted(pl.isobaricInhPa.values.astype(int).tolist()) == sorted(EM_LEVELS + BL_LEVELS), pl.isobaricInhPa.values
         fill = pl.sel(isobaricInhPa=BL_LEVELS).drop_vars([c for c in pl.coords if c not in ("time", "isobaricInhPa", "latitude", "longitude")], errors="ignore")
-        fill.to_netcdf(os.path.join(FILL, f"{m}.nc"))
+        fill.to_netcdf(os.path.join(fill_out, f"{m}.nc"))
         pls.append(pl.sel(isobaricInhPa=EM_LEVELS))
         sfcs.append(surface(os.path.join(SRC, f"sfc_{m}.grib")).load())
         print(f"{m}: {pl.sizes['time']} hours, fill written", flush=True)
@@ -63,6 +66,7 @@ def main():
     sf = xr.concat(sfcs, dim="time")
 
     def em_style(da):
+        da = da.drop_vars([c for c in da.coords if c not in ("time", "isobaricInhPa", "latitude", "longitude")], errors="ignore")   # cfgrib's own valid_time / step / number first
         da = da.rename({"time": "valid_time"})
         if "isobaricInhPa" in da.dims:
             da = da.rename({"isobaricInhPa": "pressure_level"}).assign_coords(pressure_level=np.asarray(EM_LEVELS, float))
@@ -71,12 +75,12 @@ def main():
         return da.astype(np.float32)
     for v in ["u", "v", "t", "r", "z"]:
         ds = em_style(pl[v]).to_dataset(name=v).assign_coords(lsm=static.lsm, z_sfc=static.z_sfc)
-        ds.chunk({"valid_time": -1}).to_zarr(os.path.join(RAW, f"{v}.zarr"), mode="w")
+        ds.chunk({"valid_time": -1}).to_zarr(os.path.join(raw_out, f"{v}.zarr"), mode="w")
     for v in SFC:
         ds = em_style(sf[v]).to_dataset(name=v).assign_coords(lsm=static.lsm, z_sfc=static.z_sfc)
-        ds.chunk({"valid_time": -1}).to_zarr(os.path.join(RAW, f"{v}.zarr"), mode="w")
+        ds.chunk({"valid_time": -1}).to_zarr(os.path.join(raw_out, f"{v}.zarr"), mode="w")
     t = pl.time.values
-    print(f"written {RAW} ({len(t)} hours, {str(t[0])[:13]} .. {str(t[-1])[:13]}) and {FILL}")
+    print(f"written {raw_out} ({len(t)} hours, {str(t[0])[:13]} .. {str(t[-1])[:13]}) and {fill_out}")
 
 
 if __name__ == "__main__":
