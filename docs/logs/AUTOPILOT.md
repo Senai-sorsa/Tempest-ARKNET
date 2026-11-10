@@ -574,3 +574,17 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-183: Denver gust law from DEN + APA one-minute data + Denver ERA5 fg10 / u10 (same gust_phys_fit recipe), validated on 2021-23 and on APA vs DEN cross-station.
 - IL-184: Denver w head from the Earthmover omega (`build_wdata --from-cond --w data/raw/era5_em_denver_full/w.zarr`), recipe as whead_a24.
 - IL-185: report the shipped state per region in FINAL_REPORT (the shipped_check table) so the final test documents exactly what was tested.
+
+
+## SYNTHESIS 2026-11-10 07:55 (tick rule 5e, fourth block of session tempest-arknet-be)
+**What worked (numbers):**
+- Denver parity, from data on disk plus two small safe pulls (IEM one-minute 20 station-years; Earthmover omega + fg10 in 4 min): Denver now ships a w head (99 % coverage 0.99), its own time / distance correlation tables and its own physical gust law; only past mode is missing (no Denver balloons after 2022). The shipped check is now identical in structure for both regions.
+- Regression checks before trusting a fix: the NaN-aware correlation fitter reproduces the NM/TX table exactly (max diff 0.0); the regional gust law reproduces the built-in law when absent (test).
+- The end-to-end audit after every install: unchanged day / night skill after the Denver w / gust install (480 / 480 hours served).
+**What failed or was neutral:** the regional gust law ties the NM/TX law overall (better above 5 m/s, worse below); its transfer between Denver's two airports is moderate (1.19 vs 1.10 pooled); both model-wind gust laws are weak in strong wind at Denver (ERA5's 10 m wind is far below the airport wind); first region-pack test failed on my synthetic data (one month = three empty seasons), not on the code.
+**Mistakes caught:** two plan times written ahead of the clock (corrected from file times); a stale log line naming the NM/TX file while writing the Denver one (checked: nothing overwritten).
+**The pattern:** with coverage closed (hours, regions, components), what remains are (1) the site-specific near-ground wind and gust (pad data is the lever: ASK_LATER 15), (2) ERA5's own limits (co-extremes 0.07 vs balloons 0.17; ERA5 10 m wind low at Denver airports), (3) validation gaps (no 2024-25 Denver balloons). The next gains need independent truth, not more ERA5 training.
+**New ideas in the working direction:**
+- IL-186: an ERA5-to-station 10 m wind correction learned from the ASOS one-minute archive (TCS, MAF, ELP, DEN, APA: 2016-2025 on disk), applied to the model-wind gust law input: attacks the 'ERA5 wind far below the airport wind' failure at both boxes; validate cross-station (leave one airport out).
+- IL-187 = IL-172 refocused: balloon templates for the 0-3 km columns (EPZ, MAF 00Z / 12Z) to lift the co-extremes toward the balloon rate, judged on balloons only.
+- IL-188: a Denver referee from another independent source: the Denver 1-minute ASOS (surface) and NEXRAD FTG VAD winds (aloft, Level III archive, small) for 2024-25, since the balloons stop in 2022.
