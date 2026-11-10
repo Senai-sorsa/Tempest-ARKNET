@@ -235,3 +235,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - P4 regime-dependent spread: FAIL (helps TCS slightly, hurts MAF, over-widens the basin; the factor is a site property). P1 + P2 + P4 point the same way: the ground-wind gap is site-specific -> IL-168 / P7 site-representativeness model from static descriptors.
 - P6 apogee sensitivity (flight_sim, Sol Invictus, Spaceport America): 87 % of the wind-driven apogee variance comes from 0-300 m, 53 % from 50-150 m alone; the landing point also depends on 3-5 km (43 %).
 - P7 site model from terrain: neutral (leave-one-site-out 0.960 -> 0.935 with terrain, but a constant regional factor already gives 0.940; oracle 0.896): not built.
+- Tool re-exported with generator_80_c4w + lapse map (user approval); 369 tests green; parity test reads the source checkpoint from the manifest. Final-test window 2026 Jul-Oct: CDS fetch started (scripts/fetch_final_window.py, data/raw/era5_2026h2).
