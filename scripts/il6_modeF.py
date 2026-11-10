@@ -37,6 +37,8 @@ ap.add_argument("--wd", type=float, default=1e-4)
 ap.add_argument("--lr", type=float, default=1e-3)
 ap.add_argument("--coarse", type=int, default=1, help="use every k-th height of the forecast profile as network input")
 ap.add_argument("--noise-dim", type=int, default=16)
+ap.add_argument("--ens", action="store_true", help="L14: append the 24 IFS-ensemble features (rows from scripts/il14_ens_rows.py, field `ens`) to the network input; off = HRES only")
+ap.add_argument("--bootstrap", type=int, default=0, help="IL-87: date-block bootstrap of the PIT distance (resample whole forecast start dates N times); 0 = off (as before)")
 ap.add_argument("--seed", type=int, default=0, help="torch seed of the training (network init and noise); the row subsets do not change")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
@@ -54,17 +56,18 @@ def sub(d, n):
     return {k: v[i] for k, v in d.items()}
 
 cal, te = sub(cal, a.rows), sub(te, a.rows)
+cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
-    train(F.cond_matrix(tr, a.coarse), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+    train(cmat(tr), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
 m = a.m
 
 
 def draw_net(d):
-    c = F.cond_matrix(d, a.coarse)
+    c = cmat(d)
     out = np.empty((len(c), m, F.D), np.float32)
     for i in range(0, len(c), 500):
         out[i:i + 500] = net(np.repeat(c[i:i + 500], m, 0)).reshape(len(c[i:i + 500]), m, -1)
@@ -168,11 +171,19 @@ try:
             xs, ys = x[k], truth[k]
             pit = M.pit_values(xs, ys, rng)
             tv = M.pit_tv(pit).mean()
+            tv_lo = tv_hi = np.nan
+            if a.bootstrap:                                                  # IL-87: whole forecast start dates resampled (errors on the same date are clustered: a member-as-truth floor alone is too optimistic)
+                day = (te["year"][k].astype(np.int64) * 1000 + te["init_day"][k].astype(np.int64))
+                ud = np.unique(day)
+                idx_by = {d_: np.flatnonzero(day == d_) for d_ in ud}
+                brng = np.random.default_rng(87)
+                bs = [M.pit_tv(pit[np.concatenate([idx_by[d_] for d_ in brng.choice(ud, len(ud))])]).mean() for _ in range(a.bootstrap)]
+                tv_lo, tv_hi = np.quantile(bs, [0.05, 0.95])
             floor = M.pit_tv(M.pit_values(xs[:, 1:], xs[:, 0], rng)).mean()      # same statistic for a perfectly calibrated forecast (a member as pseudo-truth): the noise floor of this test set
             cov = np.abs(M.coverage_levels(pit) - levels[:, None]).mean()
             vc = [M.vertical_corr_error(xs, ys, np.arange(i * F.NH, (i + 1) * F.NH), rng=rng) for i in range(len(_PROF))]
             mom = M.standardized_moments(xs, ys)
-            srows.append(dict(method=name, lead=L, pit_tv=tv, pit_floor=floor, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
+            srows.append(dict(method=name, lead=L, pit_tv=tv, pit_tv_lo90=tv_lo, pit_tv_hi90=tv_hi, pit_floor=floor, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
                               skew_diff=np.abs(mom[:, 0] - mom[:, 1]).mean(), kurt_diff=np.abs(mom[:, 2] - mom[:, 3]).mean()))
     st = pd.DataFrame(srows)
     st.to_csv(a.out.rsplit(".", 1)[0] + "_shape.csv", index=False)

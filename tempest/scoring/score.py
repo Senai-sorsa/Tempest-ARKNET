@@ -150,6 +150,7 @@ def main():
     ap.add_argument("--driver-lead", type=int, default=6, help="lead in months for --driver-mode ridge")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
+    ap.add_argument("--tail", action="store_true", help="IL-107: also write <stem>_tail.csv: threshold-weighted CRPS above the climatological 99th percentile (upper 1 %%) of the wind speed at 10 / 100 / 300 m / 1 / 3 km and of the 10 m - 1 km shear, model vs climatology, and the exceedance rates")
     ap.add_argument("--mc", action="store_true", help="also write the Monte Carlo checks of GLOBAL_PLAN §9 (tempest.scoring.mc) to <stem>_mc.csv")
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
                     "(<stem>_stress.csv) and print the worst cells; read-only")
@@ -362,6 +363,24 @@ def main():
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag
         extras.write(stem, unknown, truth, band_masks(), (keys[va] // 12) % 12 + 1, physical_names(), "unknown")
+    if a.tail:                                                                       # IL-107: tail-weighted scores (skill15 resolves only about +-0.001 per seed; tail changes hide inside it)
+        nh_ = len(HEIGHTS)
+        def _fields(p):
+            u_, v_ = p[..., :nh_], p[..., nh_:2 * nh_]
+            out_ = {f"speed_{int(h)}m": np.hypot(u_[..., j], v_[..., j]) for j, h in enumerate(HEIGHTS) if h in (10.0, 100.0, 300.0, 1000.0, 3000.0)}
+            j1 = int(np.argmin(np.abs(np.asarray(HEIGHTS) - 1000.0)))
+            out_["shear_10m_1km"] = np.hypot(u_[..., j1] - u_[..., 0], v_[..., j1] - v_[..., 0])
+            return out_
+        fx, fc, ft = _fields(unknown), _fields(clim15), _fields(truth)
+        trow = []
+        for k_ in ft:
+            t_ = float(np.quantile(fc[k_], 0.99))                                   # threshold: 99th percentile of the recent climatology pool
+            tw = lambda ens: crps_ensemble(np.maximum(ens, t_)[..., None], np.maximum(ft[k_], t_)[:, None])[:, 0].mean()
+            m_, c_ = tw(fx[k_]), tw(fc[k_])
+            trow.append(dict(field=k_, threshold=t_, twcrps_model=m_, twcrps_clim=c_, tw_skill=1 - m_ / c_ if c_ > 0 else np.nan,
+                             exceed_truth=float((ft[k_] > t_).mean()), exceed_model=float((fx[k_] > t_).mean())))
+        pd.DataFrame(trow).to_csv(stem + "_tail.csv", index=False)
+        print(pd.DataFrame(trow).round(4).to_string(index=False), flush=True)
     if a.mc:
         from tempest.scoring import mc  # late import, only for the flag
         mc.write(stem, unknown, clim15, truth, cond[va], list(FEATURES), band_masks())

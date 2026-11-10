@@ -274,18 +274,19 @@ class TempestFlightSimEngine:
         return bad
 
     # ---- the one-call contract (blueprint section "Unified integration")
-    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False):
+    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False, uw_corr=None, spectrum="dryden"):
         """One vectorised call for a simulator. u_sobol_matrix (N, >= k_atmo [+ 4]): columns 0 .. k_atmo-1 drive the leading atmosphere modes; if the matrix has 4 more columns they are the
         1-cos gust (altitude, wavelength, direction, magnitude). -> dict with the coarse batch (u, v, T, RH, p, rho, a ... on the 44 heights), `fine` (Dryden fields on dz_fine_m) and
         `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes (IL-130; plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour)): exact N^2, no boundary-layer leak above the layer, resolved w added.
         dryden_modelling (IL-135, OFF by default: a modelling choice, needs its own verdict): layer depth from the profile, gust peak from the sample's own gust law.
-        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default)."""
+        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default).
+        G6 (opt-in, OFF by default): uw_corr (e.g. 0.35) couples the turbulent w to the along-wind turbulence (Reynolds stress); spectrum='karman' uses von Karman instead of Dryden shapes."""
         from tempest_weather.flight import avionics, dryden
         u = np.asarray(u_sobol_matrix, float)
         batch = self.sample_sobol(u[:, :k_atmo], run_id=run_id)
         if include_dryden_turbulence:
             gust = tuple(u[:, k_atmo + i] for i in range(4)) if u.shape[1] >= k_atmo + 4 else None
-            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar,
+            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar, uw_corr=uw_corr, spectrum=spectrum,
                                              **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True) if dryden_fixes else {}),
                                              **(dict(h_pbl_from_profile=True, gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_modelling else {}))
         if include_avionics_bias:

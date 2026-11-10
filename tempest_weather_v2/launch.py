@@ -30,6 +30,34 @@ from tempest_weather_v2.timeutil import Window, WindowError
 
 __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
+OBS_SPEED_SPACE = True        # W6 (2026-11-10): the speed-space update is the DEFAULT for SOFT observations (age / distance / elevation given): ASOS persistence 2023-25, 300 hours per station, CRPS 1.148 -> 1.140 (TCS), 1.016 -> 0.987 (MAF), 90 % coverage 0.74 -> 0.81, 0.85 -> 0.91 (scripts/w6_observe_eval.py); pinned observations are unchanged. False = the old component-only update
+SPEED_RHO_PER_HOUR = 0.72     # W6: hourly persistence of the 10 m speed in normal-score space (scripts/weibull_persistence.py: 0.67 TCS, 0.76 MAF, ASOS 2015-22)
+SPEED_TOP_M = 300.0           # W6: the speed-space update tapers to nothing at this height
+
+
+def _speed_space_update(cond_u, cond_v, prior_speed, obs_speed, rho, z, rng):
+    """W6 (opt-in, observe(..., speed_space=True)): the 10 m speed after an observation, in normal-score space of the PRIOR pool's own speed distribution: z_obs = Phi^-1(F(s_obs)), target
+    z ~ N(rho z_obs, 1 - rho^2) (stratified), speeds = F^-1(Phi(z)); the conditioned samples keep their order by speed and are rescaled to these speeds, the factor tapering to 1 at SPEED_TOP_M.
+    Direction, temperature and the rest stay as the engine conditioned them. -> new (u, v) arrays."""
+    from statistics import NormalDist
+    nd = NormalDist()
+    ps = np.sort(np.asarray(prior_speed, float))
+    m = len(ps)
+    f_obs = np.clip((np.searchsorted(ps, obs_speed) + 0.5) / (m + 1.0), 0.5 / (m + 1), 1 - 0.5 / (m + 1))
+    z_obs = nd.inv_cdf(float(f_obs))
+    n = len(cond_u)
+    zz = rho * z_obs + np.sqrt(max(1.0 - rho * rho, 1e-6)) * np.array([nd.inv_cdf((i + rng.random()) / n) for i in range(n)])
+    target = np.sort(np.quantile(ps, np.clip([nd.cdf(x) for x in zz], 0.0, 1.0)))
+    sp0 = np.hypot(cond_u[:, 0], cond_v[:, 0])
+    order = np.argsort(sp0)
+    new0 = np.empty(n)
+    new0[order] = target
+    k = new0 / np.maximum(sp0, 0.05)
+    taper = np.clip(1.0 - (np.asarray(z, float) - z[0]) / (SPEED_TOP_M - z[0]), 0.0, 1.0)
+    fac = 1.0 + (k[:, None] - 1.0) * taper[None, :]
+    return cond_u * fac, cond_v * fac
+
+
 INFLATE_DECAY_M = None        # Gemini bug 2 was NOT a bug: the scalar 1.5 inflation at every height is what the balloon check (s6_condition_eval.py) found calibrated; fading it with distance (1500 m tried) drops the 90 % coverage of the unobserved upper levels from 0.88-0.94 back to 0.82-0.85 and loses a little CRPS. None = the scalar (as before the audit); a number in metres switches the fading on
 MEASURED_GUST_LAW = True       # W8c (a plain mismatch, B23): after observe(wind_10m=...) the gust uses api._gust_params_measured, the law fitted on MEASURED winds (validation CRPS 0.93 -> 0.51, 16+ m/s 12.95 -> 1.40); False = the model-wind law as before
 
@@ -357,6 +385,13 @@ class Launch:
         for k in ("gust_mu", "gust_beta"):
             if k in out:
                 s[k] = np.asarray(out[k], np.float32)
+        if self._obs.get("_speed_space") and "wind_10m" in self._measurements():        # W6 (opt-in): the 10 m speed updated in normal-score space of the prior's own speed distribution
+            bs0 = base._ensure_pool()["samples"]
+            spd_obs = float(names.parse_quantity(self._measurements()["wind_10m"], "speed", self.units))
+            age = float(self._obs.get("_age_h", 0.0) or 0.0)
+            rho = min(SPEED_RHO_PER_HOUR ** age, 0.97)
+            s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
+                                                                                  spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
         s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n), measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
@@ -393,7 +428,7 @@ class Launch:
             eng_obs[("wind_u", float(h))], eng_obs[("wind_v", float(h))] = float(ur), float(vr)
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
@@ -413,6 +448,9 @@ class Launch:
         for k, v in (("_age_h", age_hours), ("_dist_km", distance_km), ("_dz_m", elevation_diff_m), ("_source", source)):
             if v is not None:
                 obs[k] = v
+        soft = any(v is not None for v in (age_hours, distance_km, elevation_diff_m))
+        if speed_space or (speed_space is None and OBS_SPEED_SPACE and soft):   # W6: update the 10 m speed in normal-score space of the prior's own speed distribution (see _speed_space_update); default for soft observations
+            obs["_speed_space"] = True
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
         self._check_observation(obs)

@@ -60,6 +60,7 @@ def main():
     ap.add_argument("--calib", required=True)
     ap.add_argument("--head")
     ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
+    ap.add_argument("--post-template-sets", type=int, default=1, help="G3: independent template draws per cell and bin (K); the tool gives the g-th block of 199 atmospheres set g mod K, so a pool larger than 199 does not repeat one copula. 1 = as before (set 0 is drawn exactly as before)")
     ap.add_argument("--post-cell", type=int, default=0, help="with --post-templates: one template set per block of N x N grid points (8 = 2 degrees; stored as uint8 ranks) instead of one for the whole box")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
     ap.add_argument("--post-lmap", help="L21b / IL-162: lapse-rate quantile map npz (tempest.calibrate.lapse_map output, fitted on THIS model's stack) applied after the shear map; opt-in")
@@ -127,6 +128,18 @@ def main():
                         tpl[c, b] = np.argsort(np.argsort(x_, axis=0), axis=0).astype(np.uint8)
             arrays["post/rank"] = tpl
             arrays["post/cell"] = np.array(a.post_cell)
+            if a.post_template_sets > 1:                                           # G3: further independent draws (other seeds), same cells and bins
+                extra = np.zeros((a.post_template_sets - 1,) + tpl.shape, np.uint8)
+                for s_ in range(1, a.post_template_sets):
+                    rng_s = np.random.default_rng(1000 + s_)
+                    for c, k0 in zip(cid, cells):
+                        for b in range(144):
+                            r = tr[keys[tr] == k0 * 144 + b]
+                            if len(r):
+                                pick = np.sort(rng_s.choice(r, 199, replace=len(r) < 199))
+                                x_ = to_physical(np.asarray(dd["target"][pick]))
+                                extra[s_ - 1, c, b] = np.argsort(np.argsort(x_, axis=0), axis=0).astype(np.uint8)
+                arrays["post/rank_extra"] = extra
         else:
             tpl = np.zeros((144, 199, 179), np.float16)
             for k in range(144):

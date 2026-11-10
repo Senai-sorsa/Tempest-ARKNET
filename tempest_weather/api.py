@@ -47,6 +47,8 @@ def _load_post(z, manifest):
         post["tpl"] = z["post/tpl"]
     if "post/rank" in z.files:
         post["rank"], post["cell"] = z["post/rank"], int(z["post/cell"])
+        if "post/rank_extra" in z.files:                                     # G3: K - 1 further template draws; block g of 199 atmospheres uses set g mod K
+            post["rank_extra"] = z["post/rank_extra"]
     if "post/smap_grid" in z.files:
         post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
     if "post/lmap_xk" in z.files:                                       # L21b (opt-in asset, export_tool --post-lmap): lapse-rate quantile map after the shear map
@@ -73,6 +75,12 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
         lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / 0.25).astype(int) // post["cell"]
         lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / 0.25).astype(int) // post["cell"]
         r = post["rank"][lat_i * ncol + lon_i, month * 12 + hb]               # (groups, 199, 179)
+        if "rank_extra" in post:                                         # G3: a different template draw for each block (set g mod K), so a pool > 199 does not repeat one copula
+            K = 1 + len(post["rank_extra"])
+            r = r.copy()
+            for g in range(len(r)):
+                if g % K:
+                    r[g] = post["rank_extra"][g % K - 1][lat_i[g] * ncol + lon_i[g], month * 12 + hb]
         ok = r.max(axis=(1, 2)) > 0
         if ok.any():
             x = x.copy()

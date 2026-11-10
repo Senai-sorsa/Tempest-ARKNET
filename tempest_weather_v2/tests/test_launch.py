@@ -445,3 +445,16 @@ def test_launch_window_follows_the_assets_solar_hours(monkeypatch):
     r = Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window()
     assert len(r.cells_utc) >= 1
     assert Launch(32.99, -106.97, "2027-06-16 23:59", tz="America/Denver", n=50)._solar_window()[1] > 24.0   # 24 h keeps the last minute (resolve keeps sh < hi)
+
+
+def test_soft_wind_observation_updates_the_speed_in_normal_score_space():
+    """W6: a soft wind observation (age / distance given) uses the speed-space update by default (OBS_SPEED_SPACE); a pinned one does not; the 10 m speed moves toward the observation and stays positive."""
+    import numpy as np
+    L = Launch(32.99, -106.97, "2027-06-16 15:00", tz="America/Denver", n=200, seed=3, units="si")
+    soft = L.observe(wind_10m="12 m/s", wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0)
+    pinned = L.observe(wind_10m="12 m/s", wind_from_deg=240)
+    off = L.observe(wind_10m="12 m/s", wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0, speed_space=False)
+    assert soft._obs.get("_speed_space") and not pinned._obs.get("_speed_space") and not off._obs.get("_speed_space")
+    sp = lambda X: np.hypot(np.asarray(X._ensure_pool()["samples"]["u"])[:, 0], np.asarray(X._ensure_pool()["samples"]["v"])[:, 0])
+    s0, s1 = sp(L), sp(soft)
+    assert (s1 >= 0).all() and abs(np.median(s1) - 12.0) < abs(np.median(s0) - 12.0)      # pulled toward the observation

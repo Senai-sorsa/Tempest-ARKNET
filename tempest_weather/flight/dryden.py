@@ -77,6 +77,21 @@ def _ar2_step(x1, x2, tau, dz, e1, e2):
     return f11 * x1 + f12 * x2 + l11 * e1, f21 * x1 + f22 * x2 + l21 * e1 + l22 * e2
 
 
+def _karman_field(n_rows, nz, dz, L, rng, kind):
+    """G6 (opt-in): unit-variance random profiles (n_rows, nz) along the climb path with the von Karman 1-D spectrum of length scale L (n_rows,): kind 'long' (the along-path component,
+    Phi ~ 1 / (1 + (1.339 L k)^2)^(5/6)) or 'trans' (Phi ~ (1 + 8/3 (1.339 L k)^2) / (1 + (1.339 L k)^2)^(11/6)). FFT synthesis on a grid twice as long (no wrap-around), normalised by the spectrum's
+    theoretical variance so the envelopes sigma(z) keep their meaning. One L per profile (its boundary-layer median): a compromise where L varies with height."""
+    m = 2 * nz
+    k = 2.0 * np.pi * np.fft.rfftfreq(m, dz)
+    a = (1.339 * np.asarray(L, float)[:, None] * k[None, :]) ** 2
+    phi = 1.0 / (1.0 + a) ** (5.0 / 6.0) if kind == "long" else (1.0 + 8.0 / 3.0 * a) / (1.0 + a) ** (11.0 / 6.0)
+    phi[:, 0] = 0.0                                                          # no mean
+    coef = np.sqrt(phi) * (rng.standard_normal(phi.shape) + 1j * rng.standard_normal(phi.shape))
+    x = np.fft.irfft(coef, n=m, axis=1)[:, :nz]
+    var = (4.0 * phi[:, 1:-1].sum(1) + 2.0 * phi[:, -1]) / m ** 2                 # the spectrum's own variance (E|coef|^2 = 2 phi); normalising each row by its SAMPLE sd overstated the variance across rows by 8-15 %
+    return x / np.sqrt(np.maximum(var, 1e-30))[:, None]
+
+
 def one_minus_cos(z, z_start, half_len, peak):
     """Discrete gust shape (m/s): peak / 2 * (1 - cos(pi (z - z_start) / half_len)) from z_start to z_start + 2 half_len, zero elsewhere."""
     inside = (z >= z_start) & (z <= z_start + 2.0 * half_len)
@@ -84,7 +99,7 @@ def one_minus_cos(z, z_start, half_len, peak):
 
 
 def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200.0, ell_cat=20.0, nsub=8, z_top=None, w=None, exact_n2=False, bl_floor0=False,
-               h_pbl_from_profile=False, gust_params=None, run_id=None, block=256, exact_ar=False, _rng=None, uw_corr=None):
+               h_pbl_from_profile=False, gust_params=None, run_id=None, block=256, exact_ar=False, _rng=None, uw_corr=None, spectrum="dryden"):
     """Fine-grid fields for N profiles. z_coarse (nz,) heights above ground, u, v, T (N, nz). gust: None or (u_alt, u_len, u_dir, u_mag) uniforms in (0, 1) (scalars or (N,) arrays) for the
     1-cos gust: start altitude over 0 .. 12 km, half-wavelength 15 .. 150 m, direction 0 .. 2 pi, peak 3 .. 15 m/s. -> dict: z, u_total, v_total, w_total (N, nzf), u_turb, v_turb, w_turb,
     gust_u, gust_v, sigma_u, sigma_w.
@@ -103,7 +118,7 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
             g = None if gust is None else tuple(sub(x) for x in gust)
             gp = None if gust_params is None else tuple(sub(x) for x in gust_params)
             parts.append(synthesize(z_coarse, u[sl], v[sl], T[sl], dz, seed, g, z0, sub(h_pbl) if np.ndim(h_pbl) else h_pbl, ell_cat, nsub, z_top, None if w is None else np.asarray(w, float)[sl],
-                                    exact_n2, bl_floor0, h_pbl_from_profile, gp, run_id, block, exact_ar, np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), b0 // block])), uw_corr=uw_corr))
+                                    exact_n2, bl_floor0, h_pbl_from_profile, gp, run_id, block, exact_ar, np.random.default_rng(np.random.SeedSequence([int(seed), int(run_id), b0 // block])), uw_corr=uw_corr, spectrum=spectrum))
         return {k: (parts[0][k] if k == "z" else np.concatenate([p[k] for p in parts])) for k in parts[0]}
     z_top = z_top or z_coarse[-1]
     zf = np.arange(z_coarse[0], z_top + dz, dz)
@@ -150,6 +165,14 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
                 x2 += h * (-x1 / tau ** 2 - 2 * x2 / tau) + np.sqrt(h) * rng.standard_normal(N) / tau ** 2
                 x1 += h * x2
             out[:, i] = env["sigma_u"][:, i] * np.sqrt(tau) * (x1 + np.sqrt(3.0) * tau * x2)
+    if spectrum == "karman":                                                 # G6 (opt-in): von Karman instead of the Dryden filters, same envelopes sigma(z), one length scale per profile
+        Lw = np.median(env["L_w"], axis=1)
+        Lu = np.median(env["L_u"], axis=1)
+        wg = env["sigma_w"] * _karman_field(N, nz, dz, Lw, rng, "long")
+        ug = env["sigma_u"] * _karman_field(N, nz, dz, Lu, rng, "trans")
+        vg = env["sigma_u"] * _karman_field(N, nz, dz, Lu, rng, "trans")
+    elif spectrum != "dryden":
+        raise ValueError("spectrum must be 'dryden' or 'karman'")
     if uw_corr:                                                               # G6 (opt-in): Reynolds stress. The turbulent vertical wind is anti-correlated with the along-mean-wind horizontal turbulence in the boundary layer
         spd = np.maximum(np.hypot(uf, vf), 1e-6)                              # (u'w' = -rho sigma_u sigma_w, rho about 0.35 at the ground, fading to 0 at the top of the layer); w keeps its variance
         u_par = (ug * uf + vg * vf) / spd
