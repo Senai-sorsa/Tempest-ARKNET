@@ -46,6 +46,7 @@ def main():
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year")
+    ap.add_argument("--first-test-month", type=int, help="with --first-test-year: score only soundings from this month of the first test year on (the 2026 July-October final window; 2026 January-June was already used)")
     ap.add_argument("--station-calib-year", type=int, help="also fit a balloon range calibration (pooled per variable x "
                     "height band) on this year's soundings and apply it on top; must be before --first-test-year")
     ap.add_argument("--station-calib-from-year", type=int, help="fit the balloon calibration on from-year..station-calib-year "
@@ -132,6 +133,8 @@ def main():
               "(shortcut: scored on complete ones only; per-height scoring would keep them)", flush=True)
         t, phys = t[ok], phys[ok]
         tr, va = np.flatnonzero(t.year < held_from), np.flatnonzero(t.year >= start)
+        if a.first_test_month:                                                         # only the months from first_test_month of the first test year on (later years whole)
+            va = va[(t.year[va] > held_from) | (t.month[va] >= a.first_test_month)]
         print(f"{sid}: {len(va):,} complete held-out 00Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
         p = nearest_point(ds, slat, slon)
         lat, lon, z = (float(ds[k].values[p]) for k in ("lat", "lon", "z_sfc"))
