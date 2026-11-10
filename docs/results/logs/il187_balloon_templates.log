@@ -1,0 +1,6 @@
+IL-187 balloon templates for the 0-3 km wind, held-out balloons 2024-25 (EPZ, MAF): co-extreme ratio (model pool | balloon pool) and mean variogram score of the 0-3 km u / v
+  USM00072364 00Z n 120: balloon pool co-extreme 0.167 | ERA5 templates (shipped) 0.096, VS 98.07 | balloon templates 0-3 km 0.154, VS 97.40
+  USM00072364 12Z n 120: balloon pool co-extreme 0.333 | ERA5 templates (shipped) 0.135, VS 102.60 | balloon templates 0-3 km 0.133, VS 101.98
+  USM00072265 00Z n 120: balloon pool co-extreme 0.000 | ERA5 templates (shipped) 0.093, VS 94.77 | balloon templates 0-3 km 0.087, VS 94.73
+  USM00072265 12Z n 120: balloon pool co-extreme 0.167 | ERA5 templates (shipped) 0.105, VS 133.60 | balloon templates 0-3 km 0.129, VS 134.02
+
