@@ -52,9 +52,24 @@ def lag_corr(times, z):
 
 
 def main():
-    ds = xr.open_zarr(PROFILES)
+    # IL-181 (a2, 2026-11-10): --stores (one or several profile stores joined in time, e.g. the day and the night store, so the table covers all 24 h), --points (8 spread grid points of
+    # any box instead of the NM/TX list), --out, and --by-part (diagnostic: also fit the pairs whose first hour is local solar DAY 06-21 h or NIGHT separately and print how far they differ).
+    import argparse
+    import os
+    from tempest_weather.sources import era5_local
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--stores", default=PROFILES)
+    ap.add_argument("--points", choices=["nmtx", "spread"], default="nmtx")
+    ap.add_argument("--out", default="models/coherence_lagcorr.npz")
+    ap.add_argument("--by-part", action="store_true")
+    a = ap.parse_args()
+    ds = era5_local.open_store(a.stores)
     la, lo = ds.lat.values, ds.lon.values
-    pts = sorted({int(np.argmin((la - a) ** 2 + (lo - b) ** 2)) for a, b in WANT})
+    if a.points == "nmtx":
+        pts = sorted({int(np.argmin((la - p) ** 2 + (lo - q) ** 2)) for p, q in WANT})
+    else:                                                                                   # 8 points spread over the store's grid (corners, edge middles, centre region)
+        qs = [(0.1, 0.1), (0.1, 0.9), (0.9, 0.1), (0.9, 0.9), (0.5, 0.5), (0.5, 0.1), (0.5, 0.9), (0.3, 0.6)]
+        pts = sorted({int(np.argmin((la - (la.min() + u * np.ptp(la))) ** 2 + (lo - (lo.min() + v * np.ptp(lo))) ** 2)) for u, v in qs})
     print("points", pts, flush=True)
     t, x = load(ds, pts, 2005, 2022)
     z, clim = anomalies(t, x)
@@ -68,8 +83,15 @@ def main():
     for v, name in enumerate(PROFILE):
         s = slice(v * nh, (v + 1) * nh)
         print(f"{name:>3}: mean rho lag 1/3/6/9 (fit) {rho[:, 1, s].mean():.3f}/{rho[:, 3, s].mean():.3f}/{rho[:, 6, s].mean():.3f}/{rho[:, 9, s].mean():.3f}   mean |fit - 2023-25| by lag 1/3/6/9: {d[:, 1, s].mean():.3f}/{d[:, 3, s].mean():.3f}/{d[:, 6, s].mean():.3f}/{d[:, 9, s].mean():.3f}   max {d[:, :, s].max():.3f}", flush=True)
-    np.savez("models/coherence_lagcorr.npz", rho=rho.astype(np.float32), n_pairs=cnt, rho_2023_25=rho2.astype(np.float32), points=np.array(pts), fit_years="2005-2022")
-    print("wrote models/coherence_lagcorr.npz")
+    if a.by_part:                                                                           # day / night pairs fitted apart: is one table per season enough for all hours?
+        sh = (t.hour.to_numpy() + float(np.mean(lo[pts])) / 15.0) % 24.0
+        for part, keep in (("day", (sh >= 6) & (sh <= 21)), ("night", ~((sh >= 6) & (sh <= 21)))):
+            tk = t[keep]
+            r_p, c_p = lag_corr(tk, z[:, keep])
+            dd = np.abs(r_p - rho)
+            print(f"{part:5s} pairs only: mean |rho_{part} - rho_all| by lag 1/3/6/9: {dd[:, 1].mean():.3f}/{dd[:, 3].mean():.3f}/{dd[:, 6].mean():.3f}/{dd[:, 9].mean():.3f}   (2023-25 vs fit, all: {d[:, 1].mean():.3f}/{d[:, 3].mean():.3f}/{d[:, 6].mean():.3f}/{d[:, 9].mean():.3f})", flush=True)
+    np.savez(a.out, rho=rho.astype(np.float32), n_pairs=cnt, rho_2023_25=rho2.astype(np.float32), points=np.array(pts), fit_years="2005-2022", stores=str(a.stores))
+    print("wrote", a.out)
 
 
 if __name__ == "__main__":

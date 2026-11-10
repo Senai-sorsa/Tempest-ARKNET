@@ -51,15 +51,36 @@ def pair_corr(times, z, lat, lon, bins):
 
 
 def main():
-    ds = xr.open_zarr(PROFILES)
+    # IL-181 (a, 2026-11-10): --stores (one or several profile stores joined in time), --auto-grid (any box: the store's own grid width, a central block of up to 5 x 9 points and the
+    # box's own distinct pair separations up to 62 km as distance bins; the tool interpolates in km, so other bins are fine), --out. Defaults: the NM/TX table exactly as before.
+    import argparse
+    from tempest_weather.sources import era5_local
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--stores", default=PROFILES)
+    ap.add_argument("--auto-grid", action="store_true")
+    ap.add_argument("--out", default="models/coherence_distcorr.npz")
+    a = ap.parse_args()
+    ds = era5_local.open_store(a.stores)
     n_lon = 29
-    pts = [r * n_lon + c for r in ROWS for c in COLS]
+    rows_, cols_ = ROWS, COLS
+    if a.auto_grid:
+        n_lon = len(np.unique(np.round(ds.lon.values, 3)))
+        n_lat = len(np.unique(np.round(ds.lat.values, 3)))
+        r0, c0 = max(0, (n_lat - 5) // 2), max(0, (n_lon - 9) // 2)
+        rows_, cols_ = range(r0, min(n_lat, r0 + 5)), range(c0, min(n_lon, c0 + 9))
+    pts = [r * n_lon + c for r in rows_ for c in cols_]
     lat, lon = ds.lat.values[pts], ds.lon.values[pts]
     d = np.hypot((lat[:, None] - lat[None]) * KM_LAT, (lon[:, None] - lon[None]) * KM_LAT * np.cos(np.radians(lat.mean())))
     cand = np.unique(np.round(d[np.triu_indices(len(pts), 1)]))
     bins = [0.0] + sorted({float(round(x)) for x in cand if 0 < x <= 62 and any(abs(x - y) < 1 for y in cand)})
     # merge near-equal separations: keep the distinct pair separations of the grid
     bins = [0.0, 24.0, 28.0, 34.0, 37.0, 48.0, 55.0, 59.0]
+    if a.auto_grid:                                                                   # the box's own separations, merged within 1.5 km
+        sep = sorted(float(x) for x in np.unique(np.round(d[np.triu_indices(len(pts), 1)], 1)) if 0 < x <= 62)
+        bins = [0.0]
+        for x in sep:
+            if x - (bins[-1] if len(bins) > 1 else -9) > 1.5:
+                bins.append(round(x))
     print("points", len(pts), "bins (km)", bins, flush=True)
     t, x = load(ds, pts, 2005, 2022)
     z, clim = anomalies(t, x)
@@ -73,7 +94,7 @@ def main():
         print(f"{name:>3}: rho at ~24 / 37 / 48 / 59 km (fit) {np.nanmean(rho[:, 1, s]):.3f}/{np.nanmean(rho[:, 4, s]):.3f}/{np.nanmean(rho[:, 5, s]):.3f}/{np.nanmean(rho[:, 7, s]):.3f}   mean |fit - 2023-25| {np.nanmean(np.abs(rho - rho2)[:, :, s]):.3f}  max {np.nanmax(np.abs(rho - rho2)[:, :, s]):.3f}", flush=True)
     keep = [i for i in range(len(bins)) if not np.isnan(rho[:, i]).any()]               # a separation that does not occur between the grid points has no pairs: drop it
     bins, rho, rho2 = [bins[i] for i in keep], rho[:, keep], rho2[:, keep]
-    np.savez("models/coherence_distcorr.npz", rho=rho.astype(np.float32), km=np.array(bins), rho_2023_25=rho2.astype(np.float32), fit_years="2005-2022")
+    np.savez(a.out, rho=rho.astype(np.float32), km=np.array(bins), rho_2023_25=rho2.astype(np.float32), fit_years="2005-2022")
     print("wrote models/coherence_distcorr.npz")
 
 
