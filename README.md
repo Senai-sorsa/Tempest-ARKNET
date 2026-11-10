@@ -22,6 +22,7 @@ samples file.
 - **Past dates (mode P).** ERA5 for the exact hour, corrected by a residual network trained against balloons: median error 6 % below raw ERA5, CRPS 5.5 % below the older station correction.
 - **Extra outputs.** Pressure, density and speed of sound derived from each sample, vertical wind (w-head), 10 m gusts, 24 h soak history, thermal scaling (physics only), joint 99 % band, coupled sample files.
 - **Forecast modes (Phase 4)** are built up to the data limits: the ensemble-to-heights converter, router and clients exist; calibration waits on the daily logger archive (started 2026-11-05).
+- **All 24 hours and two regions (2026-11-10):** NM/TX (31-34 N, 108-101 W) and Denver (38-40 N, 106-104 W) are served at every hour (`tempest_weather/assets*`, see `docs/results/FINAL_REPORT.md` section 11); forecast mode (mode F) answers 0.75-7.5 days ahead at 02-20 h solar in both.
 - **Tool (Phase 5).** Plan in `docs/plans/PHASE5_TOOL.md`.
 - Full history, every experiment and its numbers with intervals: [docs/plans/PLAN.md](docs/plans/PLAN.md); Phase 4 log: [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md); work plan: `docs/plans/PHASED_PLAN.md`.
   The 2024-25 years are "development" years (used for many decisions); 2026 January-June is the untouched final test.
