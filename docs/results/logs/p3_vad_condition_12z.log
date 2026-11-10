@@ -1,0 +1,10 @@
+120 days 2021-2023, radar EPZ, balloon USM00072364 (12Z, radar volume 11 UTC), sensor sd 3.0 m/s, u and v averaged
+  2.5-5 km free               MAE  5.60  CRPS  3.96 ( +0.0 % vs free)  cov90 0.87
+  2.5-5 km radar 0.5-2 km     MAE  4.44  CRPS  3.16 (+20.1 % vs free)  cov90 0.91
+  2.5-5 km radar+all to 5 km  MAE  4.30  CRPS  3.38 (+14.6 % vs free)  cov90 0.61  (overlaps the observed levels)
+  5-12 km  free               MAE  8.04  CRPS  5.69 ( +0.0 % vs free)  cov90 0.90
+  5-12 km  radar 0.5-2 km     MAE  7.68  CRPS  5.51 ( +3.2 % vs free)  cov90 0.93
+  5-12 km  radar+all to 5 km  MAE  7.44  CRPS  5.39 ( +5.4 % vs free)  cov90 0.90
+  12-18 km free               MAE  6.20  CRPS  4.39 ( +0.0 % vs free)  cov90 0.86
+  12-18 km radar 0.5-2 km     MAE  5.90  CRPS  4.18 ( +4.8 % vs free)  cov90 0.93
+  12-18 km radar+all to 5 km  MAE  5.79  CRPS  4.11 ( +6.3 % vs free)  cov90 0.92

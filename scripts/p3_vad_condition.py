@@ -34,13 +34,14 @@ def main():
     ap.add_argument("--radar", default="EPZ", help="radar id (EPZ El Paso, HDX Holloman, MAF Midland)")
     ap.add_argument("--balloon", default="USM00072364", help="IGRA station (USM00072364 Santa Teresa, USM00072265 Midland)")
     ap.add_argument("--sigma", type=float, default=3.0, help="radar wind error (m/s) used in the conditioning")
+    ap.add_argument("--hour", type=int, default=0, choices=[0, 12], help="A24 (2026-11-10): balloon hour, 0 = 00Z (radar volume 23 UTC the day before, the default) or 12 = 12Z (about 05 h solar, night; radar volume 11 UTC the same day)")
     a = ap.parse_args()
     SIG.update(wind_u=a.sigma, wind_v=a.sigma)
     rng = np.random.default_rng(0)
     d = np.load(os.path.join(REPO, "data", "igra_heights", a.balloon + ".npz"))
     sel = np.array([int(np.argmin(np.abs(d["heights"] - h))) for h in H])
     t = pd.DatetimeIndex(d["time"].astype("datetime64[ns]"))
-    keep = np.flatnonzero((t.year >= 2021) & (t.year <= 2023) & (t.hour == 0))
+    keep = np.flatnonzero((t.year >= 2021) & (t.year <= 2023) & (t.hour == a.hour))
     lat, lon = station.STATIONS[a.balloon]
     rows = []
     done = 0
@@ -52,7 +53,7 @@ def main():
             continue
         ub, vb = ub * 0.1, vb * 0.1
         try:
-            p = fetch(t[k] - pd.Timedelta(days=1), a.radar)
+            p = fetch(t[k] - pd.Timedelta(days=1), a.radar) if a.hour == 0 else fetch(t[k].normalize(), a.radar, hour=11)
             r = parse(p, station.ELEV[a.balloon]) if p else None
         except Exception:   # noqa: BLE001
             r = None
@@ -89,7 +90,7 @@ def main():
                     rows.append(dict(method=name, var=var, band=band, mae=np.abs(np.median(x, 0) - y[m]).mean(), crps=cr.mean(), cov90=((y[m] >= q[0]) & (y[m] <= q[1])).mean()))
     t2 = pd.DataFrame(rows)
     g = t2.groupby(["band", "method"])[["mae", "crps", "cov90"]].mean()
-    print(f"{done} days 2021-2023, radar {a.radar}, balloon {a.balloon} (00Z, radar volume near 23:30 UTC), sensor sd {a.sigma} m/s, u and v averaged")
+    print(f"{done} days 2021-2023, radar {a.radar}, balloon {a.balloon} ({a.hour:02d}Z, radar volume {'23' if a.hour == 0 else '11'} UTC), sensor sd {a.sigma} m/s, u and v averaged")
     for band in ("2.5-5 km", "5-12 km", "12-18 km"):
         f = g.loc[(band, "free"), "crps"]
         for meth in ("free", "radar 0.5-2 km", "radar+all to 5 km"):
