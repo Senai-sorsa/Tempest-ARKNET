@@ -31,8 +31,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--out", default="docs/results/logs/w6_observe_eval.log")
+    ap.add_argument("--per-hour", default="", help="A1: also write one CSV row per station and hour (CRPS of every variant) to this path; default off")
     a = ap.parse_args()
     rng = np.random.default_rng(0)
+    per_hour = []
     lines = ["W6: tool 10 m wind speed one hour after a measured wind, CRPS (m/s) / 90 % coverage, 2023-25, 08-20 local (W3 cases)"]
     for st, (tz, lat, lon, elev) in ST.items():
         z_ = ZoneInfo(tz)
@@ -52,6 +54,7 @@ def main():
         test = [test[i] for i in rng.choice(len(test), min(a.n, len(test)), replace=False)]
         res = {"tool, no observation": ([], []), "tool + observe(previous hour, soft)": ([], []), "tool + observe(..., speed_space=True)": ([], [])}
         for h in test:
+            cur = {}
             sp0, d0 = obs[h - timedelta(hours=1)]
             y = obs[h][0]
             when = h.strftime("%Y-%m-%d %H:%M")
@@ -63,15 +66,24 @@ def main():
                     s = LL._ensure_pool()["samples"]
                     w = np.hypot(np.asarray(s["u"])[:, 0], np.asarray(s["v"])[:, 0])
                     res[name][0].append(crps(w, y))
+                    cur[name] = res[name][0][-1]
                     res[name][1].append(np.percentile(w, 5) <= y <= np.percentile(w, 95))
             except Exception as e:  # noqa: BLE001 - count and continue
                 print(st, h, "skipped:", repr(e)[:80], flush=True)
+            else:
+                per_hour.append((st, when, y, cur))
         for name, (c, cv) in res.items():
             lines.append(f"  {st} n {len(c)}: {name:38s} CRPS {np.mean(c):.3f}  cov90 {np.mean(cv):.2f}")
             print(lines[-1], flush=True)
     lines.append("  W3 reference (same stations / years): cell Weibull 1.450 / 1.506, linear persistence 1.035 / 0.923, Weibull-copula AR(1) 1.072 / 0.925 (TCS / MAF)")
     with open(a.out, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n\n")
+    if a.per_hour:
+        names = list(per_hour[0][3]) if per_hour else []
+        with open(a.per_hour, "w", encoding="utf-8", newline="") as fh:
+            fh.write("station,time,obs_speed," + ",".join(n.replace(",", ";") for n in names) + "\n")
+            for st_, when_, y_, cur_ in per_hour:
+                fh.write(f"{st_},{when_},{y_:.3f}," + ",".join(f"{cur_[n]:.5f}" for n in names) + "\n")
 
 
 if __name__ == "__main__":

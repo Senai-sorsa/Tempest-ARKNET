@@ -49,9 +49,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--out", default="docs/results/logs/a1_paired_persistence.log")
+    ap.add_argument("--per-hour", default="", help="also write one CSV row per station and hour (CRPS of both baselines); default off")
     a = ap.parse_args()
     rng = np.random.default_rng(0)                 # same stream as w6_observe_eval.py (one rng, TCS first, then MAF)
     rng2 = np.random.default_rng(1)
+    rows = []
     lines = ["A1 paired persistence on the W6 hours (m/s CRPS / 90 % coverage), baselines fitted on ASOS 2016-22"]
     for st, tz in ST.items():
         z_ = ZoneInfo(tz)
@@ -73,6 +75,7 @@ def main():
             k = int(np.digitize(x0, edges))
             e1 = np.maximum(a0 + b * x0 + rng2.choice(res[terc == k], 200), 0.0)
             e2 = x0 * np.exp(rng2.choice(lr[terc == k], 200))
+            rows.append((st, h.strftime("%Y-%m-%d %H:%M"), crps(e1, yv), crps(e2, yv)))
             for name, e in (("linear persistence", e1), ("multiplicative persistence", e2)):
                 out[name][0].append(crps(e, yv))
                 out[name][1].append(np.percentile(e, 5) <= yv <= np.percentile(e, 95))
@@ -83,6 +86,11 @@ def main():
     os.makedirs(os.path.dirname(os.path.join(REPO, a.out)), exist_ok=True)
     with open(os.path.join(REPO, a.out), "a", encoding="utf-8") as fh_:
         fh_.write("\n".join(lines) + "\n")
+    if a.per_hour:
+        with open(a.per_hour, "w", encoding="utf-8", newline="") as fh_:
+            fh_.write("station,time,linear_persistence,multiplicative_persistence\n")
+            for r in rows:
+                fh_.write(f"{r[0]},{r[1]},{r[2]:.5f},{r[3]:.5f}\n")
 
 
 if __name__ == "__main__":
