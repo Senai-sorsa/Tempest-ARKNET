@@ -403,3 +403,21 @@ def test_stress_conditions_the_profile_on_a_rare_tail_value():
         L.stress("wind_10m", side="lower")
     with pytest.raises(ValueError):
         L.stress("temperature", quantile=0.5)
+
+
+def test_observe_radar_conditions_the_profile_at_the_radar_levels_only_with_their_error():
+    """P3: observe_radar(profile=...) conditions the 500-2000 m wind on the radar with a 3 m/s error (soft, not pinned); the default pool is untouched; levels outside the profile are refused."""
+    import numpy as np
+    L = Launch(31.8728, -106.6981, "2027-06-16 17:00", tz="America/Denver", n=200, seed=2, units="si")
+    elev = float(L.elevation_info()[0])
+    prof = dict(site="EPZ", time="2027-06-16T23:00:00+00:00", heights_asl_m=[elev + h for h in (300.0, 800.0, 1500.0, 2500.0)], u=[12.0, 14.0, 16.0, 18.0], v=[0.0, 0.0, 0.0, 0.0])
+    R = L.observe_radar(profile=prof)
+    s0, s1 = L._ensure_pool()["samples"], R._ensure_pool()["samples"]
+    from tempest_weather import _core
+    j = list(_core.HEIGHTS).index(1000.0)
+    assert abs(np.median(s1["u"][:, j]) - np.interp(1000.0, [300, 800, 1500, 2500], [12, 14, 16, 18])) < 2.0           # pulled to the radar value
+    assert np.std(s1["u"][:, j]) > 0.5                                                                                  # soft: the 3 m/s error keeps a spread
+    assert any(f.startswith("radar-wind-EPZ") for f in R._ensure_pool()["flags"])
+    assert L._obs == {} and abs(np.median(s0["u"][:, j]) - np.median(s1["u"][:, j])) > 1.0                          # the original Launch is unchanged
+    with pytest.raises(ValueError):
+        L.observe_radar(profile=dict(heights_asl_m=[elev + 3000.0, elev + 4000.0, elev + 5000.0], u=[1, 2, 3], v=[0, 0, 0]))

@@ -1,0 +1,6 @@
+120 days 2021-2023 with an EPZ balloon (00Z) and a radar VAD volume near 23:30 UTC; files 1.2 MB in data/raw/nexrad_nvw
+band       radar |error| / ERA5 |error| (m/s, vector)   speed bias radar / ERA5   share of days with a radar value
+  0.5-1 km    2.88 /  2.06                              +0.14 / -0.42            0.93
+  1-2 km      3.16 /  2.27                              +0.15 / -0.38            0.88
+  2-5 km      3.58 /  2.34                              -0.13 / -0.24            0.55
+  5-10 km     7.27 /  2.62                              -3.31 / -0.24            0.20

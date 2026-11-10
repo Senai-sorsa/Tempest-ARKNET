@@ -130,7 +130,7 @@ class TempestFlightSimEngine:
         if sensor_sigma is None:
             lat_sig = np.full(len(idx), 1e-3)
         else:
-            sig = np.array([sensor_sigma.get(self.names[i][0], 0.0) if isinstance(sensor_sigma, dict) else float(sensor_sigma) for i in idx])
+            sig = np.array([sensor_sigma.get(tuple(self.names[i]), sensor_sigma.get(self.names[i][0], 0.0)) if isinstance(sensor_sigma, dict) else float(sensor_sigma) for i in idx])   # P3: a (variable, height) key overrides the variable's sigma
             lat_sig = np.maximum(sig / self._sd[idx], 1e-3)              # physical sensor sd -> latent units (about the sd of the column)
         C11 = self.corr[np.ix_(idx, idx)] + np.diag(lat_sig ** 2)
         C21 = self.corr[np.ix_(un, idx)]
