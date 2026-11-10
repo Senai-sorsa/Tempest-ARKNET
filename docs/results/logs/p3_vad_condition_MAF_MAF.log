@@ -1,0 +1,10 @@
+120 days 2021-2023, radar MAF, balloon USM00072265 (00Z, radar volume near 23:30 UTC), sensor sd 3.0 m/s, u and v averaged
+  2.5-5 km free               MAE  5.03  CRPS  3.63 ( +0.0 % vs free)  cov90 0.88
+  2.5-5 km radar 0.5-2 km     MAE  3.97  CRPS  2.88 (+20.7 % vs free)  cov90 0.94
+  2.5-5 km radar+all to 5 km  MAE  3.41  CRPS  2.79 (+23.2 % vs free)  cov90 0.54  (overlaps the observed levels)
+  5-12 km  free               MAE  8.45  CRPS  6.01 ( +0.0 % vs free)  cov90 0.89
+  5-12 km  radar 0.5-2 km     MAE  7.80  CRPS  5.61 ( +6.6 % vs free)  cov90 0.94
+  5-12 km  radar+all to 5 km  MAE  6.91  CRPS  5.01 (+16.5 % vs free)  cov90 0.92
+  12-18 km free               MAE  6.21  CRPS  4.44 ( +0.0 % vs free)  cov90 0.88
+  12-18 km radar 0.5-2 km     MAE  6.13  CRPS  4.44 ( +0.0 % vs free)  cov90 0.93
+  12-18 km radar+all to 5 km  MAE  5.81  CRPS  4.23 ( +4.8 % vs free)  cov90 0.93
