@@ -99,7 +99,7 @@ def test_cli_weather_formats_and_errors(capsys):
     rc, out, err = run(capsys, "weather", "spaceport_america")
     assert rc == 2 and "give a time" in err
     rc, out, err = run(capsys, "weather", "spaceport_america", "2027-06-16 03:00", "--mode", "ai")
-    assert rc == 2 and "valid solar hours" in err
+    assert rc == 0 and "Traceback" not in err                                         # A24 (2026-11-10): night hours are served (the bundled NM/TX set is all-hours)
     rc, out, _ = run(capsys, "weather", "32.99", "-106.97", "2027-06-16 09:00-13:00", "--mode", "ai", "--n", "300", "--elevation", "4595 ft", "--tz", "America/Denver")
     assert rc == 0 and "uniform" in out
     rc, out, _ = run(capsys, "weather", "midland", "--likely", "2027-06-16 10:00", "--earliest", "08:00", "--latest", "2027-06-16 14:00", "--mode", "ai", "--n", "300", "--offline")

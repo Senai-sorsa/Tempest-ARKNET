@@ -627,7 +627,9 @@ def distribution(lat, lon, when, variables, setting=0, n=1024, seed=0, mode=None
     ev = registry.evaluate(atm, names, np.random.default_rng(seed + 1))
     out = {}
     for v in names:
-        spec = distributions.describe(ev[v], setting in (0, 1), units=registry.units_of(v))
+        u_ = registry.units_of(v)
+        sup = "real" if u_ in ("degC", "degF") else None              # 2026-11-10: degrees C / F have no natural zero, so never a positive-only family (Weibull, lognormal) because one sample happens to be all above 0 (summer afternoons); other variables as before
+        spec = distributions.describe(ev[v], setting in (0, 1), support=sup, units=u_)
         if samples:
             spec["samples"] = ev[v]
         out[v] = spec

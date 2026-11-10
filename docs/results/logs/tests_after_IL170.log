@@ -1,0 +1,152 @@
+......................................F................................. [ 19%]
+....................F................................................... [ 38%]
+........................................................................ [ 57%]
+........................................................................ [ 76%]
+..........................................F.....F....................... [ 95%]
+........F........                                                        [100%]
+================================== FAILURES ===================================
+______________ test_launch_window_follows_the_assets_solar_hours ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001A9523D23C0>
+
+    def test_launch_window_follows_the_assets_solar_hours(monkeypatch):
+        """A24: the launch window is cut to the solar hours the SERVING assets were trained for (manifest solar_hours), not to a fixed 06-21 h, so an all-hours export serves night launches."""
+        from tempest_weather import api
+        from tempest_weather_v2 import timeutil
+        night = "2027-06-16 02:00"                                                       # about 01 h solar at Spaceport America
+>       with pytest.raises(timeutil.WindowError):                                       # today's bundled assets are 06-21 h
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE WindowError
+
+tempest_weather_v2\tests\test_launch.py:437: Failed
+_____________________ test_cli_weather_formats_and_errors _____________________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x000001A953AD3C50>
+
+    def test_cli_weather_formats_and_errors(capsys):
+        base = ["weather", "spaceport_america", "2027-06-16 10:00", "--mode", "ai", "--n", "300"]
+        rc, out, _ = run(capsys, *base)
+        assert rc == 0 and "elevation" in out and "Climate estimate" in out
+        rc, out, _ = run(capsys, *base, "--format", "ras")
+        assert "RASAero II launch site" in out and "(ft)" in out
+        rc, out, _ = run(capsys, *base, "--format", "openrocket", "--units", "si")
+        assert "Station pressure (mbar)" in out
+        rc, out, _ = run(capsys, *base, "--percentile", "10", "50", "90")
+        assert out.count("10:00 MDT") == 3 and "90th percentile" in out
+        rc, out, _ = run(capsys, *base, "--format", "json", "--all")
+        assert json.loads(out.split("\n\n")[0])["elevation"] == pytest.approx(4595.1, abs=0.5)
+        rc, out, err = run(capsys, "weather", "spaceport_amerca", "2027-06-16 10:00")
+        assert rc == 2 and "did you mean spaceport_america" in err and "Traceback" not in err
+        rc, out, err = run(capsys, "weather", "spaceport_america")
+        assert rc == 2 and "give a time" in err
+        rc, out, err = run(capsys, "weather", "spaceport_america", "2027-06-16 03:00", "--mode", "ai")
+>       assert rc == 2 and "valid solar hours" in err
+E       assert (0 == 2)
+
+tempest_weather_v2\tests\test_roughness_cli.py:102: AssertionError
+___________________ test_values_order_and_units_and_errors ____________________
+
+    @needs_assets
+    def test_values_order_and_units_and_errors():
+        r = api.values(32.99, -106.97, WHEN, ["wind_speed@100", "t2m_c", "sp"], n=300)
+        assert list(r["values"]) == ["wind_speed@100", "t2m_c", "sp"] and r["units"]["sp"] == "Pa" and r["mode"] == "ai"
+        with pytest.raises(ValueError, match="unknown variable"):
+            api.values(32.99, -106.97, WHEN, ["not_a_variable"], n=300)
+        with pytest.raises(ValueError, match="outside the trained area"):
+            api.values(40.0, -100.0, WHEN, ["t2m"], n=300)
+>       with pytest.raises(ValueError, match="solar time"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests\test_tool_api.py:38: Failed
+____________ test_night_hours_are_refused_before_the_store_is_read ____________
+
+    @needs_store
+    def test_night_hours_are_refused_before_the_store_is_read():
+        with pytest.raises(ValueError, match="solar time"):
+>           api.values(31.95, -102.19, "2025-06-16T08:00:00+00:00", ["t2m"], n=199, era5_store=STORE)
+
+tests\test_tool_api.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tempest_weather\api.py:604: in values
+    atm, info = atmosphere_set(lat, lon, when, n, False, seed, mode=mode, **kw)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tempest_weather\api.py:431: in atmosphere_set
+    phys, e_past = _past_phys(A, store, lat, lon, t_utc, n, rng)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tempest_weather\api.py:283: in _past_phys
+    e = era5_local.profile(store, lat, lon, t_utc)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+store = <xarray.Dataset> Size: 158GB
+Dimensions:  (point: 377, time: 289561, height: 44)
+Coordinates:
+  * point    (point) int... 6188, 44), meta=np.ndarray>
+    v10      (point, time) float64 873MB dask.array<chunksize=(29, 6188), meta=np.ndarray>
+lat = 31.95, lon = -102.19, t_utc = datetime.datetime(2025, 6, 16, 8, 0)
+
+    def profile(store, lat, lon, t_utc):
+        t = np.datetime64(np.datetime64(t_utc, "h"))
+        times = store.time.values
+        i = np.searchsorted(times, t)
+        if i >= len(times) or times[i] != t:
+>           raise LookupError(f"the ERA5 store has no {str(t)[:13]} UTC (it keeps UTC hours {sorted(set((times[-2000:].astype('datetime64[h]').astype(int) % 24).tolist()))} and ends {str(times[-1])[:10]}; the night hours UTC 05-11 need the night store, see the module note)")
+E           LookupError: the ERA5 store has no 2025-06-16T08 UTC (it keeps UTC hours [0, 1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23] and ends 2026-06-30; the night hours UTC 05-11 need the night store, see the module note)
+
+tempest_weather\sources\era5_local.py:45: LookupError
+________________ test_runs_in_a_scratch_folder_with_only_numpy ________________
+
+tmp_path = WindowsPath('C:/Users/Senai/AppData/Local/Temp/pytest-of-Senai/pytest-258/test_runs_in_a_scratch_folder_0')
+
+    @needs_assets
+    def test_runs_in_a_scratch_folder_with_only_numpy(tmp_path):
+        shutil.copytree("tempest_weather", tmp_path / "tempest_weather", ignore=shutil.ignore_patterns("assets", "__pycache__"))
+        code = textwrap.dedent(f"""
+            import sys
+            for m in ("pandas", "torch", "xarray", "scipy", "tempest"):
+                sys.modules[m] = None                      # importing any of these now raises ImportError
+            sys.path.insert(0, r"{tmp_path}")
+            import tempest_weather as tw
+            from tempest_weather import api
+            r = tw.values(32.99, -106.97, "2027-06-16 15:00", ["t2m_c", "wind_speed@100"], n=199, assets=r"{ASSETS}")
+            d = tw.distribution(32.99, -106.97, "2027-06-16 15:00", ["t2m_c"], setting=0, n=199, assets=r"{ASSETS}")
+            a = tw.atmosphere(32.99, -106.97, "2027-06-16 15:00", (15, 85), n=199, assets=r"{ASSETS}")
+            assert 20 < r["values"]["t2m_c"] < 50 and d["variables"]["t2m_c"]["type"] in ("normal", "empirical", "gumbel")
+            assert a[0]["meta"]["flight_score"] > a[1]["meta"]["flight_score"]
+            print("OK", sorted(m for m in sys.modules if m.split(".")[0] in ("pandas", "torch", "xarray") and sys.modules[m] is not None))
+        """)
+        r = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, timeout=600, cwd=str(tmp_path))
+>       assert r.returncode == 0 and r.stdout.strip().startswith("OK []"), r.stderr[-1500:]
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 11, in <module>
+E             assert 20 < r["values"]["t2m_c"] < 50 and d["variables"]["t2m_c"]["type"] in ("normal", "empirical", "gumbel")
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         AssertionError
+E         
+E       assert (1 == 0)
+E        +  where 1 = CompletedProcess(args=['C:\\Users\\Senai\\Tempest-ARKNET\\.venv\\Scripts\\python.exe', '-I', '-c', '\nimport sys\nfor ...^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n').returncode
+
+tests\test_tool_standalone.py:32: AssertionError
+============================== warnings summary ===============================
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+  C:\Users\Senai\Tempest-ARKNET\.venv\Lib\site-packages\zarr\api\asynchronous.py:260: ZarrUserWarning: Consolidated metadata is currently not part in the Zarr format 3 specification. It may not be supported by other zarr implementations and may change in the future.
+    warnings.warn(
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:157: RuntimeWarning: invalid value encountered in divide
+    put(f"skill_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim"])
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:159: RuntimeWarning: invalid value encountered in divide
+    put(f"skill15_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim15"])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tempest_weather_v2/tests/test_launch.py::test_launch_window_follows_the_assets_solar_hours
+FAILED tempest_weather_v2/tests/test_roughness_cli.py::test_cli_weather_formats_and_errors
+FAILED tests/test_tool_api.py::test_values_order_and_units_and_errors - Faile...
+FAILED tests/test_tool_api.py::test_night_hours_are_refused_before_the_store_is_read
+FAILED tests/test_tool_standalone.py::test_runs_in_a_scratch_folder_with_only_numpy
+5 failed, 372 passed, 4 warnings in 287.49s (0:04:47)

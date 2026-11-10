@@ -434,8 +434,11 @@ def test_launch_window_follows_the_assets_solar_hours(monkeypatch):
     from tempest_weather import api
     from tempest_weather_v2 import timeutil
     night = "2027-06-16 02:00"                                                       # about 01 h solar at Spaceport America
-    with pytest.raises(timeutil.WindowError):                                       # today's bundled assets are 06-21 h
-        Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window()
+    import os
+    day_only = os.path.join(os.path.dirname(api.__file__), "assets_denver")           # a 06-21 h set (the Denver day model)
+    with pytest.raises(timeutil.WindowError):
+        Launch(39.7, -104.9, night, tz="America/Denver", n=50, assets=day_only).resolved_window()
+    assert len(Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window().cells_utc) >= 1   # since 2026-11-10 the bundled NM/TX set is all-hours
     real = api._assets
     monkeypatch.setattr(api, "_assets", lambda path=None: {**real(path), "manifest": {**real(path)["manifest"], "solar_hours": [0.0, 24.0]}})
     monkeypatch.setattr(api, "region_solar_window", lambda lat, lon, root=None: (0.0, 24.0))          # as if an all-hours set covered the place

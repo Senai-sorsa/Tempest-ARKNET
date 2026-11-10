@@ -57,7 +57,7 @@ cal, te = sub(cal, a.rows), sub(te, a.rows)
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
-               step_weight=0.0, linear_features=[])
+               step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
     train(F.cond_matrix(tr, a.coarse), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
 m = a.m

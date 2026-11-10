@@ -35,8 +35,9 @@ def test_values_order_and_units_and_errors():
         api.values(32.99, -106.97, WHEN, ["not_a_variable"], n=300)
     with pytest.raises(ValueError, match="outside the trained area"):
         api.values(40.0, -100.0, WHEN, ["t2m"], n=300)
-    with pytest.raises(ValueError, match="solar time"):
-        api.values(32.99, -106.97, "2027-06-16 03:00", ["t2m"], n=300)
+    with pytest.raises(ValueError, match="solar time"):                                # a 06-21 h set still refuses the night (the Denver day set, asked directly)
+        api.values(39.7, -104.9, "2027-06-16 03:00", ["t2m"], n=300, assets=os.path.join(os.path.dirname(api.__file__), "assets_denver"))
+    assert api.values(32.99, -106.97, "2027-06-16 03:00", ["t2m"], n=300)["mode"] == "ai"     # A24: the bundled NM/TX set answers at night
 
 
 @needs_assets
@@ -100,8 +101,9 @@ def test_past_mode_follows_era5_and_is_narrower_than_the_climate_model():
 
 
 @needs_store
-def test_night_hours_are_refused_before_the_store_is_read():
-    with pytest.raises(ValueError, match="solar time"):
+def test_night_hours_with_a_day_only_store_fail_loudly():
+    """A24: the model serves the night now; past mode with a store that has no night hours raises a clear LookupError naming the night store (no silent fallback, B24)."""
+    with pytest.raises(LookupError, match="night store"):
         api.values(31.95, -102.19, "2025-06-16T08:00:00+00:00", ["t2m"], n=199, era5_store=STORE)
 
 
