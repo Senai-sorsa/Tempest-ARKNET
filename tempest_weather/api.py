@@ -167,7 +167,10 @@ def _assets(path=None):
              modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
              sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
              sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
-             gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
+             gust=(dict(theta=z["gust/theta"], phi=z["gust/phi"], **({"phys_model": dict(theta=z["gust/phys_model_theta"], phi=z["gust/phys_model_phi"]), "phys_model_cap": float(z["gust/phys_model_cap"]),
+                                                                       "phys_measured": dict(theta=z["gust/phys_measured_theta"], phi=z["gust/phys_measured_phi"]), "phys_measured_cap": float(z["gust/phys_measured_cap"]),
+                                                                       "station": float(z["gust/phys_station"])} if "gust/phys_model_theta" in z.files else {}))   # IL-183: a region's own physical gust law (export --gust-phys)
+                   if manifest.get("gust_included") else None),
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
     return a
@@ -219,6 +222,8 @@ def _gust_params(g, ws, doy, hour, station=0.0):
     """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports). Above GUST_WS_CAP the law is held at the gust FACTOR (location and scale per m/s) of the cap: the airport reports it was
     fitted on have few winds above 12 m/s and the ws^2 term then runs away (20 m/s gave a median gust of 59 m/s); a storm must not produce an impossible gust."""
     if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), model-wind law
+        if g is not None and "phys_model" in g:                             # IL-183: the region's own law from its assets (its own station flag)
+            return _gust_physical(g["phys_model"], g["phys_model_cap"], ws, doy, hour, g["station"])
         return _gust_physical(GUST_PHYS_MODEL, GUST_PHYS_MODEL_CAP, ws, doy, hour, station)
     ws0 = np.asarray(ws, float)
     ws = np.minimum(ws0, GUST_WS_CAP)
@@ -241,9 +246,11 @@ GUST_MEASURED = dict(p=(-7.43023, 0.87712, -0.04187, 0.23106, -0.63393, -1.21744
 GUST_MEASURED_WS_CAP = 20.0   # m/s; above it the excess is held at the cap's gust factor (few reports above 20 m/s)
 
 
-def _gust_params_measured(ws, doy, hour, station=0.0):
+def _gust_params_measured(ws, doy, hour, station=0.0, g=None):
     """(gust_mu, gust_beta) of the gust for a MEASURED 10 m wind ws (m/s); hour = UTC hour. Draws must be clipped at the wind (G >= ws by definition): the clipped mass is the share of hours without a gust group."""
     if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), measured-wind law
+        if g is not None and "phys_measured" in g:                          # IL-183: the region's own law (g = the assets' gust dict)
+            return _gust_physical(g["phys_measured"], g["phys_measured_cap"], ws, doy, hour, g["station"])
         return _gust_physical(GUST_PHYS_MEASURED, GUST_MEASURED_WS_CAP, ws, doy, hour, station)
     ws0 = np.asarray(ws, float)
     w = np.clip(ws0, 0.0, GUST_MEASURED_WS_CAP)

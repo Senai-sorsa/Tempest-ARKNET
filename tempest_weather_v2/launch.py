@@ -218,7 +218,7 @@ class Launch:
         for h in np.unique(hrs):
             m = hrs == h
             t = np.datetime64(h, "s").astype(datetime).replace(tzinfo=timezone.utc)
-            law = api._gust_params_measured if measured else (lambda ws_, *a_: api._gust_params(g, ws_, *a_))       # W8c: a wind conditioned on a station measurement uses the law fitted on measured winds
+            law = (lambda ws_, *a_: api._gust_params_measured(ws_, *a_, g=g)) if measured else (lambda ws_, *a_: api._gust_params(g, ws_, *a_))   # IL-183: g carries a region's own law       # W8c: a wind conditioned on a station measurement uses the law fitted on measured winds
             mu[m], beta[m] = law(ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
         out = dict(samples)
         out["gust_mu"], out["gust_beta"] = mu, beta
