@@ -1,0 +1,4 @@
+IL-188 Denver radar FTG referee 2024-25 (333 volumes), mean CRPS of u, v at 500, 1000, 1500, 2000, 3000 m above the radar (m/s), skill vs the ERA5 climatology of the same month and UTC hour
+  UTC 11 (about 4 h solar), n 146: clim 4.136 | allhours 4.111 (skill +0.006, n 146)
+  UTC 23 (about 16 h solar), n 187: clim 2.985 | day 2.949 (skill +0.012, n 187) | allhours 2.975 (skill +0.003, n 187) | paired all-hours - day +0.025 m/s (+-0.012)
+
