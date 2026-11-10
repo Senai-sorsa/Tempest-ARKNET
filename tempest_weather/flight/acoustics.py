@@ -4,18 +4,22 @@ Method: the effective sound speed c_eff(z, psi) = c(z) + V(z) . e_psi along the 
 stay close to the vertical plane of propagation). Snell's law in a stratified medium conserves a = cos(theta) / c_eff, with theta the ray angle from the horizontal. A ray leaving the source at
 depression angle beta has a = cos(beta) / c_eff(source). It continues down while a c_eff(z) < 1 and TURNS upward where a c_eff(z) reaches 1 (then it never reaches the ground: shadow zone).
 Horizontal range along psi: x = integral cot(theta) dz, time: t = integral dz / (c_eff sin(theta)) (path length over effective speed). The cross-wind component advects the wave by V_perp * t
-(first-order). Not modelled: absorption, nonlinear steepening of a boom, ground reflection, 3D refraction by a cross-wind gradient, turbulence scattering.
+(first-order). Earth curvature: opt-in Earth-flattening correction (earth_flattening=True). Not modelled: absorption, nonlinear steepening of a boom, ground reflection, 3D refraction by a cross-wind gradient, turbulence scattering.
 The blueprint's ray parameter p = cos / (c + V cos) and its q-formula mixed the wind projection in a way that does not conserve a for a wind-free medium; this version reduces exactly to
 straight rays for constant c and to the textbook circular arc for a constant c_eff gradient (both tested).
 """
 import numpy as np
 
 GAMMA_R = 1.4 * 287.05287
+R_EARTH = 6.371e6
 
 
 class AcousticRayTracer:
-    def __init__(self, z_m, temp_K, wind_u_mps, wind_v_mps, sound_speed=None):
-        """sound_speed (IL-136, opt-in): the moist speed of sound on the same heights (the batch's `a`), instead of the dry-air value from the temperature."""
+    def __init__(self, z_m, temp_K, wind_u_mps, wind_v_mps, sound_speed=None, earth_flattening=False):
+        """sound_speed (IL-136, opt-in): the moist speed of sound on the same heights (the batch's `a`), instead of the dry-air value from the temperature.
+        earth_flattening (Gemini A-5, opt-in): the Earth-flattening correction c_eff -> c_eff (1 + z / R_earth) that maps the curved Earth onto the flat stratified geometry used here
+        (about +0.3 % at 20 km); it matters only for long-range, nearly grazing rays (tens of km); off = the flat-Earth model as before."""
+        self.earth_flattening = bool(earth_flattening)
         self.z = np.asarray(z_m, float)
         self.c = np.sqrt(GAMMA_R * np.asarray(temp_K, float)) if sound_speed is None else np.asarray(sound_speed, float)
         self.u, self.v = np.asarray(wind_u_mps, float), np.asarray(wind_v_mps, float)
@@ -38,6 +42,9 @@ class AcousticRayTracer:
             v_perp = u * e_h[1] - v * e_h[0]
             c_eff = c + v_par
             c_eff_src = c_src + u_src * e_h[0] + v_src * e_h[1]
+            if self.earth_flattening:
+                c_eff = c_eff * (1.0 + zi / R_EARTH)
+                c_eff_src = c_eff_src * (1.0 + float(source_alt_m) / R_EARTH)
             for j, beta in enumerate(dep):
                 a = np.cos(beta) / c_eff_src
                 s = a * c_eff                                              # cos(theta) along the ray

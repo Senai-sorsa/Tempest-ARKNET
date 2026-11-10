@@ -69,3 +69,12 @@ def test_daylight_saving_change_converts_local_launch_time_correctly():
     utc = lambda w: str(Launch("spaceport_america", w, mode="ai", n=20, units="si").resolved_window().cells_utc[0])
     assert utc("2027-03-13 09:00").startswith("2027-03-13T16:00") and utc("2027-03-14 09:00").startswith("2027-03-14T15:00")           # MST then MDT
     assert utc("2027-11-06 09:00").startswith("2027-11-06T15:00") and utc("2027-11-07 09:00").startswith("2027-11-07T16:00")           # MDT then MST
+
+
+def test_variable_direction_group_is_parsed_and_does_not_change_the_observation():
+    """Gemini A-7: '21012KT 180V240' keeps the mean wind (210 deg, 12 kt) for observe() and stores the variability range."""
+    from tempest_weather_v2.metar import parse
+    m = parse("KTCS 241553Z 21012KT 180V240 10SM CLR 23/12 A3012")
+    assert m.wind_from_deg == 210 and m.var_from_deg == 180 and m.var_to_deg == 240 and m.temp_c == 23.0
+    n = parse("KTCS 241553Z 21012KT 10SM CLR 23/12 A3012")
+    assert m.observation_kwargs() == n.observation_kwargs() and n.var_from_deg is None
