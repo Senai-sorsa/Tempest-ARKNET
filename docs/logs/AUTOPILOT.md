@@ -332,6 +332,7 @@ Findings: trained and served area = pilot box only (other places are refused cle
 | R-9 | Far-future trend: replace the straight-line year term beyond 2035 by a damped trend or a hinge and compare with published warming rates; keep the flags | HELD 06:20: needs published warming rates (no internet source in this session); ASK_LATER |
 
 ## Group E: end of work (runs when the stop rule fires, or the queue has no `todo` left)
+**Rule change 2026-11-09 23:30 (user):** the one-time FINAL TEST step of Group E is never started automatically, not when the queue is empty and not when its data has arrived; it runs only when the user says the model is final. Double-checks and the report may proceed.
 | ID | Step | How |
 |---|---|---|
 | E1 | `pytest` (nothing else running), all green | `.venv/Scripts/python -m pytest -q` |

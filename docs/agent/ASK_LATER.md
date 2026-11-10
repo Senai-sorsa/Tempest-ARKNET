@@ -111,3 +111,15 @@ Until you answer: no 2026 data is used for anything; the plan's Group E waits fo
 ## 16. Needs the user: a package install for radar winds (added 2026-11-09, plan item P3)
 NEXRAD VAD wind profiles (the radar's wind every 300 m up to about 10 km, every few minutes, free; El Paso KEPZ stands next to the EPZ balloon site) come as NWS Level III NVW files, which need a decoder: MetPy (`pip install metpy` into the project venv, pure Python, BSD licence) is the usual one. Installing packages is your call, so P3 waits. With it: compare VAD winds with EPZ balloons, then feed them to the existing conditioning (500-2000 m data gave +15-17 % aloft).
 Also (P7, optional): `rasterio` would let the site model use the NLCD land-cover roughness map; without it P7 uses terrain only.
+
+## 17. Needs the user: decisions taken autonomously on 2026-11-09 that change what the tool reports (confirm or ask to revert; each has an off switch)
+- `tempest_weather.api.GUST_PHYSICAL = True`: gusts are the PHYSICAL 5-second peak (one-minute ASOS data: about 1.4 x the wind at every speed) instead of the METAR convention (gust = wind in most light-wind hours). Gust CRPS -65 % (measured wind) / -21 % (model wind) on 2021-23, confirmed at unseen El Paso (0.70 vs 1.76). Effect: higher light-wind gusts and an OpenRocket turbulence estimate that is no longer about 0.
+- `tempest_weather_v2.launch.MEASURED_GUST_LAW = True`: after observe(wind_10m=...) the gust uses the law fitted on measured winds (storm gusts about 1.35 x instead of 2.4-4.8 x).
+- `Launch(past_era5_anchor=True)`: past mode centres the near-ground wind on ERA5 10 m (gain at four sites, -3 to -20 %).
+- Gust draws in `ranking.py` / `registry.py` clipped at the 10 m wind (by definition gust >= wind).
+
+## 18. Needs the user: open decisions (2026-11-09 late)
+- **Final test 2026 July-October:** data being downloaded and prepared; runs only when you say the model is final (`CONFIRM_FINAL=yes bash scripts/final_test_2026h2.sh`).
+- **Denver tool model:** the Denver-trained C4w passes on two training seeds (+0.0007 / +0.0004 mean skill15, t2m +0.004); re-exporting the Denver assets (now from the lighter generator_denver.pt) needs your OK.
+- **MetPy in pyproject:** installed with `uv pip` into the venv but not added to pyproject.toml; a `uv sync` would remove it (radar winds need it). Add it as a dependency?
+- Empty folder `tempest_weather/assets_c4w_staging` and three empty one-minute files (`data/raw/asos1min/LRU_*, ALM_*, PEQ_*`, 52 bytes, those stations have no one-minute data) can be removed by you (the rm guard blocks me).
