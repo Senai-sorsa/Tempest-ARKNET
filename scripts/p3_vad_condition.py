@@ -31,13 +31,17 @@ SIG = {"wind_u": 3.0, "wind_v": 3.0}
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=120)
+    ap.add_argument("--radar", default="EPZ", help="radar id (EPZ El Paso, HDX Holloman, MAF Midland)")
+    ap.add_argument("--balloon", default="USM00072364", help="IGRA station (USM00072364 Santa Teresa, USM00072265 Midland)")
+    ap.add_argument("--sigma", type=float, default=3.0, help="radar wind error (m/s) used in the conditioning")
     a = ap.parse_args()
+    SIG.update(wind_u=a.sigma, wind_v=a.sigma)
     rng = np.random.default_rng(0)
-    d = np.load(os.path.join(REPO, "data", "igra_heights", "USM00072364.npz"))
+    d = np.load(os.path.join(REPO, "data", "igra_heights", a.balloon + ".npz"))
     sel = np.array([int(np.argmin(np.abs(d["heights"] - h))) for h in H])
     t = pd.DatetimeIndex(d["time"].astype("datetime64[ns]"))
     keep = np.flatnonzero((t.year >= 2021) & (t.year <= 2023) & (t.hour == 0))
-    lat, lon = station.STATIONS["USM00072364"]
+    lat, lon = station.STATIONS[a.balloon]
     rows = []
     done = 0
     for k in rng.permutation(keep):
@@ -48,15 +52,15 @@ def main():
             continue
         ub, vb = ub * 0.1, vb * 0.1
         try:
-            p = fetch(t[k] - pd.Timedelta(days=1))
-            r = parse(p) if p else None
+            p = fetch(t[k] - pd.Timedelta(days=1), a.radar)
+            r = parse(p, station.ELEV[a.balloon]) if p else None
         except Exception:   # noqa: BLE001
             r = None
         if r is None:
             continue
         ur, vr = r
         try:
-            eng = TempestFlightSimEngine(lat, lon, t[k].tz_localize("UTC").isoformat(), n_pool=1024, seed=int(k), elevation=station.ELEV["USM00072364"])
+            eng = TempestFlightSimEngine(lat, lon, t[k].tz_localize("UTC").isoformat(), n_pool=1024, seed=int(k), elevation=station.ELEV[a.balloon])
         except Exception:   # noqa: BLE001
             continue
         U = np.random.default_rng(1).random((400, 12))
@@ -85,7 +89,7 @@ def main():
                     rows.append(dict(method=name, var=var, band=band, mae=np.abs(np.median(x, 0) - y[m]).mean(), crps=cr.mean(), cov90=((y[m] >= q[0]) & (y[m] <= q[1])).mean()))
     t2 = pd.DataFrame(rows)
     g = t2.groupby(["band", "method"])[["mae", "crps", "cov90"]].mean()
-    print(f"{done} EPZ days 2021-2023 (00Z balloon, radar volume near 23:30 UTC), u and v averaged")
+    print(f"{done} days 2021-2023, radar {a.radar}, balloon {a.balloon} (00Z, radar volume near 23:30 UTC), sensor sd {a.sigma} m/s, u and v averaged")
     for band in ("2.5-5 km", "5-12 km", "12-18 km"):
         f = g.loc[(band, "free"), "crps"]
         for meth in ("free", "radar 0.5-2 km", "radar+all to 5 km"):

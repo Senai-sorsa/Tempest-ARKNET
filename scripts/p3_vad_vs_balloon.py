@@ -27,8 +27,8 @@ H = np.asarray(_core.HEIGHTS, float)
 BANDS = [("0.5-1 km", 500, 1000), ("1-2 km", 1000, 2000), ("2-5 km", 2000, 5000), ("5-10 km", 5000, 10000)]
 
 
-def fetch(day):
-    pre = f"EPZ_NVW_{day:%Y_%m_%d}_23"
+def fetch(day, radar="EPZ"):
+    pre = f"{radar}_NVW_{day:%Y_%m_%d}_23"
     with urllib.request.urlopen(BUCKET + f"?list-type=2&prefix={pre}", timeout=60) as r:
         keys = re.findall(r"<Key>([^<]+)</Key>", r.read().decode())
     if not keys:
@@ -40,7 +40,7 @@ def fetch(day):
     return path
 
 
-def parse(path):
+def parse(path, site_m=SITE_M):
     from metpy.io import Level3File
     f = Level3File(path)
     alt, u, v = [], [], []
@@ -49,7 +49,7 @@ def parse(path):
             p = line.split()
             if len(p) >= 3 and re.fullmatch(r"\d{3}", p[0]):
                 try:
-                    alt.append(float(p[0]) * 30.48 - SITE_M)
+                    alt.append(float(p[0]) * 30.48 - site_m)
                     u.append(float(p[1]))
                     v.append(float(p[2]))
                 except ValueError:
