@@ -38,6 +38,7 @@ ap.add_argument("--lr", type=float, default=1e-3)
 ap.add_argument("--coarse", type=int, default=1, help="use every k-th height of the forecast profile as network input")
 ap.add_argument("--noise-dim", type=int, default=16)
 ap.add_argument("--ens", action="store_true", help="L14: append the 24 IFS-ensemble features (rows from scripts/il14_ens_rows.py, field `ens`) to the network input; off = HRES only")
+ap.add_argument("--ens-cols", choices=("all", "spread", "mean"), default="all", help="IL-195: with --ens, which of the 24 ensemble features to use (columns alternate mean, sd); default all = as before")
 ap.add_argument("--bootstrap", type=int, default=0, help="IL-87: date-block bootstrap of the PIT distance (resample whole forecast start dates N times); 0 = off (as before)")
 ap.add_argument("--seed", type=int, default=0, help="torch seed of the training (network init and noise); the row subsets do not change")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
@@ -56,7 +57,8 @@ def sub(d, n):
     return {k: v[i] for k, v in d.items()}
 
 cal, te = sub(cal, a.rows), sub(te, a.rows)
-cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
+ENS_COLS = {"all": slice(None), "spread": slice(1, None, 2), "mean": slice(0, None, 2)}[a.ens_cols]                  # IL-195: columns alternate (mean, sd); default all 24
+cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)[:, ENS_COLS]], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
