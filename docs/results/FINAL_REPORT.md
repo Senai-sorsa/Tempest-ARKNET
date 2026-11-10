@@ -64,3 +64,20 @@ The 2026 January-June test above was spent on the pilot model; nothing below was
 - **Tried and not kept:** Weibull-space wind head (the calm-wind gap is in ERA5 itself), difference assimilation, gust as a measurement of the wind aloft (-2 %), regime-dependent spread, terrain-based site calibration, balloon-fitted temperature spread, turbulence scaling aloft. The common lesson: the remaining ground-wind gap is a property of the SITE; it needs a record from the pad (one month gave -25 % in tests).
 - **Noise yardstick measured:** another training seed moves the mean skill15 by about 0.0005 and single bands by up to 0.003, so single-seed effects below that are not results.
 - **Bottom line now:** the atmosphere is better and better-calibrated than at the final test, and the Monte Carlo side is much more complete; apogee accuracy is still limited by the rocket model (5-8 % simulator over-prediction on the test flights) and by the lack of pad measurements.
+
+## 11. Update 2026-11-10: what the tool ships now (all 24 hours), checked on the shipped tool itself
+Section 10's "candidate, not yet shipped" is superseded: generator_80_c4w was exported on 2026-11-09 and replaced on 2026-11-10 by the all-hours model below. Everything here is development-window evidence (2024-25 ERA5 and balloons, mode F on 2022); the one-time 2026 July-October test (data downloaded, not touched) runs only when the user says the model is final.
+- **What ships** (`scripts/shipped_check.py`, read from the bundles):
+  | | NM/TX (`assets`) | Denver day (`assets_denver`, 06-21 h) | Denver night (`assets_denver_allhours`, used outside 06-21 h) |
+  |---|---|---|---|
+  | generator | l3_c4w, all 24 h, 21-level ERA5 | l3_blocal_c4w (Denver-trained) | a24den_c4w (Denver, all 24 h) |
+  | shuffle templates / shear map / lapse map | yes / yes / yes | yes / yes / yes | yes / yes / yes |
+  | forecast mode | v3 (00Z + 12Z refetch), 02-20 h solar | Denver mode F | Denver mode F |
+  | past mode | yes (night needs the night ERA5 store) | no (Denver balloons end 2022) | no |
+  | w head | all-hours (whead_a24) | Denver (whead_den) | Denver (whead_den) |
+  | gust law | physical, NM/TX | physical, Denver (DEN + APA one-minute) | same |
+  | time / distance correlation | yes | Denver's own | Denver's own |
+- **Night is served now** (it was refused): end-to-end audit (`scripts/tool_audit.py`, 120 held-out 2024-25 hours per set, skill against the 1991-2020 climatology): NM/TX day +0.033, night +0.025; Denver day +0.005, night +0.008; 90 % coverage 0.85-0.93. Against balloons at 12Z (about 05 h solar) the NM/TX model went from -0.021 (the day model extrapolating) to +0.016; at 00Z it is unchanged (+0.0099 -> +0.0102).
+- **Forecast mode:** the shipped mode F already had skill 0.67-0.74 at 1 day at 05 / 11 h solar (2022), so its window was widened from 14-20 h to 02-20 h; the retrained v3 adds +0.04..+0.06 at 05 h. Denver got its first forecast mode (0.68 / 0.57 / 0.43 / 0.26 at 1 / 3 / 5 / 7 days).
+- **Denver model replaced:** the previously shipped Denver bundle (a small 2016-21 model) scored below climatology (-0.115) on 2024-25; the Denver-trained model scores +0.017 and matches the ERA5 July temperature distribution.
+- **Caveats:** Denver's day and night sets are two models (the all-hours Denver model is 0.0004-0.0009 worse by day on ERA5 and there are no 2024-25 Denver balloons to referee); Denver's 18 km correlation column is copied from 16 km and its correlation nugget is borrowed from NM/TX; the Denver gust law transfers only moderately between its two airports; night radar conditioning helps less aloft (+20 % at 2.5-5 km vs +32 % by day).
