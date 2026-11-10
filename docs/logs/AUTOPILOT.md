@@ -614,3 +614,4 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-192: mode F ensemble features for the Denver mode F (same 00Z-every-8-days rows, wb2_ifs_ens): does the +2-3 % hold outside the NM/TX box? CPU only.
 - IL-193: feed the IFS ensemble spread as a spread-scaling input of the CLIMATE generator in past/forecast hybrid (spread-skill, ss 0.75 in mode F says the network is under-dispersed; the ensemble spread is direct evidence of the day's uncertainty).
 - IL-194: a 0-1 km tail correction fitted only on balloons before 2023 (the 2023+ 0-1 km balloon tail is inflated by the sonde change, IL-72) and checked on ASOS 1-minute winds, so the truth for the near-ground tail is not the contaminated one.
+- IL-192 prerequisite (2026-11-10 12:50): data/raw/wb2_ifs_ens covers only 31-34 N, 252-259 E (NM/TX box); a Denver test needs a new small WeatherBench2 IFS-ensemble pull for the Denver box (own folder, ledger, probe first) - network job for the next tick.
