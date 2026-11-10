@@ -237,3 +237,18 @@ The hybrid is the best of all variants on mean absolute error: 1.26 points bette
 - Ground-wind smoke (120 fit / 120 test cases, log `docs/results/logs/gw_smoke_2026-11-08.log`): 10 m wind CRPS climate 2.131, past 1.182, past + persistence 1 h 1.141, past with spread x1.1/1.3 1.167; same ordering and the same lessons as run 1 (240 cases: climate 1.838, past 1.126). The absolute values moved by up to 16 % between the two case samples (climate 1.84 -> 2.13), so a smoke run of 120 cases is too small to show a trend; compare variants within one run only.
 - Doc sync: `To-do-Concise.md` status block, `docs/data/DATA_NEEDS.md` section 6, AUTOPILOT rows IL-147 / IL-156, `FIVE_DAY_PLAN.md` boxes all updated.
 
+
+## 14. Rerun 2026-11-10 with the all-hours tool (same three flights, same frozen simulator, 100 atmospheres per variant)
+Installed tool of 2026-11-10 (NM/TX all-hours model l3_c4w with its post-processing, mode F v3, all-hours w head; past mode with the day + night ERA5 store; past scenarios assert past mode). Scripts are copies (`tempest_run/gen_atmospheres4.py`, `fly4.py`, `analyze4.py`; outputs `inputs4/`, `flights4.csv`, `summary4.md`), so the 2026-11-08 outputs are unchanged.
+
+| scenario | mean absolute error, 3 flights, 2026-11-08 | 2026-11-10 |
+|---|---|---|
+| S0 branch as filed | 5.21 % | 5.21 % |
+| A climate | 7.37 % | 7.32 % |
+| B past (ERA5 + balloons) | 5.80 % | 5.69 % |
+| C past + ASOS pinned | 5.89 % | 6.07 % |
+| D past + ASOS weighted | 5.97 % | 5.98 % |
+| E climate + ASOS weighted | 7.08 % | 6.95 % |
+| G past, wind spread x1.2 | 5.80 % | 5.68 % |
+
+**Plainly:** every change is within +-0.2 points, far inside what three flights can resolve (the branch estimates about 140 flights for 0.35 points). The model changes since 2026-11-08 (all-hours training, C4w, lapse map, new forecast and w components) did not disturb the daytime apogee path. The branch's own air (S0) still wins on average because the simulator reads 5-8 % high on Prometheus and Juno III; the atmosphere is a second-order input for apogee. All three flights are daytime launches, so this does not test the night path.
