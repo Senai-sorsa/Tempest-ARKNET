@@ -421,3 +421,9 @@ def test_observe_radar_conditions_the_profile_at_the_radar_levels_only_with_thei
     assert L._obs == {} and abs(np.median(s0["u"][:, j]) - np.median(s1["u"][:, j])) > 1.0                          # the original Launch is unchanged
     with pytest.raises(ValueError):
         L.observe_radar(profile=dict(heights_asl_m=[elev + 3000.0, elev + 4000.0, elev + 5000.0], u=[1, 2, 3], v=[0, 0, 0]))
+    with pytest.raises(ValueError, match="at least two levels"):                                                        # empty or ragged profile: a clear message, not a min() crash
+        L.observe_radar(profile=dict(heights_asl_m=[], u=[], v=[]))
+    with pytest.raises(ValueError, match="at least two levels"):
+        L.observe_radar(profile=dict(heights_asl_m=[elev + 500.0, elev + 1500.0], u=[1.0], v=[0.0, 0.0]))
+    Q = L.observe_radar(site="XYZ", profile={k: v for k, v in prof.items() if k != "site"})                                                                      # a radar not in the table: distance unknown, not 0 km
+    assert any(f.startswith("radar-wind-XYZ") and f.endswith("unknown-km") for f in Q._ensure_pool()["flags"])

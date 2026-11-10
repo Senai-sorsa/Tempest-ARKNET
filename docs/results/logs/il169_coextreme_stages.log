@@ -1,0 +1,26 @@
+2,000 rows 2024-2025, m = 199, seed 0; co-extreme ratio P(10 m wind > q95 and 0-1 km shear > q95) / 0.05 (1 = always together, 0.05 = independent)
+  truth rows (ERA5)                                          0.0700
+  climatology ensemble (ERA5, same groups)                   0.0732
+  templates (2-degree blocks)                                0.0683
+  model raw                                                  0.0201
+  + range calibration                                        0.0233
+  + shuffle                                                  0.0533
+  + shear map                                                0.0535
+  + lapse map (shipped stack)                                0.0535
+  climatology shuffled by the templates                      0.0627
+  IL-169(3): calibrated, shuffled in shear space (1 km)      0.0490
+  clim           wind10 q50 / q95 4.30 / 9.81 m/s   shear0-1km q50 / q95 4.65 / 12.34 m/s   rank corr +0.045
+  model shipped  wind10 q50 / q95 4.40 / 10.07 m/s   shear0-1km q50 / q95 4.63 / 12.33 m/s   rank corr +0.040
+2,000 rows 2024-2025, m = 199, seed 1; co-extreme ratio P(10 m wind > q95 and 0-1 km shear > q95) / 0.05 (1 = always together, 0.05 = independent)
+  truth rows (ERA5)                                          0.1300
+  climatology ensemble (ERA5, same groups)                   0.0676
+  templates (2-degree blocks)                                0.0678
+  model raw                                                  0.0189
+  + range calibration                                        0.0218
+  + shuffle                                                  0.0518
+  + shear map                                                0.0523
+  + lapse map (shipped stack)                                0.0523
+  climatology shuffled by the templates                      0.0652
+  IL-169(3): calibrated, shuffled in shear space (1 km)      0.0523
+  clim           wind10 q50 / q95 4.31 / 9.73 m/s   shear0-1km q50 / q95 4.69 / 12.43 m/s   rank corr +0.052
+  model shipped  wind10 q50 / q95 4.41 / 10.07 m/s   shear0-1km q50 / q95 4.68 / 12.39 m/s   rank corr +0.053

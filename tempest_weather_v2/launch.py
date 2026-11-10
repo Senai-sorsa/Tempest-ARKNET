@@ -414,8 +414,11 @@ class Launch:
         if site is None:
             site, dist = R.nearest(self.lat, self.lon)
         else:
-            lat_r, lon_r, _ = R.RADARS.get(site, (self.lat, self.lon, 0.0))
-            dist = math.hypot((lat_r - self.lat) * 111.0, (lon_r - self.lon) * 111.0 * math.cos(math.radians(self.lat)))
+            if site in R.RADARS:
+                lat_r, lon_r, _ = R.RADARS[site]
+                dist = math.hypot((lat_r - self.lat) * 111.0, (lon_r - self.lon) * 111.0 * math.cos(math.radians(self.lat)))
+            else:
+                dist = float("nan")                     # a radar not in R.RADARS: position unknown here, so the distance is reported as unknown (was 0 km)
         if profile is None:
             r = self.resolved_window()
             t = r.cells_utc[len(r.cells_utc) // 2].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
@@ -424,6 +427,8 @@ class Launch:
                 raise ValueError(f"no {site} radar wind profile within {max_age_min} min before {t:%Y-%m-%d %H:%M} UTC")
         elev = float(self.elevation_info()[0])
         z = [float(x) - elev for x in profile["heights_asl_m"]]
+        if not (len(z) == len(profile["u"]) == len(profile["v"])) or len(z) < 2:
+            raise ValueError(f"the {site} radar profile needs at least two levels with one u and one v each (got {len(z)} heights, {len(profile['u'])} u, {len(profile['v'])} v)")
         rad = {}
         for h in levels_m:
             if float(h) not in [float(x) for x in _core.HEIGHTS]:
@@ -434,7 +439,7 @@ class Launch:
             raise ValueError(f"the {site} profile ({min(z):.0f}-{max(z):.0f} m above the pad) covers none of the levels {list(levels_m)}")
         obs = dict(self._obs)
         obs["_radar"], obs["_radar_sigma"] = rad, float(sigma_ms or R.VAD_SIGMA_MS)
-        obs["_radar_src"] = f"{profile.get('site', site)} {profile.get('time', '')} {dist:.0f}km"
+        obs["_radar_src"] = f"{profile.get('site', site)} {profile.get('time', '')} " + (f"{dist:.0f}km" if math.isfinite(dist) else "unknown-km")
         return self.with_(_obs=obs)
 
     # physical limits of a surface observation: outside them the value is a typo, a wrong unit or a broken sensor, never weather. A real extreme (storm, heat wave, hard freeze) is INSIDE them and is trusted.
