@@ -1,0 +1,6 @@
+A1 paired persistence on the W6 hours (m/s CRPS / 90 % coverage), baselines fitted on ASOS 2016-22
+  TCS n 300 (fit n 23649, y = 0.61 + 0.83 x): linear persistence           CRPS 1.150  cov90 0.86
+  TCS n 300 (fit n 23649, y = 0.61 + 0.83 x): multiplicative persistence   CRPS 1.151  cov90 0.86
+  MAF n 300 (fit n 30044, y = 1.08 + 0.81 x): linear persistence           CRPS 0.949  cov90 0.86
+  MAF n 300 (fit n 30044, y = 1.08 + 0.81 x): multiplicative persistence   CRPS 0.958  cov90 0.89
+  Tool rows on the same hours (w6_observe_eval.log): TCS no obs 1.636 / soft 1.148 / speed-space 1.140; MAF no obs 1.480 / soft 1.016 / speed-space 0.987
