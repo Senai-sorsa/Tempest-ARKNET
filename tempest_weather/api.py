@@ -464,6 +464,8 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             w_site = _core.calibrate(A["wcalib"], w_all.reshape(groups, M_CAL, -1), clip=False).reshape(total, -1)[:n]
         else:
             w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng)
+        if not 6.0 <= sh <= 21.0:                                     # A24 (2026-11-10): the w head was trained on the 06-21 h day file only (models/whead_clean, pilot80_dpd + pilot80_w); at night it extrapolates
+            quality = quality + ["vertical-wind-w-trained-on-solar-06-21-h-only"]
     dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
     if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
         _core.site_shift(phys, dz_row)
