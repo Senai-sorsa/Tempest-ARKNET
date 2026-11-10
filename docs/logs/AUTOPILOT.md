@@ -588,3 +588,14 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-186: an ERA5-to-station 10 m wind correction learned from the ASOS one-minute archive (TCS, MAF, ELP, DEN, APA: 2016-2025 on disk), applied to the model-wind gust law input: attacks the 'ERA5 wind far below the airport wind' failure at both boxes; validate cross-station (leave one airport out).
 - IL-187 = IL-172 refocused: balloon templates for the 0-3 km columns (EPZ, MAF 00Z / 12Z) to lift the co-extremes toward the balloon rate, judged on balloons only.
 - IL-188: a Denver referee from another independent source: the Denver 1-minute ASOS (surface) and NEXRAD FTG VAD winds (aloft, Level III archive, small) for 2024-25, since the balloons stop in 2022.
+
+
+## SYNTHESIS 2026-11-10 09:57 (tick rule 5e, fifth block of session tempest-arknet-be)
+**What worked (numbers):** Denver radar referee (IL-188, 333 FTG volumes) confirmed the Denver day / night routing on real winds (day model better by 0.025 m/s paired); the three-flight rerun showed the day path undisturbed (all variants within +-0.2 points); G3 removed the repeated copula across blocks (rank agreement 0.45 -> 0.006) with unchanged marginals and joint statistics; IL-114 resolved by reasoning (climate mode cannot see assimilated test balloons; past mode can, so it is quoted on ASOS).
+**What failed or was neutral:** IL-187 balloon templates (small, site-specific; they also showed the co-extreme deficit is an EPZ problem, MAF already matches); the Jornada pull (EDI now requires a login for every download route); P6W earlier.
+**Mistakes caught:** my first von Karman synthesis normalised each profile by its own sample sd, which overstated the variance across profiles by 8-15 % (found from the rms comparison with Dryden, fixed with the spectrum's theoretical variance, test tightened; the flight run on the faulty fields was stopped by exact PID and restarted); six plan items finished but not ticked.
+**The pattern:** the gains now come from correctness and evidence (bugs, referees, audits), not from model tweaks; where an opt-in idea shows room on independent data (W6: the shipped observe() trails a station-fitted Weibull update by about 8 %, coverage 0.72 / 0.86), it is worth building, otherwise not.
+**New ideas in the working direction:**
+- IL-189: a variance-ratio check (realised sd / envelope sd per height) in the turbulence tests for every synthesis option, so a scaling bug cannot reach a flight run again.
+- IL-190: if W6's speed-space update wins, apply the same normal-score idea to the temperature observation (diurnal skew near the ground) and test on ASOS 2 m temperature persistence.
+- IL-191: tail-weighted scores (IL-107) as a standing column in compare_headline for every future verdict, so tail effects stop hiding inside skill15.
