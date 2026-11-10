@@ -1,5 +1,6 @@
 #!/bin/bash
-# FRESH ONE-TIME FINAL TEST, 2026 July-October (user approval 2026-11-09, ASK_LATER 14; the 2026 January-June test was spent on 2026-11-06). Runs ONCE: lock file
+# FRESH ONE-TIME FINAL TEST, 2026 July-October (user approval 2026-11-09, ASK_LATER 14; the 2026 January-June test was spent on 2026-11-06). Run it only when the user says the
+# model is FINAL (user 2026-11-09 23:30), never just because the data has arrived. Runs ONCE: lock file
 # data/FINAL_TEST_2026H2_DONE. Needs: CONFIRM_FINAL=yes bash scripts/final_test_2026h2.sh, and all 16 GRIB files of scripts/fetch_final_window.py in data/raw/era5_2026h2.
 # Nothing in it was chosen with these months: the flags are fixed below BEFORE the first run (the shipped stacks), the indices for October carry the last known WWV (September)
 # forward, which is what the tool does for any future query.
