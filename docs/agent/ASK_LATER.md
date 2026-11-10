@@ -117,9 +117,11 @@ Also (P7, optional): `rasterio` would let the site model use the NLCD land-cover
 - `tempest_weather_v2.launch.MEASURED_GUST_LAW = True`: after observe(wind_10m=...) the gust uses the law fitted on measured winds (storm gusts about 1.35 x instead of 2.4-4.8 x).
 - `Launch(past_era5_anchor=True)`: past mode centres the near-ground wind on ERA5 10 m (gain at four sites, -3 to -20 %).
 - Gust draws in `ranking.py` / `registry.py` clipped at the 10 m wind (by definition gust >= wind).
+- **ANSWERED 2026-11-09 23:50 (user): keep all four.**
 
 ## 18. Needs the user: open decisions (2026-11-09 late)
 - **Final test 2026 July-October:** data being downloaded and prepared; runs only when you say the model is final (`CONFIRM_FINAL=yes bash scripts/final_test_2026h2.sh`).
 - **Denver tool model:** the Denver-trained C4w passes on two training seeds (+0.0007 / +0.0004 mean skill15, t2m +0.004); re-exporting the Denver assets (now from the lighter generator_denver.pt) needs your OK.
 - **MetPy in pyproject:** installed with `uv pip` into the venv but not added to pyproject.toml; a `uv sync` would remove it (radar winds need it). Add it as a dependency?
+- **ANSWERED 2026-11-09 23:50 (user):** final test waits for "model is final" (the user will say when; report when the data is ready); Denver export with the Denver-trained C4w: YES (back up first); MetPy: add as an OPTIONAL extra (`radar`) in pyproject.toml.
 - Empty folder `tempest_weather/assets_c4w_staging` and three empty one-minute files (`data/raw/asos1min/LRU_*, ALM_*, PEQ_*`, 52 bytes, those stations have no one-minute data) can be removed by you (the rm guard blocks me).

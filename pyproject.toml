@@ -20,6 +20,10 @@ dependencies = [
     "zarr>=3",
 ]
 
+[project.optional-dependencies]
+# radar winds (tempest_weather_v2.radar, Launch.observe_radar): decodes NEXRAD Level III files. Install with the 'radar' extra.
+radar = ["metpy>=1.7.1"]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 
