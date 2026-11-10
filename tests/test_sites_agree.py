@@ -27,3 +27,19 @@ def test_acoustic_earth_flattening_is_opt_in_and_bends_long_rays_down():
     assert np.array_equal(np.nan_to_num(ra["y_north_m"]), np.nan_to_num(ra2["y_north_m"]))                    # default unchanged and deterministic
     steep_a, steep_b = ra["y_north_m"][0, 1], rb["y_north_m"][0, 1]
     assert np.isfinite(steep_a) and np.isfinite(steep_b) and 0 < abs(steep_b - steep_a) / steep_a < 0.02      # a steep ray changes, but by well under 2 % (0.55 % here)
+
+
+def test_coextreme_statistic_separates_dependent_from_independent_columns():
+    """G3b: mc.coextreme is about 1 when the 10 m wind and the 0-1 km shear rise together and about 0.05 when they are independent."""
+    import numpy as np
+    from tempest.scoring import mc
+    rng = np.random.default_rng(0)
+    n = 20000
+    p = np.zeros((n, 179))
+    a = np.abs(rng.standard_normal(n))                                               # one-sided driver: speed and shear magnitude both grow with it
+    j1 = int(np.argmin(np.abs(mc.HEIGHTS - 1000.0)))
+    p[:, mc.IU] = 5 + 2 * a                                                          # 10 m wind
+    p[:, mc.IU + j1] = p[:, mc.IU] + 3 * a                                           # shear grows with the wind: fully dependent
+    assert mc.coextreme(p) > 0.9
+    p[:, mc.IU + j1] = p[:, mc.IU] + 3 * rng.standard_normal(n)                      # independent shear
+    assert mc.coextreme(p) < 0.2

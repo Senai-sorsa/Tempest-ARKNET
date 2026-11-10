@@ -63,6 +63,17 @@ def violations(p, thr):
                 sfc_jump_gt_era5_999=sfc > thr["sfc"])
 
 
+def coextreme(p, q=0.95):
+    """G3b (Gemini A-3): P(10 m wind and the 10 m - 1 km vector shear both above their own q-quantile) / (1 - q) of a set of profiles (..., 179) pooled over all leading axes;
+    1 = always together, (1 - q) = independent. Balloons (EPZ, MAF, 00Z) give about 0.17, the tool about 0.07 (docs/GEMINI_BUGS_2026-11-09.md)."""
+    f = p.reshape(-1, p.shape[-1])
+    u, v = f[:, IU:IU + N], f[:, IV:IV + N]
+    j1 = int(np.argmin(np.abs(HEIGHTS - 1000.0)))
+    w = np.hypot(u[:, 0], v[:, 0])
+    sh = np.hypot(u[:, j1] - u[:, 0], v[:, j1] - v[:, 0])
+    return float(((w > np.quantile(w, q)) & (sh > np.quantile(sh, q))).mean() / (1 - q))
+
+
 def energy(x, y, sd, m=50):
     """Energy score of whole standardised columns, (N,) per row; first m members (pairs cost m^2)."""
     xs, ys = x[:, :m] / sd, y / sd
@@ -90,6 +101,10 @@ def write(stem, x, clim15, truth, cond, names, band_masks, w_list=(0.25, 0.5)):
     season = np.array(["DJF", "MAM", "JJA", "SON"])[((mon + 1) % 12) // 3]
     hour = np.arctan2(c["hour_sin"], c["hour_cos"]) % (2 * np.pi) / (2 * np.pi) * 24
     regime = np.char.add(season, np.where((hour >= 9) & (hour < 18), "_day", "_night"))
+    day = (hour >= 9) & (hour < 18)
+    for g, s_ in (("all", slice(None)), ("day", day), ("night", ~day)):     # G3b: co-extremes of near-ground wind and 0-1 km shear, model pool vs the truth rows (ref)
+        if (np.ones(len(truth), bool)[s_]).sum() >= 400:
+            add("coextreme", g, "wind10_shear0_1km_q95", coextreme(x[s_]), coextreme(truth[s_]))
     sd = np.where(truth.std(0) > 1e-6, truth.std(0), 1.0)
     es_x, es_c = energy(x, truth, sd), energy(clim15, truth, sd)
     for g in ["all"] + sorted(set(regime)):
