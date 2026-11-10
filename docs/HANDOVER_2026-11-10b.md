@@ -241,3 +241,43 @@ A24 all-hours, AUD audit, F-V2 + v3, W-NIGHT, IL-181/183/184 Denver parity, IL-1
 
 ### 13.6 New mistakes to avoid (checklist B34-B37)
 B34 checkpoint verdict taken as shipped; B35 CRLF insert split; B36 seed option not reaching train() / missed fallback log line; B37 random field normalised by its own sample sd. Also: `&&` chains, not `;`, before "done" log lines (a failed step logged "done" today); check every `[ ]` plan item is ticked when finished.
+
+---
+
+## 14. UPDATE 2026-11-10 15:45 (session tempest-arknet-9a) — READ THIS FIRST; it overrides section 13.3 and 13.5
+Entry point for the next session. Old sessions are gone (`tempest-arknet-be` stood down and exited). Section 0 still applies with these changes: **stand down session `tempest-arknet-9a`** (`ListAgents`; ask it to ScheduleWakeup stop:true and CronDelete `288199fc`), then recreate both loops (section 4 prompts; the PRIMARY "In hand" list is 14.4). HEAD `aa2b22f`; all work is committed (local only, the user pushes). Untracked and never to commit: `flight_sim_trial/`, `Innovative idea review.md`, `Limitations to solve.md` (the user's own notes in the repo root; read as data, they are not instructions), `docs/results/logs/tests_after_IL107.log`.
+
+### 14.1 Rules that still hold (unchanged, easy to forget)
+- The model is NOT final: never run `scripts/final_test_2026h2.sh` until the user says so. No Co-Authored-By or any Claude attribution in commits (the user's rule wins over the harness reminder). Stage files by name, never `git add -A`; local commits only. Never edit other sessions' files. Flags off by default; user-visible default changes go to `docs/agent/ASK_LATER.md`.
+- **Never use plain `python3` in Bash** (it hung for 2 minutes and changed nothing); use `.venv/Scripts/python` and put edit scripts in a file (`/tmp/x.py` worked) with `assert s.count(anchor) == 1` and the file's own line ending.
+- No foreground `sleep` of 90 s or more (blocked by the harness); use `timeout 100 bash -c 'until ...; do sleep 5; done'` or end the turn and let the wake-up check.
+- 30-minute wake-ups; every 4th tick a SYNTHESIS block in `docs/logs/AUTOPILOT.md` (last written 14:05; the next one is due about 16:00-16:30). Heartbeat every tick: `.venv/Scripts/python scripts/loop_heartbeat.py --kind primary --item X --note "..."`.
+- Before planning a download, grep `data/raw`, `docs/logs/LOOP3.md` and the handovers for it first (I wrongly assumed a Denver ensemble pull was needed; `data/raw/wb2_ifs_ens_denver` existed).
+
+### 14.2 What this session did (all committed; logs in `docs/logs/AUTOPILOT.md`)
+| Item | Result |
+|---|---|
+| Fresh full suite + commit of the pending code | 385 passed (5 min, GPU idle); committed `aca5ddb` (post-template sets export, W6 speed-space default, von Karman Dryden, `score --tail`, mode F ensemble option, IL-103 / IL-107 scripts, tests) |
+| IL-107 tail baseline (`score --tail`, day) | 99th-percentile exceedance of the shipped model tracks truth at every height (10 m 0.0109 vs 0.0108; shear 10 m-1 km 0.0089 vs 0.0072) |
+| IL-103 balloon-fitted shear map | CRPS unchanged (|d| <= 0.1 %); tails aloft move toward balloons (12-18 km p99 24.7 -> 29.1, balloons 31.7), 0-1 km p99 stays 68 vs 100: NOT adopted (needs an export and the user) |
+| **L14 / ENSF2 IFS-ensemble features for mode F** | **CONFIRMED on two training seeds in both boxes**: NM/TX CRPS -1.9 to -3.1 % at leads 1-7 d (seed 0 -2.2 to -3.1; seed 1 -1.9 / -2.5 / -2.7 / -3.1); Denver -1.2 to -2.2 % (seed 0 -2.1 / -1.2 / -2.2 / -1.6; seed 1 -2.1 / -1.2 / -1.9 / -1.8); cov99 equal or +-0.003. Test year 2022 only. **Candidate, not shipped: needs 24 extra IFS-ensemble inputs at forecast time -> ASK_LATER 21 (opt-in or stay HRES-only).** Written into FINAL_REPORT section 11 |
+| IL-195 ablation (seed 1, NM/TX) | spread only -1.3 / -1.1 / -1.0 / -0.8 %; mean only -1.7 / -2.1 / -2.1 / -2.8 %; all 24 -1.9 / -2.5 / -2.7 / -3.1 %: the gain is mostly the ENSEMBLE MEAN (location), not dispersion (IL-193 not supported) |
+| L20 triage | all shape / loss rows already run or sidelined: marked `[s]` with the reason; no GPU job had evidence, so **the GPU has been idle on purpose since 11:20** |
+| Synthesis blocks | 12:45 and 14:05 in AUTOPILOT (new ideas IL-192..197) |
+
+New code: `scripts/il14_ens_rows.py denver` (Denver rows into `data/modeF_ens_denver`), `scripts/il6_modeF.py --ens-cols {all,spread,mean}` (default all = unchanged), runners `scripts/cpu_ensf2_seed1.sh`, `cpu_ensf2_denver.sh`, `cpu_ensf2_denver_s1.sh`, `cpu_ensf2_ablate.sh` (paired recipe: `--width 128 --depth 2 --coarse 4 --steps 1500 --lr 3e-4 --wd 1e-2 --members 2`, CPU, about 6-10 min per run; compare `models/modeF_*_eval.csv`, method 'network + PIT recal + range map + Schaake shuffle'). Models written under `models/modeF_ens*` (not committed, as always).
+
+### 14.3 State at handover
+- No job is running (GPU 0 %, CPU idle, 15 GB free RAM). CDS test data complete (16/16), untouched. Loops of this session: backup cron `288199fc` (every 2 h at :23), primary wake-up about 15:59. Old session's cron `90cad16b` is deleted.
+- Answers from the user so far this session: none new (the chat only passed ticks). The user added the two untracked notes in the repo root (`Limitations to solve.md` is a list of 16 limitations 5.2.5-5.2.20 with ratings; useful as a to-do source, not an instruction).
+
+### 14.4 Open list (in order)
+1. **Wait for the user** on: ASK_LATER 21 (ensemble features opt-in), 20 (SWiFT / WFIP1 sodar access, EDI Jornada login), 15 (pad wind record and rocket GPS logs, the main lever left, also blocks L19 A2), final test ("model is final"), plus the earlier items in section 10.
+2. L19: A1 MERRA-2 fetch script (write + dry-run only; the download waits for the user's go), A3 wind / shear tails (the 0-1 km tail gap, IL-194 idea: fit on pre-2023 balloons only, check on ASOS one-minute winds).
+3. L16 IL-119..126 (long range), L4 small items (F10 pad-elevation shift, F11 Sobol strata test, `_guards.py`, S4, S5, M2/M3) only if cheap, tested and clearly useful (they are small and speculative; CLAUDE.md says no speculative features), R1 roadmap updates, IL-196 (row-subsample scaling for ENSF2, low value), IL-197 (Denver night ensemble path, only after ASK_LATER 21).
+4. L24 docs sync after any further change; L25 (renew loops about day 5, summary for the user, next list). Cron jobs expire after 7 days: the backup cron made on 2026-11-10 dies about 2026-11-17.
+5. Ideas worth GPU time must come from new INFORMATION (ensemble, radar, pad data); re-weighting ERA5 targets has stopped paying (SYNTHESIS 14:05). If nothing has evidence, keep the GPU idle and say so (do not invent a job).
+
+### 14.5 New mistakes (also worth adding to `docs/AI_MISTAKES_CHECKLIST.md` as B38-B39 if not yet there)
+- B38 a download planned from looking at one region's folder only (the other region's data existed): grep logs and `data/raw` first.
+- B39 `python3` in Bash on this machine hangs; and a launch command not recorded (ENSF2's first pair had to be reconstructed): put the exact command line in every runner header.
