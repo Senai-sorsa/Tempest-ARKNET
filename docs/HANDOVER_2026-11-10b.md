@@ -281,3 +281,4 @@ New code: `scripts/il14_ens_rows.py denver` (Denver rows into `data/modeF_ens_de
 ### 14.5 New mistakes (also worth adding to `docs/AI_MISTAKES_CHECKLIST.md` as B38-B39 if not yet there)
 - B38 a download planned from looking at one region's folder only (the other region's data existed): grep logs and `data/raw` first.
 - B39 `python3` in Bash on this machine hangs; and a launch command not recorded (ENSF2's first pair had to be reconstructed): put the exact command line in every runner header.
+- IL-194 run in progress at handover time: log docs/results/logs/il194_shear_2021_22.log (see AUTOPILOT 15:55); read it first on the next tick.

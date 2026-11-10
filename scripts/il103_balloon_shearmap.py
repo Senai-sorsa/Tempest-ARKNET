@@ -61,15 +61,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fit-per-group", type=int, default=800)
     ap.add_argument("--test-per-group", type=int, default=800)
+    ap.add_argument("--test-years", type=int, nargs=2, default=[2024, 2025], help="IL-194: held-out balloon years (default 2024 2025 = as before; 2021 2022 = before the 2023 sonde change)")
     ap.add_argument("--out", default="docs/results/logs/il103_balloon_shearmap.log")
     a = ap.parse_args()
     rng = np.random.default_rng(0)
     xf, yf = collect((2005, 2020), a.fit_per_group, rng)
     table = shear_map.fit(xf, yf)
     np.savez(os.path.join(REPO, "models", "il103_balloon_shearmap.npz"), **table)
-    xt, yt = collect((2024, 2025), a.test_per_group, rng)
+    xt, yt = collect(tuple(a.test_years), a.test_per_group, rng)
     xb = shear_map.apply(table, xt)
-    lines = [f"IL-103 balloon-fitted shear map: fit {len(yf)} balloons 2005-20, test {len(yt)} balloons 2024-25 (EPZ + MAF, 00Z + 12Z), installed tool, climate mode",
+    lines = [f"IL-103 balloon-fitted shear map: fit {len(yf)} balloons 2005-20, test {len(yt)} balloons {a.test_years[0]}-{a.test_years[1]} (EPZ + MAF, 00Z + 12Z), installed tool, climate mode",
              "shear (m/s per km) p50 / p99 / p99.9 by band: model | model + balloon map | balloons"]
     qs = [0.5, 0.99, 0.999]
     qm, qb, qo = shear_q(xt, qs), shear_q(xb, qs), shear_q(yt[:, None, :], qs)
