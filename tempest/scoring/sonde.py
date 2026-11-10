@@ -46,6 +46,7 @@ def main():
     ap.add_argument("--calib", help="range calibration from tempest.calibrate.spread (outputs get a _cal suffix)")
     ap.add_argument("--first-test-year", type=int, help="score only from this year (keep the calibration year out)")
     ap.add_argument("--last-test-year", type=int, help="score only up to this year")
+    ap.add_argument("--hour", type=int, default=0, choices=[0, 12], help="A24 (2026-11-10): launch hour of the scored AND climatology soundings, 0 = 00Z (about 17 h solar, the default) or 12 = 12Z (about 05 h solar, night; outputs get a _12z suffix)")
     ap.add_argument("--first-test-month", type=int, help="with --first-test-year: score only soundings from this month of the first test year on (the 2026 July-October final window; 2026 January-June was already used)")
     ap.add_argument("--station-calib-year", type=int, help="also fit a balloon range calibration (pooled per variable x "
                     "height band) on this year's soundings and apply it on top; must be before --first-test-year")
@@ -127,15 +128,15 @@ def main():
     for sid, (slat, slon) in STATIONS.items():
         t, prof, sfc = read_igra(f"{a.igra}/{sid}-drvd.txt.zip", a.first_year, last)
         phys = np.concatenate([prof.reshape(len(t), -1), sfc], 1)
-        ok = (t.hour == 0) & np.isfinite(phys).all(1)
-        late = np.asarray(t.year >= start) & np.asarray(t.hour == 0)
-        print(f"{sid}: {int((late & ~ok).sum())} of {int(late.sum())} held-out 00Z soundings dropped as incomplete "
+        ok = (t.hour == a.hour) & np.isfinite(phys).all(1)
+        late = np.asarray(t.year >= start) & np.asarray(t.hour == a.hour)
+        print(f"{sid}: {int((late & ~ok).sum())} of {int(late.sum())} held-out {a.hour:02d}Z soundings dropped as incomplete "
               "(shortcut: scored on complete ones only; per-height scoring would keep them)", flush=True)
         t, phys = t[ok], phys[ok]
         tr, va = np.flatnonzero(t.year < held_from), np.flatnonzero(t.year >= start)
         if a.first_test_month:                                                         # only the months from first_test_month of the first test year on (later years whole)
             va = va[(t.year[va] > held_from) | (t.month[va] >= a.first_test_month)]
-        print(f"{sid}: {len(va):,} complete held-out 00Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
+        print(f"{sid}: {len(va):,} complete held-out {a.hour:02d}Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
         p = nearest_point(ds, slat, slon)
         lat, lon, z = (float(ds[k].values[p]) for k in ("lat", "lon", "z_sfc"))
         for mo in range(1, 13):
@@ -233,7 +234,7 @@ def main():
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "") + ("_12z" if a.hour == 12 else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]

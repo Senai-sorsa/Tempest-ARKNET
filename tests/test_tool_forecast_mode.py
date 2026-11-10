@@ -51,8 +51,10 @@ def test_forecast_mode_answers_inside_the_window():
 
 
 def test_fallback_outside_the_tested_hours_and_leads_and_on_fetch_failure():
-    early = tw.values(32.9, -106.9, "2026-11-08T09:00", ["T@2000"], n=199, now=NOW, fetch=canned)       # 09 h solar: not in 14-20
-    assert early["mode"] == "ai" and any("solar-hours" in q for q in early["quality"])
+    late = tw.values(32.9, -106.9, "2026-11-08T20:30", ["T@2000"], n=199, now=NOW, fetch=canned)       # 20.5 h solar: outside the forecast window 02-20 h, inside the climate model's 06-21 h
+    assert late["mode"] == "ai" and any("solar-hours" in q for q in late["quality"])
+    morning = tw.values(32.9, -106.9, "2026-11-08T09:00", ["T@2000"], n=199, now=NOW, fetch=canned)    # F-V2: 09 h solar is served by forecast mode since 2026-11-10 (tested at 05 / 11 / 17 h)
+    assert morning["mode"] == "forecast"
     far = tw.values(32.9, -106.9, "2026-11-20T17:00", ["T@2000"], n=199, now=NOW, fetch=canned)         # 15 days ahead
     assert far["mode"] == "ai" and any("lead-outside" in q for q in far["quality"])
 

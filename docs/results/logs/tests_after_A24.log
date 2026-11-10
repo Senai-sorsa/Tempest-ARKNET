@@ -1,0 +1,22 @@
+........................................................................ [ 19%]
+........................................................................ [ 38%]
+........................................................................ [ 57%]
+........................................................................ [ 76%]
+........................................................................ [ 95%]
+.................                                                        [100%]
+============================== warnings summary ===============================
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+  C:\Users\Senai\Tempest-ARKNET\.venv\Lib\site-packages\zarr\api\asynchronous.py:260: ZarrUserWarning: Consolidated metadata is currently not part in the Zarr format 3 specification. It may not be supported by other zarr implementations and may change in the future.
+    warnings.warn(
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:157: RuntimeWarning: invalid value encountered in divide
+    put(f"skill_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim"])
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:159: RuntimeWarning: invalid value encountered in divide
+    put(f"skill15_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim15"])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+377 passed, 4 warnings in 454.25s (0:07:34)

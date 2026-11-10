@@ -37,10 +37,14 @@ ap.add_argument("--wd", type=float, default=1e-4)
 ap.add_argument("--lr", type=float, default=1e-3)
 ap.add_argument("--coarse", type=int, default=1, help="use every k-th height of the forecast profile as network input")
 ap.add_argument("--noise-dim", type=int, default=16)
+ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
 torch.manual_seed(0)
-yrs = {y: dict(np.load(f"data/modeF/{y}.npz")) for y in range(2016, 2023)}
+yrs = {y: dict(np.load(f"{a.rows_dir}/{y}.npz")) for y in range(2016, 2023)}
+for y, d_ in yrs.items():                                                    # F-V2: lead groups (identity for the old whole-day rows)
+    d_["lead_bin"] = F.lead_bin(d_["lead_days"])
+    yrs[y] = {k: v[d_["lead_bin"] > 0] for k, v in d_.items()}
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 tr, cal, te = cat(range(2016, 2021)), cat([2021]), cat([2022])
 def sub(d, n):
@@ -68,7 +72,7 @@ def draw_net(d):
 
 # alignment guard: forecast error must grow with lead time, otherwise forecast and truth are not the same cases
 _e = np.abs(te["obs"] - te["hres"]).mean((1, 2))
-_m = [_e[te["lead_days"] == L].mean() for L in (1, 7)]
+_m = [_e[te["lead_bin"] == L].mean() for L in (1, 7)]
 assert _m[0] < _m[1], f"raw forecast error does not grow with lead ({_m}): arrays misaligned?"
 truth_cal, truth = cal["obs"].reshape(len(cal["obs"]), -1), te["obs"].reshape(len(te["obs"]), -1)
 table = P.fit_calibration(draw_net(cal), truth_cal, rng)
@@ -84,14 +88,14 @@ hres = te["hres"].reshape(len(truth), -1)
 res_tr = (tr["obs"] - tr["hres"]).reshape(len(tr["obs"]), -1)
 pool = np.empty((len(truth), m, F.D), np.float32)
 for i in range(len(truth)):
-    ok = np.flatnonzero(tr["lead_days"] == te["lead_days"][i])
+    ok = np.flatnonzero(tr["lead_bin"] == te["lead_bin"][i])
     pool[i] = hres[i] + res_tr[rng.choice(ok, m)]
 x_pool = F.to_physical(hres, pool - hres[:, None])
 # linear (ridge) per lead + error pool of its own residuals
 lin = np.empty((len(truth), m, F.D), np.float32)
 h_tr = tr["hres"].reshape(len(tr["obs"]), -1)
 for L in (1, 3, 5, 7):
-    ktr, kte = tr["lead_days"] == L, te["lead_days"] == L
+    ktr, kte = tr["lead_bin"] == L, te["lead_bin"] == L
     mu, sd = h_tr[ktr].mean(0), h_tr[ktr].std(0) + 1e-6
     Z = np.concatenate([(h_tr[ktr] - mu) / sd, np.ones((ktr.sum(), 1))], 1)
     W = np.linalg.solve(Z.T @ Z + 200.0 * np.eye(Z.shape[1]), Z.T @ tr["obs"].reshape(len(tr["obs"]), -1)[ktr])
@@ -131,7 +135,7 @@ for name, x in methods.items():
     cov = (coverage90(x, truth, 0.99).astype(float) @ masks) if x.shape[1] > 2 else np.full((len(truth), len(bands)), np.nan)
     tv = M.pit_tv(M.pit_values(x, truth, rng)) if x.shape[1] > 2 else np.full(truth.shape[1], np.nan)
     for L in (1, 3, 5, 7):
-        k = te["lead_days"] == L
+        k = te["lead_bin"] == L
         for b, (v, band, sel) in enumerate(bands):
             rows.append(dict(method=name, lead=L, var=v, band=band, crps=crps[k, b].mean(), mae=mae[k, b].mean(), cov99=cov[k, b].mean(), pit_tv=np.nan))
 t = pd.DataFrame(rows)
@@ -159,7 +163,7 @@ try:
     for name in (*H2, "blend: network + shuffle / ridge 50:50", "network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
         x = methods[name]
         for L in (1, 3, 5, 7):
-            k = te["lead_days"] == L
+            k = te["lead_bin"] == L
             xs, ys = x[k], truth[k]
             pit = M.pit_values(xs, ys, rng)
             tv = M.pit_tv(pit).mean()

@@ -27,8 +27,8 @@ H = np.asarray(_core.HEIGHTS, float)
 BANDS = [("0.5-1 km", 500, 1000), ("1-2 km", 1000, 2000), ("2-5 km", 2000, 5000), ("5-10 km", 5000, 10000)]
 
 
-def fetch(day, radar="EPZ"):
-    pre = f"{radar}_NVW_{day:%Y_%m_%d}_23"
+def fetch(day, radar="EPZ", hour=23):        # hour (A24, 2026-11-10): 23 = the volume before the 00Z balloon (default), 11 = before the 12Z balloon
+    pre = f"{radar}_NVW_{day:%Y_%m_%d}_{hour:02d}"
     with urllib.request.urlopen(BUCKET + f"?list-type=2&prefix={pre}", timeout=60) as r:
         keys = re.findall(r"<Key>([^<]+)</Key>", r.read().decode())
     if not keys:

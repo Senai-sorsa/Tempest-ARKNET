@@ -193,7 +193,8 @@ def main():
             arrays[f"modef_bl/{k}"] = bl[k]
         arrays["modef/coarse"] = np.array(a.modef_coarse)
         rows = [np.load(os.path.join(a.modef_rows, f"{y}.npz")) for y in range(2016, 2021)]       # training years only
-        lead = np.concatenate([r["lead_days"] for r in rows])
+        from tempest.forecast.modeF import lead_bin
+        lead = lead_bin(np.concatenate([r["lead_days"] for r in rows]))                         # F-V2: tested-lead groups (identity for the old whole-day rows; > 7.5 d -> 0, unused)
         err = np.concatenate([(r["obs"] - r["hres"]).reshape(len(r["obs"]), -1) for r in rows])
         rng = np.random.default_rng(0)
         for L in (1, 3, 5, 7):
@@ -222,8 +223,13 @@ def main():
     ds = xr.open_zarr(a.profiles)
     np.savez(os.path.join(a.out, "grid.npz"), lat=ds.lat.values.astype(np.float32), lon=ds.lon.values.astype(np.float32), elev=ds.z_sfc.values.astype(np.float32))
     files = ["model.npz", "indices.npz", "grid.npz"]
+    src = torch.load(a.model, map_location="cpu", weights_only=True)            # 2026-11-10: the years come from the checkpoint and calibration (a fixed "1991-2023" string mislabelled the 2016-21 Denver model)
+    src = src.get("members", [src])[0]
+    ty, vy = src.get("train_years"), src.get("val_years_range")
+    trained_years = (f"{ty[0]}-{ty[1]} (validation {vy[0]}-{vy[1]})" if ty is not None and vy is not None else "unknown (not recorded in the checkpoint)")
+    calibration_fit = (f"up to {int(cal['fit_year'])}, m = {int(cal['m'])}" if "fit_year" in cal.files and "m" in cal.files else "unknown (not recorded in the calibration)")
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
-                    trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
+                    trained_years=trained_years, calibration_fit=calibration_fit, model_source=os.path.basename(a.model),
                     source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], solar_hours=solar_hours, files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:

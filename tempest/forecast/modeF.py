@@ -102,6 +102,73 @@ def load_year(year, ds, hres_dir="data/raw/wb2_hres", n_points=60, seed=0, bl=No
     return {k: v[ok] for k, v in out.items()}
 
 
+def load_year_v2(year, ds, hres_dir="data/raw/wb2_hres_v2", n_points=16, seed=0, bl=None, starts=("00z", "12z")):
+    """F-V2 (2026-11-10): rows like load_year from the 00Z + 12Z refetch (monthly files `<yyyymm>_<start>.nc`, prediction_timedelta in HOURS, valid 00 / 12 / 18 UTC).
+    Extra fields: lead_hours, start_hour (0 / 12 UTC), valid_utc_hour; lead_days becomes lead_hours / 24 (fractional). Valid times the ERA5 store lacks are dropped.
+    n_points grid points are drawn per forecast and lead (30 leads per start, so 16 points give about as many rows per year as the old 60 x 4 leads x 2)."""
+    import os
+    parts = []
+    for mo in range(1, 13):
+        for st in starts:
+            f = f"{hres_dir}/{year}{mo:02d}_{st}.nc"
+            if not os.path.exists(f):
+                continue
+            h = xr.open_dataset(f)
+            init = h.time.values
+            td = h.prediction_timedelta.values.astype("timedelta64[h]")
+            valid = init[:, None] + td[None, :]
+            vt = np.unique(valid.ravel())
+            tidx = ds.get_index("time").get_indexer(vt)
+            vt = vt[tidx >= 0]
+            tidx = tidx[tidx >= 0]
+            if not len(vt):
+                continue
+            truth = {v: ds[v].isel(time=tidx).values for v in PROFILE}
+            pl, pn = ds.lat.values, ds.lon.values
+            la_all = np.round((h.latitude.values[None, :] - pl[:, None]), 3) == 0
+            lo_all = np.round((h.longitude.values[None, :] - 360.0 - pn[:, None]), 3) == 0
+            assert la_all.any(1).all() and lo_all.any(1).all(), "a store point has no matching HRES grid latitude / longitude"
+            assert (la_all.sum(1) == 1).all() and (lo_all.sum(1) == 1).all(), "duplicate HRES grid matches"
+            pt_la, pt_lo = la_all.argmax(1), lo_all.argmax(1)
+            zs = ds.z_sfc.values.astype(float)
+            rng = np.random.default_rng(seed + year * 100 + mo * 2 + (st == "12z"))
+            ok_v = np.isin(valid, vt)
+            cc, jj = np.nonzero(ok_v)
+            case = np.repeat(cc, n_points)
+            lead = np.repeat(jj, n_points)
+            pt = np.concatenate([rng.choice(len(pl), n_points, replace=False) for _ in range(len(cc))]) if len(cc) else np.zeros(0, int)
+            if not len(case):
+                continue
+            hp = forecast_profiles(h, case, lead, pt_la[pt], pt_lo[pt], zs[pt] * 9.80665, bl)
+            lapse, dpd_low, _ = boundary_inputs(h, case, lead, pt_la[pt], pt_lo[pt], zs[pt] * 9.80665)
+            ti = np.searchsorted(vt, valid[case, lead])
+            obs = np.stack([truth[v][pt, ti] for v in PROFILE], 1)
+            hres = np.stack([hp[v] for v in PROFILE], 1)
+            ok = np.isfinite(obs).all((1, 2)) & np.isfinite(hres).all((1, 2))
+            vv = valid[case, lead]
+            lh = td[lead].astype(int)
+            out = dict(year=np.full(len(case), year), valid=vv, lead_days=(lh / 24.0).astype(np.float32), lead_hours=lh, start_hour=np.full(len(case), 12 if st == "12z" else 0),
+                       valid_utc_hour=(vv.astype("datetime64[h]").astype(np.int64) % 24), lat=pl[pt], lon=pn[pt], z_sfc=zs[pt], doy=pd.DatetimeIndex(vv).dayofyear.to_numpy(),
+                       hres=hres.astype(np.float32), obs=obs.astype(np.float32), init_day=pd.DatetimeIndex(init[case]).dayofyear.to_numpy(), lapse_low=lapse.astype(np.float32),
+                       dpd_low=dpd_low.astype(np.float32))
+            parts.append({k: v[ok] for k, v in out.items()})
+            h.close()
+    if not parts:
+        raise FileNotFoundError(f"no {hres_dir}/{year}MM_<start>.nc files with valid times in the ERA5 store")
+    return {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
+
+
+def lead_bin(lead_days):
+    """F-V2: the tested lead (1, 3, 5, 7 days) each lead belongs to: < 2 d -> 1, 2-4 -> 3, 4-6 -> 5, 6-7.5 -> 7, beyond 7.5 d -> 0 (not used). Whole-day leads 1 / 3 / 5 / 7 map to themselves."""
+    x = np.asarray(lead_days, float)
+    return np.where(x < 2.0, 1, np.where(x < 4.0, 3, np.where(x < 6.0, 5, np.where(x <= 7.5, 7, 0)))).astype(int)
+
+
+def solar_hour(d):
+    """Mean solar hour of each row's valid time (UTC hour + lon / 15)."""
+    return (np.asarray(d["valid_utc_hour"], float) + np.asarray(d["lon"], float) / 15.0) % 24.0
+
+
 def cond_matrix(d, coarse=1):
     """Network inputs: place, season, lead, and the forecast profile (every `coarse`-th height of each variable: fewer columns, less overfitting)."""
     a = 2 * np.pi * d["doy"] / 365.25

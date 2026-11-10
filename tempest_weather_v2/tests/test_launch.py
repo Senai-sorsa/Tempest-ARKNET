@@ -427,3 +427,18 @@ def test_observe_radar_conditions_the_profile_at_the_radar_levels_only_with_thei
         L.observe_radar(profile=dict(heights_asl_m=[elev + 500.0, elev + 1500.0], u=[1.0], v=[0.0, 0.0]))
     Q = L.observe_radar(site="XYZ", profile={k: v for k, v in prof.items() if k != "site"})                                                                      # a radar not in the table: distance unknown, not 0 km
     assert any(f.startswith("radar-wind-XYZ") and f.endswith("unknown-km") for f in Q._ensure_pool()["flags"])
+
+
+def test_launch_window_follows_the_assets_solar_hours(monkeypatch):
+    """A24: the launch window is cut to the solar hours the SERVING assets were trained for (manifest solar_hours), not to a fixed 06-21 h, so an all-hours export serves night launches."""
+    from tempest_weather import api
+    from tempest_weather_v2 import timeutil
+    night = "2027-06-16 02:00"                                                       # about 01 h solar at Spaceport America
+    with pytest.raises(timeutil.WindowError):                                       # today's bundled assets are 06-21 h
+        Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window()
+    real = api._assets
+    monkeypatch.setattr(api, "_assets", lambda path=None: {**real(path), "manifest": {**real(path)["manifest"], "solar_hours": [0.0, 24.0]}})
+    monkeypatch.setattr(api, "region_solar_window", lambda lat, lon, root=None: (0.0, 24.0))          # as if an all-hours set covered the place
+    r = Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window()
+    assert len(r.cells_utc) >= 1
+    assert Launch(32.99, -106.97, "2027-06-16 23:59", tz="America/Denver", n=50)._solar_window()[1] > 24.0   # 24 h keeps the last minute (resolve keeps sh < hi)

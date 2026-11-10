@@ -102,15 +102,36 @@ def regions(root=None):
     return out
 
 
-def region_assets(lat, lon, root=None):
-    """Folder of the asset set whose trained area contains (lat, lon); the default `assets` first, then the others alphabetically. None if no set covers the point."""
+def _solar_window(root, name):
+    try:
+        lo, hi = json.load(open(os.path.join(root, name, "manifest.json"), encoding="utf-8")).get("solar_hours", [6.0, 21.0])
+        return float(lo), float(hi)
+    except (OSError, ValueError):
+        return 6.0, 21.0
+
+
+def region_assets(lat, lon, root=None, solar_hour=None):
+    """Folder of the asset set whose trained area contains (lat, lon); the default `assets` first, then the others alphabetically. None if no set covers the point.
+    A24 (2026-11-10): with `solar_hour`, among the sets that cover the point the one whose manifest solar_hours contain that hour is chosen, the NARROWEST window first (a day
+    specialist by day, an all-hours set at night); if none contains it, the first covering set as before (which then refuses the hour with its own message)."""
     root = root or HERE
     reg = regions(root)
-    for name in sorted(reg, key=lambda n: (n != "assets", n)):
-        a = reg[name]
-        if a["lat"][0] <= lat <= a["lat"][1] and a["lon"][0] <= lon <= a["lon"][1]:
-            return os.path.join(root, name)
-    return None
+    cover = [n for n in sorted(reg, key=lambda n: (n != "assets", n)) if reg[n]["lat"][0] <= lat <= reg[n]["lat"][1] and reg[n]["lon"][0] <= lon <= reg[n]["lon"][1]]
+    if not cover:
+        return None
+    if solar_hour is not None:
+        fits = [n for n in cover if _solar_window(root, n)[0] <= float(solar_hour) <= _solar_window(root, n)[1]]
+        if fits:
+            return os.path.join(root, min(fits, key=lambda n: (_solar_window(root, n)[1] - _solar_window(root, n)[0], cover.index(n))))
+    return os.path.join(root, cover[0])
+
+
+def region_solar_window(lat, lon, root=None):
+    """A24: the union of the solar-hour windows of every asset set that covers (lat, lon) -> (lo, hi), or None (no set covers the point). Windows are assumed to overlap or touch."""
+    root = root or HERE
+    reg = regions(root)
+    w = [_solar_window(root, n) for n in reg if reg[n]["lat"][0] <= lat <= reg[n]["lat"][1] and reg[n]["lon"][0] <= lon <= reg[n]["lon"][1]]
+    return (min(x[0] for x in w), max(x[1] for x in w)) if w else None
 
 
 def _assets(path=None):
@@ -298,7 +319,9 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
 
 
 FORECAST_LEAD = (0.75, 7.5)       # days: the leads mode F was tested at are 1, 3, 5 and 7
-FORECAST_SOLAR = (14.0, 20.0)     # hours of local solar time: the archived cases are all valid at 00 UTC, about 17 h solar in the box (AUTOPILOT F-8a)
+FORECAST_SOLAR = (2.0, 20.0)      # hours of local solar time. Was (14, 20): the training cases are all valid at 00 UTC, about 17 h solar (AUTOPILOT F-8a). F-V2 (2026-11-10, scripts/fv2_eval.py on the
+                                  # 00Z + 12Z refetch, test year 2022, hour-aware climatology): the shipped mode F has CRPS skill +0.67 / +0.56 / +0.38 / +0.19 at 05 h and +0.74 / +0.60 / +0.40 / +0.21 at 11 h
+                                  # (1 / 3 / 5 / 7 d bins) against +0.71 / +0.61 / +0.44 / +0.24 at 17 h, better than raw HRES everywhere; same 3 h margin around the tested hours as before. 23 h (06 UTC) untested.
 
 
 def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None):
@@ -350,7 +373,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls.
     era5_anchor (opt-in, past mode only; 0 = off): weight in 0-1 of re-centring the median of the near-ground wind ensemble on the ERA5 10 m wind, fading out by 300 m (gw_past_anchor.py, 250 hours: speed CRPS -5 % at TCS, -11 % at MAF; not yet confirmed on other seeds or hours)."""
     if assets is None:                                                   # R-7: the asset set that covers the place; none covers it -> the default set answers with its clear refusal
-        assets = region_assets(lat, lon)
+        assets = region_assets(lat, lon, solar_hour=_time(when, lon)[1])   # A24: and, among those, the one trained for this solar hour
     A = _assets(assets)
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
     if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
@@ -479,7 +502,9 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
     -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (manifest solar_hours, 06-21 solar for older assets) raise like a normal query.
     shortcut: forecast-mode hours are tied with the ERA5 climate lag table, not forecast-error lags; flagged in quality, upgrade with a Mode F lag table."""
-    A = _assets(assets)
+    own = _assets(assets or region_assets(lat, lon, solar_hour=_time(when, lon)[1]))   # 2026-11-10: the serving region's assets (was always the default set when assets=None)
+    A = own if (assets or rho is not None or own.get("coherence") is not None) else _assets(None)   # a region without its own lag table borrows the default one, flagged below
+    borrowed = A is not own
     table = rho if rho is not None else A.get("coherence")
     if table is None:
         raise ValueError("these assets carry no lag-correlation table (export with --coherence models/coherence_lagcorr.npz)")
@@ -515,10 +540,12 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
         atm.update(p=th["p"], rho=th["rho"], a=th["a"])
-        if atm.get("gust_mu") is not None and A["gust"] is not None:
+        if atm.get("gust_mu") is not None and own["gust"] is not None:
             tt = datetime.fromisoformat(info["valid_utc"])
-            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(own["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
         info["coherent_sequence_offsets_h"] = list(offsets)
+        if borrowed:
+            info["quality"] = list(info["quality"]) + ["sequence-coherence:lag-table-borrowed-from-the-default-region"]
         if info["mode"] == "forecast":
             info["quality"] = list(info["quality"]) + ["sequence-coherence:climate-lag-table-not-forecast-error"]
     return [a for a, _ in sets], [i for _, i in sets]
@@ -529,7 +556,9 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
     weather system at every point). Each point is sampled by `atmosphere_set` (own bilinear blend and site elevation), then tied with a Gaussian copula in distance (lag table of ERA5 anomalies by
     distance and season, with the nugget kappa of the time table: ERA5 is smoother than the real atmosphere). Every point must lie inside the trained box.
     -> (list of atm dicts, list of info dicts) in the order of `distances_km`."""
-    A = _assets(assets)
+    own = _assets(assets or region_assets(lat, lon, solar_hour=_time(when, lon)[1]))   # 2026-11-10: the serving region's assets (was always the default set when assets=None)
+    A = own if (assets or own.get("coherence_dist") is not None) else _assets(None)    # a region without its own distance table borrows the default one, flagged below
+    borrowed = A is not own
     if A.get("coherence_dist") is None:
         raise ValueError("these assets carry no distance-correlation table (export with --coherence-dist models/coherence_distcorr.npz)")
     t_utc, _ = _time(when, lon)
@@ -555,9 +584,11 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=info["elevation_m"])
         atm.update(p=th["p"], rho=th["rho"], a=th["a"])
-        if atm.get("gust_mu") is not None and A["gust"] is not None:
-            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
+        if atm.get("gust_mu") is not None and own["gust"] is not None:
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(own["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
         info["coherent_downrange_km"] = list(distances_km)
+        if borrowed:
+            info["quality"] = list(info["quality"]) + ["downrange-coherence:distance-table-borrowed-from-the-default-region"]
     return [a for a, _ in sets], [i for _, i in sets]
 
 

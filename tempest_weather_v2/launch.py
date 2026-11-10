@@ -169,9 +169,22 @@ class Launch:
         return self._elev
 
     # ---- time
+    def _asset_path(self):
+        """The asset folder that serves this place: `assets=` if given, else the region set that covers it (as api.atmosphere_set chooses), else the default set (which refuses with its own message)."""
+        return self.assets or api.region_assets(self.lat, self.lon)
+
+    def _solar_window(self):
+        """Solar hours the serving assets were trained for (manifest solar_hours; 06-21 h for assets exported before 2026-11-07), so an all-hours export is not cut to 06-21 h here."""
+        try:
+            w = None if self.assets else api.region_solar_window(self.lat, self.lon)      # several sets for one place (a day set and an all-hours set): the union of their windows
+            lo, hi = w if w else api._assets(self._asset_path())["manifest"].get("solar_hours", [timeutil.SOLAR_LO, timeutil.SOLAR_HI])
+        except FileNotFoundError:
+            lo, hi = timeutil.SOLAR_LO, timeutil.SOLAR_HI
+        return float(lo), (float(hi) + 1e-9 if float(hi) >= 24.0 else float(hi))  # resolve() keeps sh < hi: 24 h must keep 23:59
+
     def resolved_window(self):
         if self._resolved is None:
-            self._resolved = self.window.resolve(self.lon, self.tz_name, now=self._now)
+            self._resolved = self.window.resolve(self.lon, self.tz_name, now=self._now, solar=self._solar_window())
         return self._resolved
 
     @property
@@ -196,7 +209,7 @@ class Launch:
         """Gemini bug 3: the gust law (mean and scale of the gust excess) is a function of the 10 m wind speed; after the wind is moved by an observation or by HRRR it has to be evaluated again, otherwise the reported gust stays at the prior's value (a pinned 25 m/s wind with gust = wind). Returns samples (a new dict) with gust_mu / gust_beta recomputed, or the input if the pool has no gust law."""
         if "gust_mu" not in samples:
             return samples
-        g = api._assets(self.assets)["gust"]
+        g = api._assets(self._asset_path())["gust"]                   # the serving region's gust law (was always the default set when assets=None)
         if g is None:
             return samples
         ws = np.hypot(np.asarray(samples["u"], float)[:, 0], np.asarray(samples["v"], float)[:, 0])
