@@ -234,3 +234,4 @@ The adopted pilot model and its tool assets are not touched: every run writes ne
 - P2 gust as a measurement of the 300-750 m wind (MAF, physical gusts + balloons): -2.3 % MAE in mixed air, ~0 at night: too small to wire.
 - P4 regime-dependent spread: FAIL (helps TCS slightly, hurts MAF, over-widens the basin; the factor is a site property). P1 + P2 + P4 point the same way: the ground-wind gap is site-specific -> IL-168 / P7 site-representativeness model from static descriptors.
 - P6 apogee sensitivity (flight_sim, Sol Invictus, Spaceport America): 87 % of the wind-driven apogee variance comes from 0-300 m, 53 % from 50-150 m alone; the landing point also depends on 3-5 km (43 %).
+- P7 site model from terrain: neutral (leave-one-site-out 0.960 -> 0.935 with terrain, but a constant regional factor already gives 0.940; oracle 0.896): not built.
