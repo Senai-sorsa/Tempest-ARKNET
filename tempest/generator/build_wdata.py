@@ -45,6 +45,68 @@ def omega_to_w(omega, level_pa, sp, p_target, rho):
     return -om / (rho * G0)
 
 
+def row_times(cond):
+    """IL-177: each dataset row's grid point time in UTC from its own features: the day of year (UTC date, sin / cos at 365.25 d; day 366 wraps to about 0.75 and is mapped back),
+    the year and the solar hour minus lon / 15 (rounded to the whole UTC hour). -> pandas DatetimeIndex (naive UTC)."""
+    from tempest.generator.features import FEATURES
+    c = {k: np.asarray(cond[:, FEATURES.index(k)], np.float64) for k in ("doy_sin", "doy_cos", "hour_sin", "hour_cos", "year", "lon")}
+    d = (np.arctan2(c["doy_sin"], c["doy_cos"]) % (2 * np.pi)) * 365.25 / (2 * np.pi)
+    d = np.where(d < 0.9, d + 365.25, d)
+    doy = np.rint(d).astype(np.int64)
+    sh = (np.arctan2(c["hour_sin"], c["hour_cos"]) % (2 * np.pi)) * 24.0 / (2 * np.pi)
+    hu = np.rint((sh - c["lon"] / 15.0) % 24.0).astype(np.int64) % 24
+    base = (np.rint(c["year"]).astype(np.int64) - 1970).astype("datetime64[Y]").astype("datetime64[h]")
+    return pd.DatetimeIndex(base + ((doy - 1) * 24 + hu).astype("timedelta64[h]"))
+
+
+def from_cond(a):
+    """IL-177 (2026-11-10): w for ANY dataset (the joined all-hours files have no row provenance and cannot be replayed): grid point from the row's lat / lon, UTC time from row_times,
+    T / RH / sp / t2m / rh2m from the row's own target (what the store holds for that hour), omega from the store, the same omega -> w physics. Rows in time order, in blocks."""
+    from tempest.generator.features import FEATURES
+    from tempest.generator.sample import to_physical
+    from tempest.profiles.to_heights import PROFILE
+    d = np.load(a.data, mmap_mode="r")
+    cond, target = d["cond"], d["target"]
+    N = len(cond)
+    lat_r = np.asarray(cond[:, FEATURES.index("lat")], np.float64)
+    lon_r = np.asarray(cond[:, FEATURES.index("lon")], np.float64)
+    elev_r = np.asarray(cond[:, FEATURES.index("elev_grid")], np.float64)
+    tt = row_times(np.asarray(cond))
+    wz = xr.open_zarr(a.w, zarr_format=3)["w"]
+    wt = pd.DatetimeIndex(wz.valid_time.values)
+    levels = wz.pressure_level.values.astype(float) * 100.0
+    order = np.argsort(levels)
+    levels = levels[order]
+    glat, glon = wz.latitude.values, np.where(wz.longitude.values > 180, wz.longitude.values - 360, wz.longitude.values)
+    pi_ = np.abs(glat[None, :] - lat_r[:, None]).argmin(1)
+    pj_ = np.abs(glon[None, :] - lon_r[:, None]).argmin(1)
+    assert np.abs(glat[pi_] - lat_r).max() < 1e-3 and np.abs(glon[pj_] - lon_r).max() < 1e-3, "rows off the omega grid"
+    tw = wt.get_indexer(tt)
+    srt = np.argsort(tw, kind="stable")
+    out = np.full((N, len(HEIGHTS)), np.nan, np.float32)
+    NH = len(HEIGHTS)
+    iT, iR = PROFILE.index("T") * NH, PROFILE.index("RH") * NH
+    step = a.block_rows
+    for b0 in range(0, N, step):
+        rows = srt[b0:b0 + step]
+        rows = rows[tw[rows] >= 0]
+        if not len(rows):
+            continue
+        lo, hi = int(tw[rows].min()), int(tw[rows].max()) + 1
+        om = wz.isel(valid_time=slice(lo, hi)).values[:, order][tw[rows] - lo, :, pi_[rows], pj_[rows]].astype(np.float64)
+        x = to_physical(np.asarray(target[np.sort(rows)]))
+        x = x[np.argsort(np.argsort(rows))]                                       # back to the order of `rows`
+        T, RH = x[:, iT:iT + NH].astype(np.float64), x[:, iR:iR + NH].astype(np.float64)
+        t2m, sp, rh2m = (x[:, 4 * NH + k].astype(np.float64) for k in range(3))
+        ok = np.isfinite(T).all(1) & np.isfinite(RH).all(1) & np.isfinite(sp) & np.isfinite(om).all(1)
+        if ok.any():
+            th = thermo.column(HEIGHTS, T[ok], RH[ok], sp[ok], t_sfc=t2m[ok], rh_sfc=rh2m[ok], z_sfc=elev_r[rows][ok])
+            out[rows[ok]] = omega_to_w(om[ok], levels, sp[ok], th["p"], th["rho"]).astype(np.float32)
+        print(f"{b0 + len(rows):,}/{N:,} rows ({str(tt[rows[-1]])[:10]})", flush=True)
+    np.savez(a.out, w=out)
+    print(f"wrote {a.out}: {out.shape}, {np.isfinite(out).all(1).mean():.1%} rows with w (rows before the w record, 1990-10-29, have none)", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", default="data/train/pilot80_dpd.npz")
@@ -55,7 +117,11 @@ def main():
     ap.add_argument("--first-year", type=int, default=1980)
     ap.add_argument("--last-year", type=int, default=2026)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--from-cond", action="store_true", help="IL-177: build w for any dataset from its own rows (times from the features) instead of replaying the day file's draw")
+    ap.add_argument("--block-rows", type=int, default=200_000, help="with --from-cond: rows per time-sorted block")
     a = ap.parse_args()
+    if a.from_cond:
+        return from_cond(a)
     d = load_npz(a.data)
     from tempest.generator.features import FEATURES
     cond = d["cond"]
