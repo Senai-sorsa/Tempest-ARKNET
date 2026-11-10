@@ -51,7 +51,7 @@ settings with error add the balloon-fitted ERA5 error; without error the answer 
 
 | mode | when | state |
 |---|---|---|
-| `past` | more than ~6 days ago | **works with a local ERA5 store** (`era5_store=` or env `TEMPEST_ERA5_STORE`, the pilot profiles zarr): ERA5 for that hour + a network trained on balloons (median error ~6 % below raw ERA5) + calibrated range |
+| `past` | more than ~6 days ago | **works with a local ERA5 store** (`era5_store=` or env `TEMPEST_ERA5_STORE`, the pilot profiles zarr; for night hours list the night store too, separated by `;` on Windows / `:` elsewhere: `data/pilot/profiles.zarr;data/pilot/profiles80_night.zarr`): ERA5 for that hour + a network trained on balloons (median error ~6 % below raw ERA5) + calibrated range |
 | `recent`, `week`, `medium` | now to 46 days ahead | **not available yet**: live forecasts need a verification history that is still being collected; the call falls back to `ai` and says `fallback-mode` in `quality` |
 | `ai` | beyond, and the fallback | the climate generator, calibrated; skill over "what is normal for this date" is small (a few per cent) by nature, the value is honest ranges and coherent profiles |
 
