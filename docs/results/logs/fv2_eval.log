@@ -1,0 +1,10 @@
+F-V2 step 2: shipped forecast mode (assets default) on 6,000 rows of 2022, CRPS skill vs an hour-aware climatology (raw HRES in brackets); mean over u, v, T, RH at 44 heights. The tool serves today: solar 14-20 h, leads 0.75-7.5 d.
+solar h |         0.25-1.5 d |          1.5-3.5 d |          3.5-5.5 d |          5.5-7.5 d |           7.5-10 d
+      5 | +0.665 (+0.537) n 205 | +0.564 (+0.395) n 407 | +0.381 (+0.115) n 404 | +0.193 (-0.140) n 417 | +0.023 (-0.457) n 559
+     11 | +0.744 (+0.665) n 311 | +0.600 (+0.457) n 439 | +0.399 (+0.151) n 392 | +0.213 (-0.127) n 427 | +0.048 (-0.454) n 468
+     17 | +0.709 (+0.599) n 214 | +0.608 (+0.443) n 394 | +0.436 (+0.191) n 388 | +0.244 (-0.090) n 389 | +0.084 (-0.405) n 586
+  u  by solar hour, all leads: 05 h +0.433, 11 h +0.466, 17 h +0.432
+  v  by solar hour, all leads: 05 h +0.367, 11 h +0.409, 17 h +0.394
+  T  by solar hour, all leads: 05 h +0.394, 11 h +0.497, 17 h +0.484
+  RH by solar hour, all leads: 05 h +0.200, 11 h +0.287, 17 h +0.272
+
