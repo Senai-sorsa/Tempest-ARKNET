@@ -1,0 +1,41 @@
+shipped check 2026-11-10 04:48
+== assets
+  area                           lat [31.0, 34.0] lon [-108.0, -101.0]
+  model                          l3_c4w.pt trained 1991-2020 (validation 2021-2023) calibration up to 2023, m = 199
+  solar hours                    [0.0, 24.0]
+  shuffle templates              8 blocks of cell 8, empty month x 2-h bins 0 of 1152
+  shear map                      yes
+  lapse map                      yes
+  forecast mode (F)              yes + ridge
+  past mode (P)                  yes + station hybrid + surface pool
+  w head                         yes (whead_a24.pt) + range map
+  gust law                       yes
+  time / distance correlation    time / distance
+  created                        2026-11-10T10:47:17+00:00
+== assets_denver
+  area                           lat [38.0, 40.0] lon [-106.0, -104.0]
+  model                          l3_blocal_c4w.pt trained 1991-2020 (validation 2021-2023) calibration up to 2023, m = 199
+  solar hours                    [6.0, 21.0]
+  shuffle templates              4 blocks of cell 8, empty month x 2-h bins 0 of 576
+  shear map                      yes
+  lapse map                      yes
+  forecast mode (F)              yes + ridge
+  past mode (P)                  NONE
+  w head                         NONE
+  gust law                       NONE
+  time / distance correlation    - / -
+  created                        2026-11-10T08:47:13+00:00
+== assets_denver_allhours
+  area                           lat [38.0, 40.0] lon [-106.0, -104.0]
+  model                          a24den_c4w.pt trained 1991-2020 (validation 2021-2023) calibration up to 2023, m = 199
+  solar hours                    [0.0, 24.0]
+  shuffle templates              4 blocks of cell 8, empty month x 2-h bins 0 of 576
+  shear map                      yes
+  lapse map                      yes
+  forecast mode (F)              yes + ridge
+  past mode (P)                  NONE
+  w head                         NONE
+  gust law                       NONE
+  time / distance correlation    - / -
+  created                        2026-11-10T08:47:37+00:00
+

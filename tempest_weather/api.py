@@ -200,6 +200,7 @@ GUST_WS_CAP = 12.0     # m/s, the highest 10 m wind at which the gust law is eva
 # 90 % coverage 0.42 -> 0.89; model-wind law 1.34 -> 1.06, median factor 1.00 -> 1.40 (observed 1.44). Gumbel of the total gust, features 1, min(ws, 20), min(ws, 20)^2 / 10,
 # sin / cos day of year, sin / cos UTC hour, station; draws clipped at the wind. GUST_PHYSICAL = False restores the METAR-convention laws (asset law and W8c).
 GUST_PHYSICAL = True
+DAY_ONLY_HEADS = ("whead_clean.pt", "whead.pt")   # w heads trained on the 06-21 h day file only (W-NIGHT 2026-11-10: models/whead_a24 is the all-hours head)
 GUST_PHYS_MEASURED = dict(theta=(0.16972, 1.29927, -0.01981, 0.04733, -0.15682, -0.34964, 0.24143, 0.29770), phi=(-0.63631, 0.05833, -0.00158, 0.05074, -0.08359, -0.16047, 0.17639, 0.17495))
 GUST_PHYS_MODEL = dict(theta=(3.25937, 0.15392, 0.93780, 0.12288, -0.39788, -0.65199, 0.56084, 0.53527), phi=(-0.22505, 0.16732, -0.04382, 0.03208, -0.05818, 0.04936, 0.04311, 0.29220))
 GUST_PHYS_MODEL_CAP = 9.0      # m/s of MODEL wind; above it the gust factor is held (the ws^2 term rises to factor 2.3 at 20 m/s where ERA5 has few cases)
@@ -464,7 +465,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             w_site = _core.calibrate(A["wcalib"], w_all.reshape(groups, M_CAL, -1), clip=False).reshape(total, -1)[:n]
         else:
             w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng)
-        if not 6.0 <= sh <= 21.0:                                     # A24 (2026-11-10): the w head was trained on the 06-21 h day file only (models/whead_clean, pilot80_dpd + pilot80_w); at night it extrapolates
+        if not 6.0 <= sh <= 21.0 and A["manifest"].get("head_source", "whead_clean.pt") in DAY_ONLY_HEADS:   # A24: a head trained on the 06-21 h day file extrapolates at night (manifests before 2026-11-10 carry no head_source: day-trained)
             quality = quality + ["vertical-wind-w-trained-on-solar-06-21-h-only"]
     dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
     if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
