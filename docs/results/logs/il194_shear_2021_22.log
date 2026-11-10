@@ -1,0 +1,15 @@
+IL-103 balloon-fitted shear map: fit 3200 balloons 2005-20, test 2623 balloons 2021-2022 (EPZ + MAF, 00Z + 12Z), installed tool, climate mode
+shear (m/s per km) p50 / p99 / p99.9 by band: model | model + balloon map | balloons
+  0-1 km   14.0/68.4/97.1 | 13.9/68.7/98.3 | 11.7/75.4/109.9
+  1-5 km   5.6/22.6/33.4 | 5.8/23.9/37.4 | 6.0/24.1/37.3
+  5-12 km  4.9/18.9/27.8 | 5.1/22.8/33.6 | 5.4/21.6/31.7
+  12-18 km 6.8/24.6/34.7 | 7.5/29.0/39.0 | 9.3/28.5/38.5
+  CRPS u 0-1 km   model 2.709 -> + balloon map 2.708 (-0.0 %)
+  CRPS u 1-5 km   model 3.570 -> + balloon map 3.570 (-0.0 %)
+  CRPS u 5-12 km  model 6.254 -> + balloon map 6.256 (+0.0 %)
+  CRPS u 12-18 km model 4.516 -> + balloon map 4.522 (+0.1 %)
+  CRPS v 0-1 km   model 2.455 -> + balloon map 2.454 (-0.0 %)
+  CRPS v 1-5 km   model 3.356 -> + balloon map 3.357 (+0.0 %)
+  CRPS v 5-12 km  model 6.162 -> + balloon map 6.164 (+0.0 %)
+  CRPS v 12-18 km model 4.303 -> + balloon map 4.303 (+0.0 %)
+
