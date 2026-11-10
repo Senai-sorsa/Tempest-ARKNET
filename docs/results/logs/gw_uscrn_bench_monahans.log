@@ -1,0 +1,17 @@
+USCRN station monahans: using 2024-2025
+
+local 10-18 h (log-law scaling valid): 250 hours 2024-2025, USCRN scaled to 10 m mean 4.58 m/s
+  variant                  CRPS   MAE(median)  cov90  mean speed
+  raw ERA5 10 m           0.849     0.849      nan    4.41
+  tool climate            1.304     1.824     0.97    5.34
+  tool past               0.752     1.028     0.92    4.85
+  past + anchor           0.604     0.781     0.94    4.67
+  past + anchor + x1.2    0.634     0.786     0.96    4.79
+
+other hours (log law NOT valid in stable air: the scaled truth is too high or too low; read with care): 180 hours 2024-2025, USCRN scaled to 10 m mean 3.32 m/s
+  variant                  CRPS   MAE(median)  cov90  mean speed
+  raw ERA5 10 m           1.091     1.091      nan    4.01
+  tool climate            1.466     2.064     0.78    4.80
+  tool past               0.964     1.329     0.82    4.35
+  past + anchor           0.866     1.194     0.83    4.26
+  past + anchor + x1.2    0.912     1.256     0.86    4.36
