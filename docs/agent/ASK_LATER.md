@@ -69,6 +69,7 @@ Both extract a small box from Google's public archives inside Google's network, 
 Copy the outputs to `data/raw/era5_cds/` and `data/raw/wb2_hres/`, then tell Claude.
 
 ## 8. Optional: second forecast-archive pull with the whole diurnal cycle (needed to use mode F at every hour)
+**User 2026-11-10: wait until the end for the Colab run; continue with the data we have.** Correction: the 00Z + 12Z refetch (`data/raw/wb2_hres_v2*`, valid 00 / 12 / 18 UTC = about 17 / 05 / 11 h solar) is on disk since 2026-11-06 but was never used (plan F-V2); only 06 UTC (about 23 h solar, night) is missing.
 The archived HRES cases are 00 UTC starts at whole-day leads, so every valid time is 00 UTC (about 17:00 local solar time in the box). Mode F is therefore only trained for the late afternoon; the tool uses it only between 14 and 20 solar hours and falls back to the climate generator otherwise (flagged).
 To cover 06-21 h: in `notebooks/wb2_colab.md` change `--leads` to `30 36 42 54 60 66 78 84 90 102 108 114 126 132 138 150 156 162` (valid times 06, 12, 18 UTC) and rerun the cell with `--out .../tempest_wb2_diurnal`; copy the files to `data/raw/wb2_hres_diurnal/` (about 100 MB). Then mode F can be trained with the hour of day as an input.
 
