@@ -1,0 +1,22 @@
+45 IFS ENS starts in 2022, 10800 rows (start x lead x point); columns per row median 11
+
+mean energy score / variogram score (standardised columns; lower is better)
+                      es                                                              vs                                              
+method ECC (IFS members) Schaake (error profiles) random (independent) ECC (IFS members) Schaake (error profiles) random (independent)
+lead                                                                                                                                  
+1                 1.1962                   1.1934               1.1944            1.8034                   1.8217               1.9720
+3                 1.4193                   1.4204               1.4223            2.3154                   2.3629               2.5656
+5                 1.9567                   1.9640               1.9773            3.3645                   3.4621               3.8504
+7                 2.3439                   2.3625               2.3783            4.3329                   4.4767               5.0571
+
+ECC minus Schaake, bootstrap over starts (95 % interval; negative = ECC better):
+  lead   1 es: +0.0028 (+0.2 %)  [+0.0008, +0.0047]
+  lead   1 vs: -0.0184 (-1.0 %)  [-0.0286, -0.0083]
+  lead   3 es: -0.0011 (-0.1 %)  [-0.0057, +0.0028]
+  lead   3 vs: -0.0475 (-2.0 %)  [-0.0698, -0.0266]
+  lead   5 es: -0.0074 (-0.4 %)  [-0.0172, +0.0022]
+  lead   5 vs: -0.0976 (-2.8 %)  [-0.1722, -0.0327]
+  lead   7 es: -0.0187 (-0.8 %)  [-0.0327, -0.0061]
+  lead   7 vs: -0.1438 (-3.2 %)  [-0.2422, -0.0548]
+  lead all es: -0.0061 (-0.3 %)  [-0.0100, -0.0027]
+  lead all vs: -0.0768 (-2.5 %)  [-0.1104, -0.0459]
