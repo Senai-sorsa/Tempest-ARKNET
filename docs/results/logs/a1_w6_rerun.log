@@ -1,0 +1,9 @@
+W6: tool 10 m wind speed one hour after a measured wind, CRPS (m/s) / 90 % coverage, 2023-25, 08-20 local (W3 cases)
+  TCS n 300: tool, no observation                   CRPS 1.636  cov90 0.79
+  TCS n 300: tool + observe(previous hour, soft)    CRPS 1.140  cov90 0.81
+  TCS n 300: tool + observe(..., speed_space=True)  CRPS 1.140  cov90 0.81
+  MAF n 300: tool, no observation                   CRPS 1.480  cov90 0.90
+  MAF n 300: tool + observe(previous hour, soft)    CRPS 0.987  cov90 0.91
+  MAF n 300: tool + observe(..., speed_space=True)  CRPS 0.987  cov90 0.91
+  W3 reference (same stations / years): cell Weibull 1.450 / 1.506, linear persistence 1.035 / 0.923, Weibull-copula AR(1) 1.072 / 0.925 (TCS / MAF)
+

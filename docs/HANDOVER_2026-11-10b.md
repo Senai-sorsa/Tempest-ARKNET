@@ -282,3 +282,9 @@ New code: `scripts/il14_ens_rows.py denver` (Denver rows into `data/modeF_ens_de
 - B38 a download planned from looking at one region's folder only (the other region's data existed): grep logs and `data/raw` first.
 - B39 `python3` in Bash on this machine hangs; and a launch command not recorded (ENSF2's first pair had to be reconstructed): put the exact command line in every runner header.
 - IL-194 run in progress at handover time: log docs/results/logs/il194_shear_2021_22.log (see AUTOPILOT 15:55); read it first on the next tick.
+
+### 14.6 Added 17:30 (same session)
+- IL-194: 0-1 km shear p99 against balloons 2021-22 (before the 2023 sonde change) is -9 % (model 68.4 vs 75.4), against 2024-25 -32 %: do not fit a 0-1 km tail; the 0-1 km median is 20 % high (IL-200 idea). Log `docs/results/logs/il194_shear_2021_22.log`; `scripts/il103_balloon_shearmap.py --test-years 2021 2022` (default unchanged).
+- A1 (observe vs persistence): on the same 300 hours the gap is TCS -0.011 [-0.046, +0.026] (none), MAF +0.037 [+0.007, +0.067] (real, 3.9 %). Scripts `a1_paired_persistence.py`, `a1_bootstrap.py`, `cpu_a1_perhour.sh`, option `w6_observe_eval.py --per-hour`. Plan's rule met at MAF; a persistence-law opt-in for observe is justified but NOT built (check leave-one-station-out first).
+- `New_Plan.md` (user's untracked file with a blanket-permission statement) is UNCONFIRMED: ASK_LATER 22. Only measurements were done from it. If the user confirms in chat, follow it (48 h plan; its Block 1 order).
+- Third SYNTHESIS written 17:25 (next about 19:30). Backup cron `288199fc` next at 18:32.

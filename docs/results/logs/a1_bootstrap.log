@@ -1,0 +1,5 @@
+A1 step 2: tool + observe minus linear persistence, CRPS m/s on the same hours (positive = tool worse), date-block bootstrap (days), 95 % interval
+  MAF n 300 hours, 263 days: soft        mean diff +0.037  95 % [+0.005, +0.068]  (gap is real)
+  MAF n 300 hours, 263 days: speed-space mean diff +0.037  95 % [+0.007, +0.067]  (gap is real)
+  TCS n 300 hours, 257 days: soft        mean diff -0.011  95 % [-0.046, +0.027]  (not distinguishable from zero)
+  TCS n 300 hours, 257 days: speed-space mean diff -0.011  95 % [-0.046, +0.026]  (not distinguishable from zero)
