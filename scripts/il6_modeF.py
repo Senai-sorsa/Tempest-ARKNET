@@ -44,6 +44,8 @@ ap.add_argument("--ens-absent", action="store_true", help="N4: evaluate an --ens
 ap.add_argument("--bootstrap", type=int, default=0, help="IL-87: date-block bootstrap of the PIT distance (resample whole forecast start dates N times); 0 = off (as before)")
 ap.add_argument("--seed", type=int, default=0, help="torch seed of the training (network init and noise); the row subsets do not change")
 ap.add_argument("--fit-years", type=int, default=4, help="N3 step 0 (New_Plan 10.4): train on the last N years before the 2020 validation year (1-4); 4 = 2016-19 + 2020, as before")
+ap.add_argument("--levels13", action="store_true", help="N2 step 0 (New_Plan 10.4): forecast-profile input only at the heights nearest the 13 pressure levels of the world HRES store (standard-atmosphere height minus the rows' median ground height), in place of --coarse")
+ap.add_argument("--no-place", action="store_true", help="N2 step 0: lat and lon inputs set to 0 (the world model has no place input)")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
@@ -61,6 +63,22 @@ def sub(d, n):
     return {k: v[i] for k, v in d.items()}
 
 cal, te = sub(cal, a.rows), sub(te, a.rows)
+if a.levels13 or a.no_place:                                                    # N2 step 0: both off = as before
+    _z13 = np.array([111, 762, 1457, 3012, 4206, 5574, 7185, 9164, 10363, 11784, 13608, 16180, 20576.0])   # 1000 ... 50 hPa, standard atmosphere, m above sea level
+    _agl = _z13 - float(np.median(tr["z_sfc"]))                                   # z_sfc is in m in the row files (NM/TX 1244, Denver 1872)
+    _h13 = np.unique([int(np.argmin(np.abs(np.asarray(F.HEIGHTS) - h))) for h in _agl if h > 0])
+    print(f"N2 step 0 input: levels13 {a.levels13} (height indices {_h13.tolist()}), no-place {a.no_place}", flush=True)
+    _cm = F.cond_matrix
+
+    def _cond13(d, coarse=1):
+        c = _cm(d, 1 if a.levels13 else coarse)
+        if a.levels13:
+            hr = d["hres"]
+            c = np.concatenate([c[:, :6], hr[:, :, _h13].reshape(len(hr), -1).astype(np.float32)], 1)
+        if a.no_place:
+            c[:, :2] = 0.0
+        return c
+    F.cond_matrix = _cond13
 ENS_COLS = {"all": slice(None), "spread": slice(1, None, 2), "mean": slice(0, None, 2)}[a.ens_cols]                  # IL-195: columns alternate (mean, sd); default all 24
 cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)[:, ENS_COLS]], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
 if a.ens_mask > 0:                                                             # N4: one network for both cases; own rng so every other draw stays as before

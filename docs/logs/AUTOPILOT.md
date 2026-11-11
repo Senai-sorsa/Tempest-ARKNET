@@ -756,3 +756,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Heartbeat 271. No G1-6 / ENSF2S2 / b4_* jobs running.
 - ASK_LATER 21 audits (tool_audit -> shipped_check) were killed a second time by Claude Code's low-memory reaper (while N3 step 0 trained). Not restarted on my own, per the reaper notice; the opt-in code stays uncommitted until the audits pass.
 - N3 step 0 seed 0 (`kit_b5_n3_step0.log`, new opt-in `il6_modeF.py --fit-years`, default 4 = as before): 1 -> 2 -> 3 -> 4 fit years: lead-1 CRPS 1.810 -> 1.671 -> 1.656 -> 1.641; gain 3 -> 4 = +0.66 % (rule: under 0.5 % -> closed). The plan's 1/2/3/5 years is not possible (only 2016-20 before the range-map year, one kept for validation), so 3 -> 4 is used, which is stricter. The gain is the size of seed noise, so seed 1 (fit years 3, 4) is running: `cpu_n3_step0.sh 1`, [N3S0] in data/l3.log.
+## 2026-11-11 14:58 CST (primary tick)
+- Heartbeat 272. Section 10: nothing new beyond N1-N7.
+- N3 step 0 CLOSED: gain 3 -> 4 fit years +0.66 % seed 0, +0.34 % seed 1 (rule: under 0.5 % -> closed).
+- N2 step 0 box checks started: `scripts/cpu_n2_step0.sh` (base / --levels13 / --no-place per box, seed 0, new opt-in il6_modeF flags, defaults unchanged; smoke OK), verdict `new_plan_kit/b5_n2_step0.py`. Free RAM 5 GB at start.

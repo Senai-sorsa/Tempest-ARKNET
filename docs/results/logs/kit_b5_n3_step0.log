@@ -7,3 +7,23 @@
 Rule (pre-set, 3 -> 4 years in place of 3 -> 5): gain under 0.5 % (mean of leads) -> closed. Gain 3 -> 4: +0.66 %
 Verdict: FULL N3 RUN (gain >= 0.5 %)
 
+2026-11-11 14:54 N3 step 0: Mode F (ENSF2 HRES-only recipe, seed 0) trained on 1-4 real years before the 2020 validation year; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  1 fit years: 1.810 / 2.142 / 2.869 / 3.753
+  2 fit years: 1.671 / 2.036 / 2.802 / 3.626  change vs 1: -7.7 / -4.9 / -2.3 / -3.4 %
+  3 fit years: 1.656 / 2.013 / 2.790 / 3.615  change vs 2: -0.9 / -1.1 / -0.4 / -0.3 %
+  4 fit years: 1.641 / 1.998 / 2.777 / 3.596  change vs 3: -0.9 / -0.7 / -0.5 / -0.5 %
+  context: models/modeF_ensbase_eval.csv (older run, other row draw) 1.630 / 1.975 / 2.772 / 3.593
+  seed 1, 3 fit years: 1.643 / 2.003 / 2.787 / 3.626   4 fit years: 1.641 / 2.002 / 2.774 / 3.600
+Rule (pre-set, 3 -> 4 years in place of 3 -> 5): gain under 0.5 % (mean of leads) -> closed; must hold in both seeds. Gain 3 -> 4: seed 0 +0.66 %, seed 1 +0.34 %
+Verdict: CLOSED (gain under 0.5 % in a seed)
+
+2026-11-11 14:56 N3 step 0: Mode F (ENSF2 HRES-only recipe, seed 0) trained on 1-4 real years before the 2020 validation year; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  1 fit years: 1.810 / 2.142 / 2.869 / 3.753
+  2 fit years: 1.671 / 2.036 / 2.802 / 3.626  change vs 1: -7.7 / -4.9 / -2.3 / -3.4 %
+  3 fit years: 1.656 / 2.013 / 2.790 / 3.615  change vs 2: -0.9 / -1.1 / -0.4 / -0.3 %
+  4 fit years: 1.641 / 1.998 / 2.777 / 3.596  change vs 3: -0.9 / -0.7 / -0.5 / -0.5 %
+  context: models/modeF_ensbase_eval.csv (older run, other row draw) 1.630 / 1.975 / 2.772 / 3.593
+  seed 1, 3 fit years: 1.643 / 2.003 / 2.787 / 3.626   4 fit years: 1.641 / 2.002 / 2.774 / 3.600
+Rule (pre-set, 3 -> 4 years in place of 3 -> 5): gain under 0.5 % (mean of leads) -> closed; must hold in both seeds. Gain 3 -> 4: seed 0 +0.66 %, seed 1 +0.34 %
+Verdict: CLOSED (gain under 0.5 % in a seed)
+
