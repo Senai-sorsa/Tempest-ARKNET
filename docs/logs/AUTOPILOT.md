@@ -727,3 +727,4 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - O2 (`b4_radar_distance.py`): measured. HDX (~145 km) keeps nearly the EPZ gain (2.5-5 km +27.6 % vs +29.1 %; 5-12 km +15.0 % vs +13.5 %), coverage 0.92 / 0.94. No distance term needed.
 - ASK_LATER 24 adopted as an opt-in: `sitecal.tcs_speed_factor(when)` (TCS only, never at the pad by default). Backup in data/backups/2026-11-11_asklater24/. Tests 260 + 130 passed (`tests_after_asklater24.log`). tool_audit + shipped_check still running (stdout to $TEMP; the scripts append to their own logs). Defaults are untouched, so no change is expected.
 - O1 (`b4_two_neighbours.py`, new): merges two neighbours into one report (variant-B gains, second gain cut by the 2019-22 error correlation), with the TCS map on. Smoke OK. Seeds 0 and 1 started 12:00, 3 threads each.
+- 12:14: ASK_LATER 24 audits done: tool_audit and shipped_check unchanged vs the previous run (logs only appended).

@@ -46,3 +46,13 @@ Denver day   (denver_full_dpd.npz): served 120, refused 0
 Denver night (denver_full_fill_night_dpd.npz): served 120, refused 0 
          u skill -0.001 cov90 0.90 | v skill -0.012 cov90 0.89 | T skill +0.064 cov90 0.92 | t2m skill +0.116 cov90 0.93 | ALL skill +0.008
 
+tool audit 2026-11-11 11:58, 120 held-out 2024-25 rows per set, 199 atmospheres per row, seed 0
+NM/TX  day   (pilot80_dpd.npz): served 120, refused 0 
+         u skill +0.026 cov90 0.90 | v skill -0.001 cov90 0.88 | T skill +0.117 cov90 0.90 | t2m skill +0.157 cov90 0.91 | ALL skill +0.033
+NM/TX  night (pilot80_l21_night_dpd.npz): served 120, refused 0 
+         u skill +0.023 cov90 0.89 | v skill +0.000 cov90 0.90 | T skill +0.082 cov90 0.89 | t2m skill +0.103 cov90 0.92 | ALL skill +0.025
+Denver day   (denver_full_dpd.npz): served 120, refused 0 
+         u skill -0.015 cov90 0.90 | v skill -0.010 cov90 0.91 | T skill +0.065 cov90 0.88 | t2m skill +0.083 cov90 0.85 | ALL skill +0.005
+Denver night (denver_full_fill_night_dpd.npz): served 120, refused 0 
+         u skill -0.001 cov90 0.90 | v skill -0.012 cov90 0.89 | T skill +0.064 cov90 0.92 | t2m skill +0.116 cov90 0.93 | ALL skill +0.008
+
