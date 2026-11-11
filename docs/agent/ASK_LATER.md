@@ -159,6 +159,7 @@ B = use the tool's own distance gain (obs.effective_gain) as rho for reports >= 
 Against shipped, B raises neighbour 90 % coverage by +0.07 to +0.15 in all 14 neighbour runs (to 0.75-0.93) and lowers CRPS in 13 of 14 (FST run 1: +0.05, interval crosses 0).
 It misses the pre-set rule once per run (LRU 0.81 vs 0.81 in run 1, ONM 0.75 vs 0.80 in run 2), because TCS's own spread is short (own-station report 0.82).
 Question: adopt B as the default (a strict improvement on shipped), keep it behind a default-off switch, or leave it? Nothing changed yet.
+**ADOPTED 2026-11-11 11:25 (user permission, ASK_LATER 22 + "everything in ask later"):** `tempest_weather_v2/launch.py` `NEIGHBOUR_RHO_FROM_GAIN = True` (False = shipped rho from age only). rho for reports >= 5 km = min(effective_gain, own-station rho 0.72^age): the cap keeps a far report from pulling harder than an own report of the same age (test_obs ordering test; identical to the kit's B at 1 h, gain <= 0.62 < 0.72). Backup `data/backups/2026-11-11_asklater23/launch.py`; new test `tempest_weather_v2/tests/test_neighbour_rho.py`; tests 260 + 129 passed (`docs/results/logs/tests_after_asklater23.log`).
 
 ## 24. IL-207b: per-site wind-speed factor at TCS (2026-11-11 09:40)
 `new_plan_kit/b3_il207b_site_shift.py`, log `docs/results/logs/kit_b3_il207b_site_shift.log`. With no report the tool is too calm at TCS (bias +1.44 m/s, worst spring/summer afternoons).

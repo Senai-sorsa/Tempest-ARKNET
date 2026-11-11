@@ -1,0 +1,72 @@
+2026-11-11 10:33 S1 map first, update second: test 2023-25, 08-20 local, report 1 h old, 200 hours per target, map from 40 prior hours per cell (2015-22), seed 1
+TCS: map 08-11/cool 0.936, 08-11/warm 1.028, 12-15/cool 1.024, 12-15/warm 1.059, 16-20/cool 0.968, 16-20/warm 1.161
+  200 test hours, 0 skipped
+  no report -      n  200  CRPS 1.725  coverage 0.79
+  no report map -  n  200  CRPS 1.669  coverage 0.80
+  own       A      n  200  CRPS 1.103  coverage 0.83
+  own       B      n  200  CRPS 1.103  coverage 0.83
+  own       map A  n  200  CRPS 1.096  coverage 0.83
+  own       map B  n  200  CRPS 1.096  coverage 0.83  minus B -0.007 [-0.024, +0.010]  ok
+  ONM       A      n  172  CRPS 1.530  coverage 0.72
+  ONM       B      n  172  CRPS 1.526  coverage 0.76
+  ONM       map A  n  172  CRPS 1.491  coverage 0.73
+  ONM       map B  n  172  CRPS 1.486  coverage 0.78  minus B -0.040 [-0.065, -0.019]  fail
+  LRU       A      n  163  CRPS 1.498  coverage 0.71
+  LRU       B      n  163  CRPS 1.482  coverage 0.79
+  LRU       map A  n  163  CRPS 1.465  coverage 0.73
+  LRU       map B  n  163  CRPS 1.436  coverage 0.81  minus B -0.046 [-0.074, -0.020]  ok
+MAF: map 08-11/cool 1.050, 08-11/warm 1.140, 12-15/cool 0.873, 12-15/warm 0.969, 16-20/cool 0.831, 16-20/warm 1.144
+  200 test hours, 0 skipped
+  no report -      n  200  CRPS 1.445  coverage 0.90
+  no report map -  n  200  CRPS 1.404  coverage 0.91
+  own       A      n  200  CRPS 0.935  coverage 0.91
+  own       B      n  200  CRPS 0.935  coverage 0.91
+  own       map A  n  200  CRPS 0.920  coverage 0.93
+  own       map B  n  200  CRPS 0.920  coverage 0.93  minus B -0.015 [-0.032, +0.002]  ok
+  FST       A      n  182  CRPS 1.269  coverage 0.81
+  FST       B      n  182  CRPS 1.250  coverage 0.92
+  FST       map A  n  182  CRPS 1.255  coverage 0.84
+  FST       map B  n  182  CRPS 1.226  coverage 0.92  minus B -0.024 [-0.056, +0.008]  ok
+  PEQ       A      n  106  CRPS 1.421  coverage 0.75
+  PEQ       B      n  106  CRPS 1.355  coverage 0.92
+  PEQ       map A  n  106  CRPS 1.407  coverage 0.74
+  PEQ       map B  n  106  CRPS 1.335  coverage 0.90  minus B -0.021 [-0.070, +0.032]  ok
+Seed verdict: FAIL -> S1 closed (kill rule: a seed misses)
+
+2026-11-11 10:34 S1 map first, update second: test 2023-25, 08-20 local, report 1 h old, 200 hours per target, map from 40 prior hours per cell (2015-22), seed 0
+TCS: map 08-11/cool 0.943, 08-11/warm 0.999, 12-15/cool 0.985, 12-15/warm 1.133, 16-20/cool 0.943, 16-20/warm 1.247
+  200 test hours, 0 skipped
+  no report -      n  200  CRPS 1.600  coverage 0.81
+  no report map -  n  200  CRPS 1.497  coverage 0.86
+  own       A      n  200  CRPS 1.086  coverage 0.81
+  own       B      n  200  CRPS 1.086  coverage 0.81
+  own       map A  n  200  CRPS 1.062  coverage 0.84
+  own       map B  n  200  CRPS 1.062  coverage 0.84  minus B -0.024 [-0.048, +0.000]  ok
+  ONM       A      n  182  CRPS 1.543  coverage 0.70
+  ONM       B      n  182  CRPS 1.484  coverage 0.80
+  ONM       map A  n  182  CRPS 1.493  coverage 0.73
+  ONM       map B  n  182  CRPS 1.421  coverage 0.82  minus B -0.063 [-0.101, -0.029]  ok
+  LRU       A      n  160  CRPS 1.736  coverage 0.65
+  LRU       B      n  160  CRPS 1.596  coverage 0.82
+  LRU       map A  n  160  CRPS 1.717  coverage 0.66
+  LRU       map B  n  160  CRPS 1.547  coverage 0.83  minus B -0.050 [-0.093, -0.009]  ok
+MAF: map 08-11/cool 1.048, 08-11/warm 1.186, 12-15/cool 0.861, 12-15/warm 0.970, 16-20/cool 0.839, 16-20/warm 1.119
+  200 test hours, 0 skipped
+  no report -      n  200  CRPS 1.532  coverage 0.89
+  no report map -  n  200  CRPS 1.447  coverage 0.92
+  own       A      n  200  CRPS 0.976  coverage 0.92
+  own       B      n  200  CRPS 0.976  coverage 0.92
+  own       map A  n  200  CRPS 0.940  coverage 0.93
+  own       map B  n  200  CRPS 0.940  coverage 0.93  minus B -0.036 [-0.064, -0.012]  ok
+  FST       A      n  190  CRPS 1.299  coverage 0.82
+  FST       B      n  190  CRPS 1.315  coverage 0.90
+  FST       map A  n  190  CRPS 1.271  coverage 0.84
+  FST       map B  n  190  CRPS 1.269  coverage 0.90  minus B -0.047 [-0.080, -0.014]  ok
+  PEQ       A      n  107  CRPS 1.551  coverage 0.70
+  PEQ       B      n  107  CRPS 1.479  coverage 0.86
+  PEQ       map A  n  107  CRPS 1.529  coverage 0.71
+  PEQ       map B  n  107  CRPS 1.436  coverage 0.86  minus B -0.043 [-0.100, +0.009]  ok
+Factor stability vs seed 1: largest cell gap 0.086 (fail, rule <= 0.05)
+Rule (pre-set): map + B coverage >= 0.80 at every pair, CRPS(map + B) - CRPS(B) <= +0.0009 at every pair, both seeds; factors within 0.05.
+VERDICT (both seeds now on file; read the other seed's rows too): FAIL -> S1 closed; keep B and the map as separate opt-ins
+

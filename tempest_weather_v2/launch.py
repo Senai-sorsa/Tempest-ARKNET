@@ -32,6 +32,7 @@ __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
 OBS_SPEED_SPACE = True        # W6 (2026-11-10): the speed-space update is the DEFAULT for SOFT observations (age / distance / elevation given): ASOS persistence 2023-25, 300 hours per station, CRPS 1.148 -> 1.140 (TCS), 1.016 -> 0.987 (MAF), 90 % coverage 0.74 -> 0.81, 0.85 -> 0.91 (scripts/w6_observe_eval.py); pinned observations are unchanged. False = the old component-only update
 SPEED_RHO_PER_HOUR = 0.72     # W6: hourly persistence of the 10 m speed in normal-score space (scripts/weibull_persistence.py: 0.67 TCS, 0.76 MAF, ASOS 2015-22)
+NEIGHBOUR_RHO_FROM_GAIN = True  # A3-fix B (ASK_LATER 23, adopted 2026-11-11): a report >= obs.OWN_STATION_KM away uses rho = obs.effective_gain (distance, height, age) in the speed-space step; 14 neighbour runs: coverage +0.07..+0.15, CRPS lower in 13 (kit_b3_a3fix_neighbour_rho.log). Own-station reports unchanged. False = rho from age only
 SPEED_TOP_M = 300.0           # W6: the speed-space update tapers to nothing at this height
 
 
@@ -363,14 +364,20 @@ class Launch:
         radar = {(c, float(h)): float(o.get("_radar_sigma", 3.0)) for h in o.get("_radar", {}) for c in ("wind_u", "wind_v")}   # P3: each radar level carries its own error (radar-minus-balloon 3 m/s)
         if not any(k in o for k in ("_age_h", "_dist_km", "_dz_m")):
             return radar or None
-        r = self.resolved_window()
-        t_mid = r.cells_utc[len(r.cells_utc) // 2]
-        night = O.night_weight(timeutil.solar_hour(t_mid.astype("datetime64[s]").astype(datetime), self.lon))
-        gain = O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0), night)
+        gain = self._report_gain()
         pool = base._ensure_pool()["samples"]
         prior = {("wind_u", 10.0): np.std(np.asarray(pool["u"], float)[:, 0]), ("wind_v", 10.0): np.std(np.asarray(pool["v"], float)[:, 0]),
                  ("temp_K", 2.0): np.std(np.asarray(pool["t2m"], float)), ("pressure_Pa", 0.0): np.std(np.asarray(pool["sp"], float))}
         return {**{k[0]: O.observation_sigma(prior[k], gain) for k in eng_obs if k in prior}, **radar}
+
+    def _report_gain(self):
+        """Effective gain of the soft report (age x distance x height, day/night at the window's middle hour)."""
+        from tempest_weather_v2 import obs as O
+        o = self._obs
+        r = self.resolved_window()
+        t_mid = r.cells_utc[len(r.cells_utc) // 2]
+        night = O.night_weight(timeutil.solar_hour(t_mid.astype("datetime64[s]").astype(datetime), self.lon))
+        return O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0), night)
 
     def _conditioned_pool(self, n):
         base = Launch.with_(self, _obs=None)
@@ -390,6 +397,9 @@ class Launch:
             spd_obs = float(names.parse_quantity(self._measurements()["wind_10m"], "speed", self.units))
             age = float(self._obs.get("_age_h", 0.0) or 0.0)
             rho = min(SPEED_RHO_PER_HOUR ** age, 0.97)
+            from tempest_weather_v2 import obs as O
+            if NEIGHBOUR_RHO_FROM_GAIN and float(self._obs.get("_dist_km", 0.0) or 0.0) >= O.OWN_STATION_KM:
+                rho = min(self._report_gain(), rho)     # never more than an own report of the same age (kit tested 1 h: gain <= 0.62 < 0.72, so identical there)
             s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
                                                                                   spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
         s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n), measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
