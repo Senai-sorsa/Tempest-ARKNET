@@ -1,0 +1,7 @@
+IL-198 P3 radar gain with a date-block bootstrap (120 balloon days, 5000 draws): CRPS gain vs the free pool, 95 % interval
+  2.5-5 km radar 0.5-2 km     gain +31.3 %  95 % [+25.0, +37.5]  share of draws > 0: 1.000  (n 120 days)
+  2.5-5 km radar+all to 5 km  gain +34.7 %  95 % [+27.0, +41.7]  share of draws > 0: 1.000  (n 120 days)  (overlaps the observed levels)
+  5-12 km  radar 0.5-2 km     gain +15.2 %  95 % [ +9.4, +20.9]  share of draws > 0: 1.000  (n 120 days)
+  5-12 km  radar+all to 5 km  gain +19.7 %  95 % [+12.5, +26.9]  share of draws > 0: 1.000  (n 120 days)
+  12-18 km radar 0.5-2 km     gain  +6.4 %  95 % [ +2.7, +10.0]  share of draws > 0: 1.000  (n 120 days)
+  12-18 km radar+all to 5 km  gain  +8.8 %  95 % [ +4.4, +13.0]  share of draws > 0: 1.000  (n 120 days)
