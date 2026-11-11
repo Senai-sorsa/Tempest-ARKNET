@@ -1,0 +1,6 @@
+IL-201: 200 tool atmospheres (mode ai), 2025-06-24 20 UTC, Sol Invictus; structure at 150 / 200 m flattened to 0.8 of its departure from the 100-300 m line
+  apogee: sd across samples 20.8 m; change mean -0.01 m, mean abs 0.12 m, max abs 0.6 m  (mean abs change / sd = 0.6 %)
+  landing: mean distance from the mean landing 171 m; landing shift mean 0.7 m, max 3.3 m  (mean shift / spread = 0.4 %)
+IL-201: 200 tool atmospheres (mode ai), 2025-06-24 20 UTC, Sol Invictus; structure at 150 / 200 m flattened to 0.0 of its departure from the 100-300 m line
+  apogee: sd across samples 20.8 m; change mean -0.02 m, mean abs 0.19 m, max abs 0.9 m  (mean abs change / sd = 0.9 %)
+  landing: mean distance from the mean landing 171 m; landing shift mean 3.4 m, max 16.7 m  (mean shift / spread = 2.0 %)
