@@ -1,0 +1,31 @@
+2026-11-11 10:00 S2 step 0: day (11-17 local) vs night (22-05 local) bias of the tool's 10 m prior median, no report, 2021-22, 60 hours each, seed 0
+  TCS  day   n  60 skipped   0  bias +0.52 [-0.13, +1.19] m/s
+  TCS  night n  60 skipped   0  bias +1.08 [+0.60, +1.59] m/s
+  TCS  opposite sign: no
+  ONM  day   no hours served (skipped 60)
+  ONM  night no hours served (skipped 60)
+  ONM  opposite sign: no
+  LRU  day   n  60 skipped   0  bias +0.11 [-0.63, +0.89] m/s
+  LRU  night n  60 skipped   0  bias -0.14 [-0.65, +0.44] m/s
+  LRU  opposite sign: yes
+  ELP  day   n  60 skipped   0  bias -0.34 [-1.14, +0.53] m/s
+  ELP  night n  60 skipped   0  bias +0.04 [-0.58, +0.71] m/s
+  ELP  opposite sign: yes
+  ALM  day   n  60 skipped   0  bias -0.83 [-1.54, -0.11] m/s
+  ALM  night n  60 skipped   0  bias -0.08 [-0.55, +0.43] m/s
+  ALM  opposite sign: no
+  MAF  day   n  60 skipped   0  bias -0.25 [-0.83, +0.44] m/s
+  MAF  night n  60 skipped   0  bias -0.15 [-0.62, +0.33] m/s
+  MAF  opposite sign: no
+  FST  day   no hours served (skipped 60)
+  FST  night no hours served (skipped 60)
+  FST  opposite sign: no
+  PEQ  day   n  60 skipped   0  bias -0.09 [-1.00, +0.80] m/s
+  PEQ  night n  60 skipped   0  bias -1.58 [-2.04, -1.09] m/s
+  PEQ  opposite sign: no
+  ABQ  day   no hours served (skipped 60)
+  ABQ  night no hours served (skipped 60)
+  ABQ  opposite sign: no
+Rule (pre-set): night bias opposite in sign to day bias at >= 6 of 9 stations. Found 2 of 9. Caveat: ONM, FST, ABQ lie outside the trained area (IL-209), so 6 is also the most that can pass.
+VERDICT: PREMISE WRONG -> STOP S2; the TCS factor stays a per-site item (ASK_LATER 24)
+

@@ -216,8 +216,86 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | C4 sigma sweep (`p3_vad_condition --sigma 3.0 / 3.02 / 4.16`, EPZ and MAF) | the score barely depends on sigma: 3.02 = 3.0 to the second decimal; 4.16 slightly worse for 'radar' at 2.5-5 km at both sites (+31.3 -> +30.0 %, +21.5 -> +19.5 %); adopt rule fails at every sigma ('radar+all' covers 0.49-0.55, overlapping levels) | **keep VAD_SIGMA_MS = 3.0; C4 CLOSED** (logs `c4_vad_sigma_*.log`) |
 | A2 past-mode spread x1.2 | decided from existing logs `gw_uscrn_bench.log` / `gw_uscrn_bench_monahans.log` (same hours, anchor on): x1.2 raises CRPS at both USCRN sites (Las Cruces day 0.744 -> 0.750, other 0.845 -> 0.924; Monahans day 0.604 -> 0.634, other 0.866 -> 0.912) and pushes day coverage past 0.90 (0.95 / 0.96) | **A2 FAILS (rule: CRPS loss <= 0.0009 at all three sites); keep 1.0**. The extra spread helps only at the airports (TCS 0.78) -> site-specific, see IL-207 |
 | IL-207b per-site factor (`b3_il207b_site_shift.py`) | PASS on 2 hour sets: TCS CRPS -0.079 [-0.116, -0.042] and -0.075 [-0.140, -0.009], cov 0.81->0.85 / 0.80->0.86; MAF guard neutral | CONFIRMED; adoption is ASK_LATER 24 (TCS is a 30 km proxy for the pad) |
+| S2 step 0 day/night bias (`b4_s2_step0_daynight.py`, 60 h each, 2021-22) | opposite day/night sign at 2 of 9 (LRU, ELP; both intervals span 0). TCS too calm day AND night (+0.52 / +1.08 m/s); PEQ night -1.58; ONM, FST, ABQ not servable | **PREMISE WRONG -> S2 STOPPED**; the TCS error is a site offset, not a flat daily cycle, so the TCS factor stays per-site (ASK_LATER 24) |
 | G1-6 observe numbers | RUNNING (lost in the 04:49 reboot, relaunched 09:20) | read `kit_b2_g16_observe_fit.log` |
 
 Found while building: the switches this plan named (`shuffle_train`, `day_code`, `target_shear`, `group_rank`, `t_update`, `SIGMA_SCALE`) do not exist, the kit works from outside the core; C6 needs no download (`data/raw/wb2_hres_v2` has 2016-22); G2-1 cannot be checked from disk; G2-4 needs a radar download first.
 
 Next session, in order: (1) README Part 3 "RESULTS BLOCK", steps 1-4; (2) full G2-7 run; (3) README Part 5, top to bottom.
+
+---
+
+## 10. Secondary ideas (added 2026-11-11; nothing here has been run)
+
+Where they come from: the results in section 9, the logs, the code, and outside research. The long list
+of 21 ideas with the attacks on each is in `Secondary ideas.md`. All eight are measurement items: a kit
+script in `new_plan_kit/` that works from outside the core, default output bit-identical, log to
+`docs/results/logs/kit_b4_*.log`. Adoption stays with the user (ASK_LATER 22). Rules for all: fit on
+<= 2022, test on 2023-25, never 2026; two seeds; day-block bootstrap; CRPS noise 0.0009; 12 threads at
+low priority. Template for every script: `b3_il207b_site_shift.py` (about 2-3 s per pool hour).
+
+The direction: what worked was (a) simple statistics beside the network and (b) real measurements on
+launch day. What limited both was the same thing: the TCS-type prior is too calm by day, so the update
+that follows it comes out too narrow. So: fix the centre first, then update, then use more of the
+measurements already on disk.
+
+### 10.1 Three structural ideas
+
+**S1. Site map first, update second** (`b4_debias_then_update.py`)
+
+| | |
+|---|---|
+| What | Apply the per-site speed map to the pool BEFORE the observe update, then use the variant B gain (rho = `obs.effective_gain`) for neighbour reports. Fit the map by matching distributions per season x hour block (6 cells) on all ASOS years <= 2022, not on 300 paired hours. |
+| Why here | `launch._speed_space_update` ranks the report inside the prior pool's own speed distribution. A prior that is too calm puts the report in the far tail and the result is too narrow: TCS covers 0.82 even with its own report, and variant B misses the floor only with TCS as target (LRU 0.81, ONM 0.75). IL-207b alone lifts TCS 0.81 -> 0.85. The two confirmed candidates fix two halves of one fault. |
+| Where in the code | No core change. `Launch(site_cal=...)` exists; `_apply_site_cal` runs at the end of `_ensure_pool`, and observe reads its prior after that. The kit builds the map and passes it in. |
+| Test | Targets TCS and MAF. Arms: tool / B alone / map alone / map + B, for own-station and each neighbour (LRU, ONM -> TCS; FST, PEQ -> MAF). 200 test hours per pair, 2 seeds. |
+| Pass rule (set now) | Map + B: coverage >= 0.80 at every pair in BOTH seeds, CRPS not worse than B alone by more than 0.0009 at any pair, and each cell factor within 0.05 between seeds. |
+| Kill rule | Either seed misses 0.80 at any pair -> closed, keep B and the map as separate opt-ins. |
+| Cost | About 2 h CPU per seed. No download. |
+| Risk | The map is fitted at airports; at the pad it is a 30 km stand-in (ASK_LATER 24). S2 answers that. |
+
+**S2. Regional day / night shape for sites with no record** (`b4_regional_shape_loso.py`)
+
+| | |
+|---|---|
+| What | For each of the 9 ASOS stations fit the 6-cell factors (as S1), divide by their all-hours mean to keep only the SHAPE. For a held-out station apply the median shape of the other eight, level 1. Score at the held-out station. Monahans and Las Cruces (USCRN, not airports) are extra held-out sites. |
+| Why here | The TCS error is a too-flat daily cycle, not an offset: all-hours quantiles are right (`e1_extremes_coverage.log`), daytime bias is +1.44 m/s (IL-207). If this comes from the ERA5 training data it is regional, so the shape should transfer. `p7_site_model.log` shows a borrowed constant already helps on average (0.960 -> 0.940, 6 of 8) but hurts PEQ and MONAHANS, because the level is site specific (0.92-1.20). Hence shape only. |
+| What it decides | ASK_LATER 24. If the shape transfers, the pad gets it without a pad record. If it does not, the TCS factor is an airport effect and must not be used at the pad. |
+| Step 0 (10 min) | From existing pools: day / night bias per station. If the night bias is not opposite in sign to the day bias at 6 or more of 9 stations, stop: the premise is wrong. |
+| Pass rule (set now) | Mean CRPS better with an interval that excludes 0, at least 7 of 9 ASOS stations better, no site worse by more than 0.010, and both USCRN sites not worse. |
+| Kill rule | Fewer than 6 of 9 better, or any site worse by more than 0.030 -> closed; site maps stay per site only. |
+| Cost | About 4 h CPU per seed (9 stations x 560 pool hours). No download. |
+| Risk | All fit sites are open and flat. Cross-check only: `wtk_pad_factors.log` (pad / airport 0.83 at night, 0.98-1.00 by day) agrees in direction. |
+
+**S3. Whole radar profile, thinned** (`b4_radar_thinned.py`)
+
+| | |
+|---|---|
+| What | Condition on the radar wind up to 5 km instead of 0.5-2 km, but at one level per error length (every 1000 m: 500, 1500, 2500, 3500, 4500) and with a larger sigma (sweep 3.0 / 4.5 / 6.0). |
+| Why here | "radar+all to 5 km" already gives +17-20 % at 5-12 km against +7-15 % for four levels, but covers only 0.49-0.61 at 2.5-5 km, so it could not be adopted. The C4 fit points to the cause: radar errors are tied together over 901 m in height, while the update treats ten levels 500 m apart as independent. Changing sigma alone did nothing (C4 sweep). Thinning to the error length and inflating is the standard cure for correlated errors and needs no error matrix. |
+| Where in the code | No core change: `observe_radar(levels_m=..., sigma_ms=...)` takes both. The kit adds a `--levels` option to a copy of `scripts/p3_vad_condition.py`. |
+| Test | Choose levels and sigma on EPZ 2021-22 hours. Score once on EPZ 2023 hours and on MAF (MAF takes no part in the choice). |
+| Pass rule (set now) | Coverage 0.85-0.95 at 2.5-5 km AND CRPS at 5-12 km at least 2 points better than the shipped four levels, at both sites. |
+| Kill rule | No setting reaches coverage 0.85 on the EPZ choice hours -> closed for good (a full error matrix would need a core change; not worth it). |
+| Cost | About 1 h CPU. Radar files are on disk (EPZ 611, MAF 133). |
+| Risk | The radar is biased by +1.3 m/s near 5 km (C4); if the top level hurts, drop 4500 m and say so. |
+
+### 10.2 Five other ideas
+
+| # | Idea | Why here | Test and rule (set now) | Cost |
+|---|---|---|---|---|
+| O1 | **Two neighbours at once** (`b4_two_neighbours.py`). Merge the reports of two neighbour stations into one report (weights = variant B gains, second gain cut by the correlation between the two stations) and call `observe` once. Run after S1, with the map on. | `observe_latest` stops at the first usable station. One neighbour gave 1.437 -> 1.313 (`p1_diff_assim.log`). Outside work: a few chosen neighbours give nearly the full gain, but only if their shared error is counted. | TCS from LRU + ONM, ELP from LRU + ALM. PASS: CRPS better than the best single neighbour with an interval that excludes 0, coverage >= 0.80, both seeds. Else closed. | 1.5 h CPU |
+| O2 | **Radar over distance** (`b4_radar_distance.py`). Score the Holloman radar (HDX, about 145 km away) against the EPZ balloons and compare with the EPZ radar on the same hours. | The pad has no radar: HDX is about 80 km away, EPZ about 125 km. The +31 % was measured with the radar beside the balloon. 127 common HDX / EPZ hours are on disk. | Measurement only: gain at 2.5-5 km and 5-12 km with intervals, and coverage. If coverage < 0.85, the sigma that restores it is the distance term for `observe_radar`. Caveat: all hours are 23 UTC. | 40 min CPU |
+| O3 | **Launch-week factor** (`b4_launch_week_replay.py`). Replay: with k = 3, 7, 14 days of 10 m record before the test day, update the site map by a decaying average (weight 1/30 per day, as in `tempest_weather/bias.py`). | This is the pad's own way to a map: an anemometer set up a week early. NCEP has run this method since 2006. It also covers G1-5 for the climate and past modes. | TCS and MAF, starting from the S2 regional shape (as at the pad). PASS: at k = 7, CRPS better than the shape alone with an interval that excludes 0 at both sites, coverage not lower. Report k = 3 and 14 too. | 2 h CPU |
+| O4 | **Analog referee and tail fix** (`b4_analog_tail.py`). Keep the analog ensemble (40 most similar hours of the station record) as the bar to beat in every 10 m table, and test one fix for its weak tail: add the gap between the forecast and the analog mean of the predictor. | It beats tool past by 11-23 % at TCS and MAF (`gw_analog.log`) but its median for winds >= 8 m/s is 7.71 against 10.16 observed. Outside work reports this tail bias and this fix. Works only at sites with a record, so it is a referee, not a pad tool. | PASS: under-prediction at >= 8 m/s halved (2.45 -> <= 1.2 m/s) with overall CRPS loss <= 0.0009, TCS and MAF. Then also score S1 against it. | 30 min CPU |
+| O5 | **ECC ordering in forecast mode** (`b4_ecc_modeF.py`). Order the members across heights by the forecast ensemble's own ranks instead of the Schaake history. Depends on ASK_LATER 21. | `m4_ecc_test.log`: variogram score 1-3 % better at leads 1-7. It only reorders members at each height, so per-height CRPS cannot change; this separates it from the failed shuffle changes. | Two seeds, 2023-25. PASS: variogram score >= 1 % better at every lead 1-7 with intervals that exclude 0, shear rate within 10 % of the Schaake value, and the IL-128 inflation check passes. Else keep Schaake. | 1 h CPU |
+
+### 10.3 Order
+
+1. S2 step 0 (10 min), then S1 and O4 side by side.
+2. S2 full run; S3 and O2 together (same radar files).
+3. O1 and O3 only after S1 and S2 have a verdict (both build on the map). O5 after ASK_LATER 21 is answered.
+
+Looked at and dropped (reasons in `Secondary ideas.md`): radar bias by height, 10 m -> 300 m taper fit
+(data blocked), T-rise and unstable-layer fixes, spread per hour block, run-to-run disagreement,
+physical gust law (already shipped: `MEASURED_GUST_LAW`), persistence centre (that is G1-6).
