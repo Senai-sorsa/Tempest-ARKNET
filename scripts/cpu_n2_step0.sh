@@ -7,12 +7,13 @@ cd /c/Users/Senai/Tempest-ARKNET || exit 1
 export OMP_NUM_THREADS=6 PYTHONPATH=.
 PY=.venv/Scripts/python
 log() { echo "$(date '+%F %T') [N2S0] $*" >> data/l3.log; }
-log start
+ARMS="${ARMS:-base: l13:--levels13 nop:--no-place}"   # rerun one arm: ARMS="l13:--levels13" EXTRA=--retrain
+log "start $ARMS"
 for box in "modeF_ens:" "modeF_ens_denver:_den"; do
   rows=data/${box%%:*}; tag=${box##*:}
-  for arm in "base:" "l13:--levels13" "nop:--no-place"; do
+  for arm in $ARMS; do
     name=${arm%%:*}; opt=${arm#*:}
-    $PY -W ignore -u scripts/il6_modeF.py --rows-dir $rows --width 128 --depth 2 --coarse 4 --steps 1500 --lr 3e-4 --wd 1e-2 --members 2 --seed 0 $opt \
+    $PY -W ignore -u scripts/il6_modeF.py --rows-dir $rows --width 128 --depth 2 --coarse 4 --steps 1500 --lr 3e-4 --wd 1e-2 --members 2 --seed 0 $opt $EXTRA \
         --out models/modeF_n2_$name$tag.pt > data/n2_$name$tag.log 2>&1 && log "$name$tag done" || log "FAILED $name$tag"
   done
 done

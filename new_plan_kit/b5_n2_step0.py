@@ -1,6 +1,7 @@
 """New_Plan 10.4 N2 step 0, box checks: would a world forecast-error model lose too much from the world store's coarser input?
 Runs of scripts/cpu_n2_step0.sh (ENSF2 HRES-only recipe, seed 0, per box): base, --levels13 (forecast profile only at the heights nearest the 13
-pressure levels, standard atmosphere minus median ground height), --no-place (lat / lon 0). models/modeF_n2_{base,l13,nop}{,_den}_eval.csv.
+pressure levels, standard atmosphere minus median ground height, plus the surface level: the world store has u10, v10, t2m;
+the first run without it lost 1.84 % at Denver, recorded in New_Plan section 9), --no-place (lat / lon 0). models/modeF_n2_{base,l13,nop}{,_den}_eval.csv.
 Metric: mean CRPS over the 16 variable x band cells by lead 1/3/5/7 d, method 'network + PIT recal + range map + Schaake shuffle'.
 Rule (pre-set, plan): 13-level input loses under 1 % and no lat / lon loses under 0.5 % (mean of leads), both boxes; else N2 stops.
 (The pair count part, >= 300,000, passed: 63.6 M, New_Plan section 9.)
