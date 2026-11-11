@@ -42,3 +42,14 @@ def test_quantile_map_is_monotone_and_validation():
         fit_site(ref[:50], site[:50], hours[:50])
     with pytest.raises(ValueError):
         apply_site(fit_site(ref, site, hours, method="hourly"), ref)
+
+
+def test_tcs_speed_factor_maps_local_blocks_to_utc_hours():
+    from datetime import datetime
+    from tempest_weather_v2.sitecal import TCS_SPEED_FACTOR, apply_site, tcs_speed_factor
+    cal = tcs_speed_factor(datetime(2023, 7, 1, 20))                  # MDT = UTC-6
+    f = cal["hourly"]
+    assert f[23] == TCS_SPEED_FACTOR["16-20/warm"] and f[19] == TCS_SPEED_FACTOR["12-15/warm"] and f[14] == TCS_SPEED_FACTOR["08-11/warm"]
+    assert f[5] == 1.0 and f[3] == 1.0                                # night (untested) untouched
+    assert tcs_speed_factor(datetime(2023, 1, 10))["hourly"][23] == TCS_SPEED_FACTOR["16-20/cool"]    # MST 16 local
+    assert apply_site(cal, [2.0], [23])[0] == 2.0 * TCS_SPEED_FACTOR["16-20/warm"]

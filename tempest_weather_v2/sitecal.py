@@ -12,7 +12,7 @@ Speeds only (m/s). The site record and the reference must be in the same height 
 """
 import numpy as np
 
-__all__ = ["fit_site", "apply_site", "METHODS"]
+__all__ = ["fit_site", "apply_site", "METHODS", "tcs_speed_factor"]
 
 METHODS = ("ratio", "hourly", "quantile")
 
@@ -58,3 +58,26 @@ def apply_site(cal, speeds, hours=None):
     out = np.interp(x, lo, hi)
     over = x > lo[-1]
     return np.where(over, hi[-1] + (x - lo[-1]) * (hi[-1] - hi[-2]) / max(lo[-1] - lo[-2], 1e-9), out)         # beyond the last knot: continue with the last slope
+
+
+# IL-207b (ASK_LATER 24, adopted 2026-11-11, opt-in): the tool is too calm at the TCS ASOS station (bias +1.44 m/s, worst warm afternoons).
+# Factor per local hour block x season, mean of the two fits in docs/results/logs/kit_b3_il207b_site_shift.log (fit 2021-22, test 2023-25:
+# CRPS -0.079 and -0.075, coverage 0.81 -> 0.85-0.86). Untested outside 08-20 local -> 1.0 there. For TCS itself only, NOT the pad 30 km away
+# (the offset may be the airport's exposure). The two fits differ most at 16-20 warm (1.20 / 1.38).
+TCS_SPEED_FACTOR = {"08-11/cool": 0.985, "08-11/warm": 1.015, "12-15/cool": 1.135, "12-15/warm": 1.135, "16-20/cool": 1.06, "16-20/warm": 1.29}
+
+
+def tcs_speed_factor(when):
+    """Opt-in site_cal for a launch at the TCS station on the date of `when` (datetime; naive = UTC): method "hourly", 24 UTC-hour factors.
+    Use: Launch(..., site_cal=tcs_speed_factor(t)) or L.calibrate_site(tcs_speed_factor(t))."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    z = ZoneInfo("America/Denver")
+    day = (when if when.tzinfo else when.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).date()
+    f = np.ones(24)
+    for h in range(24):
+        loc = datetime(day.year, day.month, day.day, h, tzinfo=timezone.utc).astimezone(z)
+        if 8 <= loc.hour <= 20:
+            block = "08-11" if loc.hour < 12 else "12-15" if loc.hour < 16 else "16-20"
+            f[h] = TCS_SPEED_FACTOR[block + ("/warm" if 3 <= loc.month <= 8 else "/cool")]
+    return {"method": "hourly", "hourly": f}

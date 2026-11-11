@@ -1,0 +1,108 @@
+2026-11-11 11:26 S3 radar thinned: seed 0, inflation 1.5, 00Z balloon vs radar 23 UTC; u and v averaged; points = CRPS skill vs free (%)
+EPZ 2021-22 (choice): 150 days
+  2.5-5 km free               CRPS  4.37 ( +0.0 %)  cov90 0.87
+  2.5-5 km shipped 4 lv s3.0  CRPS  2.98 (+31.7 %)  cov90 0.95
+  2.5-5 km thin5 s3.0         CRPS  2.92 (+33.1 %)  cov90 0.72
+  2.5-5 km thin5 s4.5         CRPS  2.99 (+31.4 %)  cov90 0.74
+  2.5-5 km thin5 s6.0         CRPS  3.09 (+29.1 %)  cov90 0.74
+  2.5-5 km thin4 s3.0         CRPS  2.92 (+33.1 %)  cov90 0.79
+  2.5-5 km thin4 s4.5         CRPS  3.01 (+31.1 %)  cov90 0.80
+  2.5-5 km thin4 s6.0         CRPS  3.12 (+28.6 %)  cov90 0.80
+  5-12 km  free               CRPS  6.86 ( +0.0 %)  cov90 0.87
+  5-12 km  shipped 4 lv s3.0  CRPS  5.83 (+15.0 %)  cov90 0.93
+  5-12 km  thin5 s3.0         CRPS  5.51 (+19.7 %)  cov90 0.94
+  5-12 km  thin5 s4.5         CRPS  5.54 (+19.2 %)  cov90 0.94
+  5-12 km  thin5 s6.0         CRPS  5.61 (+18.1 %)  cov90 0.95
+  5-12 km  thin4 s3.0         CRPS  5.61 (+18.1 %)  cov90 0.94
+  5-12 km  thin4 s4.5         CRPS  5.64 (+17.8 %)  cov90 0.95
+  5-12 km  thin4 s6.0         CRPS  5.70 (+16.8 %)  cov90 0.95
+EPZ 2023: 150 days
+  2.5-5 km free               CRPS  3.96 ( +0.0 %)  cov90 0.89
+  2.5-5 km shipped 4 lv s3.0  CRPS  2.83 (+28.5 %)  cov90 0.93
+  2.5-5 km thin5 s3.0         CRPS  2.66 (+32.8 %)  cov90 0.64
+  2.5-5 km thin5 s4.5         CRPS  2.74 (+30.8 %)  cov90 0.65
+  2.5-5 km thin5 s6.0         CRPS  2.81 (+28.9 %)  cov90 0.66
+  2.5-5 km thin4 s3.0         CRPS  2.66 (+32.7 %)  cov90 0.70
+  2.5-5 km thin4 s4.5         CRPS  2.76 (+30.2 %)  cov90 0.71
+  2.5-5 km thin4 s6.0         CRPS  2.86 (+27.8 %)  cov90 0.72
+  5-12 km  free               CRPS  6.69 ( +0.0 %)  cov90 0.86
+  5-12 km  shipped 4 lv s3.0  CRPS  5.83 (+12.9 %)  cov90 0.92
+  5-12 km  thin5 s3.0         CRPS  5.46 (+18.5 %)  cov90 0.91
+  5-12 km  thin5 s4.5         CRPS  5.52 (+17.5 %)  cov90 0.92
+  5-12 km  thin5 s6.0         CRPS  5.61 (+16.1 %)  cov90 0.93
+  5-12 km  thin4 s3.0         CRPS  5.54 (+17.3 %)  cov90 0.92
+  5-12 km  thin4 s4.5         CRPS  5.62 (+16.1 %)  cov90 0.93
+  5-12 km  thin4 s6.0         CRPS  5.72 (+14.6 %)  cov90 0.93
+MAF 2021-23: 150 days
+  2.5-5 km free               CRPS  3.64 ( +0.0 %)  cov90 0.89
+  2.5-5 km shipped 4 lv s3.0  CRPS  2.85 (+21.6 %)  cov90 0.95
+  2.5-5 km thin5 s3.0         CRPS  2.69 (+26.1 %)  cov90 0.70
+  2.5-5 km thin5 s4.5         CRPS  2.75 (+24.5 %)  cov90 0.71
+  2.5-5 km thin5 s6.0         CRPS  2.84 (+22.0 %)  cov90 0.72
+  2.5-5 km thin4 s3.0         CRPS  2.68 (+26.3 %)  cov90 0.75
+  2.5-5 km thin4 s4.5         CRPS  2.75 (+24.5 %)  cov90 0.77
+  2.5-5 km thin4 s6.0         CRPS  2.85 (+21.6 %)  cov90 0.77
+  5-12 km  free               CRPS  6.12 ( +0.0 %)  cov90 0.88
+  5-12 km  shipped 4 lv s3.0  CRPS  5.58 ( +8.8 %)  cov90 0.95
+  5-12 km  thin5 s3.0         CRPS  5.14 (+16.0 %)  cov90 0.94
+  5-12 km  thin5 s4.5         CRPS  5.21 (+14.8 %)  cov90 0.95
+  5-12 km  thin5 s6.0         CRPS  5.33 (+13.0 %)  cov90 0.95
+  5-12 km  thin4 s3.0         CRPS  5.26 (+14.1 %)  cov90 0.95
+  5-12 km  thin4 s4.5         CRPS  5.33 (+12.9 %)  cov90 0.95
+  5-12 km  thin4 s6.0         CRPS  5.46 (+10.9 %)  cov90 0.95
+KILL: no setting reaches coverage 0.85-0.95 at 2.5-5 km on the EPZ choice hours -> S3 closed for good.
+
+2026-11-11 11:26 S3 radar thinned: seed 1, inflation 1.5, 00Z balloon vs radar 23 UTC; u and v averaged; points = CRPS skill vs free (%)
+EPZ 2021-22 (choice): 150 days
+  2.5-5 km free               CRPS  4.21 ( +0.0 %)  cov90 0.87
+  2.5-5 km shipped 4 lv s3.0  CRPS  3.03 (+28.0 %)  cov90 0.94
+  2.5-5 km thin5 s3.0         CRPS  2.79 (+33.8 %)  cov90 0.68
+  2.5-5 km thin5 s4.5         CRPS  2.89 (+31.3 %)  cov90 0.69
+  2.5-5 km thin5 s6.0         CRPS  2.99 (+29.0 %)  cov90 0.69
+  2.5-5 km thin4 s3.0         CRPS  2.81 (+33.3 %)  cov90 0.75
+  2.5-5 km thin4 s4.5         CRPS  2.93 (+30.5 %)  cov90 0.76
+  2.5-5 km thin4 s6.0         CRPS  3.04 (+27.9 %)  cov90 0.76
+  5-12 km  free               CRPS  6.74 ( +0.0 %)  cov90 0.88
+  5-12 km  shipped 4 lv s3.0  CRPS  5.88 (+12.8 %)  cov90 0.93
+  5-12 km  thin5 s3.0         CRPS  5.34 (+20.8 %)  cov90 0.94
+  5-12 km  thin5 s4.5         CRPS  5.42 (+19.6 %)  cov90 0.95
+  5-12 km  thin5 s6.0         CRPS  5.51 (+18.2 %)  cov90 0.95
+  5-12 km  thin4 s3.0         CRPS  5.49 (+18.5 %)  cov90 0.95
+  5-12 km  thin4 s4.5         CRPS  5.58 (+17.2 %)  cov90 0.95
+  5-12 km  thin4 s6.0         CRPS  5.66 (+16.0 %)  cov90 0.95
+EPZ 2023: 150 days
+  2.5-5 km free               CRPS  3.87 ( +0.0 %)  cov90 0.91
+  2.5-5 km shipped 4 lv s3.0  CRPS  2.79 (+28.1 %)  cov90 0.95
+  2.5-5 km thin5 s3.0         CRPS  2.51 (+35.2 %)  cov90 0.63
+  2.5-5 km thin5 s4.5         CRPS  2.58 (+33.3 %)  cov90 0.64
+  2.5-5 km thin5 s6.0         CRPS  2.68 (+30.9 %)  cov90 0.65
+  2.5-5 km thin4 s3.0         CRPS  2.52 (+35.0 %)  cov90 0.70
+  2.5-5 km thin4 s4.5         CRPS  2.61 (+32.7 %)  cov90 0.72
+  2.5-5 km thin4 s6.0         CRPS  2.72 (+29.9 %)  cov90 0.72
+  5-12 km  free               CRPS  6.81 ( +0.0 %)  cov90 0.88
+  5-12 km  shipped 4 lv s3.0  CRPS  5.89 (+13.5 %)  cov90 0.93
+  5-12 km  thin5 s3.0         CRPS  5.44 (+20.2 %)  cov90 0.92
+  5-12 km  thin5 s4.5         CRPS  5.51 (+19.2 %)  cov90 0.93
+  5-12 km  thin5 s6.0         CRPS  5.59 (+18.0 %)  cov90 0.94
+  5-12 km  thin4 s3.0         CRPS  5.52 (+19.0 %)  cov90 0.93
+  5-12 km  thin4 s4.5         CRPS  5.59 (+17.9 %)  cov90 0.93
+  5-12 km  thin4 s6.0         CRPS  5.69 (+16.5 %)  cov90 0.94
+MAF 2021-23: 150 days
+  2.5-5 km free               CRPS  3.64 ( +0.0 %)  cov90 0.92
+  2.5-5 km shipped 4 lv s3.0  CRPS  2.86 (+21.5 %)  cov90 0.95
+  2.5-5 km thin5 s3.0         CRPS  2.73 (+25.1 %)  cov90 0.74
+  2.5-5 km thin5 s4.5         CRPS  2.78 (+23.7 %)  cov90 0.75
+  2.5-5 km thin5 s6.0         CRPS  2.86 (+21.5 %)  cov90 0.75
+  2.5-5 km thin4 s3.0         CRPS  2.70 (+25.7 %)  cov90 0.79
+  2.5-5 km thin4 s4.5         CRPS  2.77 (+23.9 %)  cov90 0.79
+  2.5-5 km thin4 s6.0         CRPS  2.86 (+21.4 %)  cov90 0.79
+  5-12 km  free               CRPS  6.16 ( +0.0 %)  cov90 0.90
+  5-12 km  shipped 4 lv s3.0  CRPS  5.65 ( +8.3 %)  cov90 0.96
+  5-12 km  thin5 s3.0         CRPS  5.29 (+14.2 %)  cov90 0.96
+  5-12 km  thin5 s4.5         CRPS  5.37 (+12.8 %)  cov90 0.96
+  5-12 km  thin5 s6.0         CRPS  5.47 (+11.3 %)  cov90 0.96
+  5-12 km  thin4 s3.0         CRPS  5.41 (+12.3 %)  cov90 0.96
+  5-12 km  thin4 s4.5         CRPS  5.49 (+10.9 %)  cov90 0.96
+  5-12 km  thin4 s6.0         CRPS  5.59 ( +9.4 %)  cov90 0.96
+KILL: no setting reaches coverage 0.85-0.95 at 2.5-5 km on the EPZ choice hours -> S3 closed for good.
+

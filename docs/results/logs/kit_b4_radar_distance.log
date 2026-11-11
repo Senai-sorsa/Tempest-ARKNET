@@ -1,0 +1,16 @@
+2026-11-11 11:29 O2 radar over distance: seed 0, 107 common EPZ + HDX days (00Z Santa Teresa balloon, radar 23 UTC), shipped 4 levels 0.5-2 km, inflation 1.5
+  2.5-5 km free      CRPS  4.15 ( +0.0 % vs free)  cov90 0.88
+  2.5-5 km EPZ s3.0  CRPS  2.94 (+29.1 % vs free)  cov90 0.93  minus free -1.209 [-1.604, -0.845]
+  2.5-5 km HDX s3.0  CRPS  3.01 (+27.6 % vs free)  cov90 0.92  minus free -1.145 [-1.476, -0.831]
+  2.5-5 km HDX s4.5  CRPS  3.07 (+26.2 % vs free)  cov90 0.94  minus free -1.086 [-1.388, -0.803]
+  2.5-5 km HDX s6.0  CRPS  3.18 (+23.4 % vs free)  cov90 0.94  minus free -0.970 [-1.238, -0.715]
+  2.5-5 km HDX s8.0  CRPS  3.33 (+19.7 % vs free)  cov90 0.94  minus free -0.817 [-1.052, -0.597]
+  5-12 km  free      CRPS  7.02 ( +0.0 % vs free)  cov90 0.86
+  5-12 km  EPZ s3.0  CRPS  6.07 (+13.5 % vs free)  cov90 0.93  minus free -0.948 [-1.419, -0.518]
+  5-12 km  HDX s3.0  CRPS  5.97 (+15.0 % vs free)  cov90 0.94  minus free -1.051 [-1.537, -0.621]
+  5-12 km  HDX s4.5  CRPS  6.01 (+14.3 % vs free)  cov90 0.94  minus free -1.002 [-1.447, -0.608]
+  5-12 km  HDX s6.0  CRPS  6.08 (+13.4 % vs free)  cov90 0.94  minus free -0.940 [-1.335, -0.586]
+  5-12 km  HDX s8.0  CRPS  6.23 (+11.2 % vs free)  cov90 0.94  minus free -0.789 [-1.135, -0.486]
+HDX at sigma 3.0 covers 0.92 at 2.5-5 km (>= 0.85): no distance term needed.
+Measurement only (pre-set): no adoption from this run.
+
