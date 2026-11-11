@@ -2,6 +2,8 @@
 
 Each entry has the reason, the evidence and the exact command or change.
 
+**USER 2026-11-11 10:30: "I give permission for everything in ask later" (and asked what 22 is; 22 explained in chat, treated as granted with the rest).** Being acted on: 21 (opt-in), 23 (B), 24 (TCS factor), 5 / 6 downloads and installs, 12 higher data cap. Held for one explicit word because they cannot be undone or touch the one-time test: 2 force-push, 11 push, 12/12b deleting data, 14 / 18 final 2026 test. Items that need the user's own data, account or hands (3, 4, 7, 8, 9, 15, 20) are unchanged by a permission.
+
 ## 1. Make the forecast logger survive reboots (Windows Task Scheduler)
 
 - **Reason:** the logger (`tempest.ops.logger`) currently runs as a background loop (`--loop 12`) started by Claude.
