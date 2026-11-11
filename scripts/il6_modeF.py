@@ -49,6 +49,8 @@ ap.add_argument("--no-place", action="store_true", help="N2 step 0: lat and lon 
 ap.add_argument("--fit-rows-dir", default="", help="N2 full run (New_Plan 10.4): fit the network on these rows (2016-19 train, 2020 validation; e.g. data/modeF_world) instead of --rows-dir; range map, test and the pool / ridge / Schaake templates stay on --rows-dir. Empty = as before")
 ap.add_argument("--save-rows", action="store_true", help="N2: also write <out>_rows.npz: per test row lead bin, valid day and mean CRPS over the 16 variable x band cells of 'network + PIT recal + range map + Schaake shuffle' (for paired day-block intervals); off = as before")
 ap.add_argument("--init", default="", help="N2: start the network from this saved .pt (fine-tune, with its normalisation); empty = fresh start (as before)")
+ap.add_argument("--all-leads", action="store_true", help="N5 full run (New_Plan 10.4): keep rows beyond 7.5 d as lead bin 9 and score leads 1 / 3 / 5 / 7 / 9; the network is still fit on leads <= 7.5 d unless --fit-beyond. Off = as before")
+ap.add_argument("--fit-beyond", action="store_true", help="N5: with --all-leads, fit the network on all leads plus 10 %% climate-anchor rows (forecast = a random same-season truth profile, lead 15 d)")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
@@ -56,10 +58,14 @@ torch.manual_seed(a.seed)                                                      #
 yrs = {y: dict(np.load(f"{a.rows_dir}/{y}.npz")) for y in range(2016, 2023)}
 for y, d_ in yrs.items():                                                    # F-V2: lead groups (identity for the old whole-day rows)
     d_["lead_bin"] = F.lead_bin(d_["lead_days"])
+    if a.all_leads:                                                          # N5: beyond 7.5 d kept as bin 9
+        d_["lead_bin"] = np.where(d_["lead_bin"] == 0, 9, d_["lead_bin"])
     yrs[y] = {k: v[d_["lead_bin"] > 0] for k, v in d_.items()}
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 assert 1 <= a.fit_years <= 4, "--fit-years 1-4"
 tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021]), cat([2022])
+assert a.all_leads or not a.fit_beyond, "--fit-beyond needs --all-leads"
+LEADS = (1, 3, 5, 7, 9) if a.all_leads else (1, 3, 5, 7)
 def sub(d, n):
     """random subset of rows; ONE index for all arrays (drawing a new index per array once misaligned forecast and truth)"""
     i = np.sort(rng.choice(len(d['obs']), min(n, len(d['obs'])), replace=False))
@@ -98,7 +104,18 @@ print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
-    fit = tr
+    fit = tr if a.fit_beyond or not a.all_leads else {k: v[tr["lead_bin"] != 9] for k, v in tr.items()}   # N5 binned arm: as shipped, leads <= 7.5 d
+    if a.fit_beyond:                                                           # N5: climate anchors; own rng so every other draw stays as before
+        _ar = np.random.default_rng(500 + a.seed)
+        _i = _ar.choice(len(tr["obs"]), len(tr["obs"]) // 10, replace=False)
+        _o = np.argsort(tr["doy"], kind="stable")
+        _ds = tr["doy"][_o]
+        _lo, _hi = np.searchsorted(_ds, tr["doy"][_i] - 20), np.searchsorted(_ds, tr["doy"][_i] + 20, "right")   # shortcut: no wrap at the year end (late Dec / early Jan get a one-sided window); fine for a 10 % anchor share
+        _j = _o[_lo + (_ar.random(len(_i)) * (_hi - _lo)).astype(int)]
+        anc = {k: v[_i].copy() for k, v in tr.items()}
+        anc["hres"], anc["lead_days"] = tr["obs"][_j].astype(anc["hres"].dtype), np.full(len(_i), 15.0, anc["lead_days"].dtype)
+        fit = {k: np.concatenate([tr[k], anc[k]]) for k in tr}
+        print(f"N5: fit on all leads + {len(_i):,} climate-anchor rows", flush=True)
     if a.fit_rows_dir:
         _fy = [dict(np.load(f"{a.fit_rows_dir}/{y}.npz")) for y in range(2016, 2021)]
         _fy = [{k: v[F.lead_bin(d_["lead_days"]) > 0] for k, v in d_.items()} for d_ in _fy]
@@ -143,7 +160,7 @@ x_pool = F.to_physical(hres, pool - hres[:, None])
 # linear (ridge) per lead + error pool of its own residuals
 lin = np.empty((len(truth), m, F.D), np.float32)
 h_tr = tr["hres"].reshape(len(tr["obs"]), -1)
-for L in (1, 3, 5, 7):
+for L in LEADS:
     ktr, kte = tr["lead_bin"] == L, te["lead_bin"] == L
     mu, sd = h_tr[ktr].mean(0), h_tr[ktr].std(0) + 1e-6
     Z = np.concatenate([(h_tr[ktr] - mu) / sd, np.ones((ktr.sum(), 1))], 1)
@@ -181,11 +198,12 @@ rows = []
 for name, x in methods.items():
     crps = crps_ensemble(x, truth) @ masks
     if a.save_rows and name == "network + PIT recal + range map + Schaake shuffle":
-        np.savez(STEM + "_rows.npz", lead=te["lead_bin"], day=te["valid"].astype("datetime64[D]").astype(np.int64), crps=crps.mean(1))
+        _x = dict(lead_days=te["lead_days"], crps_clim=(crps_ensemble(clim, truth) @ masks).mean(1)) if a.all_leads else {}   # N5: extra fields only with --all-leads
+        np.savez(STEM + "_rows.npz", lead=te["lead_bin"], day=te["valid"].astype("datetime64[D]").astype(np.int64), crps=crps.mean(1), **_x)
     mae = np.abs(np.median(x, 1) - truth) @ masks
     cov = (coverage90(x, truth, 0.99).astype(float) @ masks) if x.shape[1] > 2 else np.full((len(truth), len(bands)), np.nan)
     tv = M.pit_tv(M.pit_values(x, truth, rng)) if x.shape[1] > 2 else np.full(truth.shape[1], np.nan)
-    for L in (1, 3, 5, 7):
+    for L in LEADS:
         k = te["lead_bin"] == L
         for b, (v, band, sel) in enumerate(bands):
             rows.append(dict(method=name, lead=L, var=v, band=band, crps=crps[k, b].mean(), mae=mae[k, b].mean(), cov99=cov[k, b].mean(), pit_tv=np.nan))
@@ -213,7 +231,7 @@ try:
     srows = []
     for name in (*H2, "blend: network + shuffle / ridge 50:50", "network + range map", "network + range map + Schaake shuffle", "network + PIT recal + range map + Schaake shuffle", "ridge + error pool", "HRES + error pool"):
         x = methods[name]
-        for L in (1, 3, 5, 7):
+        for L in LEADS:
             k = te["lead_bin"] == L
             xs, ys = x[k], truth[k]
             pit = M.pit_values(xs, ys, rng)
