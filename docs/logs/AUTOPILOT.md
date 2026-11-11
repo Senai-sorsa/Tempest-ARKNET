@@ -760,3 +760,4 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Heartbeat 272. Section 10: nothing new beyond N1-N7.
 - N3 step 0 CLOSED: gain 3 -> 4 fit years +0.66 % seed 0, +0.34 % seed 1 (rule: under 0.5 % -> closed).
 - N2 step 0 box checks started: `scripts/cpu_n2_step0.sh` (base / --levels13 / --no-place per box, seed 0, new opt-in il6_modeF flags, defaults unchanged; smoke OK), verdict `new_plan_kit/b5_n2_step0.py`. Free RAM 5 GB at start.
+- 15:01 Memory: one Mode F run (il6_modeF.py, shipped recipe) peaks at 14-17 GB in its evaluation stage (free RAM touched 1.9 GB at 14:58, back to 4-5 GB within a minute; not killed, not extreme). This is most likely why the reaper stopped the ASK_LATER 21 audits twice (they ran beside N4 / N3). Run the audits only in a gap between Mode F jobs. My background waiter for N2S0 was also reaped; the nohup runner itself goes on.
