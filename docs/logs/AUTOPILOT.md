@@ -669,3 +669,45 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - IL-204: put intervals on the other headline claims that still have none (W8d gust CRPS 1.73 -> 0.61, W8c 0.93 -> 0.51, V6 density within 0.5 %): one per-hour output and a bootstrap each, CPU, about 30 minutes in total.
 - IL-205: a one-page 'claims and their intervals' table in FINAL_REPORT (claim, number, interval, n, seed count, year block), so a reader sees which numbers are single-seed or single-site (ENSF2 two seeds, IL-195 one seed, P3 one radar).
 - IL-206: if the user confirms New_Plan.md, its Block 1 outputs (kit_b1_*) already exist from another worker: reconcile them with this session's logs before running anything again.
+
+## 2026-11-11 ~01:40 A3-fix v2 (new session)
+- Root cause of A3 (neighbour reports over-trusted, coverage 0.67-0.82): the default speed-space step in launch.py `_conditioned_pool` uses rho = 0.72**age with NO distance term and overwrites the 10 m speed, so the README's planned observation_sigma factor cannot reach it.
+- New kit script `new_plan_kit/b3_a3fix_neighbour_rho.py` (in-memory only): A shipped, B rho = obs.effective_gain for >= 5 km, C component update only, D = B + quantile map neighbour->target prior. Control: own-station row identical under B (smoke: identical, OK).
+- Smoke fixed two bugs: (1) an out-of-area neighbour (ONM, ABQ, FST) skipped whole hours, so D now falls back to B there and the fallbacks are counted; (2) an empty run printed PASS, now it fails.
+- Full run started 01:40, PIDs 81864/59284, 1 thread BelowNormal, output `$TEMP/kit_a3fix.out`, log `docs/results/logs/kit_b3_a3fix_neighbour_rho.log`.
+- Loops recreated: backup cron 2d54d26e (every 2 h at :23), primary wake-up every 30 min.
+
+## 2026-11-11 02:10 tick (results collected)
+- Shear ratio FAIL (1-5 km p99 x1.22); c1 + G1-6 auto-started 02:00 (fb chains).
+- C4 measured: sd 2.37 [2.57, 3.55] vs hand-set 3.0; next = p3_vad_condition --sigma 3.0/3.02/4.16 when CPU frees (now full: c1 + G1-6 + A3 replicate).
+- A3-fix v2 full run (01:57): B lifts neighbour coverage 0.69-0.76 -> 0.81-0.92, CRPS better 6/7; fails only LRU 0.81 vs floor 0.81. Not bending the rule: replicate on new hours `--seed 1` running (PIDs 6148/22080), same rule. C fails FST CRPS; D useless (neighbours outside the trained area).
+
+## SYNTHESIS 2026-11-11 03:10 (tick 4 since restart)
+**What worked (numbers):** finding the A3 root cause by reading the code before tuning (the speed-space rho has no distance term, so the planned sigma factor could not have worked); variant B lifts neighbour coverage +0.07 to +0.15 in 14/14 neighbour runs with CRPS better in 13/14; the own-station control stayed bit-identical. The smoke test caught two real bugs (whole-hour skips, empty run = PASS).
+**What failed:** shear target ratio (1-5 km p99 x1.22); A3-fix: no variant passes both runs (B: LRU then ONM; C: FST CRPS +0.14 in run 1); D's quantile map was unusable because 3 of 7 neighbours lie outside the trained area.
+**Mistakes caught:** C4's printed interval is for a different quantity than its sd (uncentred vs centred); would have been reported as a contradiction otherwise.
+**The pattern:** the pre-registered replicate did its job: a near-pass on one hour set failed on a second set at a different station, so the near-pass was noise at the floor, not a hidden pass. TCS is the binding constraint everywhere: its own spread (no report 0.83-0.84, own report 0.82) caps what any neighbour fix can reach.
+**New ideas in the working direction:**
+- IL-207: fix the TCS spread first (the target, not observe): a per-site 10 m spread check at TCS vs MAF (coverage 0.84 vs 0.94 with no report) - is TCS a terrain site the generator under-spreads? Then re-score A3-fix B against that corrected base.
+- IL-208: A3-fix B2 = B with rho = gain x (1 - representativeness of dz) using the REP_DZ term already in obs.py, since ONM (the B failure in run 2) is the nearest but sits across the Rio Grande valley; measure on the same two hour seeds (no new fit).
+- IL-209: extend the trained area check: 3 of 7 neighbours (ONM, ABQ, FST) are outside it; any neighbour-based method (D, sodar referee, 18-80 km item) needs the prior there, so list which Part 5 items are blocked by this before building them.
+
+## 2026-11-11 03:50 tick 5
+- Shear c1 FAIL (1-5 km 0.97 ok, 5-12 km 0.82) -> shear target closed per README rule (no ratio/c1 hybrid: tuning on the test balloons would be fitting the test set).
+- C4 sigma sweep done (6 runs, 3 min each): sigma 3.0 / 3.02 / 4.16 indistinguishable or 4.16 worse -> keep 3.0, C4 closed.
+- A2 x1.2 decided from existing gw_uscrn_bench logs: CRPS worse at both USCRN sites -> FAIL, keep 1.0. Airports need spread, the basin sites do not: supports IL-207 (TCS/airport-specific spread shortfall).
+- G2-7 full run started 03:42 (PIDs 51352/83404, 3 threads). G1-6 still running.
+
+## 2026-11-11 04:15 tick 6
+- G1-6 (since 01:46) and G2-7 (since 03:37) still running, no results yet.
+- IL-207 built: new_plan_kit/b3_il207_site_spread.py (diagnosis only: tail split below5/above95, bias, |err|/spread by hour block and season; reading rule written before the run). Smoke OK. Full run PIDs 84120/5324, BelowNormal, OMP 3, out $TEMP/kit_il207.out. 3 kit scripts now running (cap reached).
+
+## 2026-11-11 04:45 backup tick (primary 24 min old -> worked)
+- G2-7 full: report only; shuffle closest to balloons; shear/lapse maps cost 0.01-0.02 Ri share (noise); new known limits: Ri<1 at 12-18 km too rare, low T-rises too common.
+- IL-207: TCS = BIAS (tool too calm +1.44 m/s, above95 0.15 vs below5 0.05), MAF fine. Built b3_il207b_site_shift.py (6-cell per-site factor, fit 2021-22, test 2023-25, MAF as guard; any PASS -> ASK, since TCS is a 30 km proxy for the pad). Full run started.
+- G1-6 still running (since 01:46).
+
+## 2026-11-11 09:25 tick 8 (resume after reboot)
+- PC rebooted 04:49; loop off 04:45-09:19. Lost: G1-6 (running since 01:46, no log written) and the IL-207b `--seed 1` replicate (empty output). Nothing else was running.
+- IL-207b seed 0 had finished before the reboot: PASS. TCS CRPS 1.520 -> 1.441 (-0.079 [-0.116, -0.042]), coverage 0.81 -> 0.85; MAF guard neutral (-0.002 [-0.047, +0.043], coverage 0.91 -> 0.93). Pre-set rule: replicate on new hours before reporting, then ASK (TCS is a 30 km proxy for the pad).
+- Relaunched both, BelowNormal, OMP 3: `b3_il207b_site_shift.py --seed 1` (out $TEMP/kit_il207b_s1.out) and `b2_g16_observe_fit.py` (out $TEMP/kit_g16.out). Both running at 09:20.

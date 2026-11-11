@@ -1,0 +1,22 @@
+2026-11-11 04:14 IL-207 site spread diagnosis: tool prior 10 m speed vs ASOS, 2023-25, 08-20 local, 300 hours per site, hour seed 0, no report
+TCS: 300 hours, 0 skipped
+  all        n  300  coverage 0.80 [0.75, 0.85]  below5 0.047  above95 0.150  bias(obs-median) +1.44 m/s  |err|/spread 1.35  CRPS 1.690  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  08-11      n  100  coverage 0.78 [0.69, 0.85]  below5 0.110  above95 0.110  bias(obs-median) +0.85 m/s  |err|/spread 1.37  CRPS 1.409  -> TOO NARROW
+  12-15      n   71  coverage 0.86 [0.76, 0.94]  below5 0.000  above95 0.141  bias(obs-median) +1.65 m/s  |err|/spread 1.28  CRPS 1.797  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  16-20      n  129  coverage 0.79 [0.72, 0.86]  below5 0.023  above95 0.186  bias(obs-median) +1.79 m/s  |err|/spread 1.37  CRPS 1.849  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  DJF        n   79  coverage 0.86 [0.78, 0.93]  below5 0.076  above95 0.063  bias(obs-median) +0.58 m/s  |err|/spread 1.16  CRPS 1.418  -> fine
+  MAM        n   86  coverage 0.78 [0.68, 0.87]  below5 0.023  above95 0.198  bias(obs-median) +2.25 m/s  |err|/spread 1.43  CRPS 2.083  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  JJA        n   61  coverage 0.70 [0.59, 0.82]  below5 0.049  above95 0.246  bias(obs-median) +1.76 m/s  |err|/spread 1.61  CRPS 1.758  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  SON        n   74  coverage 0.85 [0.76, 0.92]  below5 0.041  above95 0.108  bias(obs-median) +1.17 m/s  |err|/spread 1.24  CRPS 1.469  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+MAF: 300 hours, 0 skipped
+  all        n  300  coverage 0.92 [0.89, 0.95]  below5 0.030  above95 0.050  bias(obs-median) +0.39 m/s  |err|/spread 0.94  CRPS 1.474  -> fine
+  08-11      n  111  coverage 0.89 [0.83, 0.95]  below5 0.036  above95 0.072  bias(obs-median) +0.71 m/s  |err|/spread 1.01  CRPS 1.347  -> fine
+  12-15      n   81  coverage 0.96 [0.91, 1.00]  below5 0.012  above95 0.025  bias(obs-median) +0.33 m/s  |err|/spread 0.88  CRPS 1.482  -> fine
+  16-20      n  108  coverage 0.92 [0.86, 0.96]  below5 0.037  above95 0.046  bias(obs-median) +0.10 m/s  |err|/spread 0.93  CRPS 1.599  -> fine
+  DJF        n   76  coverage 0.95 [0.89, 0.99]  below5 0.039  above95 0.013  bias(obs-median) -0.41 m/s  |err|/spread 0.74  CRPS 1.314  -> fine
+  MAM        n   84  coverage 0.89 [0.82, 0.95]  below5 0.060  above95 0.048  bias(obs-median) +0.35 m/s  |err|/spread 1.00  CRPS 1.746  -> fine
+  JJA        n   59  coverage 0.88 [0.79, 0.95]  below5 0.000  above95 0.119  bias(obs-median) +1.63 m/s  |err|/spread 1.24  CRPS 1.425  -> BIAS (obs too often ABOVE the 95 %: tool too calm)
+  SON        n   81  coverage 0.95 [0.89, 0.99]  below5 0.012  above95 0.037  bias(obs-median) +0.28 m/s  |err|/spread 0.90  CRPS 1.379  -> fine
+Reading rule (pre-set): one tail >= 2x the other and >= 0.08 -> BIAS; both tails >= 0.07 -> TOO NARROW; coverage >= 0.85 -> fine; else MIXED. |err|/spread is about 1 when the spread fits (normal approximation).
+VERDICT: TCS BIAS (obs too often ABOVE the 95 %: tool too calm); MAF fine -> BIAS: test a per-site location correction (fitted 2021-22, scored 2023-25); TOO NARROW: per-site spread factor; fine/MIXED: no site fix, close IL-207.
+
