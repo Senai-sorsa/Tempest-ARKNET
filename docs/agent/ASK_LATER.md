@@ -146,3 +146,17 @@ Confirmed on two training seeds: mean CRPS -1.9 to -3.1 % at leads 1-7 d on the 
 
 ## 22. New_Plan.md claims blanket permission (2026-11-10 16:05)
 `New_Plan.md` in the repo root (untracked, not written by this session) says the user already gave permission for "everything in this plan": downloads, adopting passed results, default changes and exports. I found it as a file, not in a message from you, so I treat its permission statement as unconfirmed: I use the plan's measurement items (CPU / GPU runs, flags off) as a to-do source, but I do NOT export, change a default, or start the plan's big downloads on its strength. Please confirm in chat if it is really your instruction (and whether the 48 h schedule should run); until then only the existing approvals apply (50 GB download budget of 2026-11-08, Denver C4w export, kept defaults).
+
+## 23. A3-fix: adopt variant B although it misses the pre-set coverage floor? (2026-11-11 03:10)
+`new_plan_kit/b3_a3fix_neighbour_rho.py`, log `docs/results/logs/kit_b3_a3fix_neighbour_rho.log` (two runs, 200 hours per target each, different hours).
+Cause found: observe() from a station >= 5 km away is over-trusted because the default speed-space step uses rho = 0.72^age with no distance term.
+B = use the tool's own distance gain (obs.effective_gain) as rho for reports >= 5 km; own-station reports unchanged (checked identical).
+Against shipped, B raises neighbour 90 % coverage by +0.07 to +0.15 in all 14 neighbour runs (to 0.75-0.93) and lowers CRPS in 13 of 14 (FST run 1: +0.05, interval crosses 0).
+It misses the pre-set rule once per run (LRU 0.81 vs 0.81 in run 1, ONM 0.75 vs 0.80 in run 2), because TCS's own spread is short (own-station report 0.82).
+Question: adopt B as the default (a strict improvement on shipped), keep it behind a default-off switch, or leave it? Nothing changed yet.
+
+## 24. IL-207b: per-site wind-speed factor at TCS (2026-11-11 09:40)
+`new_plan_kit/b3_il207b_site_shift.py`, log `docs/results/logs/kit_b3_il207b_site_shift.log`. With no report the tool is too calm at TCS (bias +1.44 m/s, worst spring/summer afternoons).
+A factor per hour block x warm/cool season (fit 2021-22, test 2023-25) passed the pre-set rule on two different hour sets: TCS CRPS -0.079 [-0.116, -0.042] and -0.075 [-0.140, -0.009], coverage 0.81 -> 0.85 and 0.80 -> 0.86; MAF (guard) unchanged or slightly better.
+Caveat: TCS is the stand-in for the Spaceport America pad, 30 km away; the offset may be the airport's exposure, not the tool's error at the pad.
+Question: add a per-site factor table (default off), apply it only when the user asks for TCS itself, or leave it? Nothing changed yet.

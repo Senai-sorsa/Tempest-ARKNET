@@ -6,3 +6,11 @@ MAF: fit 300 hours (0 skipped); factors 08-11/cool 1.14, 08-11/warm 1.08, 12-15/
 Rule: TCS CRPS better (interval upper < 0) and coverage nearer 0.90; MAF CRPS lower end <= +0.02 and coverage 0.85-0.95.
 VERDICT: PASS -> a per-site factor fixes the TCS shortfall; ASK the user before any core change (TCS is a proxy for the pad, 30 km away).
 
+2026-11-11 09:21 IL-207b per-site speed factor (6 cells: hour block x warm/cool), fit 2021-22, test 2023-25, 08-20 local, 300 hours each, hour seed 1, no report
+TCS: fit 300 hours (0 skipped); factors 08-11/cool 1.00, 08-11/warm 1.05, 12-15/cool 1.17, 12-15/warm 1.16, 16-20/cool 1.09, 16-20/warm 1.38
+  test 300 hours (0 skipped): shipped CRPS 1.550 cov 0.80 | factor CRPS 1.474 cov 0.86 | minus shipped -0.075 [-0.140, -0.009]  ok
+MAF: fit 300 hours (0 skipped); factors 08-11/cool 1.12, 08-11/warm 1.18, 12-15/cool 0.84, 12-15/warm 0.99, 16-20/cool 0.90, 16-20/warm 1.10
+  test 300 hours (0 skipped): shipped CRPS 1.507 cov 0.89 | factor CRPS 1.468 cov 0.90 | minus shipped -0.038 [-0.083, +0.006]  ok
+Rule: TCS CRPS better (interval upper < 0) and coverage nearer 0.90; MAF CRPS lower end <= +0.02 and coverage 0.85-0.95.
+VERDICT: PASS -> a per-site factor fixes the TCS shortfall; ASK the user before any core change (TCS is a proxy for the pad, 30 km away).
+
