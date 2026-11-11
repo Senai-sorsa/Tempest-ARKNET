@@ -728,3 +728,9 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - ASK_LATER 24 adopted as an opt-in: `sitecal.tcs_speed_factor(when)` (TCS only, never at the pad by default). Backup in data/backups/2026-11-11_asklater24/. Tests 260 + 130 passed (`tests_after_asklater24.log`). tool_audit + shipped_check still running (stdout to $TEMP; the scripts append to their own logs). Defaults are untouched, so no change is expected.
 - O1 (`b4_two_neighbours.py`, new): merges two neighbours into one report (variant-B gains, second gain cut by the 2019-22 error correlation), with the TCS map on. Smoke OK. Seeds 0 and 1 started 12:00, 3 threads each.
 - 12:14: ASK_LATER 24 audits done: tool_audit and shipped_check unchanged vs the previous run (logs only appended).
+
+## 2026-11-11 12:25 CST (primary tick)
+- Heartbeat 267. G1-6 and ENSF2 seed 2 were already done and recorded. No other job was running.
+- O1 (`b4_two_neighbours.py`, 2 seeds): FAIL. The merged report beats the best single neighbour in all 4 runs (-0.019 to -0.105 m/s), but the interval excludes 0 only at ELP seed 0. O1 closed.
+- Section 10.4 now lists N6 (full-size Mode F, GPU) and N7 (one generator); both added to the To-do queue after N5.
+- O3 (`b4_launch_week_replay.py`, new) started on seeds 0 and 1, 150 test days per site, 3 threads each. The plan's S2 starting shape doesn't exist (S2 dropped), so it starts from no factor (1.0); this is recorded in the script header.

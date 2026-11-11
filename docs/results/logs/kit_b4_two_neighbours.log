@@ -1,0 +1,32 @@
+2026-11-11 12:02 O1 two neighbours at once: CRPS (m/s) and 90 % coverage of the 10 m speed, 2023-25, 08-20 local, report 1 h old, 200 hours per target, paired, seed 0
+TCS from LRU + ONM: 154 hours, 0 skipped; error correlation r +0.39 (16042 fit hours 2019-22); mean gains LRU 0.46, ONM 0.53, merged 0.66; map on (tcs_speed_factor)
+  no report  CRPS 1.457  coverage 0.90
+  LRU        CRPS 1.394  coverage 0.88
+  ONM        CRPS 1.350  coverage 0.85
+  merged     CRPS 1.307  coverage 0.84
+  merged minus best single (ONM) -0.043 [-0.096, +0.013], merged coverage 0.84  fail
+ELP from LRU + ALM: 134 hours, 0 skipped; error correlation r +0.43 (16235 fit hours 2019-22); mean gains LRU 0.50, ALM 0.45, merged 0.63; no map
+  no report  CRPS 1.530  coverage 0.86
+  LRU        CRPS 1.268  coverage 0.87
+  ALM        CRPS 1.320  coverage 0.86
+  merged     CRPS 1.163  coverage 0.88
+  merged minus best single (LRU) -0.105 [-0.153, -0.053], merged coverage 0.88  ok
+Rule (pre-set): merged CRPS better than the best single neighbour, interval excludes 0, coverage >= 0.80; both targets, both seeds.
+Seed verdict: FAIL -> O1 closed; observe_latest keeps one station
+
+2026-11-11 12:02 O1 two neighbours at once: CRPS (m/s) and 90 % coverage of the 10 m speed, 2023-25, 08-20 local, report 1 h old, 200 hours per target, paired, seed 1
+TCS from LRU + ONM: 151 hours, 0 skipped; error correlation r +0.39 (16042 fit hours 2019-22); mean gains LRU 0.46, ONM 0.53, merged 0.66; map on (tcs_speed_factor)
+  no report  CRPS 1.408  coverage 0.90
+  LRU        CRPS 1.317  coverage 0.89
+  ONM        CRPS 1.349  coverage 0.89
+  merged     CRPS 1.298  coverage 0.86
+  merged minus best single (LRU) -0.019 [-0.104, +0.066], merged coverage 0.86  fail
+ELP from LRU + ALM: 139 hours, 0 skipped; error correlation r +0.43 (16235 fit hours 2019-22); mean gains LRU 0.50, ALM 0.45, merged 0.63; no map
+  no report  CRPS 1.493  coverage 0.88
+  LRU        CRPS 1.218  coverage 0.91
+  ALM        CRPS 1.386  coverage 0.87
+  merged     CRPS 1.180  coverage 0.89
+  merged minus best single (LRU) -0.038 [-0.089, +0.008], merged coverage 0.89  fail
+Rule (pre-set): merged CRPS better than the best single neighbour, interval excludes 0, coverage >= 0.80; both targets, both seeds.
+Seed verdict: FAIL -> O1 closed; observe_latest keeps one station
+
