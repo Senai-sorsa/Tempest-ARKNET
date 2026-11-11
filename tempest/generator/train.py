@@ -52,6 +52,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 fill_mask=False,            # review 2026-11-07: heights that build_dataset --fill-top filled (above fill_top_idx) count 0 in the loss; needs a dataset built with --fill-top after 2026-11-07
                 shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
+                init=None,                  # N2 (New_Plan 10.4): path of a saved network to start from (fine-tune); its normalisation is kept. None = fresh start (as before)
                 geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
                 context_inputs=[],          # L3: input names routed to the context FiLM instead of the input layer (model.Generator context_cols)
                 context_film_sep=False,     # L3: the context gets its own FiLM per block instead of being added to the noise embedding (model ctx_sep)
@@ -164,6 +165,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     tref = targets(ref)
     tm, ts = tref.mean(0), safe(tref.std(0))
     norm = {k: torch.tensor(v, dtype=torch.float32) for k, v in dict(cm=cm, cs=cs, tm=tm, ts=ts).items()}
+    init_ck = None
+    if cfg["init"]:                                   # N2: the start weights only make sense with the normalisation they were fit with
+        init_ck = torch.load(cfg["init"], map_location="cpu", weights_only=True)
+        init_ck = init_ck["members"] if "members" in init_ck else [init_ck]
+        norm = {k: torch.as_tensor(v, dtype=torch.float32) for k, v in init_ck[0]["norm"].items()}
+        cm, cs, tm, ts = (norm[k].double().numpy() for k in ("cm", "cs", "tm", "ts"))
     linear_cols = [names.index(k) for k in cfg["linear_features"] if k in names]
     lin_names = [names[i] for i in linear_cols]
     pp = [[lin_names.index(a_), lin_names.index(b_)] for a_, b_ in (cfg["product_pairs"] or [])]
@@ -341,6 +348,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
                                linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {}),
                                **({"product_pairs": pp} if pp else {}), **model_kw).to(device)
+        if init_ck:
+            model.load_state_dict(init_ck[k % len(init_ck)]["state"])
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows

@@ -46,6 +46,9 @@ ap.add_argument("--seed", type=int, default=0, help="torch seed of the training 
 ap.add_argument("--fit-years", type=int, default=4, help="N3 step 0 (New_Plan 10.4): train on the last N years before the 2020 validation year (1-4); 4 = 2016-19 + 2020, as before")
 ap.add_argument("--levels13", action="store_true", help="N2 step 0 (New_Plan 10.4): forecast-profile input only at the heights nearest the 13 pressure levels of the world HRES store (standard-atmosphere height minus the rows' median ground height) plus the 10 m / 2 m surface level (u10, v10, t2m are in the store), in place of --coarse")
 ap.add_argument("--no-place", action="store_true", help="N2 step 0: lat and lon inputs set to 0 (the world model has no place input)")
+ap.add_argument("--fit-rows-dir", default="", help="N2 full run (New_Plan 10.4): fit the network on these rows (2016-19 train, 2020 validation; e.g. data/modeF_world) instead of --rows-dir; range map, test and the pool / ridge / Schaake templates stay on --rows-dir. Empty = as before")
+ap.add_argument("--save-rows", action="store_true", help="N2: also write <out>_rows.npz: per test row lead bin, valid day and mean CRPS over the 16 variable x band cells of 'network + PIT recal + range map + Schaake shuffle' (for paired day-block intervals); off = as before")
+ap.add_argument("--init", default="", help="N2: start the network from this saved .pt (fine-tune, with its normalisation); empty = fresh start (as before)")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
@@ -95,7 +98,15 @@ print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
-    train(cmat(tr), F.residual(tr), tr["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+    fit = tr
+    if a.fit_rows_dir:
+        _fy = [dict(np.load(f"{a.fit_rows_dir}/{y}.npz")) for y in range(2016, 2021)]
+        _fy = [{k: v[F.lead_bin(d_["lead_days"]) > 0] for k, v in d_.items()} for d_ in _fy]
+        fit = {k: np.concatenate([d_[k] for d_ in _fy]) for k in ("year", "lat", "lon", "z_sfc", "doy", "lead_days", "hres", "obs")}
+        print(f"N2: network fit on {a.fit_rows_dir}: {len(fit['obs']):,} rows", flush=True)
+    if a.init:
+        cfg["init"] = a.init
+    train(cmat(fit), F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
 m = a.m
 
@@ -169,6 +180,8 @@ masks /= masks.sum(0)
 rows = []
 for name, x in methods.items():
     crps = crps_ensemble(x, truth) @ masks
+    if a.save_rows and name == "network + PIT recal + range map + Schaake shuffle":
+        np.savez(STEM + "_rows.npz", lead=te["lead_bin"], day=te["valid"].astype("datetime64[D]").astype(np.int64), crps=crps.mean(1))
     mae = np.abs(np.median(x, 1) - truth) @ masks
     cov = (coverage90(x, truth, 0.99).astype(float) @ masks) if x.shape[1] > 2 else np.full((len(truth), len(bands)), np.nan)
     tv = M.pit_tv(M.pit_values(x, truth, rng)) if x.shape[1] > 2 else np.full(truth.shape[1], np.nan)
