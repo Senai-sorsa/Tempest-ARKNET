@@ -1,0 +1,12 @@
+2026-11-11 10:25 O4 analog tail fix: library 2015-23, test 2024-25, K = 40, fix = analog speed + (ERA5 10 m speed now - analogs' mean ERA5 10 m speed)
+TCS: 9756 test hours, 1152 with obs >= 8 m/s
+  plain analog  CRPS 1.010  coverage 0.89  strong-wind under-prediction 2.44 m/s
+  gap fix       CRPS 1.000  coverage 0.83  strong-wind under-prediction 2.11 m/s
+  fix minus plain CRPS -0.0103 [-0.0171, -0.0041]; under-prediction ratio 0.86  fail
+MAF: 10427 test hours, 1668 with obs >= 8 m/s
+  plain analog  CRPS 0.829  coverage 0.92  strong-wind under-prediction 1.87 m/s
+  gap fix       CRPS 0.802  coverage 0.90  strong-wind under-prediction 1.37 m/s
+  fix minus plain CRPS -0.0265 [-0.0332, -0.0194]; under-prediction ratio 0.73  fail
+Rule (pre-set): under-prediction at >= 8 m/s at most half of plain AND CRPS fix minus plain <= +0.0009, at TCS and MAF.
+VERDICT: FAIL -> the plain analog stays the referee; tail bias recorded as a known limit of the referee
+
