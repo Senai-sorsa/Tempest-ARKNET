@@ -1,0 +1,8 @@
+IL-200 step 3: median / p99 shear (m/s per km) by layer, tool stages vs balloons 2021-22 (same 00Z balloons only)
+  config                                                   100-150 m       150-200 m       200-300 m       300-500 m
+  shipped                                              11.1 /  42.5    9.3 /  37.8    6.5 /  26.7    5.0 /  22.0
+  no shear map                                         11.7 /  46.6    9.7 /  40.9    7.1 /  29.3    5.7 /  24.0
+  no shear map, no lapse map                           11.7 /  46.6    9.7 /  40.9    7.1 /  29.3    5.7 /  24.0
+  pre-C4w assets (own post)                             9.5 /  42.1    8.2 /  37.5    6.1 /  27.7    5.1 /  20.3
+  C4w day set before all-hours (2026-11-10 backup)      9.7 /  41.8    8.4 /  36.1    6.2 /  27.1    5.1 /  20.3
+  balloons                              8.5 /  32.9    7.2 /  22.8    6.1 /  20.4    4.9 /  27.4
