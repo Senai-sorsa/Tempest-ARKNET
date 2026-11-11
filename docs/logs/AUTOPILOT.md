@@ -788,3 +788,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 ## 2026-11-11 17:50 CST (user: "Run N2")
 - N2 control queued: `scripts/cpu_n2_control.sh` waits for "[N5F] done", then own model + 300 more steps on its own rows (same recipe, seeds 0 / 1, both boxes; 4 runs, ~20 min), [N2C] in data/l3.log. `b5_modeF_world.py` now also prints the control and "fine-tuned minus own+300" intervals; the pre-set rule and verdict are unchanged.
 - N5: 4 of 8 runs done (bin_s0, all_s0, bin_den_s0, all_den_s0).
+## 2026-11-11 17:52 CST (primary tick)
+- Heartbeat 278. Section 10 unchanged (15 IDs, all boxed). G1-6, ENSF2S2, b4_*: not running. N2 control waiting for N5.
+- N5 seed 0 (partial `b5_modeF_alllead.py`, no verdict until seed 1): all-lead vs binned NM/TX +2.7 / +1.0 / +0.2 / -0.7 % at leads 1 / 3 / 5 / 7, beyond 7.5 d -3.2 % (minus binned -0.139 [-0.193, -0.097], minus climate -0.512 [-0.588, -0.425]); Denver +2.6 / +1.1 / +0.4 / -0.2 %, beyond -3.7 % (binned -0.167 [-0.218, -0.121], climate -0.652). Beats climate at day 8, 9 and 10 at both boxes. Leads 1-3 are worse than the 0.5 % limit, so PASS is already out; KILL (lead 1+3 mean > 1 % at both boxes, both seeds) is possible: 1.85 % / 1.85 % at seed 0.
+- Nothing else started (RAM, GPU still not visible).
