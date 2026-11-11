@@ -33,6 +33,7 @@ def main():
     ap.add_argument("--n", type=int, default=120)
     ap.add_argument("--radar", default="EPZ", help="radar id (EPZ El Paso, HDX Holloman, MAF Midland)")
     ap.add_argument("--balloon", default="USM00072364", help="IGRA station (USM00072364 Santa Teresa, USM00072265 Midland)")
+    ap.add_argument("--per-day", default="", help="IL-198: also write one CSV row per day, method, variable and band (for a date-block bootstrap); default off")
     ap.add_argument("--sigma", type=float, default=3.0, help="radar wind error (m/s) used in the conditioning")
     ap.add_argument("--hour", type=int, default=0, choices=[0, 12], help="A24 (2026-11-10): balloon hour, 0 = 00Z (radar volume 23 UTC the day before, the default) or 12 = 12Z (about 05 h solar, night; radar volume 11 UTC the same day)")
     a = ap.parse_args()
@@ -87,8 +88,10 @@ def main():
                     x = b[key][:, m]
                     cr = crps_ensemble(x[None], y[m][None])[0]
                     q = np.quantile(x, [0.05, 0.95], axis=0)
-                    rows.append(dict(method=name, var=var, band=band, mae=np.abs(np.median(x, 0) - y[m]).mean(), crps=cr.mean(), cov90=((y[m] >= q[0]) & (y[m] <= q[1])).mean()))
+                    rows.append(dict(day=int(k), method=name, var=var, band=band, mae=np.abs(np.median(x, 0) - y[m]).mean(), crps=cr.mean(), cov90=((y[m] >= q[0]) & (y[m] <= q[1])).mean()))
     t2 = pd.DataFrame(rows)
+    if a.per_day:
+        t2.to_csv(a.per_day, index=False)
     g = t2.groupby(["band", "method"])[["mae", "crps", "cov90"]].mean()
     print(f"{done} days 2021-2023, radar {a.radar}, balloon {a.balloon} ({a.hour:02d}Z, radar volume {'23' if a.hour == 0 else '11'} UTC), sensor sd {a.sigma} m/s, u and v averaged")
     for band in ("2.5-5 km", "5-12 km", "12-18 km"):
