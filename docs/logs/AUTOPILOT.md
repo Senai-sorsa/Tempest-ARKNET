@@ -785,3 +785,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Heartbeat 277. Section 10 unchanged (N1-N7, S1-S3, O1-O5 all boxed). G1-6, ENSF2S2, b4_*: not running.
 - N5 full run: 1 of 8 done (bin_s0 17:12, about 11 min per run, so done near 18:30); all_s0 training (438k rows + 43.8k climate anchors). RAM 4.6 GB free, disk 96 GB.
 - Nothing else started: N1, N4 step 1, N6 still need the GPU (torch.cuda False; nvidia-smi needs admin); the SWiFT check waits so it does not overlap a Mode F evaluation (14-17 GB peak) at 4.6 GB free.
+## 2026-11-11 17:50 CST (user: "Run N2")
+- N2 control queued: `scripts/cpu_n2_control.sh` waits for "[N5F] done", then own model + 300 more steps on its own rows (same recipe, seeds 0 / 1, both boxes; 4 runs, ~20 min), [N2C] in data/l3.log. `b5_modeF_world.py` now also prints the control and "fine-tuned minus own+300" intervals; the pre-set rule and verdict are unchanged.
+- N5: 4 of 8 runs done (bin_s0, all_s0, bin_den_s0, all_den_s0).

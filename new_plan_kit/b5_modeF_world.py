@@ -9,6 +9,8 @@ PASS (pre-set): world as is within 1 % of the own model at every lead, both boxe
       interval excluding 0 at >= 3 of 4 leads (both boxes, both seeds).
 KILL: world as is worse by more than 3 % (mean of leads) at both boxes (both seeds). Otherwise MISS: record, no adoption.
     PYTHONPATH=".;new_plan_kit" .venv/Scripts/python -W ignore new_plan_kit/b5_modeF_world.py
+Control (added 2026-11-11 17:30, after the verdict; reported, does not change the pre-set rule): own model + 300 more steps on its own rows
+    models/modeF_n2own300{,_den}_s{0,1} (scripts/cpu_n2_control.sh); line 'fine-tuned minus own+300' = the gain from starting at the world network.
 Result: docs/results/logs/kit_b5_modeF_world.log
 """
 import os
@@ -64,6 +66,18 @@ def main():
                     wins[(box, s)] = n
                     row += f"; minus own: " + ", ".join(iv) + f"; better at {n} of 4 leads"
                 lines.append(row)
+            ctl = os.path.join(M, f"modeF_n2own300{tag}_s{s}")
+            if os.path.exists(ctl + "_eval.csv") and os.path.exists(ctl + "_rows.npz"):
+                c, rc = by_lead(ctl), np.load(ctl + "_rows.npz")
+                assert (rc["day"] == rw["own"]["day"]).all() and (rc["lead"] == rw["own"]["lead"]).all(), f"{box} s{s}: control on different rows"
+                iv, n = [], 0
+                for L in LEADS:
+                    k = rc["lead"] == L
+                    dm, lo, hi = K.block_boot(rw["fine-tuned"]["crps"][k] - rc["crps"][k], list(rc["day"][k]), draws=1000)
+                    n += hi < 0
+                    iv.append(f"{L}d {dm:+.3f} [{lo:+.3f}, {hi:+.3f}]")
+                lines.append(f"    {'own+300':<10} " + " / ".join(f"{v:.3f}" for v in c) + "  change " + " / ".join(f"{100 * (v - 1):+.1f}" for v in c / sc["own"]) + " %"
+                             + "; fine-tuned minus own+300: " + ", ".join(iv) + f"; world start better at {n} of 4 leads")
     if missing:
         lines.append("Incomplete, missing: " + ", ".join(missing))
         K.report("b5_modeF_world", lines)
