@@ -143,6 +143,7 @@ Also (P7, optional): `rasterio` would let the site model use the NLCD land-cover
 
 ## 21. Mode F with IFS-ensemble features (L14, 2026-11-10)
 Confirmed on two training seeds: mean CRPS -1.9 to -3.1 % at leads 1-7 d on the same rows (NM/TX, test 2022). Using it needs 24 extra forecast inputs (IFS ensemble mean/spread of u10, v10, t2m and u, v, t at 500/700/850 hPa). Question: should the tool offer it as an opt-in forecast option (the user passes or the tool fetches the ensemble features), or stay HRES-only? Default stays HRES-only until you answer.
+Update 2026-11-11 10:25: third training seed (seed 2) agrees: NM/TX -2.2 to -2.7 %, Denver -0.7 to -2.2 % at leads 1-7 d, cov99 within 0.002 (log in docs/logs/AUTOPILOT.md).
 
 ## 22. New_Plan.md claims blanket permission (2026-11-10 16:05)
 `New_Plan.md` in the repo root (untracked, not written by this session) says the user already gave permission for "everything in this plan": downloads, adopting passed results, default changes and exports. I found it as a file, not in a message from you, so I treat its permission statement as unconfirmed: I use the plan's measurement items (CPU / GPU runs, flags off) as a to-do source, but I do NOT export, change a default, or start the plan's big downloads on its strength. Please confirm in chat if it is really your instruction (and whether the 48 h schedule should run); until then only the existing approvals apply (50 GB download budget of 2026-11-08, Denver C4w export, kept defaults).
