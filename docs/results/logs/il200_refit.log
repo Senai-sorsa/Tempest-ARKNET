@@ -1,0 +1,24 @@
+IL-200 step 4: fine-band shear map (edges [0, 100, 300, 1000, 5000, 12000, 18001]) fitted on 1200 balloons 2005-20, tested on 640 balloons 2021-22 (EPZ + MAF, 00Z + 12Z), shear m/s per km p50 / p99
+  layer (m)          tool          tool + fine map    balloons
+     10-   50     25.7 /  84.7     25.8 /  87.3     28.0 /  99.4
+     50-  100     17.9 /  67.4     17.3 /  64.1     16.3 /  70.9
+    100-  150     17.5 /  72.2     17.2 /  67.7     12.8 /  49.2
+    150-  200     15.3 /  67.4     15.9 /  64.5     11.7 /  43.0
+    200-  300     11.7 /  52.3     10.6 /  47.6      9.8 /  38.9
+    300-  500      8.3 /  36.9      8.4 /  33.7      7.3 /  34.0
+    500-  750      7.9 /  34.1      7.9 /  31.5      7.0 /  31.1
+    750- 1000      7.8 /  29.2      8.0 /  31.5      7.3 /  32.7
+   1000- 1250      7.2 /  26.1      7.3 /  27.5      6.7 /  29.3
+  CRPS u 0-100 m    tool 2.022 -> + fine map 2.022 (-0.0 %)
+  CRPS u 100-300 m  tool 2.731 -> + fine map 2.732 (+0.1 %)
+  CRPS u 300-1000 m tool 3.251 -> + fine map 3.248 (-0.1 %)
+  CRPS u 1-5 km     tool 3.450 -> + fine map 3.450 (+0.0 %)
+  CRPS u 5-12 km    tool 5.933 -> + fine map 5.937 (+0.1 %)
+  CRPS u 12-18 km   tool 4.527 -> + fine map 4.534 (+0.2 %)
+  CRPS v 0-100 m    tool 1.954 -> + fine map 1.953 (-0.0 %)
+  CRPS v 100-300 m  tool 2.500 -> + fine map 2.499 (-0.0 %)
+  CRPS v 300-1000 m tool 2.746 -> + fine map 2.737 (-0.3 %)
+  CRPS v 1-5 km     tool 3.410 -> + fine map 3.410 (+0.0 %)
+  CRPS v 5-12 km    tool 6.035 -> + fine map 6.037 (+0.0 %)
+  CRPS v 12-18 km   tool 4.211 -> + fine map 4.212 (+0.0 %)
+
