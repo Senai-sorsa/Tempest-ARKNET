@@ -734,3 +734,10 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - O1 (`b4_two_neighbours.py`, 2 seeds): FAIL. The merged report beats the best single neighbour in all 4 runs (-0.019 to -0.105 m/s), but the interval excludes 0 only at ELP seed 0. O1 closed.
 - Section 10.4 now lists N6 (full-size Mode F, GPU) and N7 (one generator); both added to the To-do queue after N5.
 - O3 (`b4_launch_week_replay.py`, new) started on seeds 0 and 1, 150 test days per site, 3 threads each. The plan's S2 starting shape doesn't exist (S2 dropped), so it starts from no factor (1.0); this is recorded in the script header.
+
+## 2026-11-11 12:55 CST (primary tick)
+- Heartbeat 268. No jobs were running except O3, which had finished.
+- O3 (`b4_launch_week_replay.py`, 2 seeds, 150 days per site): FAIL. k = 7 helps TCS in seed 1 only; MAF fails in both seeds (seed 1 coverage 0.91 -> 0.90). O3 closed.
+- Section 10: nothing new beyond N1-N7 (all queued).
+- O5 (`b4_ecc_modeF.py`, new): the M4 ECC test on 2023-24 at every lead 1-7, plus a shear-rate check and the IL-128 99th-percentile ratio. The Schaake pool uses the nearest stored lead for leads 2/4/6 (mode F rows hold 1/3/5/7 only). Smoke OK. Seeds 0 and 1 started 12:54, 3 threads each.
+- ASK_LATER 21 opt-in: not started this tick. It needs the ensemble model in the tool's forecast export plus an input path for the 24 features, which is a multi-hour build that should start on a quiet machine.

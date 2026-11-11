@@ -1,0 +1,28 @@
+2026-11-11 12:28 O3 launch-week factor: start 1.0 (no S2 shape), alpha 1/30 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, 150 days per site, seed 0
+TCS: 150 test days, 0 skipped; mean factor k=3 1.008 (range 0.938-1.122), k=7 1.017 (range 0.898-1.156), k=14 1.030 (range 0.848-1.225)
+  no factor  CRPS 1.417  coverage 0.81
+  k=3        CRPS 1.400  coverage 0.81  minus no factor -0.0164 [-0.0313, -0.0024]
+  k=7        CRPS 1.401  coverage 0.84  minus no factor -0.0159 [-0.0392, +0.0073]  fail
+  k=14       CRPS 1.405  coverage 0.84  minus no factor -0.0120 [-0.0422, +0.0175]
+MAF: 150 test days, 0 skipped; mean factor k=3 0.995 (range 0.937-1.101), k=7 0.994 (range 0.897-1.155), k=14 0.989 (range 0.806-1.156)
+  no factor  CRPS 1.514  coverage 0.90
+  k=3        CRPS 1.510  coverage 0.90  minus no factor -0.0037 [-0.0154, +0.0090]
+  k=7        CRPS 1.522  coverage 0.90  minus no factor +0.0083 [-0.0125, +0.0291]  fail
+  k=14       CRPS 1.526  coverage 0.88  minus no factor +0.0123 [-0.0167, +0.0422]
+Rule (pre-set): k = 7 CRPS better than no factor (interval excludes 0) and coverage not lower, both sites, both seeds.
+Seed verdict: FAIL -> O3 closed
+
+2026-11-11 12:28 O3 launch-week factor: start 1.0 (no S2 shape), alpha 1/30 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, 150 days per site, seed 1
+TCS: 150 test days, 0 skipped; mean factor k=3 1.007 (range 0.938-1.117), k=7 1.016 (range 0.899-1.183), k=14 1.026 (range 0.822-1.229)
+  no factor  CRPS 1.652  coverage 0.81
+  k=3        CRPS 1.632  coverage 0.81  minus no factor -0.0204 [-0.0337, -0.0079]
+  k=7        CRPS 1.609  coverage 0.81  minus no factor -0.0435 [-0.0697, -0.0177]  ok
+  k=14       CRPS 1.604  coverage 0.80  minus no factor -0.0480 [-0.0816, -0.0142]
+MAF: 150 test days, 0 skipped; mean factor k=3 0.996 (range 0.943-1.074), k=7 0.989 (range 0.882-1.099), k=14 0.983 (range 0.806-1.180)
+  no factor  CRPS 1.475  coverage 0.91
+  k=3        CRPS 1.453  coverage 0.90  minus no factor -0.0219 [-0.0342, -0.0104]
+  k=7        CRPS 1.446  coverage 0.90  minus no factor -0.0290 [-0.0474, -0.0126]  fail
+  k=14       CRPS 1.430  coverage 0.90  minus no factor -0.0452 [-0.0716, -0.0188]
+Rule (pre-set): k = 7 CRPS better than no factor (interval excludes 0) and coverage not lower, both sites, both seeds.
+Seed verdict: FAIL -> O3 closed
+
