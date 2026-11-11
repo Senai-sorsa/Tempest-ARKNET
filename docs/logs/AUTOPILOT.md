@@ -741,3 +741,9 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Section 10: nothing new beyond N1-N7 (all queued).
 - O5 (`b4_ecc_modeF.py`, new): the M4 ECC test on 2023-24 at every lead 1-7, plus a shear-rate check and the IL-128 99th-percentile ratio. The Schaake pool uses the nearest stored lead for leads 2/4/6 (mode F rows hold 1/3/5/7 only). Smoke OK. Seeds 0 and 1 started 12:54, 3 threads each.
 - ASK_LATER 21 opt-in: not started this tick. It needs the ensemble model in the tool's forecast export plus an input path for the 24 features, which is a multi-hour build that should start on a quiet machine.
+
+## 2026-11-11 13:30 CST (primary tick)
+- Heartbeat 269. No jobs running.
+- O5 (`b4_ecc_modeF.py`, 2 seeds, 2023-24): FAIL. ECC is about equal at leads 1-2 and 0.5-1.7 % worse than Schaake at leads 3-7; the shear checks pass. Keep Schaake.
+- Check: about 20 % of the 2023-24 IFS ENS wind is NaN (whole start x lead slices), so those rows are skipped. The finite rows look normal. A new `--years` option re-ran 2022 (the M4 year) and matched M4 (ECC better at leads 2-7). So the M4 gain does not carry to the test years.
+- Section 10: nothing new beyond N1-N7.

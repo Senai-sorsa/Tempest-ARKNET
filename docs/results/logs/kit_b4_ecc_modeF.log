@@ -1,0 +1,26 @@
+2026-11-11 13:10 O5 ECC vs Schaake in forecast mode: seed 1, 86 IFS ENS starts 2023-24, 6840 rows (start x lead x point), 30 points per start and lead
+  lead 1: variogram Schaake 8.8668  ECC 8.8553  ECC minus Schaake -0.0115 (-0.1 %) [-0.0323, +0.0087]  fail
+  lead 2: variogram Schaake 21.4392  ECC 21.4368  ECC minus Schaake -0.0025 (-0.0 %) [-0.0781, +0.0657]  fail
+  lead 3: variogram Schaake 8.0397  ECC 8.1764  ECC minus Schaake +0.1367 (+1.7 %) [+0.0111, +0.2884]  fail
+  lead 4: variogram Schaake 15.5921  ECC 15.6200  ECC minus Schaake +0.0279 (+0.2 %) [-0.0978, +0.1763]  fail
+  lead 5: variogram Schaake 22.4517  ECC 22.6092  ECC minus Schaake +0.1575 (+0.7 %) [-0.0096, +0.3754]  fail
+  lead 6: variogram Schaake 17.4127  ECC 17.5324  ECC minus Schaake +0.1197 (+0.7 %) [-0.0538, +0.3220]  fail
+  lead 7: variogram Schaake 17.7981  ECC 17.9177  ECC minus Schaake +0.1197 (+0.7 %) [-0.1256, +0.4130]  fail
+  shear rate (> 10 m/s per km): ECC 0.1254  Schaake 0.1274  ratio 0.984  ok (within 10 %)
+  IL-128 check, 99th percentile shear: ECC 30.09  Schaake 30.82 m/s per km  ratio 0.976  ok (<= 1.2)
+Rule (pre-set): variogram >= 1 % better at every lead 1-7 with interval excluding 0, shear rate within 10 %, IL-128 ratio <= 1.2; both seeds.
+Seed verdict: FAIL -> keep Schaake
+
+2026-11-11 13:10 O5 ECC vs Schaake in forecast mode: seed 0, 86 IFS ENS starts 2023-24, 6840 rows (start x lead x point), 30 points per start and lead
+  lead 1: variogram Schaake 8.8904  ECC 8.8906  ECC minus Schaake +0.0002 (+0.0 %) [-0.0216, +0.0214]  fail
+  lead 2: variogram Schaake 21.2777  ECC 21.2759  ECC minus Schaake -0.0018 (-0.0 %) [-0.0819, +0.0761]  fail
+  lead 3: variogram Schaake 7.8755  ECC 7.9896  ECC minus Schaake +0.1141 (+1.4 %) [+0.0081, +0.2375]  fail
+  lead 4: variogram Schaake 15.6089  ECC 15.6256  ECC minus Schaake +0.0168 (+0.1 %) [-0.1047, +0.1617]  fail
+  lead 5: variogram Schaake 22.3771  ECC 22.5332  ECC minus Schaake +0.1561 (+0.7 %) [+0.0105, +0.3422]  fail
+  lead 6: variogram Schaake 17.2538  ECC 17.3619  ECC minus Schaake +0.1080 (+0.6 %) [-0.0408, +0.2809]  fail
+  lead 7: variogram Schaake 17.6975  ECC 17.7913  ECC minus Schaake +0.0938 (+0.5 %) [-0.1631, +0.3788]  fail
+  shear rate (> 10 m/s per km): ECC 0.1252  Schaake 0.1275  ratio 0.982  ok (within 10 %)
+  IL-128 check, 99th percentile shear: ECC 31.04  Schaake 31.82 m/s per km  ratio 0.976  ok (<= 1.2)
+Rule (pre-set): variogram >= 1 % better at every lead 1-7 with interval excluding 0, shear rate within 10 %, IL-128 ratio <= 1.2; both seeds.
+Seed verdict: FAIL -> keep Schaake
+

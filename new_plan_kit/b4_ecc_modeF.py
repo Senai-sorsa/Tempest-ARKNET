@@ -41,7 +41,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--points", type=int, default=30)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--months", type=int, default=24, help="ENS monthly files used (2023-01 onward)")
+    ap.add_argument("--months", type=int, default=24, help="ENS monthly files used (first year onward)")
+    ap.add_argument("--years", default="2023,2024", help="ENS years; 2022 = the M4 check year (reproduction only, not a test year)")
     a = ap.parse_args()
     K.ram_gate(3.0)
     rng = np.random.default_rng(a.seed)
@@ -51,7 +52,7 @@ def main():
     z = xr.open_zarr(os.path.join(K.REPO, "data", "pilot", "profiles.zarr"))
     zlat, zlon, zsfc = z.lat.values, z.lon.values, z.z_sfc.values
     have = pd.DatetimeIndex(z.time.values)
-    files = sorted(f for y in (2023, 2024) for f in glob.glob(os.path.join(K.REPO, "data", "raw", "wb2_ifs_ens", f"{y}*_00z.nc")))[:a.months]
+    files = sorted(f for y in map(int, a.years.split(",")) for f in glob.glob(os.path.join(K.REPO, "data", "raw", "wb2_ifs_ens", f"{y}*_00z.nc")))[:a.months]
     rows, shear = [], {m: [] for m in ("ECC", "Schaake")}
     for f in files:
         ds = xr.open_dataset(f)
@@ -99,7 +100,7 @@ def main():
                         shear[meth].append(layer_shear(xs, cols, hgt).ravel())
         ds.close()
     t = pd.DataFrame(rows, columns=["method", "lead", "start", "point", "vs"])
-    lines = [f"O5 ECC vs Schaake in forecast mode: seed {a.seed}, {t.start.nunique()} IFS ENS starts 2023-24, {len(t) // 2} rows (start x lead x point), {a.points} points per start and lead"]
+    lines = [f"O5 ECC vs Schaake in forecast mode: seed {a.seed}, {t.start.nunique()} IFS ENS starts {a.years.replace(",", "-")}, {len(t) // 2} rows (start x lead x point), {a.points} points per start and lead"]
     if t.empty:
         K.report("b4_ecc_modeF", lines + ["no rows"])
         return
