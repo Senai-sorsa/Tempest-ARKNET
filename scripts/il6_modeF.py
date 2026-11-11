@@ -39,8 +39,11 @@ ap.add_argument("--coarse", type=int, default=1, help="use every k-th height of 
 ap.add_argument("--noise-dim", type=int, default=16)
 ap.add_argument("--ens", action="store_true", help="L14: append the 24 IFS-ensemble features (rows from scripts/il14_ens_rows.py, field `ens`) to the network input; off = HRES only")
 ap.add_argument("--ens-cols", choices=("all", "spread", "mean"), default="all", help="IL-195: with --ens, which of the 24 ensemble features to use (columns alternate mean, sd); default all = as before")
+ap.add_argument("--ens-mask", type=float, default=0.0, help="N4 (New_Plan 10.4): with --ens, zero the ensemble inputs on this share of TRAINING rows and append an 'ensemble present' bit (1 = present); 0 = off (as before)")
+ap.add_argument("--ens-absent", action="store_true", help="N4: evaluate an --ens-mask network as if the feed were missing (ensemble inputs 0, bit 0); range map and tables get the suffix _noens, the network is reused")
 ap.add_argument("--bootstrap", type=int, default=0, help="IL-87: date-block bootstrap of the PIT distance (resample whole forecast start dates N times); 0 = off (as before)")
 ap.add_argument("--seed", type=int, default=0, help="torch seed of the training (network init and noise); the row subsets do not change")
+ap.add_argument("--fit-years", type=int, default=4, help="N3 step 0 (New_Plan 10.4): train on the last N years before the 2020 validation year (1-4); 4 = 2016-19 + 2020, as before")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
@@ -50,7 +53,8 @@ for y, d_ in yrs.items():                                                    # F
     d_["lead_bin"] = F.lead_bin(d_["lead_days"])
     yrs[y] = {k: v[d_["lead_bin"] > 0] for k, v in d_.items()}
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
-tr, cal, te = cat(range(2016, 2021)), cat([2021]), cat([2022])
+assert 1 <= a.fit_years <= 4, "--fit-years 1-4"
+tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021]), cat([2022])
 def sub(d, n):
     """random subset of rows; ONE index for all arrays (drawing a new index per array once misaligned forecast and truth)"""
     i = np.sort(rng.choice(len(d['obs']), min(n, len(d['obs'])), replace=False))
@@ -59,6 +63,16 @@ def sub(d, n):
 cal, te = sub(cal, a.rows), sub(te, a.rows)
 ENS_COLS = {"all": slice(None), "spread": slice(1, None, 2), "mean": slice(0, None, 2)}[a.ens_cols]                  # IL-195: columns alternate (mean, sd); default all 24
 cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)[:, ENS_COLS]], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
+if a.ens_mask > 0:                                                             # N4: one network for both cases; own rng so every other draw stays as before
+    assert a.ens, "--ens-mask needs --ens"
+    _absent_tr = np.random.default_rng(1000 + a.seed).random(len(tr["obs"])) < a.ens_mask
+
+    def cmat(d):
+        absent = _absent_tr if d is tr else np.full(len(d["obs"]), a.ens_absent)
+        e = np.where(absent[:, None], 0.0, d["ens"].astype(np.float32)[:, ENS_COLS]).astype(np.float32)
+        return np.concatenate([F.cond_matrix(d, a.coarse), e, (~absent).astype(np.float32)[:, None]], 1)
+assert a.ens_mask > 0 or not a.ens_absent, "--ens-absent needs an --ens-mask network"
+STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "")
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
@@ -82,7 +96,7 @@ _m = [_e[te["lead_bin"] == L].mean() for L in (1, 7)]
 assert _m[0] < _m[1], f"raw forecast error does not grow with lead ({_m}): arrays misaligned?"
 truth_cal, truth = cal["obs"].reshape(len(cal["obs"]), -1), te["obs"].reshape(len(te["obs"]), -1)
 table = P.fit_calibration(draw_net(cal), truth_cal, rng)
-np.savez(a.out.rsplit(".", 1)[0] + ".calib.npz", **table)
+np.savez(STEM + ".calib.npz", **table)
 x_net = draw_net(te)
 x_cal = spread.apply(table, x_net, clip=False)
 # full PIT recalibration (IL-85) before the range map
@@ -145,7 +159,7 @@ for name, x in methods.items():
         for b, (v, band, sel) in enumerate(bands):
             rows.append(dict(method=name, lead=L, var=v, band=band, crps=crps[k, b].mean(), mae=mae[k, b].mean(), cov99=cov[k, b].mean(), pit_tv=np.nan))
 t = pd.DataFrame(rows)
-t.to_csv(a.out.rsplit(".", 1)[0] + "_eval.csv", index=False)
+t.to_csv(STEM + "_eval.csv", index=False)
 pv = t.groupby(["method", "lead"])[["crps", "mae"]].mean().unstack("lead")
 base = pv.loc["climatology (2016-20 pool)", "crps"]
 print("mean CRPS over 16 variable x band cells, by lead (days)")
@@ -188,7 +202,7 @@ try:
             srows.append(dict(method=name, lead=L, pit_tv=tv, pit_tv_lo90=tv_lo, pit_tv_hi90=tv_hi, pit_floor=floor, cov_level_err=cov, vcorr_u=vc[0], vcorr_v=vc[1], vcorr_T=vc[2], vcorr_RH=vc[3],
                               skew_diff=np.abs(mom[:, 0] - mom[:, 1]).mean(), kurt_diff=np.abs(mom[:, 2] - mom[:, 3]).mean()))
     st = pd.DataFrame(srows)
-    st.to_csv(a.out.rsplit(".", 1)[0] + "_shape.csv", index=False)
+    st.to_csv(STEM + "_shape.csv", index=False)
     with pd.option_context("display.width", 200, "display.float_format", "{:.3f}".format):
         print("shape metrics on the test rows (goals: PIT distance <= 0.02, level error <= 0.008, vertical corr error <= 0.05, skew <= 0.15, kurt <= 0.4)")
         print(st.to_string(index=False))

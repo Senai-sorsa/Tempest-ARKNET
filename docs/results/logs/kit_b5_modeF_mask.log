@@ -1,0 +1,12 @@
+2026-11-11 14:15 N4 one network with optional ensemble inputs (30 % masked + present bit); mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  NM/TX  seed 0 feed   : mask 1.616 / 1.976 / 2.731 / 3.532  ref 1.594 / 1.930 / 2.686 / 3.491  change +1.4 / +2.4 / +1.7 / +1.2 %
+  NM/TX  seed 0 no feed: mask 1.663 / 2.027 / 2.774 / 3.584  ref 1.630 / 1.975 / 2.772 / 3.593  change +2.0 / +2.6 / +0.1 / -0.3 %
+  NM/TX  seed 1 feed   : mask 1.614 / 1.981 / 2.746 / 3.538  ref 1.610 / 1.951 / 2.700 / 3.487  change +0.2 / +1.5 / +1.7 / +1.5 %
+  NM/TX  seed 1 no feed: mask 1.668 / 2.029 / 2.784 / 3.579  ref 1.641 / 2.002 / 2.774 / 3.600  change +1.7 / +1.4 / +0.4 / -0.6 %
+  Denver seed 0 feed   : mask 1.828 / 2.109 / 2.752 / 4.019  ref 1.795 / 2.086 / 2.716 / 3.962  change +1.9 / +1.1 / +1.3 / +1.4 %
+  Denver seed 0 no feed: mask 1.874 / 2.145 / 2.785 / 4.036  ref 1.833 / 2.111 / 2.776 / 4.026  change +2.2 / +1.6 / +0.3 / +0.2 %
+  Denver seed 1 feed   : mask 1.807 / 2.104 / 2.744 / 4.035  ref 1.797 / 2.090 / 2.721 / 3.964  change +0.5 / +0.7 / +0.9 / +1.8 %
+  Denver seed 1 no feed: mask 1.861 / 2.137 / 2.775 / 4.026  ref 1.836 / 2.116 / 2.773 / 4.035  change +1.4 / +1.0 / +0.1 / -0.2 %
+Rule (pre-set): every lead within +0.5 % of the reference on both sides, both boxes, both seeds; KILL if a side is > +1 % (mean of leads) in both seeds.
+Verdict: KILL
+
