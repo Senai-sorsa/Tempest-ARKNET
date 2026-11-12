@@ -1,0 +1,9 @@
+2026-11-12 08:03 G1-3 radar + station score, El Paso 2021-23, balloon hours 00/12 UTC with balloon + ELP ASOS + EPZ radar (500 and 1500 m) all present: 690 hours, 570 days
+CX balloon            0.14 [0.03, 0.26]
+CX radar + ASOS       0.03 [0.00, 0.06]
+corr balloon vs radar+ASOS: 10 m speed 0.62, 0.5-1.5 km shear 0.73
+CX tool, no noise     0.05 [0.04, 0.06]   (690 hours x 100 members, 0 hours refused)
+CX tool + radar noise 0.05 [0.04, 0.06]   (sd 2.37 m/s per component, corr 0.33 between 500 and 1500 m)
+q95 thresholds (10 m speed, shear): balloon 8.8, 11.7; radar+ASOS 10.1, 14.5; tool+noise 8.9, 13.1 m/s
+VERDICT: REPORT ONLY (step 1 passed: balloon and radar + ASOS agree within their intervals); compare the tool + noise row with radar + ASOS.
+
