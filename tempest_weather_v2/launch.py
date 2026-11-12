@@ -660,6 +660,8 @@ class Launch:
                 if "_age_h" in o:
                     detail.append(f"{o['_age_h']:.1f} h old")
                 text += " (" + ", ".join(detail) + "; gain fitted on station pairs, see obs.py)"
+        for note in getattr(self, "_saved_notes", ()):
+            text += "; " + note
         return text + ". The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)"
 
     @property
@@ -941,7 +943,7 @@ class Launch:
         s = pool["samples"]
         meta = dict(format_version=FORMAT_VERSION, package_version=__version__, lat=self.lat, lon=self.lon, tz=self.tz_name, units=self.units, seed=self.seed, n=self.n,
                     site=self._site.name if self._site else None, window=pool["window"], modes=pool["modes"], elevation_source=pool["elevation_source"], flags=pool["flags"],
-                    provenance=self.provenance, day_share=pool["day_share"], obs={k: str(v) for k, v in self._obs.items()})
+                    provenance=self.provenance, day_share=pool["day_share"], obs={k: str(v) for k, v in self._obs.items()}, hrrr_note=self._hrrr["note"] if self._hrrr else None)
         arrays = {f"s_{k}": np.asarray(v) for k, v in s.items()}
         with open(path, "wb") as f:                           # a file handle: np.savez would otherwise append ".npz" to the name
             np.savez(f, launch_times=pool["launch_times"].astype("datetime64[s]").astype("int64"), meta=np.array(json.dumps(meta, default=str)), **arrays)
@@ -963,6 +965,14 @@ class Launch:
         if meta.get("site"):
             object.__setattr__(L, "_site", get_site(meta["site"]))
         object.__setattr__(L, "_loaded", True)
+        # the saved samples already carry the observations / HRRR anchor, but load does not restore them; keep the label so a reloaded file says what its numbers are
+        notes, o = [], meta.get("obs") or {}
+        n_obs = sum(not k.startswith("_") for k in o)
+        if n_obs:
+            notes.append(f"conditioned on {n_obs} measurements before saving" + (f" (from {o['_source']})" if "_source" in o else "") + " (not yet validated)")
+        if meta.get("hrrr_note"):
+            notes.append(f"ground wind anchored to {meta['hrrr_note']} before saving")
+        object.__setattr__(L, "_saved_notes", notes)
         return L
 
     def stale(self, now=None):

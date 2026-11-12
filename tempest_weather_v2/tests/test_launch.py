@@ -459,3 +459,12 @@ def test_soft_wind_observation_updates_the_speed_in_normal_score_space():
     sp = lambda X: np.hypot(np.asarray(X._ensure_pool()["samples"]["u"])[:, 0], np.asarray(X._ensure_pool()["samples"]["v"])[:, 0])
     s0, s1 = sp(L), sp(soft)
     assert (s1 >= 0).all() and abs(np.median(s1) - 12.0) < abs(np.median(s0) - 12.0)      # pulled toward the observation
+
+
+def test_saved_conditioned_launch_keeps_its_label_after_load(tmp_path, launch):
+    """A saved conditioned launch holds conditioned samples; the reloaded trust line must still say so (it used to read as a plain climate estimate)."""
+    cond = launch.observe(wind_10m="14 mph", wind_from_deg=240, temperature="82 F")
+    L2 = Launch.load(cond.save(str(tmp_path / "cond.tempest")))
+    assert "conditioned on 3 measurements before saving (not yet validated)" in L2.trust and "atmosphere only" in L2.trust
+    assert abs(L2.weather(all=True).wind_10m - 14.0) < 0.6
+    assert "conditioned" not in Launch.load(launch.save(str(tmp_path / "plain.tempest"))).trust
