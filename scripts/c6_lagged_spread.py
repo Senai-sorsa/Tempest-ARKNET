@@ -9,6 +9,16 @@ both grow with lead and mode F already knows the lead; the amendment is stricter
 
     PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py [--points 16]        # CPU, about 10-30 min, < 4 GB
 Result: docs/results/logs/c6_lagged_premise.log
+
+Steps 3-4 (`--step34`, built after the premise passed 2026-11-12): rows = 00Z-start rows of data/modeF_v2 (il6_build_v2) that have the 12Z run 36 h earlier; the SHIPPED mode F
+samples (scripts/fv2_eval.tool_samples, 199 members); d per row and band as above (wind d scales u and v, T d scales T; RH untouched). Fit on 2016-2020 rows (recipe years):
+x = d / median(d); per cell (wind / T x band) f_q^2 = mean((obs - member mean)^2) / mean(member variance) in deciles of x, then f = a + b x by least squares over the deciles,
+clipped 0.5-2; members -> mean + f (member - mean). Test on 2022.
+PASS (set 2026-11-12 09:50, before any step-3/4 result): mean PIT distance (tempest.scoring.metrics_ext.pit_tv over u, v, T at 44 heights) falls with its init-date-block 95 %
+interval entirely below 0, AND the relative change in mean CRPS (u, v, T) is <= +0.2 %. Otherwise C6 is dropped.
+
+    PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py --step34 [--rows 2500]
+Result: docs/results/logs/c6_lagged_step34.log
 """
 import argparse
 import os
@@ -21,6 +31,7 @@ from scipy.stats import spearmanr
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.join(REPO, "scripts"))
 from tempest.forecast import modeF as F   # noqa: E402
 
 H = np.asarray(F.HEIGHTS, float)
@@ -47,7 +58,12 @@ def main():
     ap.add_argument("--points", type=int, default=16)
     ap.add_argument("--years", type=int, nargs=2, default=[2016, 2020])
     ap.add_argument("--out", default=os.path.join(REPO, "docs/results/logs/c6_lagged_premise.log"))
+    ap.add_argument("--step34", action="store_true")
+    ap.add_argument("--rows", type=int, default=2500)
+    ap.add_argument("--smoke", action="store_true")
     a = ap.parse_args()
+    if a.step34:
+        return step34(a)
     assert a.years[1] <= 2020, "premise years only (2016-2020)"
     ds = xr.open_zarr(os.path.join(REPO, "data/pilot/profiles80.zarr"))
     bl = dict(np.load(os.path.join(REPO, "models/modeF_bl.npz")))
@@ -116,7 +132,133 @@ def main():
         fh.write("\n".join(lines) + "\n\n")
 
 
+def row_d(rows, bl, hd):
+    """d (n, 8) for rows (dict of arrays from data/modeF_v2): 4 wind bands then 4 T bands; NaN where the 36 h older run is missing."""
+    n = len(rows["valid"])
+    out = np.full((n, 8), np.nan)
+    init = rows["valid"] - rows["lead_hours"].astype("timedelta64[h]")
+    files = {}
+
+    def open_(t, start):
+        key = (str(t)[:7].replace("-", ""), start)
+        if key not in files:
+            f = f"{hd}/{key[0]}_{start}.nc"
+            files[key] = xr.open_dataset(f) if os.path.exists(f) else None
+        return files[key]
+    for t0 in np.unique(init):
+        hn, ho = open_(t0, "00z"), open_(t0 - LAG, "12z")
+        if hn is None or ho is None:
+            continue
+        cn, co = np.flatnonzero(hn.time.values == t0), np.flatnonzero(ho.time.values == t0 - LAG)
+        if not (len(cn) and len(co)):
+            continue
+        tdn, tdo = list(hn.prediction_timedelta.values.astype("timedelta64[h]")), list(ho.prediction_timedelta.values.astype("timedelta64[h]"))
+        for i in np.flatnonzero(init == t0):
+            L = np.timedelta64(int(rows["lead_hours"][i]), "h")
+            if L not in tdn or (L + LAG) not in tdo:
+                continue
+            la = [int(np.argmin(np.abs(h.latitude.values - rows["lat"][i]))) for h in (hn, ho)]
+            lo = [int(np.argmin(np.abs(h.longitude.values - 360.0 - rows["lon"][i]))) for h in (hn, ho)]
+            zg = np.array([rows["z_sfc"][i] * 9.80665])
+            pn = F.forecast_profiles(hn, cn[:1], np.array([tdn.index(L)]), np.array([la[0]]), np.array([lo[0]]), zg, bl)
+            po = F.forecast_profiles(ho, co[:1], np.array([tdo.index(L + LAG)]), np.array([la[1]]), np.array([lo[1]]), zg, bl)
+            dw = np.stack([pn["u"] - po["u"], pn["v"] - po["v"]], 1)
+            out[i] = [band_rms(dw, lo_, hi_)[0] for _, lo_, hi_ in BANDS] + [band_rms(pn["T"] - po["T"], lo_, hi_)[0] for _, lo_, hi_ in BANDS]
+    return out
+
+
+def cell_cols(c):
+    """cell c (0-3 wind bands, 4-7 T bands) -> column indices in the (u, v, T, RH) x 44 layout."""
+    nh = len(H)
+    _, lo, hi = BANDS[c % 4]
+    j = np.flatnonzero((H >= lo) & (H < hi))
+    return np.concatenate([j, nh + j]) if c < 4 else 2 * nh + j
+
+
+def fit_cell(x, sq, var):
+    """x (n,) scaled disagreement, sq (n,) squared error of the member mean, var (n,) member variance -> (a, b) of f = a + b x."""
+    q = np.quantile(x, np.linspace(0, 1, 11))
+    k = np.clip(np.searchsorted(q, x, side="right") - 1, 0, 9)
+    xq = np.array([x[k == i].mean() for i in range(10)])
+    fq = np.sqrt(np.array([sq[k == i].mean() / var[k == i].mean() for i in range(10)]))
+    b, a = np.polyfit(xq, fq, 1)
+    return a, b
+
+
+def apply_f(ens, f, cols):
+    m = ens[:, :, cols].mean(1, keepdims=True)
+    ens[:, :, cols] = m + f[:, None, None] * (ens[:, :, cols] - m)
+
+
+def step34(a_):
+    from fv2_eval import tool_samples
+    from tempest_weather import api
+    from tempest.scoring.score import crps_ensemble
+    from tempest.scoring.metrics_ext import pit_values, pit_tv
+    bl = dict(np.load(os.path.join(REPO, "models/modeF_bl.npz")))
+    hd = os.path.join(REPO, "data/raw/wb2_hres_v2")
+    A = api._assets(None)
+    rng = np.random.default_rng(34)
+
+    def rows_for(years, n):
+        R = [dict(np.load(os.path.join(REPO, f"data/modeF_v2/{y}.npz"))) for y in years]
+        R = {k: np.concatenate([r[k] for r in R]) for k in R[0]}
+        keep = (R["start_hour"] == 0) & np.isfinite(R["obs"][:, :3]).all((1, 2))
+        R = {k: v[keep] for k, v in R.items()}
+        i = np.sort(rng.choice(len(R["valid"]), min(3 * n, len(R["valid"])), replace=False))
+        R = {k: v[i] for k, v in R.items()}
+        d = row_d(R, bl, hd)
+        ok = np.flatnonzero(np.isfinite(d).all(1))[:n]
+        return {k: v[ok] for k, v in R.items()}, d[ok]
+    assert max(range(2016, 2021)) <= 2020
+    tr, dtr = rows_for(range(2016, 2021), a_.rows)
+    te, dte = rows_for([2022], a_.rows)
+    print("rows", len(dtr), len(dte), flush=True)
+    xtr, xte = tool_samples(A, tr, rng).astype(np.float64), tool_samples(A, te, rng).astype(np.float64)
+    ytr, yte = tr["obs"].reshape(len(dtr), -1).astype(np.float64), te["obs"].reshape(len(dte), -1).astype(np.float64)
+    med = np.median(dtr, 0)
+    lines = [f"C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 ({len(dtr)} rows), test 2022 ({len(dte)} rows); f = a + b d / median(d), clipped 0.5-2"]
+    xnew = xte.copy()
+    for c in range(8):
+        cols = cell_cols(c)
+        sq = ((xtr[:, :, cols].mean(1) - ytr[:, cols]) ** 2).mean(1)
+        var = xtr[:, :, cols].var(1, ddof=1).mean(1)
+        a, b = fit_cell(dtr[:, c] / med[c], sq, var)
+        f = np.clip(a + b * dte[:, c] / med[c], 0.5, 2.0)
+        apply_f(xnew, f, cols)
+        lines.append("%-16s a %+.3f b %+.3f  median d %.2f  test f 5/50/95 %%: %.2f %.2f %.2f" % ((("wind " if c < 4 else "T ") + BANDS[c % 4][0]), a, b, med[c], *np.percentile(f, [5, 50, 95])))
+    nc = 3 * len(H)
+    c0, c1 = crps_ensemble(xte, yte)[:, :nc], crps_ensemble(xnew, yte)[:, :nc]
+    p0, p1 = pit_values(xte, yte, np.random.default_rng(1))[:, :nc], pit_values(xnew, yte, np.random.default_rng(1))[:, :nc]
+    init = (te["valid"] - te["lead_hours"].astype("timedelta64[h]")).astype("datetime64[D]")
+    u, inv = np.unique(init, return_inverse=True)
+    groups = [np.flatnonzero(inv == k) for k in range(len(u))]
+    br = np.random.default_rng(7)
+    dp, dc = [], []
+    for _ in range(500):
+        idx = np.concatenate([groups[k] for k in br.integers(0, len(u), len(u))])
+        dp.append(pit_tv(p1[idx]).mean() - pit_tv(p0[idx]).mean())
+        dc.append(c1[idx].mean() / c0[idx].mean() - 1)
+    tv0, tv1 = pit_tv(p0).mean(), pit_tv(p1).mean()
+    rc = c1.mean() / c0.mean() - 1
+    for v, nm in enumerate(("u", "v", "T")):
+        sl = slice(v * len(H), (v + 1) * len(H))
+        lines.append("  %s: PIT distance %.3f -> %.3f, CRPS %.3f -> %.3f" % (nm, pit_tv(p0[:, sl]).mean(), pit_tv(p1[:, sl]).mean(), c0[:, sl].mean(), c1[:, sl].mean()))
+    lo_, hi_ = np.percentile(dp, [2.5, 97.5])
+    lines.append("all u, v, T: PIT distance %.4f -> %.4f, change %+.4f [%+.4f, %+.4f] (init-date blocks, %d dates); CRPS relative change %+.2f %% [%+.2f, %+.2f]" % (
+        tv0, tv1, tv1 - tv0, lo_, hi_, len(u), 100 * rc, *np.percentile(100 * np.array(dc), [2.5, 97.5])))
+    ok = hi_ < 0 and rc <= 0.002
+    lines.append("VERDICT: %s (PIT interval below 0: %s; CRPS change <= +0.2 %%: %s)" % ("PASS" if ok else "FAIL, C6 dropped", "yes" if hi_ < 0 else "no", "yes" if rc <= 0.002 else "no"))
+    print("\n".join(lines))
+    if not a_.smoke:
+        with open(os.path.join(REPO, "docs/results/logs/c6_lagged_step34.log"), "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n\n")
+
+
 def _selfcheck():
+    xx = np.repeat(np.linspace(0.5, 2, 10), 50)
+    a, b = fit_cell(xx, (0.8 + 0.4 * xx) ** 2, np.ones_like(xx))
+    assert abs(a - 0.8) < 0.05 and abs(b - 0.4) < 0.05
     x = np.zeros((3, 2, 44))
     x[0, 0] = 3.0
     x[0, 1] = 4.0
