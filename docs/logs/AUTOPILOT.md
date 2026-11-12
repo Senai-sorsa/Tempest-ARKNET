@@ -832,3 +832,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Safe range: GPU 38 C, on mains, free RAM 10 GB, disk 92 GB.
 - [N6F] done 02:30. **N6 verdict KILL** (`kit_b5_modeF_big.log`): full-size world-start Mode F vs the small own model: lead 1 -4.7 to -5.8 % (interval < 0 in all 4 box x seed), lead 3 -1.4 to -3.4 %, but lead 7 +2.2 to +4.0 % worse everywhere and Denver lead 5 +1.5 / +1.6 %. N7 not started (its condition failed). Kept as a fact: best lead 1-3 Mode F seen so far; a lead-split is a possible new item for the user.
 - [N1] scoring started 02:31 (ERA5 then balloons, both seeds). [N2P] waits for [N1] done.
+## 2026-11-12 03:15 CST (tick; heartbeat 291)
+- Safe range: GPU 34 C, on mains, free RAM 8 GB.
+- [N1] done 02:57. **N1 verdict PASS** (`kit_b5_crossfit.log`): cross-fitted members vs p2f on 2024-25: ERA5 skill15 +0.0020 (s0) / +0.0026 (s1), balloons +0.0030 / +0.0037, coverage error -0.0005 / +0.0001. Not exported (B29: an export needs the user's go when it runs); ASK_LATER 26. Caveat: the members also train on 2021-23, which p2f does not, so part of the gain may be the extra years.
+- [N2P] started 02:58; the first `--place-clim` run (world fit) reached its evaluation, so the new flag works.

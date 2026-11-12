@@ -2,3 +2,9 @@
 Incomplete, missing seed '_s0'
 Incomplete, missing seed '_s1'
 
+2026-11-12 03:09 N1 cross-fitted members vs p2f, test years 2024-25; mean skill15_unknown (ERA5, balloons) and mean |cov99_unknown - 0.99| (ERA5)
+  seed_s0: ERA5 skill15 0.0277 -> 0.0297 (+0.0020); balloons 0.0084 -> 0.0115 (+0.0030); coverage error 0.0034 -> 0.0030 (-0.0005)
+  seed_s1: ERA5 skill15 0.0271 -> 0.0298 (+0.0026); balloons 0.0073 -> 0.0111 (+0.0037); coverage error 0.0031 -> 0.0033 (+0.0001)
+Rule (pre-set): PASS = both seeds ERA5 skill15 >= 0.0287, balloons not worse by > 0.0013, coverage error not worse by > 0.0004; KILL = gain < 0.0006 in either seed.
+Verdict: PASS
+
