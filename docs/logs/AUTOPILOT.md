@@ -876,3 +876,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **Input archive with hash: done.** `.tempest` files now carry a sha256 of every saved array; load refuses a changed or damaged file; older files still load. The raw Open-Meteo responses are still not archived (only the samples). Full suite 398 passed.
 ## 2026-11-12 12:30 CST (tick work)
 - **RH range map widening (RH 12-18 km station correction): FAIL by rule.** k = 1.95 picked on 2021-23 lifts 2024-25 99 % coverage 0.948 -> 0.991 but CRPS +5.9 % (rule <= +1.5 %). No tool change; the misses are in the tails (tail-only fix = GPD tails, not built).
+## 2026-11-12 12:40 CST (tick work)
+- **Dissimilarity index in `Launch.domain()`: done (report only).** New fields di / di_threshold / di_region (L3-28 maths, checked against `tempest/scoring/di.py`); status still from the box test, answers unchanged. Full suite 399 passed. Open: DI replacing the box test (user's call), climatology answer outside the boxes (not started).

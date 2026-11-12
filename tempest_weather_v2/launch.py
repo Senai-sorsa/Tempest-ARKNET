@@ -600,7 +600,10 @@ class Launch:
     def domain(self):
         """Is this place inside what the generator was trained on? -> dict(status "inside" | "edge" | "outside", reason, edge_km, elevation_gap_m, region). Outside = no asset set covers the point (the tool refuses there);
         edge = within 0.25 degrees (about 25 km) of the trained box edge or a site more than 500 m from the model grid's height: the model is extrapolating a little (Denver, 17 degrees away in height-feature space, was
-        measured as clearly outside by the L3-28 dissimilarity test, which this simple check does not replace)."""
+        measured as clearly outside by the L3-28 dissimilarity test, which this simple check does not replace).
+        Also di, di_threshold, di_region: the L3-28 dissimilarity index of this place against the nearest trained grid (above di_threshold = outside its
+        area of applicability; Denver scored 21-36 against the NM/TX grid's 2.5). Report only: status still comes from the box test. None without a
+        site height (outside the boxes the height is not looked up online; pass elevation= to get it)."""
         import os
         name = None
         for nm, a in sorted(api.regions().items(), key=lambda kv: (kv[0] != "assets", kv[0])):
@@ -608,7 +611,9 @@ class Launch:
                 name, box = nm, a
                 break
         if name is None:
-            return dict(status="outside", reason="no trained asset set covers this point", edge_km=None, elevation_gap_m=None, region=None)
+            known = self._elev is not None or self._elevation_arg is not None or (self._site is not None and self._site.elevation_m is not None)
+            di = self._di(self.elevation_info()[0] if known else None)
+            return dict(status="outside", reason="no trained asset set covers this point", edge_km=None, elevation_gap_m=None, region=None, **di)
         edge_deg = min(self.lat - box["lat"][0], box["lat"][1] - self.lat, (self.lon - box["lon"][0]) * np.cos(np.radians(self.lat)), (box["lon"][1] - self.lon) * np.cos(np.radians(self.lat)))
         edge_km = float(edge_deg * 111.0)
         g = api._assets(os.path.join(api.HERE, name))["grid"]
@@ -621,7 +626,40 @@ class Launch:
             reasons.append(f"{edge_km:.0f} km from the edge of the trained area")
         if gap is not None and abs(gap) > self.EDGE_DZ_M:
             reasons.append(f"site is {gap:+.0f} m from the model grid height")
-        return dict(status="edge" if reasons else "inside", reason="; ".join(reasons) or "inside the trained area", edge_km=edge_km, elevation_gap_m=gap, region=name)
+        return dict(status="edge" if reasons else "inside", reason="; ".join(reasons) or "inside the trained area", edge_km=edge_km, elevation_gap_m=gap, region=name, **self._di(site))
+
+    _DI_FITS = {}
+
+    def _di(self, site):
+        """L3-28 dissimilarity index (same maths as tempest/scoring/di.py, which the tool does not ship) against each trained grid -> dict(di, di_threshold,
+        di_region) for the grid with the lowest DI. shortcut: the grid height stands in for both training heights (site and grid); fine for a report,
+        recompute from the training rows before DI gates anything."""
+        import os
+        if site is None:
+            return dict(di=None, di_threshold=None, di_region=None)
+
+        def sphere(p):
+            la, lo = np.radians(p[:, 0]), np.radians(p[:, 1])
+            return np.column_stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la), p[:, 2:]])
+        best = None
+        for nm in api.regions():
+            if nm not in self._DI_FITS:
+                g = api._assets(os.path.join(api.HERE, nm))["grid"]
+                x = sphere(np.column_stack([g["lat"], g["lon"], g["elev"], g["elev"]]).astype(float))
+                mu, sd = x.mean(0), x.std(0)
+                sd[:3] = np.sqrt((sd[:3] ** 2).sum())
+                sd = np.where(sd > 0, sd, 1.0)
+                z = (x - mu) / sd
+                d = np.linalg.norm(z[:, None] - z[None], axis=-1)
+                np.fill_diagonal(d, np.inf)
+                nn = d.min(1)
+                self._DI_FITS[nm] = (mu, sd, z, nn.mean(), (nn / nn.mean()).max())
+            mu, sd, z, dbar, thr = self._DI_FITS[nm]
+            q = (sphere(np.array([[self.lat, self.lon, site, site]], float)) - mu) / sd
+            v = float(np.linalg.norm(z - q, axis=1).min() / dbar)
+            if best is None or v < best[0]:
+                best = (v, float(thr), nm)
+        return dict(di=best[0], di_threshold=best[1], di_region=best[2]) if best else dict(di=None, di_threshold=None, di_region=None)
 
     # ---- trust, provenance
     @property

@@ -224,7 +224,20 @@ def test_domain_inside_edge_outside():
     far = Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64, elevation=3500, units="si").domain()
     assert far["status"] == "edge" and "model grid height" in far["reason"]
     out = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64).domain()                                  # no asset set covers it
-    assert out["status"] == "outside" and out["region"] is None
+    assert out["status"] == "outside" and out["region"] is None and out["di"] is None                         # no height known: no online lookup, no DI
+
+
+def test_domain_reports_the_dissimilarity_index_with_the_same_maths_as_the_research_code():
+    import os
+    from tempest.scoring import di as DI
+    from tempest_weather import api
+    g = api._assets(os.path.join(api.HERE, "assets"))["grid"]
+    f = DI.fit(np.column_stack([g["lat"], g["lon"], g["elev"], g["elev"]]).astype(float))
+    ins = Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64, elevation=1300, units="si").domain()
+    assert ins["di_region"] == "assets" and ins["di"] == pytest.approx(DI.di(f, np.array([[32.5, -104.5, 1300.0, 1300.0]]))[0])
+    assert ins["di_threshold"] == pytest.approx(f["thr"]) and ins["di"] < ins["di_threshold"]
+    far = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64, elevation=300, units="si").domain()
+    assert far["status"] == "outside" and far["di"] > 5 * far["di_threshold"]
 
 
 def test_trust_line_says_atmosphere_only_and_gives_climate_advice():
