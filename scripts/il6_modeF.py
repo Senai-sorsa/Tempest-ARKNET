@@ -48,6 +48,7 @@ ap.add_argument("--levels13", action="store_true", help="N2 step 0 (New_Plan 10.
 ap.add_argument("--no-place", action="store_true", help="N2 step 0: lat and lon inputs set to 0 (the world model has no place input)")
 ap.add_argument("--fit-rows-dir", default="", help="N2 full run (New_Plan 10.4): fit the network on these rows (2016-19 train, 2020 validation; e.g. data/modeF_world) instead of --rows-dir; range map, test and the pool / ridge / Schaake templates stay on --rows-dir. Empty = as before")
 ap.add_argument("--save-rows", action="store_true", help="N2: also write <out>_rows.npz: per test row lead bin, valid day and mean CRPS over the 16 variable x band cells of 'network + PIT recal + range map + Schaake shuffle' (for paired day-block intervals); off = as before")
+ap.add_argument("--fit-only", action="store_true", help="N6 (New_Plan 10.4): stop after the network fit (no range map, no evaluation: those peak at 14-17 GB RAM); off = as before")
 ap.add_argument("--init", default="", help="N2: start the network from this saved .pt (fine-tune, with its normalisation); empty = fresh start (as before)")
 ap.add_argument("--all-leads", action="store_true", help="N5 full run (New_Plan 10.4): keep rows beyond 7.5 d as lead bin 9 and score leads 1 / 3 / 5 / 7 / 9; the network is still fit on leads <= 7.5 d unless --fit-beyond. Off = as before")
 ap.add_argument("--fit-beyond", action="store_true", help="N5: with --all-leads, fit the network on all leads plus 10 %% climate-anchor rows (forecast = a random same-season truth profile, lead 15 d)")
@@ -124,6 +125,8 @@ if a.retrain or not os.path.exists(a.out):
     if a.init:
         cfg["init"] = a.init
     train(cmat(fit), F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+    if a.fit_only:
+        raise SystemExit(0)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
 m = a.m
 
