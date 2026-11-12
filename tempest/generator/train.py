@@ -52,6 +52,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 fill_mask=False,            # review 2026-11-07: heights that build_dataset --fill-top filled (above fill_top_idx) count 0 in the loss; needs a dataset built with --fill-top after 2026-11-07
                 shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
+                holdout_fold=None,          # N1 (New_Plan 10.4): 0..3 = validation rows are this fold's 4 held-out years (holdout_years) and the network after the last step is kept (fixed step count). None = as before
                 init=None,                  # N2 (New_Plan 10.4): path of a saved network to start from (fine-tune); its normalisation is kept. None = fresh start (as before)
                 geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
                 context_inputs=[],          # L3: input names routed to the context FiLM instead of the input layer (model.Generator context_cols)
@@ -107,9 +108,17 @@ def _load_one(path):
     return out
 
 
+def holdout_years(last, fold):
+    """N1: fold k of 4 -> its 4 held-out years: the last 16 years up to `last` in 2-year blocks, blocks k and k + 4."""
+    return [last - 15 + 2 * b + i for b in (fold, fold + 4) for i in (0, 1)]
+
+
 def split(year, cond, names, cfg):
     """-> (train, validation) row masks. Tail years by default; with val_block_frac, 14-day blocks from every year
     (the same blocks for every member and seed) with a 3-day gap dropped on each side."""
+    if cfg.get("holdout_fold") is not None:
+        val = np.isin(year, holdout_years(int(np.max(year)), cfg["holdout_fold"]))
+        return ~val & (year > 0), val                # year 0 = rows the caller masked out (scripts/n1_crossfit.py: no RAM copy of the kept years)
     if not cfg.get("val_block_frac"):
         val = year > year.max() - cfg["val_years"]
         return ~val, val
@@ -395,7 +404,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                     f"grad {gnorm.item():.3f}  {time.time() - t0:.0f}s")
                 log(f"    val by var (standardised; ss = spread/skill, 1 ideal): {d}")
                 M["history"].append((step, loss.item(), v))
-                if v < M["best"]:
+                if v < M["best"] or cfg["holdout_fold"] is not None:   # N1: fixed step count, the held-out years pick nothing
                     M["best"], M["bad"] = v, 0
                     M["best_state"] = {n: x.detach().cpu().clone() for n, x in model.state_dict().items()}
                 else:
