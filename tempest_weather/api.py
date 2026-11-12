@@ -163,6 +163,8 @@ def _assets(path=None):
              modep_calib=dict(qz=z["modep_calib/qz"], qu=z["modep_calib/qu"], m=z["modep_calib/m"]) if manifest.get("modep_included") else None,
              modef=Net.load(os.path.join(path, "model.npz"), prefix="modef_") if manifest.get("modef_included") else None,
              modef_calib=dict(qz=z["modef_calib/qz"], qu=z["modef_calib/qu"], m=z["modef_calib/m"]) if manifest.get("modef_included") else None,
+             modefens=Net.load(os.path.join(path, "model.npz"), prefix="modefens_") if manifest.get("modef_ens_included") else None,
+             modefens_calib=dict(qz=z["modefens_calib/qz"], qu=z["modefens_calib/qu"], m=z["modefens_calib/m"]) if manifest.get("modef_ens_included") else None,
              modef_bl=dict(ratio=z["modef_bl/ratio"], dpd_a=float(z["modef_bl/dpd_a"]), dpd_b=float(z["modef_bl/dpd_b"])) if manifest.get("modef_included") else None,
              modef_tpl={L: z[f"modef_tpl/L{L}"].astype(np.float32) for L in (1, 3, 5, 7)} if manifest.get("modef_included") else None,
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
@@ -340,7 +342,7 @@ FORECAST_SOLAR = (2.0, 20.0)      # hours of local solar time. Was (14, 20): the
                                   # (1 / 3 / 5 / 7 d bins) against +0.71 / +0.61 / +0.44 / +0.24 at 17 h, better than raw HRES everywhere; same 3 h margin around the tested hours as before. 23 h (06 UTC) untested.
 
 
-def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None):
+def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None, ens=None):
     """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
     -> ((n, 179) physical, the forecast profile dict, quality flags)."""
     t_hr = (t_utc + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)   # nearest forecast hour (14:50 -> 15:00, which may be the next day)
@@ -362,11 +364,15 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
         return np.tile(row, (n, 1)), prof, flag
     groups = int(np.ceil(n / M_CAL))
     cond = forecast.condition(prof, float(lat), float(lon), z_sfc, t_utc.timetuple().tm_yday, lead, A["modef_coarse"])
-    res = A["modef"].sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
+    net, cal = A["modef"], A["modef_calib"]
+    if ens is not None:                                            # ASK_LATER 21 (opt-in): the caller's 24 IFS-ensemble features -> the ensemble-feature network (CRPS -1.9 to -3.1 % at 1-7 d, 3 seeds, test 2022)
+        net, cal, cond = A["modefens"], A["modefens_calib"], np.concatenate([cond, ens])      # ens checked in atmosphere_set
+        flag.append("forecast-ifs-ensemble-features")
+    res = net.sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
     x = base[None, None, :] + res
     i = 3 * nh
     x[..., i:i + nh] = np.clip(x[..., i:i + nh], 0, 100)
-    x = _core.calibrate(A["modef_calib"], x, clip=False)
+    x = _core.calibrate(cal, x, clip=False)
     tpl = A["modef_tpl"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]          # real forecast-error profiles of the nearest tested lead
     ranks = np.argsort(np.argsort(tpl[rng.integers(0, len(tpl), (groups, M_CAL))], axis=1), axis=1)
     x = _cut(np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1), groups, n, rng)[0]
@@ -385,12 +391,17 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
 
 
-def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None, era5_anchor=0.0):
+def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None, era5_anchor=0.0, ens_features=None):
     """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls.
+    ens_features (opt-in, forecast mode only; None = HRES-only as before): the 24 IFS-ensemble values at the place and valid time, in forecast.ENS_FEATURES order (ASK_LATER 21).
     era5_anchor (opt-in, past mode only; 0 = off): weight in 0-1 of re-centring the median of the near-ground wind ensemble on the ERA5 10 m wind, fading out by 300 m (gw_past_anchor.py, 250 hours: speed CRPS -5 % at TCS, -11 % at MAF; not yet confirmed on other seeds or hours)."""
     if assets is None:                                                   # R-7: the asset set that covers the place; none covers it -> the default set answers with its clear refusal
         assets = region_assets(lat, lon, solar_hour=_time(when, lon)[1])   # A24: and, among those, the one trained for this solar hour
     A = _assets(assets)
+    if ens_features is not None:                                         # checked here, not in the forecast branch, whose fetch-failure fallback would hide a bad input
+        ens_features = forecast.ens_vector(ens_features)
+        if A.get("modefens") is None:
+            raise ValueError("ens_features given, but these assets have no ensemble mode F network (export with --modef-ens models/modeF_ens.pt)")
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
     if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
         raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/plans/REGION_PLAN.md)")
@@ -450,7 +461,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
         cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
     elif used == "forecast":
         try:
-            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir)
+            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir, ens_features)
             state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
             if state is not None and not predicted:                      # IL-101: widen the lowest wind levels to the observed forecast-error spread at the site
                 k0 = _bias.widen_wind(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)

@@ -77,6 +77,7 @@ def main():
     ap.add_argument("--gust-phys", help="IL-183: a region's physical gust law (npz: model_theta, model_phi, model_cap, measured_theta, measured_phi, measured_cap, station) from scripts/gust_1min.py; the tool then uses it instead of the built-in NM/TX constants")
     ap.add_argument("--modep", help="past-date residual network (models/modeP.pt); its range map is read from the same name with .calib.npz")
     ap.add_argument("--modef", help="forecast-conditioned network (models/modeF_v2.pt); range map from the same name with .calib.npz")
+    ap.add_argument("--modef-ens", help="ASK_LATER 21 (opt-in): also store the ensemble-feature mode F network (models/modeF_ens.pt, + its .calib.npz); the tool uses it only when the caller passes the 24 IFS-ensemble features (ens_features=...)")
     ap.add_argument("--modef-bl", default="models/modeF_bl.npz", help="boundary-layer tables fitted with the forecast converter")
     ap.add_argument("--modef-rows", default="data/modeF", help="training rows (per-year npz) from which the error-profile templates of the Schaake shuffle are taken")
     ap.add_argument("--modef-ridge", action="store_true", help="IL-80: also store the per-lead ridge regression (and a pool of its residuals) so forecast mode can mix the network 50:50 with the ridge")
@@ -207,6 +208,11 @@ def main():
         mc = np.load(a.modef.rsplit(".", 1)[0] + ".calib.npz")
         for k in mc.files:
             arrays[f"modef_calib/{k}"] = mc[k]
+        if a.modef_ens:
+            pack(torch.load(a.modef_ens, map_location="cpu", weights_only=True), "modefens_", arrays)
+            mc = np.load(a.modef_ens.rsplit(".", 1)[0] + ".calib.npz")
+            for k in mc.files:
+                arrays[f"modefens_calib/{k}"] = mc[k]
         bl = np.load(a.modef_bl)
         for k in bl.files:
             arrays[f"modef_bl/{k}"] = bl[k]
@@ -249,7 +255,7 @@ def main():
     calibration_fit = (f"up to {int(cal['fit_year'])}, m = {int(cal['m'])}" if "fit_year" in cal.files and "m" in cal.files else "unknown (not recorded in the calibration)")
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years=trained_years, calibration_fit=calibration_fit, model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), head_source=(os.path.basename(a.head) if a.head else None), modef_source=(os.path.basename(a.modef) if a.modef else None), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), gust_phys_included=bool(a.gust_phys), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), head_source=(os.path.basename(a.head) if a.head else None), modef_source=(os.path.basename(a.modef) if a.modef else None), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), modef_ens_included=bool(a.modef and a.modef_ens), modef_ens_source=(os.path.basename(a.modef_ens) if a.modef and a.modef_ens else None), gust_included=bool(a.gust), gust_phys_included=bool(a.gust_phys), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], solar_hours=solar_hours, files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

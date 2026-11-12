@@ -68,3 +68,15 @@ def test_forecast_distribution_is_calibrated_width_and_coherent():
     c = tw.couple(32.9, -106.9, WHEN, ["T@2000", "T@2500"], n=398, now=NOW, fetch=canned)
     k, rows = c.draw(398, np.random.default_rng(0)) if c.draw.__code__.co_argcount > 2 else c.draw(398)
     assert rows.shape[1] == 2 and np.corrcoef(rows.T)[0, 1] > 0.5       # neighbouring heights move together (real error profiles reorder the samples)
+
+
+def test_ensemble_features_are_opt_in_and_checked():
+    """ASK_LATER 21: ens_features must be 24 finite values (spreads >= 0); assets without the ensemble network refuse them instead of silently answering HRES-only."""
+    ens = {k: (1.0 if k.endswith("sd") else 3.0) for k in TF.ENS_FEATURES}
+    assert TF.ens_vector(ens).shape == (24,) and TF.ens_vector(list(ens.values()))[1] == 1.0
+    for bad in ([1.0] * 23, {**ens, "v10_sd": -0.5}, {**ens, "t2m_mean": float("nan")}):
+        with pytest.raises(ValueError):
+            TF.ens_vector(bad)
+    if not json.load(open(os.path.join(ASSETS, "manifest.json"))).get("modef_ens_included", False):
+        with pytest.raises(ValueError, match="no ensemble mode F"):
+            tw.values(32.9, -106.9, WHEN, ["T@2000"], n=50, now=NOW, fetch=canned, ens_features=ens)
