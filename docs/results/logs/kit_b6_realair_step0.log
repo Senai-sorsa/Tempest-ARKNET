@@ -1,0 +1,22 @@
+stations 90, year 2019 (4 months), matched forecast-balloon-ERA5 triples 12220 from 611 distinct balloons on 15 distinct valid times
+wind error per component, m/s (RMSE). model truth = forecast vs ERA5; real truth = forecast vs balloon
+lead     height      fc-ERA5 fc-balloon  ERA5-ball    ratio      gap        n
+6-24 h   1500           1.51       2.35       1.89     1.56     1.81     1192
+6-24 h   3000           1.55       2.29       1.75     1.48     1.68     1036
+6-24 h   5000           1.64       2.43       1.92     1.48     1.79     1034
+6-24 h   9000           2.02       3.04       2.49     1.50     2.27     1058
+6-24 h   12000          1.87       3.30       2.66     1.76     2.72     1144
+3-5 d    1500           3.18       3.66       1.89     1.15     1.82     2978
+3-5 d    3000           3.61       4.03       1.75     1.12     1.80     2589
+3-5 d    5000           4.26       4.68       1.92     1.10     1.94     2584
+3-5 d    9000           6.19       6.75       2.49     1.09     2.68     2644
+3-5 d    12000          4.49       5.28       2.66     1.17     2.77     2859
+7-10 d   1500           6.29       6.55       1.89     1.04     1.84     4170
+7-10 d   3000           7.19       7.52       1.75     1.05     2.19     3625
+7-10 d   5000           9.25       9.52       1.92     1.03     2.24     3618
+7-10 d   9000          13.76      14.09       2.49     1.02     3.00     3702
+7-10 d   12000         10.55      10.83       2.66     1.03     2.44     4003
+10 m wind (balloon surface report vs model 10 m wind):
+6-24 h   fc-ERA5 1.12  fc-real 2.09  ratio 1.88  gap 1.77 | mean speed real 3.37 fc 3.60 ERA5 3.49 | calm (<1 m/s) real 0.173 fc 0.095 ERA5 0.110 | p95 speed real 9.6 fc 8.9 ERA5 9.8 | n 1216
+3-5 d    fc-ERA5 1.92  fc-real 2.56  ratio 1.33  gap 1.70 | mean speed real 3.37 fc 3.63 ERA5 3.49 | calm (<1 m/s) real 0.173 fc 0.092 ERA5 0.110 | p95 speed real 9.6 fc 9.4 ERA5 9.8 | n 3035
+7-10 d   fc-ERA5 3.23  fc-real 3.48  ratio 1.08  gap 1.30 | mean speed real 3.37 fc 3.60 ERA5 3.49 | calm (<1 m/s) real 0.173 fc 0.091 ERA5 0.110 | p95 speed real 9.6 fc 9.1 ERA5 9.8 | n 4251
