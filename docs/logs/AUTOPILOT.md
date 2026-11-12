@@ -823,3 +823,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Safe range: GPU 38 C (idle), board sensor 39 C, on mains (78 %, steady), free RAM 6 GB (N2-B evaluation), disk 91 GB.
 - N1: both seeds trained (seed 100 at 00:51, no GPU fault; range map ends scale by 1.17-1.18). Scoring waits for [N6F] done. N2-B 6 of 12 (seed 0 complete), ends near 01:45. Chain after it: [N6F] fine-tunes -> N1 scoring -> [N2P] modification C. No verdict due, no new idea IDs. Nothing started: no RAM for a second heavy job.
 
+## 2026-11-12 01:58 CST (new session tempest-arknet-23, tick; heartbeat 288)
+- Safe range: GPU 37 C (idle, N6F evaluating on the CPU), on mains, free RAM 5 GB, disk 92 GB. Loops recreated in this chat (wake-up 30 min, backup cron 38e5ea17 `23 */2 * * *`); no other session running.
+- [N2B] done 01:49. **N2-B verdict PASS** (`kit_b5_modeF_scarce.log`): with 1 box fit year, world start + 300 steps beats the box's own model + 300 steps by -1.9 to -5.1 % (NM/TX) and -2.9 to -4.8 % (Denver), interval < 0 at 16 of 16 checks against each arm. ft1 on 1 year (NM/TX lead 1 1.648) about equals the own model on 4 years (N3: 1.641). Adoption stays with the user.
+- [N6F] fine-tunes started 01:49 (ft_s0 evaluating). Then N1 scoring, then [N2P].

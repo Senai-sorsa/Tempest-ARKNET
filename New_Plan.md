@@ -234,6 +234,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | N5 full run one network from day 1 to climate (`cpu_n5_full.sh` + `cpu_n5_rest.sh`, `b5_modeF_alllead.py`; rows `data/modeF_v2{,_denver}`, binned vs all-lead + 10 % climate anchors, seeds 0 and 1) | All-lead vs binned, change at lead 1 / 3 / 5 / 7 / beyond 7.5 d: NM/TX +2.7 / +1.0 / +0.2 / -0.7 / -3.2 % (s0), +2.5 / +1.0 / +0.2 / -0.7 / -2.9 % (s1); Denver +2.6 / +1.1 / +0.4 / -0.2 / -3.7 % (s0), +2.4 / +0.9 / +0.4 / -0.2 / -3.5 % (s1). Beyond 7.5 d all-lead minus binned: NM/TX -0.139 [-0.193, -0.097] / -0.128 [-0.177, -0.087]; Denver -0.167 [-0.218, -0.121] / -0.157 [-0.205, -0.115]; minus the climate model about -0.51 (NM/TX), -0.65 (Denver) | KILL (pre-set: worse by more than 1 % at leads 1-3). Nothing changes in the tool. Kept as a fact: beyond 7.5 d one network beats the binned model by about 3 % and the climate model clearly, so a long-lead-only network is a possible later item |
 | N6 step 0 full-size Mode F on the GPU (`gpu_n6_step0.sh`, `il6_modeF.py --fit-only`; width 512, depth 4, 4 members, all 44 heights, world rows 645k, seed 0, 3000 steps, 2.8 min on the RTX 5070) | validation CRPS 0.4986 at step 250 -> 0.4787 at step 2750 (still falling slowly; train 0.48, so no overfitting as in IL-77) | **PASS (step 0)**: full run queued (`gpu_n6_full.sh`: world seed 1, then 300 box steps x 2 boxes x 2 seeds after [N2B]); verdict `b5_modeF_big.py` with the pre-set rule |
 | N1 step 1 (data <= 2020 with fixed steps must reproduce p2f within 0.0006) | Every p2f member's best validation step is its last (6000; data/phase2_train_p2f.log), so p2f is that model (difference 0) | **PASS (step 1, no run needed)**: full run started 2026-11-11 23:19 (`gpu_n1_crossfit.sh`, seeds 0 / 100); verdict `b5_crossfit.py` with the pre-set rule |
+| N2 modification B, data-scarce box (`cpu_n2b_scarce.sh`, `b5_modeF_scarce.py`; box model on 1 fit year (own1), own1 + 300 extra steps (own1p300), world start + 300 steps on the same 1-year rows (ft1); seeds 0 and 1, both boxes) | ft1 vs own1p300, change at lead 1 / 3 / 5 / 7 d: NM/TX -5.1 / -2.5 / -1.9 / -2.3 % (s0), -4.8 / -2.3 / -1.9 / -2.2 % (s1); Denver -4.8 / -3.6 / -2.9 / -4.1 % (s0), -4.7 / -4.2 / -2.9 / -3.7 % (s1). ft1 vs own1: -1.6 to -8.9 %. Interval < 0 at 16 of 16 lead x box x seed checks against EACH arm (NM/TX s0 lead 1 vs own1p300: -0.089 [-0.123, -0.063]). Note: ft1 on 1 box year (NM/TX lead 1 1.648) about equals the own model on 4 years (N3: 1.641) | **PASS** (pre-set: better than both arms with interval < 0 at >= 3 of 4 leads, both boxes and seeds). The world start is worth about 3 box years of forecast data. Adoption stays with the user (no shipped path uses it yet) |
 
 Found while building: the switches this plan named (`shuffle_train`, `day_code`, `target_shear`, `group_rank`, `t_update`, `SIGMA_SCALE`) do not exist, the kit works from outside the core; C6 needs no download (`data/raw/wb2_hres_v2` has 2016-22); G2-1 cannot be checked from disk; G2-4 needs a radar download first.
 
@@ -336,3 +337,152 @@ training seeds; fit and test years as stated per idea; never 2026.
 Order: N3, N2 and N5 step 0 and all of N4 first (CPU, under 2 h together). N1 when the GPU is free;
 its Mode F part before N2-N5 are judged. N3 full run only if step 0 passes. Honest odds: N4 high;
 N1 test bed near certain and skill gain medium to high; N2 and N5 medium; N3 low to medium.
+
+---
+
+## 11. One new idea: RA, the real-air gap model (added 2026-11-12; step 0 measured, nothing else run)
+
+Asked for: one idea that lifts the whole system, built from what already worked, improved in rounds.
+This section keeps every round: the first form (11.2), each improvement in the order it was found
+(11.3), the final form (11.4), what was measured today (11.5) and the tests with rules set now (11.6).
+Nothing in the tool changes. Defaults stay bit-identical. The idea is opt-in until it passes.
+
+### 11.1 The idea in four lines
+
+1. Everything we train treats ERA5 as the truth. A rocket does not fly through ERA5. It flies through
+   real air on one thin path, the way a balloon does.
+2. On disk there are 986 balloon stations worldwide, and each one sits about 10 km from a point where
+   we already hold 7 years of forecasts and ERA5. No model code has ever joined them.
+3. Train ONE world model of the **gap**: real air minus model air, as random draws, given the model
+   profile, the hour and a few facts about the site. Learn it from forecasts, which never saw the balloon.
+4. Add one gap draw to every member the tool makes, in every mode:
+   **real member = model member (today's tool, unchanged) + gap draw (new)**.
+
+### 11.2 Version 0, the first form (before any check)
+
+"World Mode F with the truth swapped": take the N2 world model (forecast in, ERA5 out) and train it
+with the real balloon as the target instead. Reasons, all from our own logs:
+
+| What our logs say | Where |
+|---|---|
+| Every shape limit left is an ERA5-against-reality gap: joint wind-shear extremes 0.07 against 0.17 real, and ERA5 templates cap them at 0.068; calm air 1.2 % in ERA5 against 6.1 % at stations; TCS too calm by 1.44 m/s; real shear at least 1.33 x ERA5 | handover section 7, review trap 7, IL-207, C5 |
+| Fixing those with fits at 2-3 sites failed again and again (few balloons, many free numbers) | review "what has failed" 2-4, S1, S2, O1, O3 |
+| World data plus a short local fit works: better at 16 of 16 checks, and the control showed the gain is the world start | N2 full run |
+| The largest skill we have is "truth given a rich anchor" (forecast mode 0.69 at day 1; ERA5 anchor -3 to -20 % at the ground) | handover sections 1, 7 |
+| Changing the network body gives nothing; more rows and richer inputs do | review "what has failed" 1, pattern P1 |
+
+Version 0 keeps the network and the recipe that work. It changes only what the network is told the truth is.
+
+### 11.3 The improvements, in the order they were found
+
+Each one came from attacking the version before it.
+
+| # | Attack on the version before | Improvement |
+|---|---|---|
+| 1 | Is the data really there? The review parked the "detail network" (G3-1) partly because ERA5 beside the world's balloons was "not confirmed on disk". | **Checked today: it is there.** `points.npz` in `data/raw/wb2_hres_global` and `data/raw/era5_global` carries a balloon station id per point. 986 stations have a balloon file in `data/igra_heights`; their world point is 9.7 km away in the median (worst 17 km). El Paso, Midland and Denver are among them. About 2.9 million forecast-balloon pairs for 2016-22 are on disk now. Mode F world was fitted on 0.645 million rows. |
+| 2 | ERA5 has already used these balloons, so "ERA5 minus balloon" looks smaller at a balloon site than at the pad (mistake B30). | **Learn the gap from forecasts, not from ERA5.** A forecast made 6 h or more before the launch cannot have seen that balloon. This is the trick of the C5 referee, used for training. |
+| 3 | If the gap is learned from forecasts, it is mixed with forecast error. Then it cannot be used in climate or past mode, where there is no forecast. | **Measured today (11.5): the gap does not depend on the lead.** Real error squared = model error squared + a constant. At 1.5 km the constant is 1.81, 1.82, 1.84 m/s at leads of 1 day, 3-5 days and 7-10 days, and ERA5 against balloons gives 1.89. So the gap is a separate, added part. One gap model then serves every mode: forecast, past and climate. This turned version 0 (a second forecast model) into the final form (one added layer for the whole tool). |
+| 4 | A truth swap makes the ERA5 headline fall by design (review trap 1), and it would redo a stack that is calibrated and shipped. | **Add, do not replace.** The model member stays exactly as it is, so every ERA5 score stays as it is. The gap is added on top behind one switch (`truth="real"`, off by default). The user decides later which truth the tool serves. |
+| 5 | A simple rule usually ties a network here (pattern P4). The gap may be just "add 1.8 m/s of noise". | **The simple rule is built first and is the bar.** Arm A1 = add independent noise, one size per height band (6 numbers). The network (arm A2) must beat A1 or it is dropped, and A1 ships instead. Either way the tool gains a measured real-air widening, so the work cannot end with nothing. |
+| 6 | Where could a network beat 6 numbers? Only where the gap depends on something. | **Give it the things the gap is known to depend on, all available at any place on Earth:** the member's own profile (speed, shear, stability: C1 showed the missing shear follows stability, c = 0.12 to 0.33), local solar hour, day of year, site height, and "site height minus model terrain height". No latitude or longitude (N2 step 0: leaving them out costs under 0.5 %). This is richer input, not a bigger body. |
+| 7 | Balloons fly only at 00 and 12 UTC. The tool must cover all 24 hours (user rule). | **World pooling covers the day.** 00 UTC is evening in New Mexico and morning in Japan. Counted today: launches fall in every 3-hour bin of local solar time (shares 5.5 % to 23 %). With solar hour as an input and no longitude, the hours missing at one site are learned from others. Risk: hour and region are tied together; stage 4 tests it by leaving out a whole sector. |
+| 8 | Draws per height have no link between heights. Our best shape gains came from borrowing the order of real profiles (the shuffle). | **Order the gap draws by the ranks of real gap profiles** (balloon minus forecast, whole profiles, from the fit years). These are real air, from hundreds of stations, so they are not held to the ERA5 ceiling of 0.068. Whole profiles only; rank sources are never mixed (review trap 3). |
+| 9 | The forecasts on disk have 13 levels; the tool has 44 heights. A gap measured against a 13-level profile would count "detail between levels" twice, because the tool's members already have some. | **Coarse gap first.** Fit the gap only at the heights where the 13 levels really sit, plus 10 m. Spread it smoothly to the 44 heights. That is a lower bound of the real gap and adds no false shear. The fine detail between levels stays with the shear map, and with 1-second soundings later (the parked G3-1). |
+| 10 | The pad has no record, and 87 % of the wind-driven apogee spread comes from 0-300 m (P6). Site patches failed because each was fitted at one airport. | **The ground is inside the same model.** Each balloon file has the surface report and wind at 10-300 m (present in 99 % of profiles; partly interpolated from the surface report and the first level). That is real low-level wind at 986 sites, not at 9 airports. The model learns how real low wind differs from model wind by terrain and hour, and is then used at the pad with zero pad data. Measured today: real calm air (under 1 m/s) 17.3 %, forecast 9.5 %, ERA5 11.0 %. |
+| 11 | `observe` ranks a real reading inside a pool of model air. Where that pool is too calm the result is too narrow (TCS covers 0.82 with its own report). S1 tried to repair this per site and failed on seed spread. | **With the gap added, a reading is compared with real-air members.** Centre and spread are repaired first, for every site at once. This is a later test (stage 5), not a claim. |
+| 12 | 2.9 million pairs sounds large, but they come from only 426 valid times (213 at balloon hours). Days count, not readings (review trap 4). | **One small download makes it 24 times larger:** the same public forecast archive, read only at the 986 station points, for every 00 and 12 UTC of 2016-22 at five leads. About 3.5 GB (budget 50 GB, about 5 GB used). The test year then has about 730 balloon times, not 30. |
+| 13 | Where do the new AI methods come in, if the body stays? | **Three of their principles, none of their bodies:** (a) train against the instruments themselves, not against an analysis (the direct-observation weather models of 2024-25); (b) one model trained on the world, then a short local fit (how the large weather models are adapted; our N2 is the small proof); (c) one-step random generators trained on a proper score (the family our engression recipe already belongs to). These are named from memory and were not re-read today. |
+
+### 11.4 Final form
+
+```
+any mode (climate / past / forecast)          today's tool, unchanged
+        |
+   model member  (44 heights, ERA5-like)  ----------------------------->  truth="model" (default)
+        |
+   RA gap model  (one for the world)
+     inputs : the member's own profile, solar hour, day of year,
+              site height, site minus model terrain, year
+     output : gap draws at the 13 level heights + 10 m (u, v, T, RH)
+     order  : ranks of real gap profiles (whole profiles)
+     fit    : forecasts (6 h and older) against balloons, 986 stations
+     start  : the N2 world model; later 300 steps on the box's own balloons
+        |
+   real member = model member + gap draw  ------------------------------>  truth="real" (opt-in)
+```
+
+What it could retire later, each only by its own test: the per-site wind factor (IL-207b), the
+station-scale widening, part of the neighbour-report fixes. What it does not touch: the generator,
+the calibration stack, the templates, Mode F, every default.
+
+### 11.5 Step 0, measured today (`new_plan_kit/b6_realair_step0.py`, log `kit_b6_realair_step0.log`)
+
+Data on disk only, year 2019 (a fit year), 90 stations picked at random, 4 months: 12,220 matched
+rows from 611 balloons on 15 valid times. Wind error per component in m/s. "Gap" is the part of the
+real error that ERA5 as truth cannot show: sqrt(real^2 - model^2).
+
+| Lead | Height | Forecast vs ERA5 (today's truth) | Forecast vs balloon (real) | Gap |
+|---|---|---|---|---|
+| 6-24 h | 10 m | 1.12 | 2.09 | 1.77 |
+| 6-24 h | 1.5 km | 1.51 | 2.35 | 1.81 |
+| 6-24 h | 5 km | 1.64 | 2.43 | 1.79 |
+| 6-24 h | 12 km | 1.87 | 3.30 | 2.72 |
+| 3-5 d | 1.5 km | 3.18 | 3.66 | 1.82 |
+| 3-5 d | 12 km | 4.49 | 5.28 | 2.77 |
+| 7-10 d | 1.5 km | 6.29 | 6.55 | 1.84 |
+| 7-10 d | 12 km | 10.55 | 10.83 | 2.44 |
+
+What it means in plain words:
+
+- **On launch day the gap is as large as the forecast error itself.** One day ahead the forecast
+  misses ERA5 by 1.5 m/s and misses the real balloon by 2.35 m/s. A forecast-mode band tuned on ERA5
+  is then about 1.5 times too narrow against real air (1.9 times at the ground). I found no log where
+  forecast mode was trained or scored against balloons.
+- **The gap is the same at every lead** (1.81 / 1.82 / 1.84 m/s at 1.5 km). So it is a separate
+  thing that can be learned once and added in every mode. Beyond a week it hardly matters (3 %).
+- **At the ground, models have too little calm air:** real 17.3 %, forecast 9.5 %, ERA5 11.0 %.
+
+Limits of this check: 15 days only; the 7-10 d gap is a difference of two large numbers; the 13
+levels were joined by straight lines in height, which adds a little to the balloon columns, so the
+gap is an upper estimate. Part of the gap is balloon noise and drift (about 0.5 m/s is usual for the
+instrument; not measured here). Stage 3 bounds the real part with the radar as a third referee.
+
+### 11.6 Tests, with the rules set now
+
+Rules for all stages: fit on valid times 2016-20, range map on 2021, test on 2022 (the Mode F
+protocol); never 2026. One station in five is left out of every fit by a fixed hash, and El Paso,
+Midland and Denver are left out too. Two seeds, day-block intervals, CRPS against balloons. One heavy
+job at a time; 12 threads, low priority. A script per stage in `new_plan_kit/` (`b6_*`).
+
+| Stage | What | Pass rule | Kill rule | Cost |
+|---|---|---|---|---|
+| 0 | Pairs on disk; is there a gap, and does it grow with lead? | Done, 11.5. Dead if the gap were under 0.5 m/s or grew with lead; it is 1.7-2.7 and flat. | - | done |
+| 1a | Build the gap rows from disk (`b6_realair_rows.py`, pattern of `il6_build_world.py`). Fit arm A1 (6 numbers). Quick look only, no verdict: the test year has about 30 balloon times. | A1 coverage of the 90 % band at left-out stations between 0.87 and 0.93 in every height band. | A1 cannot reach 0.85 in any band: the gap is not a simple added part; stop and rethink. | 1-2 h CPU |
+| 1b | Download forecasts at the 986 points for every 00 / 12 UTC, 2016-22, leads 12 h, 1, 3, 5, 7 d (own new folder, ledger). | - | - | about 3.5 GB, unattended |
+| 2 | **The verdict.** Arm A0 = member as is. A1 = 6-number rule. A2 = RA network (N2 world start), ordered by real gap ranks. Left-out stations, 2022. | A2 beats A1 by 2 % or more on CRPS at leads up to 3 d, interval excludes 0, both seeds; coverage 0.87-0.93 in every band; vertical variogram score better than A1, interval excludes 0; share of calm air at 10 m within 0.03 of the real one. | A2 not better than A1 on CRPS and not on the variogram score in either seed: the network part is closed and **A1 becomes the opt-in**. | 2-3 h CPU, or 30 min GPU at N6 size |
+| 3 | How much of the gap is real air? Three-way referee as in C5 (balloon, radar, forecast) at El Paso. Ship the lower bound. | Bounds narrower than a factor 1.5. | Wider: ship the gap scaled to the lower bound and say so. | 1 h CPU |
+| 4 | The 24-hour question. Leave out all stations of one quarter of the globe; score there by 3-hour bin of solar time. Ground: hourly airport wind at TCS and MAF, 2023-25, all hours. | Coverage 0.85-0.95 in every 3-hour bin; TCS daytime bias (+1.44 m/s) at least halved with no site factor; MAF not worse. | Any bin under 0.80: the gap is used only at hours with balloons nearby, and the tool says so. | 2 h CPU |
+| 5 | All modes on the shipped tool path: past mode and climate mode against El Paso and Midland balloons 2023-25; `observe` with real-air members (TCS own report, the 7 neighbours). | Coverage error smaller than today in every band; shear ratio inside the C5 bounds 1.33-1.63; joint wind-shear extremes above 0.10 (today 0.07, real 0.17); `observe` coverage 0.85-0.95; every ERA5 score unchanged with the switch off. | Any ERA5 score moves with the switch off: fix before anything else. | 3 h CPU |
+| 6 | Only after 5: 300 local steps per box; fine detail between levels from 1-second soundings. | own rules, set then | | later |
+
+Order: 1a and 1b at once (CPU and network), then 2. Stages 3 and 4 side by side. Stage 5 last.
+
+Honest odds: a gap that is real and worth adding in forecast and past mode, high (step 0 already
+shows it). The network beating the 6-number rule, medium: likely at the ground and for the order
+across heights, unsure aloft. The pad getting the right low-level wind with no pad data, medium to
+low until stage 4 says so. Lifting joint extremes from 0.07 toward 0.17, low to medium, because the
+coarse gap of improvement 9 leaves out the finest layers.
+
+### 11.7 What is new here and what is not
+
+Not new: the review already lists a "detail network" (Group 3 idea 1, ERA5 profile in, balloon out;
+rated 6, parked) and the C5 referee. RA grows from both. New: (a) the finding that the data for it is
+already on disk at 986 stations; (b) learning it from forecasts, so the truth is independent; (c) the
+measured rule that the gap does not depend on lead, which makes it one added layer for all modes and
+leaves every ERA5 score alone; (d) the ground, the 24 hours and the pad inside the same world model;
+(e) a 6-number version that ships if the network fails.
+
+Risks: balloon noise counted as real air (stage 3); hour and region tied together (stage 4); low
+levels in the balloon files partly interpolated; the post-2022 change in balloon processing (review
+trap 5: fit on 2016-22 only, year as an input); a gap added to a member can break the limits the
+lapse map enforces (check the superadiabatic share in stage 5).
