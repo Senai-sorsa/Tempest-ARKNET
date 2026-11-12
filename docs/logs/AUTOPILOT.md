@@ -874,3 +874,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **Labels in saved files: bug fixed.** A reloaded conditioned `.tempest` file kept its conditioned samples but its trust line dropped "conditioned ... (not yet validated)" (load never read the saved observations; HRRR anchor not saved at all). Load now restores both notes. Label only, numbers unchanged. Full suite 397 passed.
 ## 2026-11-12 12:05 CST (tick work)
 - **Input archive with hash: done.** `.tempest` files now carry a sha256 of every saved array; load refuses a changed or damaged file; older files still load. The raw Open-Meteo responses are still not archived (only the samples). Full suite 398 passed.
+## 2026-11-12 12:30 CST (tick work)
+- **RH range map widening (RH 12-18 km station correction): FAIL by rule.** k = 1.95 picked on 2021-23 lifts 2024-25 99 % coverage 0.948 -> 0.991 but CRPS +5.9 % (rule <= +1.5 %). No tool change; the misses are in the tails (tail-only fix = GPD tails, not built).
