@@ -50,10 +50,14 @@ def main():
         meta["rh_target"] = str(d["rh_target"])
         mem = []
         for k in range(K):
+            part = f"{a.out}.fold{k}"                           # one file per finished fold: a GPU fault (CUBLAS error at step 5800, 2026-11-11) costs one fold, not all
+            if os.path.exists(part):
+                mem.append(torch.load(part, map_location="cpu", weights_only=True))
+                continue
             while free_gb() < 10:                               # loading the rows takes a few GB; a Mode F evaluation may hold 14-17 GB
                 time.sleep(30)
             print(f"fold {k}: held-out years {holdout_years(LAST, k)}", flush=True)
-            mem.append(train(d["cond"][keep], d["target"][keep], year, {**cfg, "seed": a.seed + k, "holdout_fold": k}, meta=meta))
+            mem.append(train(d["cond"][keep], d["target"][keep], year, {**cfg, "seed": a.seed + k, "holdout_fold": k}, meta=meta, out=part))
         torch.save(dict(members=mem), a.out + ".part")
         os.replace(a.out + ".part", a.out)
     sampler = Sampler(torch.load(a.out, map_location="cpu", weights_only=True))

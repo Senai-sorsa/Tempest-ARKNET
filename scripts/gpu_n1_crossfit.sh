@@ -13,7 +13,11 @@ log() { echo "$(date '+%F %T') [N1] $*" >> data/l3.log; }
 log "start"
 for v in ":0" "_s1:100"; do
   tag=${v%%:*}; M=models/generator_80_n1cf$tag.pt
-  [ -f ${M%.pt}.calibcf.npz ] || $PY -W ignore -u scripts/n1_crossfit.py --seed ${v##*:} --out $M >> data/n1_train$tag.log 2>&1 && log "trained$tag" || { log "FAILED train$tag"; exit 4; }
+  for try in 1 2 3; do   # finished folds are kept (n1_crossfit.py), so a retry after a GPU fault only repeats one fold
+    [ -f ${M%.pt}.calibcf.npz ] || $PY -W ignore -u scripts/n1_crossfit.py --seed ${v##*:} --out $M >> data/n1_train$tag.log 2>&1 && break
+    log "train$tag try $try failed"
+  done
+  [ -f ${M%.pt}.calibcf.npz ] && log "trained$tag" || { log "FAILED train$tag"; exit 4; }
 done
 log "waiting for N6F"
 until grep -qE "\[N6F\] done$" data/l3.log; do sleep 60; done

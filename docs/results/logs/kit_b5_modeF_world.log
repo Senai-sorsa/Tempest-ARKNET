@@ -26,3 +26,23 @@ Incomplete, missing: Denver s1
 Rule (pre-set): PASS = world as is within +1 % of own at every lead (both boxes, seeds) and fine-tuned better with interval < 0 at >= 3 of 4 leads; KILL = world as is > +3 % (mean of leads) at both boxes in both seeds.
 Verdict: MISS (record, no adoption)
 
+2026-11-11 23:55 N2 world Mode F (7,483 points, no lat / lon) vs each box's own model; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  NM/TX  seed 0: own 1.641 / 1.998 / 2.774 / 3.596
+    world      1.662 / 2.071 / 2.829 / 3.680  change +1.2 / +3.7 / +2.0 / +2.3 %
+    fine-tuned 1.599 / 1.982 / 2.737 / 3.519  change -2.6 / -0.8 / -1.3 / -2.1 %; minus own: 1d -0.042 [-0.060, -0.028], 3d -0.015 [-0.025, -0.006], 5d -0.037 [-0.062, -0.017], 7d -0.077 [-0.104, -0.050]; better at 4 of 4 leads
+    own+300    1.632 / 1.985 / 2.777 / 3.609  change -0.6 / -0.6 / +0.1 / +0.3 %; fine-tuned minus own+300: 1d -0.033 [-0.048, -0.019], 3d -0.003 [-0.014, +0.009], 5d -0.039 [-0.068, -0.016], 7d -0.089 [-0.124, -0.057]; world start better at 3 of 4 leads
+  NM/TX  seed 1: own 1.641 / 2.002 / 2.774 / 3.600
+    world      1.661 / 2.073 / 2.833 / 3.682  change +1.2 / +3.5 / +2.1 / +2.3 %
+    fine-tuned 1.596 / 1.981 / 2.735 / 3.526  change -2.7 / -1.1 / -1.4 / -2.0 %; minus own: 1d -0.045 [-0.062, -0.028], 3d -0.021 [-0.031, -0.012], 5d -0.039 [-0.062, -0.020], 7d -0.073 [-0.100, -0.046]; better at 4 of 4 leads
+    own+300    1.630 / 1.990 / 2.775 / 3.603  change -0.6 / -0.6 / +0.0 / +0.1 %; fine-tuned minus own+300: 1d -0.034 [-0.051, -0.018], 3d -0.009 [-0.019, +0.002], 5d -0.039 [-0.068, -0.017], 7d -0.077 [-0.109, -0.045]; world start better at 3 of 4 leads
+  Denver seed 0: own 1.835 / 2.109 / 2.774 / 4.025
+    world      1.860 / 2.179 / 2.819 / 4.054  change +1.4 / +3.3 / +1.6 / +0.7 %
+    fine-tuned 1.795 / 2.087 / 2.744 / 3.954  change -2.2 / -1.0 / -1.1 / -1.8 %; minus own: 1d -0.040 [-0.067, -0.015], 3d -0.022 [-0.039, -0.006], 5d -0.030 [-0.049, -0.010], 7d -0.071 [-0.116, -0.027]; better at 4 of 4 leads
+    own+300    1.824 / 2.097 / 2.774 / 4.060  change -0.6 / -0.6 / +0.0 / +0.9 %; fine-tuned minus own+300: 1d -0.029 [-0.053, -0.007], 3d -0.009 [-0.028, +0.010], 5d -0.030 [-0.054, -0.004], 7d -0.106 [-0.166, -0.058]; world start better at 3 of 4 leads
+  Denver seed 1: own 1.836 / 2.116 / 2.773 / 4.035
+    world      1.860 / 2.179 / 2.818 / 4.043  change +1.3 / +3.0 / +1.6 / +0.2 %
+    fine-tuned 1.793 / 2.084 / 2.742 / 3.958  change -2.4 / -1.5 / -1.1 / -1.9 %; minus own: 1d -0.043 [-0.068, -0.020], 3d -0.032 [-0.051, -0.014], 5d -0.032 [-0.051, -0.012], 7d -0.077 [-0.124, -0.031]; better at 4 of 4 leads
+    own+300    1.816 / 2.095 / 2.768 / 4.080  change -1.1 / -1.0 / -0.2 / +1.1 %; fine-tuned minus own+300: 1d -0.023 [-0.044, -0.003], 3d -0.011 [-0.031, +0.008], 5d -0.026 [-0.053, -0.002], 7d -0.123 [-0.179, -0.075]; world start better at 3 of 4 leads
+Rule (pre-set): PASS = world as is within +1 % of own at every lead (both boxes, seeds) and fine-tuned better with interval < 0 at >= 3 of 4 leads; KILL = world as is > +3 % (mean of leads) at both boxes in both seeds.
+Verdict: MISS (record, no adoption)
+

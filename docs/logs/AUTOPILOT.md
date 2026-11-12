@@ -804,4 +804,8 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - N1 step 1 PASS without a run: all 4 p2f members have their best validation step at the last step (6000, data/phase2_train_p2f.log), so p2f already is "data <= 2020 with fixed steps" (difference 0).
 - Range map: one pooled table, each member sampled alone on its own held-out years (`<model>.calibcf.npz`). Known limit: a single member is a little narrower than the 4-member pool, so coverage may come out slightly wide; a map per member would need changes in score.py / sonde.py.
 - Scoring (ERA5 + balloons 2024-25, 11-14 GB RAM) waits for [N6F] done. Verdict `new_plan_kit/b5_crossfit.py` (rule and my reading of "+0.0287" = mean skill15_unknown, p2f seed 0 has 0.0277, written before any score).
-
+## 2026-11-11 23:56 CST (tick; heartbeat 283)
+- [N5F] done 23:34. N5 verdict KILL (`kit_b5_modeF_alllead.log`): all-lead network worse than binned at lead 1 by +2.4 to +2.7 % and at lead 3 by +0.9 to +1.1 % (both boxes, both seeds); better beyond 7.5 d by -2.9 to -3.7 % (interval < 0) and better than climate. No change to the tool.
+- [N2C] done 23:53. N2 control (`kit_b5_modeF_world.log`): own model + 300 extra steps changes -1.1 to +1.1 % only; fine-tuned world model beats own + 300 with interval < 0 at leads 1, 5, 7 d in all 4 box x seed cases (lead 3 d: interval includes 0). So the fine-tune gain is the world start, not the extra steps. Verdict stays MISS by the pre-set rule (world as is not within 1 %).
+- [N2B] started 23:53 (12 runs, about 2 h). [N6F] fine-tunes wait for it.
+- N1 failed 23:27 at step ~5800 of fold 0: `CUDA error: CUBLAS_STATUS_INTERNAL_ERROR` in backward (cause unknown; GPU fine afterwards, 10.8 GB VRAM free; possibly RAM pressure beside an N5 evaluation). Fix: `scripts/n1_crossfit.py` saves each finished fold (`<out>.fold<k>`) and skips it on a rerun; `scripts/gpu_n1_crossfit.sh` tries each seed up to 3 times. Relaunched 23:55, training again (fold 0 step 500, val 1.0854).
