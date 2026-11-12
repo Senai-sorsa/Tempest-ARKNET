@@ -1,3 +1,11 @@
 2026-11-11 23:07 N6 full-size Mode F (world fit + 300 box steps) vs the small own model; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
 Incomplete, missing: NM/TX s0, NM/TX s1, Denver s0, Denver s1
 
+2026-11-12 02:38 N6 full-size Mode F (world fit + 300 box steps) vs the small own model; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  NM/TX  seed 0: small 1.641 / 1.998 / 2.774 / 3.596; big 1.559 / 1.935 / 2.720 / 3.675  change -5.0 / -3.1 / -1.9 / +2.2 %; big minus small: 1d -0.083 [-0.120, -0.054], 3d -0.063 [-0.082, -0.043], 5d -0.054 [-0.114, -0.003], 7d +0.079 [-0.007, +0.167]; cov99 difference +0.0013 / +0.0026 / +0.0010 / +0.0017
+  NM/TX  seed 1: small 1.641 / 2.002 / 2.774 / 3.600; big 1.546 / 1.933 / 2.723 / 3.687  change -5.8 / -3.4 / -1.8 / +2.4 %; big minus small: 1d -0.095 [-0.134, -0.066], 3d -0.069 [-0.091, -0.046], 5d -0.051 [-0.106, -0.004], 7d +0.087 [+0.002, +0.183]; cov99 difference +0.0014 / +0.0025 / +0.0006 / -0.0025
+  Denver seed 0: small 1.835 / 2.109 / 2.774 / 4.025; big 1.749 / 2.080 / 2.815 / 4.185  change -4.7 / -1.4 / +1.5 / +4.0 %; big minus small: 1d -0.086 [-0.129, -0.045], 3d -0.029 [-0.069, +0.006], 5d +0.041 [-0.035, +0.124], 7d +0.160 [+0.020, +0.322]; cov99 difference +0.0012 / +0.0023 / -0.0016 / +0.0060
+  Denver seed 1: small 1.836 / 2.116 / 2.773 / 4.035; big 1.749 / 2.072 / 2.816 / 4.176  change -4.7 / -2.1 / +1.6 / +3.5 %; big minus small: 1d -0.087 [-0.127, -0.046], 3d -0.044 [-0.086, -0.005], 5d +0.043 [-0.031, +0.126], 7d +0.141 [-0.001, +0.303]; cov99 difference -0.0001 / +0.0011 / -0.0054 / -0.0002
+Rule (pre-set): PASS = big >= 1 % better at every lead with interval < 0, both boxes and seeds, cov99 within 0.003; KILL = not better at 2 or more leads.
+Verdict: KILL
+

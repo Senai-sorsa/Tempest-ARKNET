@@ -828,3 +828,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - [N2B] done 01:49. **N2-B verdict PASS** (`kit_b5_modeF_scarce.log`): with 1 box fit year, world start + 300 steps beats the box's own model + 300 steps by -1.9 to -5.1 % (NM/TX) and -2.9 to -4.8 % (Denver), interval < 0 at 16 of 16 checks against each arm. ft1 on 1 year (NM/TX lead 1 1.648) about equals the own model on 4 years (N3: 1.641). Adoption stays with the user.
 - [N6F] fine-tunes started 01:49 (ft_s0 evaluating). Then N1 scoring, then [N2P].
 - Found 02:05: `New_Plan.md` section 11 (RA, real-air gap model; step 0 `new_plan_kit/b6_realair_step0.py` + log, both 01:10) was written by the previous chat and not committed; it went into 5191389 with the N2-B row. RA joins the To-do queue: 1a (rows + 6-number arm, CPU, needs a RAM gap) after the chain; 1b needs a Colab pull (user), noted in ASK_LATER.
+## 2026-11-12 02:45 CST (tick; heartbeat 290)
+- Safe range: GPU 38 C, on mains, free RAM 10 GB, disk 92 GB.
+- [N6F] done 02:30. **N6 verdict KILL** (`kit_b5_modeF_big.log`): full-size world-start Mode F vs the small own model: lead 1 -4.7 to -5.8 % (interval < 0 in all 4 box x seed), lead 3 -1.4 to -3.4 %, but lead 7 +2.2 to +4.0 % worse everywhere and Denver lead 5 +1.5 / +1.6 %. N7 not started (its condition failed). Kept as a fact: best lead 1-3 Mode F seen so far; a lead-split is a possible new item for the user.
+- [N1] scoring started 02:31 (ERA5 then balloons, both seeds). [N2P] waits for [N1] done.
