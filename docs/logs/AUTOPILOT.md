@@ -840,3 +840,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Safe range: GPU 31 C (idle), free RAM 19 GB, disk 92 GB. Primary heartbeat was 25 min old (the 04:38 wake-up was still pending), so the backup ran section 16.
 - [N2P] done 04:25. **N2 modification C verdict MISS** (`kit_b5_modeF_place.log`): world-C vs the box's own model +1.4 to +3.6 % at leads 1-3 in both boxes and seeds (rule needed within 1 %); ft-C beats own at 15 of 16 leads with interval < 0, but is about equal to plain ft at NM/TX. The descriptors help only beyond 3 days. No adoption.
 - Chain finished. RA stage 1a script `new_plan_kit/b6_realair_rows.py` written 04:20 (2-month smoke test: gap 1.6-2.1 m/s, A1 coverage 0.90-0.91 at left-out stations on 2016 rows); full run next, in this RAM gap.
+## 2026-11-12 05:05 CST (tick; heartbeat 296)
+- Safe range: GPU 30 C (idle), on mains, free RAM 19 GB, disk 92 GB.
+- **RA stage 1a PASS** (`kit_b6_realair_rows.log`, run 04:37-05:00): 30.9 million rows from 426 valid times, 2016-22. Gap sd 1.49-1.98 m/s per component (6 bands). 90 % coverage on 2022 at the 197 left-out stations: A0 (model error only) 0.83-0.90, A1 (+ gap) 0.90-0.92 in every band (rule 0.87-0.93). Limits noted in section 9: pooled over leads; balloon QC minimal. Stage 2 waits for 1b (ASK_LATER 25).
