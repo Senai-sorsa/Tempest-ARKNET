@@ -46,6 +46,7 @@ ap.add_argument("--seed", type=int, default=0, help="torch seed of the training 
 ap.add_argument("--fit-years", type=int, default=4, help="N3 step 0 (New_Plan 10.4): train on the last N years before the 2020 validation year (1-4); 4 = 2016-19 + 2020, as before")
 ap.add_argument("--levels13", action="store_true", help="N2 step 0 (New_Plan 10.4): forecast-profile input only at the heights nearest the 13 pressure levels of the world HRES store (standard-atmosphere height minus the rows' median ground height) plus the 10 m / 2 m surface level (u10, v10, t2m are in the store), in place of --coarse")
 ap.add_argument("--no-place", action="store_true", help="N2 step 0: lat and lon inputs set to 0 (the world model has no place input)")
+ap.add_argument("--place-clim", action="store_true", help="N2 modification C (New_Plan 10.4): append 12 climate descriptors of the row's grid point (mean truth at the lowest and the middle height, sd at the lowest, 4 variables; from fit-year rows <= 2020 only); use with --no-place; off = as before")
 ap.add_argument("--fit-rows-dir", default="", help="N2 full run (New_Plan 10.4): fit the network on these rows (2016-19 train, 2020 validation; e.g. data/modeF_world) instead of --rows-dir; range map, test and the pool / ridge / Schaake templates stay on --rows-dir. Empty = as before")
 ap.add_argument("--save-rows", action="store_true", help="N2: also write <out>_rows.npz: per test row lead bin, valid day and mean CRPS over the 16 variable x band cells of 'network + PIT recal + range map + Schaake shuffle' (for paired day-block intervals); off = as before")
 ap.add_argument("--fit-only", action="store_true", help="N6 (New_Plan 10.4): stop after the network fit (no range map, no evaluation: those peak at 14-17 GB RAM); off = as before")
@@ -89,6 +90,23 @@ if a.levels13 or a.no_place:                                                    
             c[:, :2] = 0.0
         return c
     F.cond_matrix = _cond13
+if a.place_clim:                                                               # N2 modification C: off = as before
+    _clim, _cm2 = {}, F.cond_matrix
+    _pkey = lambda d: np.round(d["lat"] * 1e5).astype(np.int64) * 10**9 + np.round(d["lon"] * 1e5).astype(np.int64)
+
+    def _clim_add(d):
+        """per grid point: mean truth at the lowest and the middle height and sd at the lowest (4 variables each)"""
+        assert d["year"].max() <= 2020, "climate descriptors only from the fit years"
+        k, inv = np.unique(_pkey(d), return_inverse=True)
+        o = d["obs"].astype(np.float64)
+        t = np.zeros((len(k), 12))
+        np.add.at(t, inv, np.concatenate([o[:, :, 0], o[:, :, F.NH // 2], o[:, :, 0] ** 2], 1))
+        t /= np.bincount(inv)[:, None]
+        t[:, 8:] = np.sqrt(np.maximum(t[:, 8:] - t[:, :4] ** 2, 0))
+        _clim.update(zip(k.tolist(), t.astype(np.float32)))
+
+    _clim_add(tr)                                                              # shortcut: a box point has only ~20 fit rows, so its descriptors are noisy; build them from the full truth store if C passes
+    F.cond_matrix = lambda d, coarse=1: np.concatenate([_cm2(d, coarse), np.stack([_clim[k] for k in _pkey(d).tolist()])], 1)
 ENS_COLS = {"all": slice(None), "spread": slice(1, None, 2), "mean": slice(0, None, 2)}[a.ens_cols]                  # IL-195: columns alternate (mean, sd); default all 24
 cmat = (lambda d: np.concatenate([F.cond_matrix(d, a.coarse), d["ens"].astype(np.float32)[:, ENS_COLS]], 1)) if a.ens else (lambda d: F.cond_matrix(d, a.coarse))   # L14: + 24 IFS-ensemble features
 if a.ens_mask > 0:                                                             # N4: one network for both cases; own rng so every other draw stays as before
@@ -121,6 +139,8 @@ if a.retrain or not os.path.exists(a.out):
         _fy = [dict(np.load(f"{a.fit_rows_dir}/{y}.npz")) for y in range(2016, 2021)]
         _fy = [{k: v[F.lead_bin(d_["lead_days"]) > 0] for k, v in d_.items()} for d_ in _fy]
         fit = {k: np.concatenate([d_[k] for d_ in _fy]) for k in ("year", "lat", "lon", "z_sfc", "doy", "lead_days", "hres", "obs")}
+        if a.place_clim:
+            _clim_add(fit)
         print(f"N2: network fit on {a.fit_rows_dir}: {len(fit['obs']):,} rows", flush=True)
     if a.init:
         cfg["init"] = a.init

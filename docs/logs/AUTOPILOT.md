@@ -814,4 +814,9 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Found 00:07: the laptop was on battery (80 %, 47 min left) under full CPU + GPU load; on mains again at 00:15 (78 %).
 - Safety changes: CPU turbo boost off in the Balanced plan (PERFBOOSTMODE 0, PROCTHROTTLEMAX 99; processor performance 148 % -> 98 %; undo in the thermal-limits memory). New `scripts/gpu_temp.py` (GPU C / W / load via nvml.dll, exit 1 at >= 85 C). Readings under load: GPU 61-63 C at 55-60 W, board sensor 57-63 C.
 - Each tick from now: GPU temperature, board sensor, power line. No new job at GPU >= 85 C, board >= 90 C or on battery. Jobs run slower without boost.
+## 2026-11-12 00:40 CST (tick; heartbeat 284)
+- Safe range: GPU 59 C at 60 W, board sensor 54 C, on mains (78 %), boost off (performance 99 %), free RAM 9 GB, disk 91 GB.
+- N1 seed 0 trained 00:22 (4 folds in 27 min, range map from 60,000 held-out rows); seed 100 training. N2-B 3 of 12 runs done (about 8 min each, ends near 01:30). No new verdict; no new idea IDs in section 10.
+- N2 modification C written and queued (starts by itself after [N1] done): new opt-in `il6_modeF.py --place-clim` (12 climate descriptors per grid point: mean truth at the lowest and the middle height, sd at the lowest, 4 variables, from rows <= 2020 only; default unchanged), runner `scripts/cpu_n2c_place.sh` ([N2P], 8 runs, about 1 h), verdict `new_plan_kit/b5_modeF_place.py` with the rule written before any run (self-check passes). Known limit: a box point has only about 20 fit rows, so its descriptors are noisy.
+- Not run yet: the new flag itself (no RAM for a second Mode F process); the first [N2P] run is its test.
 
