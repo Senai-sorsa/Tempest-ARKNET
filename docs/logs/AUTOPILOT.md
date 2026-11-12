@@ -809,3 +809,9 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - [N2C] done 23:53. N2 control (`kit_b5_modeF_world.log`): own model + 300 extra steps changes -1.1 to +1.1 % only; fine-tuned world model beats own + 300 with interval < 0 at leads 1, 5, 7 d in all 4 box x seed cases (lead 3 d: interval includes 0). So the fine-tune gain is the world start, not the extra steps. Verdict stays MISS by the pre-set rule (world as is not within 1 %).
 - [N2B] started 23:53 (12 runs, about 2 h). [N6F] fine-tunes wait for it.
 - N1 failed 23:27 at step ~5800 of fold 0: `CUDA error: CUBLAS_STATUS_INTERNAL_ERROR` in backward (cause unknown; GPU fine afterwards, 10.8 GB VRAM free; possibly RAM pressure beside an N5 evaluation). Fix: `scripts/n1_crossfit.py` saves each finished fold (`<out>.fold<k>`) and skips it on a rerun; `scripts/gpu_n1_crossfit.sh` tries each seed up to 3 times. Relaunched 23:55, training again (fold 0 step 500, val 1.0854).
+## 2026-11-12 00:20 CST (user: check the GPU fault; "stay in a safe range")
+- Correction: the chain did not stop at 21:33 because a session ended. Windows blue-screened: bugcheck 0x13A (KERNEL_MODE_HEAP_CORRUPTION), dump `C:\Windows\MinidumpI126-23765-01.dmp` (given to the user for WinDbg). The 23:27 CUBLAS error left no Windows event and no dump; no NVIDIA / WHEA events in 3 days.
+- Found 00:07: the laptop was on battery (80 %, 47 min left) under full CPU + GPU load; on mains again at 00:15 (78 %).
+- Safety changes: CPU turbo boost off in the Balanced plan (PERFBOOSTMODE 0, PROCTHROTTLEMAX 99; processor performance 148 % -> 98 %; undo in the thermal-limits memory). New `scripts/gpu_temp.py` (GPU C / W / load via nvml.dll, exit 1 at >= 85 C). Readings under load: GPU 61-63 C at 55-60 W, board sensor 57-63 C.
+- Each tick from now: GPU temperature, board sensor, power line. No new job at GPU >= 85 C, board >= 90 C or on battery. Jobs run slower without boost.
+
