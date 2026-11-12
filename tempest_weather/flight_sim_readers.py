@@ -6,7 +6,8 @@
 
 `samples` is the dict/npz written by tempest.output.coupled / tempest_weather (arrays with the sample index first). Nothing from flight_sim is imported, so
 the folder stays standalone; the classes are duck-typed to match (world frame (up, east, north) as in flight_sim.utilities.dcm.world_direction).
-Rules (docs/specs/coupled-atmosphere.md 2a): linear interpolation in height; below the first height (10 m above ground) the 10 m value; above the top
+Rules (docs/specs/coupled-atmosphere.md 2a): linear interpolation in height; below 10 m above ground, linear to a pad node at 0 m (wind 0.72 x the 10 m wind,
+vertical wind 0, surface t2m / sp / rh2m; pad_node=False = the old rule: the 10 m value, also used when the surface values are missing); above the top
 height (18 km) wind is held at its top value (the written "blend to zero" would mean calm air at 20 km, which is unphysical, so it is not done) and temperature and
 pressure continue along the US Standard Atmosphere 1976 lapse rates from the top values (no jump). Temperature is interpolated linearly, pressure in log space,
 and density and speed of sound are RECOMPUTED from the interpolated temperature, pressure and humidity, so the four stay consistent between grid heights.
@@ -87,7 +88,7 @@ class TempestWind:
 
     def velocity(self, altitude_m):
         s = self.s
-        z = min(max(altitude_m, s.z[0]), s.z[-1])             # below 10 m above ground: the 10 m value; above the top: held
+        z = min(max(altitude_m, s.z[0]), s.z[-1])             # below the lowest node (the pad node at 0 m, or 10 m with pad_node=False): that node's value; above the top: held
         return np.array([float(np.interp(z, s.z, s.w)) if self.include_vertical else 0.0, float(np.interp(z, s.z, s.u)), float(np.interp(z, s.z, s.v))])
 
 

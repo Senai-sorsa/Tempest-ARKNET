@@ -1,0 +1,18 @@
+2026-11-12 06:54 G1-7 drift replay: points nearest TCS/MAF, months 2015-01..2025-12, 20 hours per month (one per day), n 100, climate mode; bias = ERA5 - pool mean (m/s, K)
+var  band       mean bias mean|bias| half-width  |b| next mo  |b-tracker|   better
+u    0-1 km        -0.210      0.808      1.325        0.818        0.808      yes
+u    1-5 km        -0.249      1.609      2.093        1.593        1.650       no
+u    5-12 km       -0.233      3.782      3.923        3.715        3.812       no
+u    12-18 km      -0.667      2.688      2.478        2.625        2.630       no
+v    0-1 km        -0.101      0.834      1.591        0.825        0.831       no
+v    1-5 km        -0.105      1.472      2.262        1.471        1.501       no
+v    5-12 km       +0.015      3.260      4.318        3.238        3.335       no
+v    12-18 km      +0.182      2.257      2.629        2.228        2.232       no
+T    0-1 km        -0.223      1.351      1.604        1.380        1.387       no
+T    1-5 km        -0.015      0.992      1.146        0.992        1.006       no
+T    5-12 km       +0.227      0.729      0.721        0.703        0.716       no
+T    12-18 km      +0.025      0.870      0.827        0.864        0.815      yes
+mean bias <= 2020 (generator training years): u 0-1 km -0.245  u 1-5 km -0.323  u 5-12 km -0.665  u 12-18 km -1.111  v 0-1 km -0.217  v 1-5 km -0.321  v 5-12 km -0.152  v 12-18 km +0.154  T 0-1 km -0.301  T 1-5 km +0.109  T 5-12 km +0.248  T 12-18 km -0.387
+mean bias 2021-25 (unseen): u 0-1 km -0.167  u 1-5 km -0.160  u 5-12 km +0.287  u 12-18 km -0.135  v 0-1 km +0.037  v 1-5 km +0.154  v 5-12 km +0.215  v 12-18 km +0.215  T 0-1 km -0.130  T 1-5 km -0.164  T 5-12 km +0.201  T 12-18 km +0.520
+VERDICT: NO TRACKER NEEDED (mean |monthly bias| under one month's day-block half-width in 9 of 12 cells)
+
