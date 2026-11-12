@@ -54,6 +54,7 @@ ap.add_argument("--init", default="", help="N2: start the network from this save
 ap.add_argument("--all-leads", action="store_true", help="N5 full run (New_Plan 10.4): keep rows beyond 7.5 d as lead bin 9 and score leads 1 / 3 / 5 / 7 / 9; the network is still fit on leads <= 7.5 d unless --fit-beyond. Off = as before")
 ap.add_argument("--fit-beyond", action="store_true", help="N5: with --all-leads, fit the network on all leads plus 10 %% climate-anchor rows (forecast = a random same-season truth profile, lead 15 d)")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
+ap.add_argument("--test-year", type=int, choices=(2021, 2022), default=2022, help="AV1 (New_Plan 13.1): 2021 = score on 2021 with the range map fit on 2022 (a year no network saw in fit or step choice); outputs get the suffix _t2021, so the 2022 tables stay. Default 2022 = as before")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
 torch.manual_seed(a.seed)                                                      # F-V2: --seed for a second training seed (default 0 = as before; the evaluation rows stay the same)
@@ -65,7 +66,7 @@ for y, d_ in yrs.items():                                                    # F
     yrs[y] = {k: v[d_["lead_bin"] > 0] for k, v in d_.items()}
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 assert 1 <= a.fit_years <= 4, "--fit-years 1-4"
-tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021]), cat([2022])
+tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021 if a.test_year == 2022 else 2022]), cat([a.test_year])
 assert a.all_leads or not a.fit_beyond, "--fit-beyond needs --all-leads"
 LEADS = (1, 3, 5, 7, 9) if a.all_leads else (1, 3, 5, 7)
 def sub(d, n):
@@ -118,8 +119,9 @@ if a.ens_mask > 0:                                                             #
         e = np.where(absent[:, None], 0.0, d["ens"].astype(np.float32)[:, ENS_COLS]).astype(np.float32)
         return np.concatenate([F.cond_matrix(d, a.coarse), e, (~absent).astype(np.float32)[:, None]], 1)
 assert a.ens_mask > 0 or not a.ens_absent, "--ens-absent needs an --ens-mask network"
-STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "")
+STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "") + ("" if a.test_year == 2022 else f"_t{a.test_year}")
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
+assert a.test_year == 2022 or (os.path.exists(a.out) and not a.retrain), "--test-year 2021 scores an existing network only (no training)"
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
