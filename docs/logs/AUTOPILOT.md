@@ -836,3 +836,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - Safe range: GPU 34 C, on mains, free RAM 8 GB.
 - [N1] done 02:57. **N1 verdict PASS** (`kit_b5_crossfit.log`): cross-fitted members vs p2f on 2024-25: ERA5 skill15 +0.0020 (s0) / +0.0026 (s1), balloons +0.0030 / +0.0037, coverage error -0.0005 / +0.0001. Not exported (B29: an export needs the user's go when it runs); ASK_LATER 26. Caveat: the members also train on 2021-23, which p2f does not, so part of the gain may be the extra years.
 - [N2P] started 02:58; the first `--place-clim` run (world fit) reached its evaluation, so the new flag works.
+## 2026-11-12 04:40 CST (backup tick; heartbeat 294)
+- Safe range: GPU 31 C (idle), free RAM 19 GB, disk 92 GB. Primary heartbeat was 25 min old (the 04:38 wake-up was still pending), so the backup ran section 16.
+- [N2P] done 04:25. **N2 modification C verdict MISS** (`kit_b5_modeF_place.log`): world-C vs the box's own model +1.4 to +3.6 % at leads 1-3 in both boxes and seeds (rule needed within 1 %); ft-C beats own at 15 of 16 leads with interval < 0, but is about equal to plain ft at NM/TX. The descriptors help only beyond 3 days. No adoption.
+- Chain finished. RA stage 1a script `new_plan_kit/b6_realair_rows.py` written 04:20 (2-month smoke test: gap 1.6-2.1 m/s, A1 coverage 0.90-0.91 at left-out stations on 2016 rows); full run next, in this RAM gap.

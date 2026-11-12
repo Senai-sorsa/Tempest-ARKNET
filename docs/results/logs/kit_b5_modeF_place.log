@@ -1,0 +1,31 @@
+N2 modification C (climate descriptors instead of lat / lon); mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  NM/TX  seed 0: own 1.641 / 1.998 / 2.774 / 3.596
+    world-C 1.667 / 2.070 / 2.789 / 3.612  vs own +1.6 / +3.6 / +0.5 / +0.4 %; vs world +0.3 / -0.1 / -1.4 / -1.8 %
+    ft-C    1.599 / 1.987 / 2.739 / 3.516  vs own -2.5 / -0.5 / -1.3 / -2.2 %; vs ft +0.0 / +0.3 / +0.1 / -0.1 %; minus own: 1d -0.042 [-0.062, -0.023], 3d -0.010 [-0.020, +0.000], 5d -0.035 [-0.066, -0.011], 7d -0.081 [-0.115, -0.046]; better at 3 of 4 leads
+  NM/TX  seed 1: own 1.641 / 2.002 / 2.774 / 3.600
+    world-C 1.666 / 2.070 / 2.792 / 3.614  vs own +1.5 / +3.4 / +0.7 / +0.4 %; vs world +0.3 / -0.2 / -1.4 / -1.9 %
+    ft-C    1.596 / 1.986 / 2.740 / 3.517  vs own -2.8 / -0.8 / -1.2 / -2.3 %; vs ft -0.0 / +0.2 / +0.2 / -0.3 %; minus own: 1d -0.045 [-0.065, -0.027], 3d -0.017 [-0.026, -0.007], 5d -0.034 [-0.058, -0.015], 7d -0.083 [-0.118, -0.050]; better at 4 of 4 leads
+  Denver seed 0: own 1.835 / 2.109 / 2.774 / 4.025
+    world-C 1.864 / 2.152 / 2.806 / 3.992  vs own +1.6 / +2.0 / +1.2 / -0.8 %; vs world +0.2 / -1.2 / -0.4 / -1.5 %
+    ft-C    1.779 / 2.072 / 2.717 / 3.944  vs own -3.0 / -1.8 / -2.0 / -2.0 %; vs ft -0.9 / -0.7 / -1.0 / -0.3 %; minus own: 1d -0.056 [-0.083, -0.029], 3d -0.037 [-0.052, -0.023], 5d -0.056 [-0.077, -0.038], 7d -0.081 [-0.129, -0.035]; better at 4 of 4 leads
+  Denver seed 1: own 1.836 / 2.116 / 2.773 / 4.035
+    world-C 1.863 / 2.150 / 2.798 / 3.993  vs own +1.4 / +1.6 / +0.9 / -1.0 %; vs world +0.1 / -1.3 / -0.7 / -1.2 %
+    ft-C    1.773 / 2.067 / 2.718 / 3.941  vs own -3.4 / -2.3 / -2.0 / -2.3 %; vs ft -1.1 / -0.8 / -0.9 / -0.4 %; minus own: 1d -0.063 [-0.090, -0.035], 3d -0.049 [-0.068, -0.032], 5d -0.055 [-0.076, -0.036], 7d -0.094 [-0.146, -0.045]; better at 4 of 4 leads
+Rule (pre-set): PASS = world-C within 1 % of own at every lead and ft-C better than own (interval < 0) at >= 3 of 4 leads, everywhere; KILL = descriptors help neither arm (mean of leads) in 2 or more of 4 cases.
+Verdict: MISS (record, no adoption)
+2026-11-12 04:36 N2 modification C (climate descriptors instead of lat / lon); mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle
+  NM/TX  seed 0: own 1.641 / 1.998 / 2.774 / 3.596
+    world-C 1.667 / 2.070 / 2.789 / 3.612  vs own +1.6 / +3.6 / +0.5 / +0.4 %; vs world +0.3 / -0.1 / -1.4 / -1.8 %
+    ft-C    1.599 / 1.987 / 2.739 / 3.516  vs own -2.5 / -0.5 / -1.3 / -2.2 %; vs ft +0.0 / +0.3 / +0.1 / -0.1 %; minus own: 1d -0.042 [-0.062, -0.023], 3d -0.010 [-0.020, +0.000], 5d -0.035 [-0.066, -0.011], 7d -0.081 [-0.115, -0.046]; better at 3 of 4 leads
+  NM/TX  seed 1: own 1.641 / 2.002 / 2.774 / 3.600
+    world-C 1.666 / 2.070 / 2.792 / 3.614  vs own +1.5 / +3.4 / +0.7 / +0.4 %; vs world +0.3 / -0.2 / -1.4 / -1.9 %
+    ft-C    1.596 / 1.986 / 2.740 / 3.517  vs own -2.8 / -0.8 / -1.2 / -2.3 %; vs ft -0.0 / +0.2 / +0.2 / -0.3 %; minus own: 1d -0.045 [-0.065, -0.027], 3d -0.017 [-0.026, -0.007], 5d -0.034 [-0.058, -0.015], 7d -0.083 [-0.118, -0.050]; better at 4 of 4 leads
+  Denver seed 0: own 1.835 / 2.109 / 2.774 / 4.025
+    world-C 1.864 / 2.152 / 2.806 / 3.992  vs own +1.6 / +2.0 / +1.2 / -0.8 %; vs world +0.2 / -1.2 / -0.4 / -1.5 %
+    ft-C    1.779 / 2.072 / 2.717 / 3.944  vs own -3.0 / -1.8 / -2.0 / -2.0 %; vs ft -0.9 / -0.7 / -1.0 / -0.3 %; minus own: 1d -0.056 [-0.083, -0.029], 3d -0.037 [-0.052, -0.023], 5d -0.056 [-0.077, -0.038], 7d -0.081 [-0.129, -0.035]; better at 4 of 4 leads
+  Denver seed 1: own 1.836 / 2.116 / 2.773 / 4.035
+    world-C 1.863 / 2.150 / 2.798 / 3.993  vs own +1.4 / +1.6 / +0.9 / -1.0 %; vs world +0.1 / -1.3 / -0.7 / -1.2 %
+    ft-C    1.773 / 2.067 / 2.718 / 3.941  vs own -3.4 / -2.3 / -2.0 / -2.3 %; vs ft -1.1 / -0.8 / -0.9 / -0.4 %; minus own: 1d -0.063 [-0.090, -0.035], 3d -0.049 [-0.068, -0.032], 5d -0.055 [-0.076, -0.036], 7d -0.094 [-0.146, -0.045]; better at 4 of 4 leads
+Rule (pre-set): PASS = world-C within 1 % of own at every lead and ft-C better than own (interval < 0) at >= 3 of 4 leads, everywhere; KILL = descriptors help neither arm (mean of leads) in 2 or more of 4 cases.
+Verdict: MISS (record, no adoption)
+
