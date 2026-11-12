@@ -402,6 +402,13 @@ class Launch:
                 rho = min(self._report_gain(), rho)     # never more than an own report of the same age (kit tested 1 h: gain <= 0.62 < 0.72, so identical there)
             s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
                                                                                   spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
+        t_fac = None
+        if self._obs.get("_t_update"):       # G2-2 (opt-in): Student-t widening of the conditioned members when the readings surprise the prior
+            t_fac = _t_widen_factor(base._ensure_pool()["samples"], eng_obs, sig)
+            for k in ("u", "v", "t2m"):     # shortcut: T / p / RH profiles not widened (rho and sound speed would need recomputing); widen them if wind + t2m pass
+                if k in s:
+                    m = s[k].mean(0, keepdims=True)
+                    s[k] = (m + t_fac * (s[k] - m)).astype(np.float32)
         s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n), measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
@@ -418,7 +425,7 @@ class Launch:
                     far.append(name_)
         flags_far = [f"observation-far-outside-the-prior-{'-'.join(far)}-kept-as-real-check-for-a-typo"] if far else []
         return dict(samples=s, launch_times=bp["launch_times"][:1].repeat(n), infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
-                    flags=list(bp["flags"]) + flags_far + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []) + (["radar-wind-" + self._obs["_radar_src"].replace(" ", "-")] if "_radar_src" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
+                    flags=list(bp["flags"]) + flags_far + (["t-widened-x%.2f" % t_fac] if t_fac is not None and t_fac > 1.0 else []) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []) + (["radar-wind-" + self._obs["_radar_src"].replace(" ", "-")] if "_radar_src" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
 
     def _obs_to_engine(self, base):
         o, eng_obs = self._measurements(), {}
@@ -438,7 +445,7 @@ class Launch:
             eng_obs[("wind_u", float(h))], eng_obs[("wind_v", float(h))] = float(ur), float(vr)
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=False):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
@@ -461,12 +468,14 @@ class Launch:
         soft = any(v is not None for v in (age_hours, distance_km, elevation_diff_m))
         if speed_space or (speed_space is None and OBS_SPEED_SPACE and soft):   # W6: update the 10 m speed in normal-score space of the prior's own speed distribution (see _speed_space_update); default for soft observations
             obs["_speed_space"] = True
+        if t_update:                # G2-2 (opt-in, off by default): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
+            obs["_t_update"] = True
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
         self._check_observation(obs)
         return self.with_(_obs=obs)
 
-    def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None):
+    def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None, t_update=False):
         """P3 (opt-in): a NEW Launch conditioned on the NEXRAD VAD wind profile of the nearest radar (or `site`), the newest volume at most max_age_min before the launch time, at the model
         heights `levels_m` above the pad, each with a sensor error of sigma_ms (default 3 m/s, the radar-minus-balloon error). `profile` = dict(heights_asl_m, u, v[, site, time]) skips the
         download (offline use, tests). Evidence (El Paso radar vs EPZ balloons, 120 days): CRPS of the wind above +32 % at 2.5-5 km, +16 % at 5-12 km, +7 % at 12-18 km, coverage 0.93-0.94.
@@ -500,6 +509,8 @@ class Launch:
             raise ValueError(f"the {site} profile ({min(z):.0f}-{max(z):.0f} m above the pad) covers none of the levels {list(levels_m)}")
         obs = dict(self._obs)
         obs["_radar"], obs["_radar_sigma"] = rad, float(sigma_ms or R.VAD_SIGMA_MS)
+        if t_update:
+            obs["_t_update"] = True
         obs["_radar_src"] = f"{profile.get('site', site)} {profile.get('time', '')} " + (f"{dist:.0f}km" if math.isfinite(dist) else "unknown-km")
         return self.with_(_obs=obs)
 
@@ -997,3 +1008,28 @@ class Launches:
             x = L._derive(L._ensure_pool()["samples"])[key]
             out.append(np.nanpercentile(x, [50, 10, 90]))
         return np.array(out)
+
+T_NU = 8.0
+
+
+def _t_widen_factor(prior, eng_obs, sig, nu=T_NU):
+    """G2-2 ('Innovative idea review.md' G2-2 step 1): D^2 = sum over the k observed numbers of ((obs - prior mean) / sqrt(prior var + obs var))^2; factor = sqrt((nu + D^2) / (nu + k)),
+    limited to 1-2 (never narrows). obs var = sensor sigma^2 (surface keys by name, radar keys by (component, height)); 0 for exact pins."""
+    hi = {float(h): i for i, h in enumerate(_core.HEIGHTS)}
+    cols = {"wind_u": "u", "wind_v": "v"}
+    sig = sig or {}
+    d2, k = 0.0, 0
+    for key, y in list(eng_obs.items())[:10]:
+        c, h = key
+        if c in cols:
+            x = np.asarray(prior[cols[c]], float)[:, hi[float(h)]]
+        elif c == "temp_K":
+            x = np.asarray(prior["t2m"], float)
+        elif c == "pressure_Pa":
+            x = np.asarray(prior["sp"], float)
+        else:
+            continue
+        so = sig.get(key, sig.get(c, 0.0))
+        d2 += (float(y) - x.mean()) ** 2 / max(x.var() + float(so) ** 2, 1e-12)
+        k += 1
+    return float(np.clip(np.sqrt((nu + d2) / (nu + k)), 1.0, 2.0)) if k else 1.0

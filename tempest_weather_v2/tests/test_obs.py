@@ -1,6 +1,7 @@
 """Observation ingestion: nearest stations, age / distance weights, IEM parsing (offline fake), observe with weights, observe_latest end to end."""
 from datetime import datetime, timezone
 
+import numpy as np
 import pytest
 
 from tempest_weather_v2 import Launch, obs as O
@@ -102,3 +103,25 @@ def test_wind_persistence_from_a_lag_table():
     half = wind_persistence(table, 1, 2.5, [10])[0]
     assert wind_persistence(table, 1, 3, [10])[0] < half < wind_persistence(table, 1, 2, [10])[0]
     assert np.allclose(persistence_sd_factor([1.0, 0.0]), [0.0, np.sqrt(2.0)])
+
+
+def test_t_widen_factor_rule():
+    from tempest_weather_v2.launch import _t_widen_factor
+    rng = np.random.default_rng(0)
+    prior = {"u": rng.normal(0, 2, (4000, 44)), "v": rng.normal(0, 2, (4000, 44)), "t2m": rng.normal(300, 3, 4000), "sp": rng.normal(88000, 300, 4000)}
+    obs = {("wind_u", 10.0): 0.0, ("wind_v", 10.0): 0.0}
+    assert _t_widen_factor(prior, obs, None) == 1.0                       # unsurprising -> never narrows
+    far = {("wind_u", 10.0): 12.0, ("wind_v", 10.0): 0.0}                 # 6 sd: D^2 ~ 36, k = 2 -> sqrt(44 / 10) ~ 2.1 -> capped at 2
+    assert _t_widen_factor(prior, far, None) == 2.0
+    mid = {("temp_K", 2.0): 306.0}                                         # 2 sd, obs sd 3: D^2 = 36 / 18 = 2 -> sqrt(10 / 9)
+    assert abs(_t_widen_factor(prior, mid, {"temp_K": 3.0}) - np.sqrt(10 / 9)) < 0.03
+
+
+def test_observe_t_update_is_opt_in_and_widens_on_a_surprise():
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="si")
+    kw = dict(wind_10m=25.0, wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0)
+    a, b = L.observe(**kw), L.observe(**kw, t_update=True)
+    pa, pb = a._ensure_pool(), b._ensure_pool()
+    assert not any(f.startswith("t-widened") for f in pa["flags"])
+    assert any(f.startswith("t-widened") for f in pb["flags"])
+    assert np.std(pb["samples"]["u"][:, 0]) > np.std(pa["samples"]["u"][:, 0])

@@ -1,0 +1,11 @@
+2026-11-12 08:43 G2-2 t-update, W6 cases (TCS + MAF ASOS 2023-25, 08-20 local, previous-hour soft observe), 600 cases; shipped observe vs + t_update=True (same seed)
+cases                        n  crps ship     crps t cov ship    cov t spread ratio
+all                        600      1.063      1.064     0.86     0.87         1.00
+top 10 % surprise           60      1.209      1.219     0.85     0.92         1.24
+other 90 %                 540      1.047      1.047     0.86     0.86         1.00
+TCS all                    300      1.140      1.142     0.81     0.82         1.00
+MAF all                    300      0.987      0.986     0.91     0.91         1.00
+other 90 %: CRPS change t - shipped -0.0003 [-0.0020, +0.0013] (day blocks)
+top 10 %:  CRPS change t - shipped +0.0106 [-0.0456, +0.0608] (day blocks); D^2 threshold 5.8
+VERDICT: PASS (top-10 % coverage error 0.05 -> 0.02: falls; other-90 % CRPS interval contains 0 or below: yes)
+
