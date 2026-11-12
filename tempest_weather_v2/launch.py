@@ -63,6 +63,16 @@ INFLATE_DECAY_M = None        # Gemini bug 2 was NOT a bug: the scalar 1.5 infla
 MEASURED_GUST_LAW = True       # W8c (a plain mismatch, B23): after observe(wind_10m=...) the gust uses api._gust_params_measured, the law fitted on MEASURED winds (validation CRPS 0.93 -> 0.51, 16+ m/s 12.95 -> 1.40); False = the model-wind law as before
 
 FORMAT_VERSION = 1
+
+
+def _arrays_sha(arrays):
+    """sha256 over name, dtype, shape and bytes of each array (sorted by name)."""
+    h = hashlib.sha256()
+    for k in sorted(arrays):
+        a = np.ascontiguousarray(arrays[k])
+        h.update(f"{k}|{a.dtype.str}|{a.shape}|".encode())
+        h.update(a.tobytes())
+    return h.hexdigest()
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")
 Z0_DEFAULT = 0.03
 
@@ -945,8 +955,10 @@ class Launch:
                     site=self._site.name if self._site else None, window=pool["window"], modes=pool["modes"], elevation_source=pool["elevation_source"], flags=pool["flags"],
                     provenance=self.provenance, day_share=pool["day_share"], obs={k: str(v) for k, v in self._obs.items()}, hrrr_note=self._hrrr["note"] if self._hrrr else None)
         arrays = {f"s_{k}": np.asarray(v) for k, v in s.items()}
+        arrays["launch_times"] = pool["launch_times"].astype("datetime64[s]").astype("int64")
+        meta["sha256"] = _arrays_sha(arrays)                  # 5.2.20: the archive is hash-stamped; load refuses a file whose numbers changed
         with open(path, "wb") as f:                           # a file handle: np.savez would otherwise append ".npz" to the name
-            np.savez(f, launch_times=pool["launch_times"].astype("datetime64[s]").astype("int64"), meta=np.array(json.dumps(meta, default=str)), **arrays)
+            np.savez(f, meta=np.array(json.dumps(meta, default=str)), **arrays)
         return str(path)
 
     @classmethod
@@ -956,6 +968,8 @@ class Launch:
             if meta.get("format_version", 0) > FORMAT_VERSION:
                 raise ValueError(f"{path} was written by a newer version (format {meta['format_version']})")
             s = {k[2:]: z[k] for k in z.files if k.startswith("s_")}
+            if meta.get("sha256") and _arrays_sha({k: z[k] for k in z.files if k != "meta"}) != meta["sha256"]:
+                raise ValueError(f"{path}: the saved numbers do not match their hash (the file was changed or damaged)")
             if "elevation_m" in s:
                 s["elevation_m"] = float(s["elevation_m"])
             lt = z["launch_times"].astype("datetime64[s]")

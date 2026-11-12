@@ -872,3 +872,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 ## 2026-11-12 11:40 CST (tick work)
 - **IL-129: already done** (tail extrapolation ON since 2026-11-08; the real-pool IL-128 rerun used it, worst ratio 0.84). Closed, nothing built.
 - **Labels in saved files: bug fixed.** A reloaded conditioned `.tempest` file kept its conditioned samples but its trust line dropped "conditioned ... (not yet validated)" (load never read the saved observations; HRRR anchor not saved at all). Load now restores both notes. Label only, numbers unchanged. Full suite 397 passed.
+## 2026-11-12 12:05 CST (tick work)
+- **Input archive with hash: done.** `.tempest` files now carry a sha256 of every saved array; load refuses a changed or damaged file; older files still load. The raw Open-Meteo responses are still not archived (only the samples). Full suite 398 passed.

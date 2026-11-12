@@ -468,3 +468,24 @@ def test_saved_conditioned_launch_keeps_its_label_after_load(tmp_path, launch):
     assert "conditioned on 3 measurements before saving (not yet validated)" in L2.trust and "atmosphere only" in L2.trust
     assert abs(L2.weather(all=True).wind_10m - 14.0) < 0.6
     assert "conditioned" not in Launch.load(launch.save(str(tmp_path / "plain.tempest"))).trust
+
+
+def test_saved_file_is_hash_stamped_and_a_changed_file_is_refused(tmp_path, launch):
+    """5.2.20: save writes a sha256 of the saved numbers; load checks it. Files without a hash (older saves) still load."""
+    import json
+    p = launch.save(str(tmp_path / "a.tempest"))
+    with np.load(p) as z:
+        arrays = {k: z[k] for k in z.files}
+    meta = json.loads(str(arrays["meta"]))
+    assert len(meta["sha256"]) == 64 and Launch.load(p).weather().to_dict() == launch.weather().to_dict()
+    arrays["s_u"] = arrays["s_u"].copy()
+    arrays["s_u"][0, 0] += 1.0
+    with open(tmp_path / "b.tempest", "wb") as f:
+        np.savez(f, **arrays)
+    with pytest.raises(ValueError, match="hash"):
+        Launch.load(str(tmp_path / "b.tempest"))
+    meta.pop("sha256")
+    arrays["meta"] = np.array(json.dumps(meta))
+    with open(tmp_path / "c.tempest", "wb") as f:
+        np.savez(f, **arrays)
+    assert len(Launch.load(str(tmp_path / "c.tempest")).atmospheres(5)) == 5
