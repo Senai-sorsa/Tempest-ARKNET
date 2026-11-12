@@ -819,4 +819,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - N1 seed 0 trained 00:22 (4 folds in 27 min, range map from 60,000 held-out rows); seed 100 training. N2-B 3 of 12 runs done (about 8 min each, ends near 01:30). No new verdict; no new idea IDs in section 10.
 - N2 modification C written and queued (starts by itself after [N1] done): new opt-in `il6_modeF.py --place-clim` (12 climate descriptors per grid point: mean truth at the lowest and the middle height, sd at the lowest, 4 variables, from rows <= 2020 only; default unchanged), runner `scripts/cpu_n2c_place.sh` ([N2P], 8 runs, about 1 h), verdict `new_plan_kit/b5_modeF_place.py` with the rule written before any run (self-check passes). Known limit: a box point has only about 20 fit rows, so its descriptors are noisy.
 - Not run yet: the new flag itself (no RAM for a second Mode F process); the first [N2P] run is its test.
+## 2026-11-12 00:55 CST (tick; heartbeat 285)
+- Safe range: GPU 38 C (idle), board sensor 39 C, on mains (78 %, steady), free RAM 6 GB (N2-B evaluation), disk 91 GB.
+- N1: both seeds trained (seed 100 at 00:51, no GPU fault; range map ends scale by 1.17-1.18). Scoring waits for [N6F] done. N2-B 6 of 12 (seed 0 complete), ends near 01:45. Chain after it: [N6F] fine-tunes -> N1 scoring -> [N2P] modification C. No verdict due, no new idea IDs. Nothing started: no RAM for a second heavy job.
 
