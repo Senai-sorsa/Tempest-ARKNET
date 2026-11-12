@@ -880,3 +880,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **Dissimilarity index in `Launch.domain()`: done (report only).** New fields di / di_threshold / di_region (L3-28 maths, checked against `tempest/scoring/di.py`); status still from the box test, answers unchanged. Full suite 399 passed. Open: DI replacing the box test (user's call), climatology answer outside the boxes (not started).
 ## 2026-11-12 13:05 CST (tick work)
 - **L19 A1 MERRA-2 dry run: done.** On-prem GES DISC OPeNDAP is retired (410); `tempest/ingest/fetch_merra2.py` now uses Earthdata Cloud OPeNDAP. One day: 72 levels, top 75.6 km, 0.49 MB in 6.7 s; 1991/1995/2005 granules resolve. Full run about 0.62 GB, 2.4 h (not started).
+## 2026-11-12 15:05 CST (tick work)
+- **AV1 lead split (New_Plan 13.1): KILL by the pre-set rule.** 2021 confirmation (new opt-in `il6_modeF.py --test-year 2021`, 8 evaluations 13:32-14:52): Denver confirms the 3 / 5 d split, NM/TX does not (big 0.1 % better at 5 d, a tie). 2022 clause also unmet (Denver seed 0, 3 d). Gain at 1 and 3 d is real on 2021 (2-3.5 %, 7 of 8 intervals below 0). Logged AV22 (smooth blend by lead) in section 13.1 per the standing note; tie reading is the user's call.
+- MERRA-2 full download running (PID 34200), 757 of 1260 days at 15:00.
