@@ -843,3 +843,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 ## 2026-11-12 05:05 CST (tick; heartbeat 296)
 - Safe range: GPU 30 C (idle), on mains, free RAM 19 GB, disk 92 GB.
 - **RA stage 1a PASS** (`kit_b6_realair_rows.log`, run 04:37-05:00): 30.9 million rows from 426 valid times, 2016-22. Gap sd 1.49-1.98 m/s per component (6 bands). 90 % coverage on 2022 at the 197 left-out stations: A0 (model error only) 0.83-0.90, A1 (+ gap) 0.90-0.92 in every band (rule 0.87-0.93). Limits noted in section 9: pooled over leads; balloon QC minimal. Stage 2 waits for 1b (ASK_LATER 25).
+## 2026-11-12 05:25 CST (tick; heartbeat 297)
+- Safe range: GPU 30 C, on mains, free RAM 19 GB, disk 92 GB.
+- Full test suite (`tests_after_RA1a.log`): tests 261 passed in 6:49; tempest_weather_v2/tests 130 passed (run in the foreground). 391 passed, 0 failed; the 3 older test_flags_off golden-hash failures did not appear (6 flags_off tests collected, all pass). Next: SWiFT check.
