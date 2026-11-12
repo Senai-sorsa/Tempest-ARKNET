@@ -878,3 +878,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **RH range map widening (RH 12-18 km station correction): FAIL by rule.** k = 1.95 picked on 2021-23 lifts 2024-25 99 % coverage 0.948 -> 0.991 but CRPS +5.9 % (rule <= +1.5 %). No tool change; the misses are in the tails (tail-only fix = GPD tails, not built).
 ## 2026-11-12 12:40 CST (tick work)
 - **Dissimilarity index in `Launch.domain()`: done (report only).** New fields di / di_threshold / di_region (L3-28 maths, checked against `tempest/scoring/di.py`); status still from the box test, answers unchanged. Full suite 399 passed. Open: DI replacing the box test (user's call), climatology answer outside the boxes (not started).
+## 2026-11-12 13:05 CST (tick work)
+- **L19 A1 MERRA-2 dry run: done.** On-prem GES DISC OPeNDAP is retired (410); `tempest/ingest/fetch_merra2.py` now uses Earthdata Cloud OPeNDAP. One day: 72 levels, top 75.6 km, 0.49 MB in 6.7 s; 1991/1995/2005 granules resolve. Full run about 0.62 GB, 2.4 h (not started).
