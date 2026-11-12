@@ -136,6 +136,7 @@ def test_save_and_load_roundtrip(tmp_path, launch):
 def test_engine_and_observe_condition_on_launch_day_measurements(launch):
     eng = launch.engine()
     assert eng is launch.engine()                                                   # cached
+    assert eng.info["z0_m"] == pytest.approx(launch.z0())                           # A7: the site roughness travels with the engine
     cond = launch.observe(wind_10m="14 mph", wind_from_deg=240, temperature="82 F")
     assert cond is not launch and launch._obs == {} and len(cond._obs) == 3
     r0, r1 = launch.weather(all=True), cond.weather(all=True)

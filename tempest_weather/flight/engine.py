@@ -280,8 +280,13 @@ class TempestFlightSimEngine:
         `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes (IL-130; plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour)): exact N^2, no boundary-layer leak above the layer, resolved w added.
         dryden_modelling (IL-135, OFF by default: a modelling choice, needs its own verdict): layer depth from the profile, gust peak from the sample's own gust law.
         run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default).
-        G6 (opt-in, OFF by default): uw_corr (e.g. 0.35) couples the turbulent w to the along-wind turbulence (Reynolds stress); spectrum='karman' uses von Karman instead of Dryden shapes."""
+        G6 (opt-in, OFF by default): uw_corr (e.g. 0.35) couples the turbulent w to the along-wind turbulence (Reynolds stress); spectrum='karman' uses von Karman instead of Dryden shapes.
+        A7 (opt-in, default 0.03 unchanged): z0_roughness_m="site" uses the site roughness in info["z0_m"] (Launch.engine() sets it to Launch.z0(), the land-cover map median)."""
         from tempest_weather.flight import avionics, dryden
+        if isinstance(z0_roughness_m, str):
+            if z0_roughness_m != "site" or self.info.get("z0_m") is None:
+                raise ValueError("z0_roughness_m must be a number (m) or 'site' (needs info['z0_m'], e.g. from Launch.engine())")
+            z0_roughness_m = float(self.info["z0_m"])
         u = np.asarray(u_sobol_matrix, float)
         batch = self.sample_sobol(u[:, :k_atmo], run_id=run_id)
         if include_dryden_turbulence:

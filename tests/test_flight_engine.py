@@ -128,3 +128,18 @@ def test_physical_gust_laws_have_station_gust_factors_and_hold_the_factor_in_sto
     mu, b = api._gust_params_measured(np.array([6.0, 10.0, 16.0, 40.0]), 172, 18.0, 1.0)
     f = med(mu, b, np.array([6.0, 10.0, 16.0, 40.0]))
     assert np.all((f > 1.25) & (f < 1.65))                                                       # June early afternoon (18 UTC) is the gustiest hour: 1.52 at 6 m/s (stations 5-8 m/s: median 1.40, p90 1.71)
+
+
+def test_site_roughness_reaches_the_turbulence_step_only_when_asked():
+    """A7: z0_roughness_m='site' uses info['z0_m'] (set by Launch.engine()); the default stays 0.03 m."""
+    pool, u = synthetic_pool(n=1500), np.random.default_rng(4).random((6, 6))
+    fine = lambda eng, **kw: eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=20.0, include_avionics_bias=False, **kw)["fine"]["u_total"]
+    eng = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1400.0, "z0_m": 0.5})
+    base = fine(eng)
+    assert np.allclose(base, fine(eng, z0_roughness_m=0.03))                                     # default unchanged
+    assert np.allclose(fine(eng, z0_roughness_m="site"), fine(eng, z0_roughness_m=0.5))           # the site value is used
+    assert not np.allclose(fine(eng, z0_roughness_m="site"), base)
+    with pytest.raises(ValueError):
+        fine(TempestFlightSimEngine(atm=pool, info={"elevation_m": 1400.0}), z0_roughness_m="site")
+    with pytest.raises(ValueError):
+        fine(eng, z0_roughness_m="map")

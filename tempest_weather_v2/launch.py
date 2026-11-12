@@ -931,7 +931,8 @@ class Launch:
             for k in ("w", "gust_mu", "gust_beta"):
                 if k in s:
                     atm[k] = np.asarray(s[k], float)
-            self._engine = TempestFlightSimEngine(atm=atm, info={"elevation_m": float(s["elevation_m"])}, seed=self.seed, **kw)
+            z0 = float(np.median(self._derive(s, pool["launch_times"])["surface_roughness_m"]))      # A7: the site roughness, used by sample_sobol_batch(z0_roughness_m="site")
+            self._engine = TempestFlightSimEngine(atm=atm, info={"elevation_m": float(s["elevation_m"]), "z0_m": z0}, seed=self.seed, **kw)
         return self._engine
 
     # ---- save / load (I-8)
