@@ -1,0 +1,28 @@
+........................................................................ [ 18%]
+........................................................................ [ 36%]
+........................................................................ [ 54%]
+........................................................................ [ 72%]
+........................................................................ [ 91%]
+...................................                                      [100%]
+============================== warnings summary ===============================
+tests/test_build_wdata_times.py::test_row_times_round_trip
+  C:\Users\Senai\Tempest-ARKNET\tests\test_build_wdata_times.py:15: Pandas4Warning: DatetimeIndex.dayofyear is deprecated and will be removed in a future version. Use DatetimeIndex.day_of_year instead.
+    cond = features(lats, lons, np.zeros(len(times)), np.zeros(len(times)), times.dayofyear.to_numpy(), sh, times.year.to_numpy(),
+
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_region_pack.py::test_fitters_on_a_9x9_box_with_missing_heights[c1_fit_lagcorr.py-args0]
+tests/test_region_pack.py::test_fitters_on_a_9x9_box_with_missing_heights[c2_fit_distcorr.py-args1]
+  C:\Users\Senai\Tempest-ARKNET\.venv\Lib\site-packages\zarr\api\asynchronous.py:260: ZarrUserWarning: Consolidated metadata is currently not part in the Zarr format 3 specification. It may not be supported by other zarr implementations and may change in the future.
+    warnings.warn(
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:157: RuntimeWarning: invalid value encountered in divide
+    put(f"skill_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim"])
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:159: RuntimeWarning: invalid value encountered in divide
+    put(f"skill15_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim15"])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+395 passed, 7 warnings in 450.55s (0:07:30)

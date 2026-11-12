@@ -195,3 +195,23 @@ def test_rocketpy_inputs_reference_can_be_agl():
     import pytest
     with pytest.raises(ValueError):
         atm.rocketpy_inputs(reference="x")
+
+
+def test_below_10m_loglaw_is_opt_in_and_follows_the_log_profile():
+    s = make_samples()
+    lin, ll = Atmosphere(s, 1), Atmosphere(s, 1, below_10m="loglaw", z0_m=0.03)
+    u10 = s["u"][1, 0]
+    assert np.isclose(lin.wind(ELEV + 0.0)[1], 0.72 * u10, rtol=1e-4)          # default unchanged: straight line to the pad node
+    for z in (1.0, 2.0, 5.0):
+        r = np.log(z / 0.03) / np.log(10 / 0.03)
+        assert np.isclose(ll.wind(ELEV + z)[1], r * u10, rtol=1e-4)            # scalar path
+        assert np.isclose(ll.wind_many(np.array([ELEV + z]))[0, 1], r * u10, rtol=1e-4)   # vector path
+        assert np.isclose(ll.velocity(ELEV + z)[1], r * u10, rtol=1e-4)        # flight_sim interface
+    assert ll.wind(ELEV + 0.01)[1] == 0.0                                        # below z0: calm
+    for z in (10.0, 55.0, 3000.0):                                               # unchanged from 10 m up, air unchanged everywhere
+        assert np.allclose(ll.wind(ELEV + z), lin.wind(ELEV + z)) and np.allclose(ll.air(ELEV + z), lin.air(ELEV + z))
+    assert np.allclose(ll.air(ELEV + 3.0), lin.air(ELEV + 3.0))
+    s["surface_roughness_m"] = np.full(len(s["u"]), 0.5)                         # the samples' own roughness when z0_m is not given
+    assert np.isclose(Atmosphere(s, 1, below_10m="loglaw").wind(ELEV + 2.0)[1], np.log(2 / 0.5) / np.log(10 / 0.5) * u10, rtol=1e-4)
+    with pytest.raises(ValueError):
+        Atmosphere(s, 1, below_10m="cubic")
