@@ -1,0 +1,6 @@
+2026-11-13 03:39 STRAND stage 0: 10 m wind under L for 3 h in a row, real vs independent hours; 1991-2020, 377 points, 164,368 window starts, start hours [0, 1, 2, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+  L    5 m/s: 65,357 open cells; P_real mean 0.637, P_indep 0.409; mean |diff| 0.2283, mean diff +0.2283, p90 |diff| 0.3109, max 0.3533
+  L    8 m/s: 43,610 open cells; P_real mean 0.894, P_indep 0.796; mean |diff| 0.0988, mean diff +0.0988, p90 |diff| 0.2012, max 0.3476
+  L   10 m/s: 16,294 open cells; P_real mean 0.943, P_indep 0.885; mean |diff| 0.0579, mean diff +0.0579, p90 |diff| 0.1081, max 0.2413
+Verdict: GO to stage 1
+
