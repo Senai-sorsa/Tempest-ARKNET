@@ -293,6 +293,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | STRAND stage 1, climate mode (New_Plan 14.5; `new_plan_kit/b14_strand_stage1.py`, rule in its header before the run, commit d7bbbe4) | MISS 2026-11-13 08:41 by the pre-set rule. P(10 m wind under L for 3 h), 12 points x 12 months x 15 / 18 / 21 UTC, truth ERA5 2006-20, templates 1991-2005, tool climate mode (`atmosphere_sequence`, mode ai, 2013 dates). Baseline = the SHIPPED coherent sequence (Gaussian copula with the ERA5 lag table; deviation stated before the run). Mean |error| seed 0 / seed 1: L 5 m/s IND 0.370 / 0.369, SEQ 0.237 / 0.236, TPL 0.120 / 0.119 (TPL / SEQ 0.51 / 0.50); 8 m/s SEQ 0.191 / 0.194, TPL 0.119 / 0.122 (0.62 / 0.63); 10 m/s SEQ 0.154 / 0.156, TPL 0.099 / 0.101 (0.64 / 0.65). Truth 0.591 / 0.876 / 0.936, TPL 0.478 / 0.764 / 0.838. Floor: the tool's per-hour 10 m wind is windier than ERA5 u10 (|P_indep tool - truth| 0.12-0.19; e.g. 33.5 N -107.5 Apr 21 UTC median 6.04 vs 5.02 m/s; u10 and the profile's 10 m level are identical), which no re-ordering can fix | Not adopted. Templates beat the shipped copula in every cell group (35-50 % less error) -> per section 13's note AV27 (same arms, the link scored on the truth's per-hour probabilities). Side finding to check: is the windier climate-mode 10 m wind the intended near-surface widening? | `docs/results/logs/kit_b14_strand_stage1.log` |
 | AV27 STRAND stage 1 link only (New_Plan 13; `new_plan_kit/b15_av27_strand_link.py`, rule in its header before the run; same arms, cells, seeds) | **KILL by the pre-set rule** 2026-11-13 09:06: each arm's link (P_arm / P_IND) applied to the truth's per-hour probabilities. Mean |error| seed 0 / 1: 5 m/s SEQ 0.091 / 0.094, TPL 0.200 / 0.197 (TPL / SEQ 2.19 / 2.11); 8 m/s SEQ 0.064 / 0.067, TPL 0.081 / 0.082 (1.27 / 1.22); 10 m/s SEQ 0.037 / 0.037, TPL 0.045 / 0.045 (1.24 / 1.20); IND 0.255 / 0.120 / 0.065. Mean lift truth 2.35 / 1.19 / 1.08, shipped sequence 2.10 / 1.28 / 1.16, templates 3.51 / 1.48 / 1.25: the templates OVER-link, and in stage 1 that over-linking partly cancelled the windy per-hour floor, which is why they looked better | STRAND CLOSED for climate mode (no benefit on the link; the shipped Gaussian-copula sequence already carries most of it). Limit: the lift depends a little on the marginals, and both arms use the tool's windier ones. Forecast-mode STRAND (aged noise) was not tested and stays in the plan. Open side finding: the tool's climate-mode 10 m wind is windier than ERA5 u10 here (P under 5 m/s lower by 0.06-0.14) - check whether that is the intended near-surface widening | `docs/results/logs/kit_b15_av27_strand_link.log` |
 | AV5 N2 third seed (New_Plan 13; `scripts/cpu_av5.sh`, `new_plan_kit/b16_av5_third_seed.py`, rule in its header before the run; seed 2 of own / world / fine-tuned / own + 300, both boxes; seeds 0 and 1 re-scored from the existing models) | **KILL by the pre-set rule** 2026-11-13 10:48, by the narrowest margin: fine-tuned minus own + 300 wins (interval < 0) at 3 of 4 leads in 5 of 6 box x seed runs; Denver seed 2 wins 2 (5 d -0.025 [-0.050, +0.001], 3 d -0.015 [-0.036, +0.004]). Seed 2 change vs own + 300 at 1 / 3 / 5 / 7 d: NM/TX -2.1 / -0.5 / -1.5 / -2.2 %, Denver -1.6 / -0.7 / -0.9 / -2.6 %; every point estimate in all 6 runs favours the world start, 1 d and 7 d intervals below 0 everywhere, 3 d never clears 0 | Not adopted. Parent N2 NOT closed (benefit shown, section 13 note) -> AV28 (500 fine-tune steps vs own + 500, the step the AV5 row named before its result) | `docs/results/logs/kit_b16_av5_third_seed.log` |
+| AV28 N2 fine-tune 500 steps vs own + 500 (New_Plan 13; `scripts/cpu_av28.sh`, `new_plan_kit/b17_av28_ft500.py`, rule in its header before the run; seeds 0 / 1 / 2, both boxes, scored on 2022) | MISS 2026-11-13 13:30 by the pre-set rule: wins 4 / 4 / 3 of 4 NM/TX, 3 / 3 / 1 Denver (PASS needs >= 3 in all 6 runs; KILL needs <= 1 in 3 or more). All 24 lead x run point estimates favour the world start; vs own + 500 NM/TX 1 / 3 / 5 / 7 d -2.2 to -2.7 / -0.5 to -0.9 / -1.4 to -1.5 / -2.1 to -2.4 %, Denver -1.1 to -1.7 / -0.2 to -0.5 / -0.9 to -1.3 / -2.7 to -3.0 %; 7 d interval below 0 in every run. Denver seed 2: 1 d -0.019 [-0.042, +0.001], 3 d [-0.033, +0.012], 5 d -0.025 [-0.055, +0.002] | Not adopted; N2 NOT closed (benefit shown, intervals excluding 0). Per the section 13 note one more variation: AV29 (the same 12 networks also scored on 2021, pooled with 2022; no training) | `docs/results/logs/kit_b17_av28_ft500.log` |
 | AU-10 above_top "climatology" (New_Plan 15.3; `tempest_weather_v2/readers.py`) | DONE 2026-11-13: docstring corrected ("climatology" is an alias of "hold": T and p continue from the top value along the standard lapse rates; no true standard-atmosphere switch, it would put a jump at the top). No number changes. Test: the two policies return identical air and wind arrays below, at and up to 30 km above the top. |
 | AU-17 Launch.stale naive time (New_Plan 15.3; `tempest_weather_v2/launch.py`) | DONE 2026-11-13 (bug fix, on): a naive `now` is taken as UTC (it raised TypeError). Test: naive 1 h and 7 h after creation give False / True. |
 
@@ -863,6 +864,7 @@ Guards that stay in force while doing that:
 | AV26 | AV24 (MISS 2026-11-13: mix retrained better at every lead in all 4 runs, 1 and 3 d intervals < 0, 7 d interval crosses 0 on one test year) | The same AV24 networks (no training) also scored on 2021 (`--test-year 2021`, range map on mixed 2022, AV1's protocol) against the newest-run networks' AV1 2021 scores; per-row scores of 2021 + 2022 pooled per lead (`new_plan_kit/b13_av26.py`, `scripts/cpu_av26.sh`) | AV24's rule on the pooled two years: PASS = interval < 0 at 5 and 7 d and mix / newest <= 1.005 at 1 and 3 d in all 4 box x seed; KILL = no lead better | 4 CPU evaluations, ~40 min | VARIATION (follow-up of AV24). Logged by the loop 2026-11-13 |
 | AV27 | STRAND stage 1 (MISS 2026-11-13: moving templates cut the shipped sequence's 3-hour run-probability error to 0.50-0.65, every arm floored by a per-hour 10 m wind gap of 0.12-0.19 between the tool and ERA5) | Score only: the same arms, cells, seeds and members, each arm's link (P_arm / P_IND) applied to the truth's per-hour probabilities (`new_plan_kit/b15_av27_strand_link.py`, b14.collect re-run) | b14's rule unchanged on the linked probabilities: PASS = TPL error <= 0.5 x SEQ at every limit, both seeds; STOP = SEQ < 0.02 everywhere; KILL = TPL >= SEQ everywhere | 16 min CPU | VARIATION (first follow-up of STRAND stage 1; metric change motivated by stage 1's diagnostic line, not by a linked result). Logged by the loop 2026-11-13 |
 | AV28 | AV5 (KILL 2026-11-13 by one interval: Denver seed 2 5 d reached +0.001; every point estimate favours the world start) | No new model type: world network + 500 fine-tune steps vs own model + 500 steps, seeds 0 / 1 / 2, both boxes (`scripts/cpu_av28.sh`, 12 runs; verdict `new_plan_kit/b17_av28_ft500.py`) | PASS = wins >= 3 of 4 leads in both boxes, all three seeds; KILL = wins <= 1 in 3 or more of the 6 runs (no benefit; N2 closes); else MISS | ~2 h CPU | VARIATION (second of N2, after AV5; step count named in the AV5 row before its result). Logged by the loop 2026-11-13 |
+| AV29 | AV28 (MISS 2026-11-13: all 24 point estimates favour the world start, Denver seed 2 wins 1 of 4 with three intervals ending at +0.001 to +0.002) | No training: the AV28 networks (ft500 and own500, seeds 0-2, both boxes) also scored on 2021 (`--test-year 2021`, range map on 2022), pooled with the 2022 rows, day blocks over both years (as AV26) | AV28's rule unchanged on the pooled rows: PASS = wins >= 3 of 4 in all 6 runs; KILL = wins <= 1 in 3 or more runs; else MISS. The 2021 rows were not used by AV5 / AV28 | ~2 h CPU, after SIGMA stage 2 | VARIATION (third of N2; forking paths: n = 3, adoption would also need its own go). Logged by the loop 2026-11-13 |
 | AV2 | N5 all-lead network (KILL: leads 1-3 worse by +0.9 to +2.7 %; beyond 7.5 d -2.9 to -3.7 % better than binned and better than climate) | Long-lead-only use: the N5 network serves only leads beyond 7.5 d, where the tool now falls back to the climate generator. Leads up to 7.5 d untouched. No training | PASS: beyond 7.5 d better than the binned model and than the climate model with an interval excluding 0, both boxes, both seeds, at days 8, 9 and 10 each (not only pooled); cov99 within 0.003. KILL: worse than climate at any of days 8-10 in either box | 1 h CPU | VARIATION. If it still shows potential, try more (e.g. a blend weight toward climate by lead, the IL-74 idea) |
 | AV3 | AV1 + AV2 | One router: N6 model up to 3 d, shipped model 5-7 d, N5 network beyond 7.5 d. Only if AV1 and AV2 both pass | PASS: every lead bin equals or beats what the tool serves today, no bin worse by more than 0.5 %, both boxes, both seeds. KILL: any bin worse by more than 1 % | 1 h CPU | VARIATION (combination). Opt-in only; export is the user's step |
 | AV4 | C6 run-to-run disagreement spread (FAIL: PIT -0.0018 [-0.0051, +0.0007]; CRPS -0.69 % [-1.19, -0.24]) | Apply the factor only in the four cells where the premise held (wind 0-1, 1-5, 5-12 km; T 5-12 km; rho 0.30-0.38); the other four cells keep factor 1. Same fit years 2016-2020 | Same rule as C6, unchanged: PIT distance change with the whole interval below 0 on 2022, CRPS not worse. KILL: CRPS interval includes 0 | 30 min CPU | VARIATION. If it still shows potential, try more: more test init dates (2022 has 36), 12 h pairs if a refetch brings them. A CRPS-only rule is the user's call, not run on my own |
@@ -1410,3 +1412,171 @@ are unaudited. The test suite was not run (a GPU job was running). Checked and f
 generator, the range maps, debias, trust layer and mode F (no test-year leakage); the index order oni / wwv / qbo30 /
 qbo50 across dataset build, scorers and tool; wind direction signs; the IGRA column positions; the altimeter and
 density-altitude formulas; the shuffle cell indexing between export and tool.
+
+
+## 16. Beat Earth-GRAM: five new ideas E1-E5 (added 2026-11-13 from `Beat Earth-GRAM.md`; copied unchanged, nothing run)
+
+*Note: "section N" inside this block means the section of `Beat Earth-GRAM.md` (now 16.N here). The gate in New_Plan 15 holds for all of it.*
+
+Written 2026-11-12 (evening). Nothing here has been run except the comparison kit in section 2, which ran
+before the section 15 gate of `New_Plan.md` was known. **The gate holds for everything below: no trial starts
+until New_Plan 15.1-15.4 are done.** Each idea has its step 0, pass rule and kill rule set now.
+
+### 16.1. What made Earth-GRAM good (from memory of the NASA documents, not re-read today)
+
+1. **Simple statistics on a lot of data.** A monthly mean and spread per place and height is very hard to beat
+   on average error. Our own number shows it (section 2): a bell curve with the right covariance is within
+   0-8 % of our tool on every paired score.
+2. **It never refuses.** Whole globe, ground to orbit, one program.
+3. **Physically tied air.** Density, temperature and pressure always obey the gas law.
+4. **Perturbations along the flight path**, with memory in height, distance and time.
+5. **Site data can be loaded** (Range Reference Atmospheres), and decades of use make review boards accept it.
+
+Its weak sides: nothing about the specific day, bell-shaped spread only, smooth profiles (no sharp shear
+layers or inversions), coarse tables, little hour-of-day detail near the ground. NASA itself does not use it
+for ascent wind loads: there it flies databases of **measured** wind profiles (Jimsphere balloons, the 50 MHz
+wind profiler) and handles launch-day wind change with measured **wind pairs** 2 and 3.5 hours apart.
+
+### 16.2. Where we stand today (new kit `new_plan_kit/b9_gram_compare.py`, log `kit_b9_gram_compare.log`)
+
+The kit scores any set of atmospheres against the same balloons. Real Earth-GRAM output can be dropped in
+later (`--extra gram=FILE.npz`; `--cases-out` writes the list of runs to make; `--from-csv` converts a table).
+Until then the second source is `gaussfull`: a bell curve with the balloon station's own mean and full
+covariance, 1991-2020. It is **not** Earth-GRAM. It is the ceiling for any bell-curve method at a balloon
+station, so the real program should score at or below it. That is an expectation, not a result.
+
+800 balloons (El Paso and Midland, 00Z and 12Z, 2024-25), 100 members each:
+
+| Score | Tool | Bell-curve ceiling | Reading |
+|---|---|---|---|
+| CRPS u / v / T | 4.38 / 4.38 / 1.96 | 4.53 / 4.39 / 2.12 | tool better for u (3.4 %) and T (8.3 %), **tie for v** |
+| Profile shape score (variogram) u / v / T | 1.318 / 1.139 / 0.209 | 1.379 / 1.142 / 0.215 | tool better for u and T, tie for v |
+| Link between variables at one height | 0.1861 | 0.1855 | tie |
+| Vertical correlation error | 0.060 | 0.043 | **ceiling better** |
+| Shear, top 1 %, ratio to balloons (4 bands) | 0.71 / 0.91 / 0.75 / 0.76 | 0.65 / 0.84 / 0.81 / 0.74 | both too smooth |
+| Share of unstable layers, 12-18 km (real 0.149) | 0.067 | 0.090 | both far too few |
+| 90 % range holds (u / v / T) | 0.88 / 0.87 / 0.89 | 0.88 / 0.88 / 0.87 | both a little narrow against real air |
+
+Limits: 2024-25 is the development window; neither source is blind at these stations; the intervals resample
+single days (audit AU-4 says that is too narrow); only complete soundings are used (AU-6); `gaussfull` is the
+all-years form (AU-7 asks for a recent-15-year form beside it: an option to add, one line).
+
+**Plain reading.** Against a bell curve we are already level or ahead on accuracy and on profile shape. So
+"coupling" is not weak against Earth-GRAM. It is weak against **real air**, and so is the bell curve:
+shear tails 10-30 % short, half the unstable layers aloft, ranges a little narrow. The second real weakness
+is the wind near the ground at a site without a record. The third is temperature at 12-18 km. In climate mode
+the v-wind tie is close to the ceiling of what a date alone can tell: the win over Earth-GRAM has to come from
+real-air structure, the site, all 24 hours and launch-day data, not from a better monthly average.
+
+### 16.3. What others did about the same problems (searches of 2026-11-12; abstracts and summaries only)
+
+| Problem | Who | What they did | Use for us |
+|---|---|---|---|
+| Reanalysis wind wrong at a site | wind-energy field | Scale ERA5 by the **Global Wind Atlas** (a 250 m map of mean wind at several heights). Standard practice; errors about 8 % in flat land, 14-17 % in mountains; a 2026 preprint cuts mean bias by a third with atlas speed, elevation and quantiles as inputs | E1 |
+| No truth between balloon hours | boundary-layer research | **Aircraft reports** (AMDAR) at 54 US airports give hourly wind and temperature profiles; against balloons 2.0-2.3 m/s per wind component, 1.2-1.5 K. ERA5's daytime boundary layer is 18-41 % too deep and peaks 1-2 h early in the western US | E2 |
+| Launch-day wind change | NASA (Shuttle, Ares) | Measured **wind pairs** 2 and 3.5 h apart from balloons and the wind profiler, not a model | E3 |
+| Tropopause smeared out | Birner; Randel and others | Averaging at fixed heights hides a 3-5 K inversion above the tropopause; averaging **relative to the tropopause** keeps it | E4 |
+| Order of members across heights | Lerch and others, 2020 | The Schaake shuffle (what we use) is "difficult to outperform"; copula variants give no significant gain | no new ordering idea; matches our own failed tries (C2, O5, G1-4) |
+| Measured profiles instead of a model | NASA loads work | Monte Carlo over databases of individual measured profiles | E5 (as a bar) |
+
+Checked against our logs before writing: no file mentions the Global Wind Atlas, aircraft reports, wind pairs
+or tropopause-relative heights. Nearest relatives are named per idea.
+
+### 16.4. The five ideas
+
+#### E1. Atlas anchor: the site's wind from a 250 m map, no pad record needed
+
+- **Weakness:** wind at 10-200 m at a site with no record. TCS is 1.44 m/s too calm; the tower check gave
+  -2 to -2.6 m/s at 47-200 m; real 10-200 m speed gain is 1.45 x ERA5's. Every site fix so far needed a record.
+- **Idea:** per height (10, 50, 100, 150, 200 m), factor = atlas mean speed at the site / atlas mean speed
+  averaged over the ERA5 cell. Apply it to the members' speeds in quantile space, fading out by 300 m. The
+  scatter of "atlas factor minus measured factor" over all sites with a record becomes extra spread at any
+  site without one, so the tool is honestly wider at an unknown pad.
+- **Why it may work here:** it is a simple step beside the network with almost no free numbers, the kind that
+  has worked. It is physics from terrain and roughness at 250 m, not a fit at 2-3 airports.
+- **Nearest relatives:** IL-207b (one site, needs a record), SV (guess from terrain facts, 12.4), the failed
+  WTK and HRRR tries (those used a model as truth; here the atlas is only a prior, judged against stations).
+- **Step 0 (small download, CPU minutes):** atlas values at the 71 stations of the SV step 0. Does the atlas
+  factor predict the measured real / ERA5 speed ratio (0.61-1.33 between stations)?
+- **Pass:** correlation at least 0.5 across stations, and leave-station-out 10 m CRPS better than "no site term"
+  with an interval excluding 0; tower check at 47-200 m bias at least halved. **Kill:** correlation under 0.3.
+- **Honest odds:** medium. Atlases are known to be weaker in mountains; airports are flat and open.
+
+#### E2. Aircraft profiles: a referee and a correction for all 24 hours
+
+- **Weakness:** real profiles exist only at 5 am and 5 pm local. Midday, when rockets fly, is checked against
+  ERA5 only. Denver has no balloons after 2022. The all-hours model is 20-25 % too sharp at 100-300 m at dawn
+  and nobody can say what is right at noon.
+- **Idea:** aircraft climbing and landing at El Paso, Midland, Albuquerque, Lubbock and Denver. (a) A referee
+  for every 3-hour bin, 0-8 km, wind and temperature. (b) A small table "real minus tool" by hour bin and
+  height band (bias and spread), added the way the real-air gap rule A1 was (6 numbers lifted coverage to
+  0.90-0.92). (c) A third instrument beside balloon and radar to bound instrument noise.
+- **Nearest relatives:** RA covers the hours by pooling balloons around the world (section 11, risk named there:
+  hour and region are tied together). This measures the hours at home.
+- **Step 0:** needs the user: the public archive (MADIS, data older than 48 h is public, free account; or the
+  NCAR EOL archive). Count profiles per airport and 3-hour bin, 2021-23.
+- **Pass (step 0):** at least 200 profiles in every 3-hour bin at two airports of the NM/TX box. **Kill:** fewer.
+- **Honest odds:** high as a referee (it is new truth), medium as a correction.
+
+#### E3. Wind pairs: how fast a measured profile goes stale, from radar
+
+- **Weakness and strength at once:** launch-day measurements are our largest gain (radar +31 % aloft), but how
+  an observation ages is an assumed curve (0.72 per hour), fitted at 10 m only.
+- **Idea (NASA's method with our radar):** from all-hours radar wind profiles (El Paso, Holloman, Midland,
+  Denver) build pairs 1, 2, 3 and 6 h apart. (a) Measured change per height, lag, season and hour replaces the
+  assumed ageing aloft. (b) A new product: last measured profile + whole real change profiles drawn from the
+  pairs = a measured-persistence ensemble for the last hours before launch. Earth-GRAM has nothing like it.
+- **Nearest relatives:** A1 / G1-6 (10 m persistence only), O2 (radar over distance). No file has wind pairs.
+- **Step 0:** the radar files on disk are one volume at 23 and 11 UTC only; an all-hours pull for one site and
+  one year is needed first (small, approved kind of download). Count pairs with wind at 4 or more levels.
+- **Pass:** at 1-3 h the pair ensemble beats tool + `observe_radar` by 10 % CRPS at 0.5-5 km, coverage 0.85-0.95,
+  on days not used for the pairs. **Kill:** under 3 %, or under 500 usable pairs per lag.
+- **Honest odds:** medium to high for (a), medium for (b); clear air gives no radar wind on many days.
+
+#### E4. Tropopause anchor for 9-18 km
+
+- **Weakness:** temperature at 12-18 km is worse than plain climatology (-0.030 / -0.039); unstable layers at
+  12-18 km are 0.067 against 0.149 real; this band also changed around 2020.
+- **Idea:** at a fixed height near 12-16 km the air is sometimes below and sometimes above the tropopause, so
+  the spread is really two cases mixed, and any fixed-height method smears the sharp step. Take each member's
+  own tropopause height, and add back fine temperature and wind structure from real balloon leftovers stored
+  **relative to the tropopause**, placed at the member's tropopause. Values at the coarse heights stay locked,
+  as in VS. The 2020 change is then tested as a shift in tropopause height, which one number can follow.
+- **Nearest relatives:** VS and its library bar (12.3: same leftovers, but stored at fixed heights); L3-7
+  (tropopause height as a network input). New: the coordinate.
+- **Step 0 (balloons only, no tool scoring):** spread of balloon temperature at 10-16 km at fixed heights against
+  the spread at fixed distance from the tropopause; and whether the post-2020 change is a height shift.
+- **Pass (step 0):** tropopause-relative spread under 70 % of the fixed-height spread at three or more levels.
+  **Kill:** over 90 %: the coordinate adds nothing, close.
+- **Honest odds:** step 0 passing, high (it is a textbook effect). A skill gain in the tool, medium.
+
+#### E5. The measured-profile bank as a third bar
+
+- **Why:** NASA's real alternative to Earth-GRAM for winds is a database of measured profiles. We compare
+  ourselves with a bell curve only. A bank of real balloons of the same month and hour is the bar for
+  "real-air structure": it has true shear, true unstable layers and true coupling by construction, and no skill
+  beyond climatology.
+- **Idea:** add `bank` as a source in the kit (same file path as Earth-GRAM will use). It says, score by score,
+  how much of our gap to real air is structure (the bank wins) and how much is truth-data limits (the bank
+  loses too). It also settles whether the v-wind tie is the ceiling: if tool, bell curve and bank all tie,
+  nothing is left to gain there in climate mode.
+- **Nearest relatives:** G1-2 mixed pool (15 % real ERA5 profiles as members; not a bar, not balloons).
+- **Cost:** 30 lines in the kit, 10 minutes CPU. Report only, no rule. It is still a scoring run, so it waits
+  for the gate.
+
+### 16.5. Order
+
+1. After the gate: E5 (bar) and the recent-15-year form of `gaussfull`, then real Earth-GRAM when it arrives.
+2. Step 0 of E4 (balloons on disk) and E1 (small download) side by side.
+3. E3 step 0 (one radar site, one year). E2 when the user has an archive account.
+4. What already exists stays first in line for real-air structure: RA (coarse gap), VS (fine layers), SV (site).
+   E1 gives SV a physical first guess, E2 checks RA's hours, E4 gives VS its upper-band coordinate.
+
+### 16.6. Sources
+
+Global Wind Atlas scaling and its limits: wes.copernicus.org/preprints/wes-2026-75, frontiersin.org
+10.3389/fclim.2023.1017774, iris.cnr.it (Gualtieri, tall towers). Aircraft profiles: Zhang et al. 2019 and 2020
+(JGR Atmospheres), madis.ncep.noaa.gov/madis_acars.shtml, data.eol.ucar.edu/dataset/100.016. NASA measured
+wind databases and wind pairs: ntrs.nasa.gov 20050092294, 20110002632, 19990008476. Tropopause-relative
+averaging: Randel, Wu and Forster 2007 (J. Atmos. Sci.), acp.copernicus.org/articles/19/6985/2019.
+Ordering methods: Lerch et al. 2020 (npg.copernicus.org/articles/27/349/2020), arXiv 2206.10237.

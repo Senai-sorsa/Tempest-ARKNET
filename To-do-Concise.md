@@ -10,7 +10,9 @@
 [x] AV26 **MISS** 2026-11-13 08:21: pooled 2021+2022, mix better at every lead in all 4 runs, 14/16 intervals < 0 (NM/TX 5 d and Denver 7 d cross 0) -> no clean third test year; looser rule = ASK_LATER 29 (user's call). 
 [x] STRAND stage 1 (climate mode) **MISS** 2026-11-13 08:41: moving templates cut the shipped sequence's 3-h run error to 0.50-0.65 (needed 0.5 at every limit); floor = tool 10 m wind windier than ERA5 (per-hour gap 0.12-0.19) -> AV27.
 [x] AV27 **KILL** 2026-11-13 09:06: on the link alone the shipped sequence beats templates at every limit (TPL / SEQ 1.2-2.2; templates over-link) -> STRAND closed for climate mode. [ ] Check: climate-mode 10 m wind windier than ERA5 u10 (P<5 m/s lower by 0.06-0.14) - intended widening? Next: AV5.
-[x] AV5 **KILL** 2026-11-13 10:48 by one interval (Denver seed 2 5 d upper +0.001; 5 of 6 runs win 3 of 4 leads, every point estimate favours the world start) -> N2 not closed; AV28 (500 fine-tune steps vs own + 500, `scripts/cpu_av28.sh` running ~2 h, verdict `b17_av28_ft500.py`). Then SIGMA stage 2.
+[x] AV5 **KILL** 2026-11-13 10:48 by one interval (Denver seed 2 5 d upper +0.001; 5 of 6 runs win 3 of 4 leads, every point estimate favours the world start) -> N2 not closed; AV28.
+[x] AV28 **MISS** 2026-11-13 13:30: wins 4/4/3 NM/TX, 3/3/1 Denver; all 24 point estimates favour the world start -> N2 not closed; AV29 (same networks scored on 2021 + 2022 pooled, no training) queued after SIGMA stage 2.
+[ ] SIGMA stage 2: smoke run, then `scripts/cpu_sigma2.sh` (4 runs), verdict `b18_sigma_stage2.py` (N5's rule).
 
 **NEW 2-DAY PLAN (2026-11-10, not started): `New_Plan.md` in the repo root merges `Innovative idea review.md`, `Limitations to solve.md` and the open list of handover section 14.4 into parallel lanes (1 GPU, 3 CPU, 1 download) for 48 h. The status lines below are from Nov 7-8 and are older than that plan.**
 
