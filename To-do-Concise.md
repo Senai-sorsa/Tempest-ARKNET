@@ -6,6 +6,7 @@
 [x] AV4 **MISS** 2026-11-13 04:31: PIT -0.0019 [-0.0037, +0.0001] (misses by 0.0001), CRPS -0.48 % [-0.92, -0.13] -> AV25 logged (2021+2022 test dates). Next: AV6, AV24, then STRAND stage 1.
 [x] AV25 **MISS** 2026-11-13 05:19: on 2021+2022 test dates PIT gets worse +0.0027 [+0.0001, +0.0041], CRPS -0.33 % [-0.58, -0.07] -> C6/AV4 line closed for calibration; CRPS-only rule = ASK_LATER 28 (user's call). Next: AV24, then STRAND stage 1.
 [x] AV6 (a) **PASS** 2026-11-13 05:55: fixed wind widening of the raw IFS ENS (TCS 1.35, MAF 1.55, fit 2016-22): CRPS -0.022 [-0.040, -0.004] / -0.044 [-0.068, -0.020], coverage error 0.24 -> 0.12 / 0.27 -> 0.12 in 2023-24. Not adopted (tool has no raw-ENS path; IL-101 widens already). AV6 (b) blocked: HRES on disk ends 2022-12. Next: AV24, then STRAND stage 1.
+[ ] AV24 RUNNING since 06:27 (`scripts/cpu_av24.sh`, verdict `new_plan_kit/b12_av24.py`): mode F retrained on the CHORUS mix in every year, 4 runs ~1.5 h. Then suite, then STRAND stage 1.
 
 **NEW 2-DAY PLAN (2026-11-10, not started): `New_Plan.md` in the repo root merges `Innovative idea review.md`, `Limitations to solve.md` and the open list of handover section 14.4 into parallel lanes (1 GPU, 3 CPU, 1 download) for 48 h. The status lines below are from Nov 7-8 and are older than that plan.**
 

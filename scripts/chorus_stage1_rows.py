@@ -6,7 +6,10 @@ w_new = (S_oo - S_no) / (S_nn + S_oo - 2 S_no) from the error moments of fit yea
 to [0, 1]; mixed = w_new * new + (1 - w_new) * old. Writes data/chorus_<box>_mix/<year>.npz: years 2016-2021 hard links of the source rows, 2022 with
 `hres` replaced by the mixed profile (everything else unchanged), plus models/chorus_<box>_weights.npz. Self-check: the newest run rebuilt by the
 same code must equal the stored `hres` (first rows of every month).
-    PYTHONPATH=. python scripts/chorus_stage1_rows.py [nmtx|denver]"""
+    PYTHONPATH=. python scripts/chorus_stage1_rows.py [nmtx|denver] [--all-years]
+AV24 (New_Plan 13, opt-in --all-years; off = as before): after the self-check, load the stage 1 weights (models/chorus_<box>_weights.npz, no new
+numbers) and write data/chorus_<box>_mixall/<year>.npz with the same mix in EVERY year 2016-2021 (rows without the older run keep the newest run),
+2022 hard-linked from data/chorus_<box>_mix (the stage 1 test rows), for a mode F retrain on mixed inputs."""
 import os
 import sys
 
@@ -16,7 +19,9 @@ import xarray as xr
 
 from tempest.forecast import modeF
 
-BOX = sys.argv[1] if len(sys.argv) > 1 else "nmtx"
+ARGS = [x for x in sys.argv[1:] if not x.startswith("--")]
+ALL_YEARS = "--all-years" in sys.argv[1:]
+BOX = ARGS[0] if ARGS else "nmtx"
 SRC = {"nmtx": "data/modeF_ens", "denver": "data/modeF_ens_denver"}[BOX]
 HDIR = {"nmtx": "data/raw/wb2_hres_v2", "denver": "data/raw/wb2_hres_v2_denver"}[BOX]
 OUT = f"data/chorus_{BOX}_mix"
@@ -64,6 +69,29 @@ for y in (2019, 2022):
     err = np.nanmax(np.abs(re - sub["hres"]))
     assert np.isfinite(re).all() and err < 1e-3, f"rebuilt newest run differs from stored hres ({y}: {err})"
     print(f"self-check {y}: newest run rebuilt for {len(pick)} rows, max diff {err:.2e}", flush=True)
+
+if ALL_YEARS:
+    wf = np.load(f"models/chorus_{BOX}_weights.npz")
+    assert int(wf["older_h"]) == OLDER_H, "stage 1 weights were built for another lag"
+    W = {L: wf[f"w{L}"] for L in (1, 3, 5, 7)}
+    out_all = f"{OUT}all"
+    os.makedirs(out_all, exist_ok=True)
+    for y in range(2016, 2022):
+        d = load(y)
+        old = profiles(d, "12z", OLDER_H)
+        ok = np.isfinite(old).all((1, 2))
+        assert ok.mean() > 0.95, f"older run missing for {1 - ok.mean():.1%} of {y} rows"
+        w = np.stack([W[L] for L in modeF.lead_bin(d["lead_days"])])
+        mix = np.where(ok[:, None, None], w * d["hres"] + (1 - w) * np.nan_to_num(old), d["hres"]).astype(np.float32)
+        np.savez(f"{out_all}/{y}.part.npz", **{**d, "hres": mix})
+        os.replace(f"{out_all}/{y}.part.npz", f"{out_all}/{y}.npz")
+        print(f"{y}: {ok.sum():,} of {len(ok):,} rows mixed", flush=True)
+    src22, dst22 = f"{OUT}/2022.npz", f"{out_all}/2022.npz"
+    assert os.path.exists(src22), "run stage 1 first (no --all-years) for the 2022 test rows"
+    if not os.path.exists(dst22):
+        os.link(src22, dst22)
+    print(f"wrote {out_all} (2016-2021 mixed with the stage 1 weights, 2022 = stage 1 test rows)", flush=True)
+    sys.exit(0)
 
 # weights from the fit years
 E = {}
