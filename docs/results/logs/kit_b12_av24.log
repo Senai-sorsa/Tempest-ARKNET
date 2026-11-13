@@ -1,0 +1,12 @@
+2026-11-13 06:59 AV24: newest-run models vs models retrained on the mix in every year, 2022; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle; 21-day blocks
+  NM/TX  seed 0: newest 1.6412 / 1.9976 / 2.7742 / 3.5964; mix retrained 1.6132 / 1.9683 / 2.7512 / 3.5511  change -1.71 / -1.47 / -0.83 / -1.26 %; mix minus newest: 1d -0.0280 [-0.0459, -0.0147], 3d -0.0293 [-0.0522, -0.0088], 5d -0.0230 [-0.0914, +0.0502], 7d -0.0453 [-0.1163, +0.0160]; cov99 mix minus newest -0.0005 / -0.0002 / +0.0001 / +0.0008
+  Denver seed 0: newest 1.8348 / 2.1094 / 2.7736 / 4.0247; mix retrained 1.7914 / 2.0822 / 2.7302 / 3.9289  change -2.37 / -1.29 / -1.57 / -2.38 %; mix minus newest: 1d -0.0435 [-0.0662, -0.0209], 3d -0.0271 [-0.0519, -0.0069], 5d -0.0434 [-0.0899, +0.0001], 7d -0.0958 [-0.2435, +0.0421]; cov99 mix minus newest +0.0002 / -0.0009 / -0.0010 / +0.0022
+Incomplete, missing: NM/TX s1, Denver s1
+
+2026-11-13 07:22 AV24: newest-run models vs models retrained on the mix in every year, 2022; mean CRPS by lead (1, 3, 5, 7), network + PIT recal + range map + Schaake shuffle; 21-day blocks
+  NM/TX  seed 0: newest 1.6412 / 1.9976 / 2.7742 / 3.5964; mix retrained 1.6132 / 1.9683 / 2.7512 / 3.5511  change -1.71 / -1.47 / -0.83 / -1.26 %; mix minus newest: 1d -0.0280 [-0.0459, -0.0147], 3d -0.0293 [-0.0522, -0.0088], 5d -0.0230 [-0.0914, +0.0502], 7d -0.0453 [-0.1163, +0.0160]; cov99 mix minus newest -0.0005 / -0.0002 / +0.0001 / +0.0008
+  NM/TX  seed 1: newest 1.6395 / 2.0028 / 2.7756 / 3.5984; mix retrained 1.6137 / 1.9715 / 2.7448 / 3.5531  change -1.58 / -1.56 / -1.11 / -1.26 %; mix minus newest: 1d -0.0258 [-0.0428, -0.0132], 3d -0.0312 [-0.0535, -0.0102], 5d -0.0308 [-0.0968, +0.0362], 7d -0.0453 [-0.1194, +0.0234]; cov99 mix minus newest -0.0001 / -0.0001 / +0.0005 / +0.0005
+  Denver seed 0: newest 1.8348 / 2.1094 / 2.7736 / 4.0247; mix retrained 1.7914 / 2.0822 / 2.7302 / 3.9289  change -2.37 / -1.29 / -1.57 / -2.38 %; mix minus newest: 1d -0.0435 [-0.0662, -0.0209], 3d -0.0271 [-0.0519, -0.0069], 5d -0.0434 [-0.0899, +0.0001], 7d -0.0958 [-0.2435, +0.0421]; cov99 mix minus newest +0.0002 / -0.0009 / -0.0010 / +0.0022
+  Denver seed 1: newest 1.8354 / 2.1163 / 2.7741 / 4.0355; mix retrained 1.7952 / 2.0841 / 2.7293 / 3.9404  change -2.19 / -1.52 / -1.62 / -2.36 %; mix minus newest: 1d -0.0402 [-0.0617, -0.0180], 3d -0.0322 [-0.0560, -0.0118], 5d -0.0449 [-0.0902, -0.0038], 7d -0.0951 [-0.2420, +0.0422]; cov99 mix minus newest -0.0001 / -0.0003 / -0.0005 / +0.0028
+Verdict: MISS (record, no adoption)
+
