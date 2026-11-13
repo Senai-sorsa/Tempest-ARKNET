@@ -891,3 +891,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 
 ## 2026-11-12 19:45 CST (tick work)
 - **AU-1 step 5 done (fair rescore of the shipped l3_c4w stack, seeds 0 and 1, plus balloons):** ERA5 skill15_unknown +0.030 -> +0.017 (seed 0), +0.031 -> +0.018 (seed 1); balloons +0.010 -> +0.007; shift reproduces to 0.0002 across seeds; 9 of 19 bands still above climatology with intervals > 0, none significantly below; model-vs-Gaussian margin unchanged. Default switch and README rewrite: ASK_LATER 27. Next AU-2.
+
+## 2026-11-12 20:15 CST (tick work)
+- **AU-2 fixed** (forecast rows all shifted by one height difference; on by default, switch back kept). **AU-3 confirmed and fixed:** Open-Meteo's default answers at its 1400 m terrain, the ERA5 grid is 1495.5 m: the tool shifted the pad values twice (+9.7 hPa, +0.6 K); it now asks for the grid height and moves (with a flag) any response at another height. tool_audit identical, suite 272 passed. Open: live A13 check (pad pressure vs ASOS, three days). Next AU-4.
