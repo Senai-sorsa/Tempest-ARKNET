@@ -25,7 +25,7 @@ from tempest_weather.sources.indices import Indices
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))      # default only; the assets carry their own grid and the check in atmosphere_set uses it
 M_CAL = 199
-OPTIONS = {"permute_blocks": True}   # IL-139 (plain bug, ON by default since 2026-11-08; False = old slicing): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows
+OPTIONS = {"permute_blocks": True, "forecast_single_shift": True, "forecast_grid_elevation": True}   # IL-139 (plain bug, ON by default since 2026-11-08; False = old slicing): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows; forecast_single_shift (AU-2, plain bug, ON by default; False = old line): forecast and past rows all move by elev - grid elevation; forecast_grid_elevation (AU-3, plain bug, ON by default; False = old request): Open-Meteo surface values asked for at the grid height, and moved there with a flag when the response is at another height
 
 
 def _cut(x, groups, n, rng, *also):
@@ -346,9 +346,16 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
     -> ((n, 179) physical, the forecast profile dict, quality flags)."""
     t_hr = (t_utc + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)   # nearest forecast hour (14:50 -> 15:00, which may be the next day)
-    doc = (fetch or openmeteo.fetch)(lat, lon, t_hr.strftime("%Y-%m-%d"))
+    day = t_hr.strftime("%Y-%m-%d")
+    fix = OPTIONS["forecast_grid_elevation"]
+    doc = fetch(lat, lon, day) if fetch else openmeteo.fetch(lat, lon, day, elevation=z_sfc if fix else None)   # AU-3: Mode F was trained on grid-height surface fields
     fields = forecast.fields_from_openmeteo(doc, int(t_hr.hour))
     flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
+    if fix and doc.get("elevation") is not None and abs(float(doc["elevation"]) - z_sfc) > 5.0:   # a response at another height (a caller's fetch, or the default terrain downscaling): t2m and sp to the grid height, as _core.site_shift does
+        dz = z_sfc - float(doc["elevation"])
+        fields["sp"] *= float(np.exp(-_core.G0 * dz / (_core.RD * (fields["t2m"] - _core.LAPSE * dz / 2))))
+        fields["t2m"] -= _core.LAPSE * dz
+        flag.append(f"forecast-surface-values-moved-from-source-height:{float(doc['elevation']):.0f}m")
     state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
     if state is not None:                                          # IL-98 item B: the live feed's recent surface bias at this site (EWMA, gated), subtracted before the profile is built
         dT, dW = _bias.apply_to_fields(fields, state, lead, t_utc.hour)
@@ -493,7 +500,10 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng)
         if not 6.0 <= sh <= 21.0 and A["manifest"].get("head_source", "whead_clean.pt") in DAY_ONLY_HEADS:   # A24: a head trained on the 06-21 h day file extrapolates at night (manifests before 2026-11-10 carry no head_source: day-trained)
             quality = quality + ["vertical-wind-w-trained-on-solar-06-21-h-only"]
-    dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
+    if OPTIONS["forecast_single_shift"]:                              # AU-2 (plain bug, ON by default; False = old line): only the climate generator ran at each row's own grid point; forecast and past profiles were built once at the grid height
+        dz_row = (elev - elev_row[:n]) if used == "ai" else np.full(n, elev - elev_grid)
+    else:
+        dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
     if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
         _core.site_shift(phys, dz_row)
     atm = dict(u=phys[:, :nh], v=phys[:, nh:2 * nh], T=phys[:, 2 * nh:3 * nh], RH=phys[:, 3 * nh:4 * nh], t2m=phys[:, 4 * nh], sp=phys[:, 4 * nh + 1], rh2m=phys[:, 4 * nh + 2])

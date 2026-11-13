@@ -80,3 +80,41 @@ def test_ensemble_features_are_opt_in_and_checked():
     if not json.load(open(os.path.join(ASSETS, "manifest.json"))).get("modef_ens_included", False):
         with pytest.raises(ValueError, match="no ensemble mode F"):
             tw.values(32.9, -106.9, WHEN, ["T@2000"], n=50, now=NOW, fetch=canned, ens_features=ens)
+
+
+@pytest.mark.parametrize("single", [True, False])
+def test_forecast_mode_moves_every_sample_by_one_grid_shift(monkeypatch, single):   # AU-2 (New_Plan 15.1)
+    from tempest_weather import _core, api
+    seen, real = [], _core.site_shift
+    monkeypatch.setattr(_core, "site_shift", lambda phys, dz: (seen.append(np.array(dz, float)), real(phys, dz))[1])
+    monkeypatch.setitem(api.OPTIONS, "forecast_single_shift", single)
+    atm, info = api.atmosphere_set(32.99, -106.97, WHEN, n=1024, elevation=1401, now=NOW, fetch=canned)
+    assert info["mode"] == "forecast" and len(seen) == 1
+    want = info["elevation_m"] - info["grid_elevation_m"]
+    if single:
+        assert np.allclose(seen[0], want)
+    else:                                                         # the old line: rows keep their own blend point's height (two values at Spaceport America)
+        assert len(np.unique(seen[0])) > 1
+
+
+@pytest.mark.parametrize("fix", [True, False])
+def test_surface_values_from_another_height_are_moved_to_the_grid_once(monkeypatch, fix):   # AU-3 (New_Plan 15.1)
+    from tempest_weather import _core, api
+    monkeypatch.setitem(api.OPTIONS, "forecast_grid_elevation", fix)
+    run = lambda f: api.atmosphere_set(32.99, -106.97, WHEN, n=4, predicted=True, elevation=1401, now=NOW, fetch=f)
+    plain, info = run(canned)
+    zg = info["grid_elevation_m"]
+    low, info2 = run(lambda la, lo, d: dict(canned(la, lo, d), elevation=zg - 90.0))        # same numbers, said to be 90 m below the grid
+    moved = any(q.startswith("forecast-surface-values-moved-from-source-height") for q in info2["quality"])
+    if not fix:
+        assert not moved and np.allclose(low["sp"], plain["sp"]) and np.allclose(low["t2m"], plain["t2m"])
+        return
+    assert moved and not any(q.startswith("forecast-surface-values-moved") for q in info["quality"])
+    t0 = 14.0 + 273.15
+    assert np.allclose(low["t2m"] - plain["t2m"], -_core.LAPSE * 90.0, atol=1e-4)
+    assert np.allclose(low["sp"] / plain["sp"], np.exp(-_core.G0 * 90.0 / (_core.RD * (t0 - _core.LAPSE * 45.0))), rtol=1e-4)   # float32 and the site step's t2m dependence: ~2 Pa of a 914 Pa shift
+
+
+def test_default_request_asks_for_the_grid_height():   # AU-3
+    from tempest_weather.sources import openmeteo
+    assert "elevation=1495.5" in openmeteo.url(32.99, -106.97, "2026-11-08", elevation=1495.46) and "elevation" not in openmeteo.url(32.99, -106.97, "2026-11-08")
