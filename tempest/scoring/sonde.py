@@ -32,6 +32,31 @@ from tempest.scoring.score import band_masks, coverage90, crps_ensemble, crps_fa
 DRIVERS = ["oni", "wwv", "qbo30", "qbo50"]
 
 
+def low_complete(phys, top=5000.0):
+    """AU-6 --partial: (N, D) physical rows -> (N,) bool, u, v and T complete up to `top` m and every surface field finite."""
+    n, need = len(HEIGHTS), np.zeros(phys.shape[1], bool)
+    low = np.asarray(HEIGHTS) <= top
+    for v in ("u", "v", "T"):
+        i = PROFILE.index(v) * n
+        need[i:i + n] = low
+    need[len(PROFILE) * n:] = True
+    return np.isfinite(phys[:, need]).all(1)
+
+
+def fill_invalid(x, phys, pool, rng):
+    """AU-6 --partial: (n, m, D) draws of pool soundings; a column a drawn sounding lacks takes the same column of another
+    pool sounding valid there (profiles stay whole where they can). No NaN = returned as is, no random numbers used."""
+    bad = np.isnan(x)
+    if not bad.any():
+        return x
+    ok = np.isfinite(phys[pool])
+    for j in np.flatnonzero(bad.any((0, 1))):
+        pj, b = pool[ok[:, j]], bad[..., j]
+        if len(pj):
+            x[..., j][b] = phys[pj[rng.integers(0, len(pj), int(b.sum()))], j]
+    return x
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
@@ -65,9 +90,15 @@ def main():
     ap.add_argument("--driver-lead", type=int, default=6)
     ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (1 = the old single-day bootstrap)")
     ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole station x month pool without replacement (clim15 pools under 20 soundings fall back to all training years); outputs get a _fair suffix")
+    ap.add_argument("--partial", action="store_true", help="AU-6 (opt-in): keep held-out and pool soundings whose u, v, T up to 5 km and surface are complete "
+                    "(not only fully complete ones); higher missing columns count in no mean (per-column validity mask), climatology draws "
+                    "fill a missing column from pool soundings valid there, the Gaussian uses complete pool soundings; variogram, whole-profile "
+                    "coverage, charts and the per-station lines use the complete soundings only. Outputs get a _part suffix")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     a = ap.parse_args()
+    if a.partial and (a.fair_baseline or a.offset_from_year or a.station_calib_year or a.shear_table or a.extras):
+        raise SystemExit("--partial does not yet cover --fair-baseline / --offset-from-year / --station-calib-year / --shear-table / --extras")  # shortcut: they assume complete soundings; add per-column masks there when needed
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
 
@@ -131,7 +162,7 @@ def main():
     for sid, (slat, slon) in STATIONS.items():
         t, prof, sfc = read_igra(f"{a.igra}/{sid}-drvd.txt.zip", a.first_year, last)
         phys = np.concatenate([prof.reshape(len(t), -1), sfc], 1)
-        ok = (t.hour == a.hour) & np.isfinite(phys).all(1)
+        ok = (t.hour == a.hour) & (low_complete(phys) if a.partial else np.isfinite(phys).all(1))
         late = np.asarray(t.year >= start) & np.asarray(t.hour == a.hour)
         print(f"{sid}: {int((late & ~ok).sum())} of {int(late.sum())} held-out {a.hour:02d}Z soundings dropped as incomplete "
               "(shortcut: scored on complete ones only; per-height scoring would keep them)", flush=True)
@@ -151,16 +182,17 @@ def main():
             months.append(t.month[v].to_numpy())
             sids.append(np.full(len(v), sid))
             years.append(t.year[v].to_numpy())
-            clim.append(phys[draws])
+            clim.append(fill_invalid(phys[draws], phys, r, rng))
             r15 = r[t.year[r] >= held_from - 15]
-            clim15.append(phys[r15[rng.integers(0, len(r15), (len(v), a.m))]] if len(r15) else phys[draws])
+            clim15.append(fill_invalid(phys[r15[rng.integers(0, len(r15), (len(v), a.m))]], phys, r15, rng) if len(r15) else clim[-1])
             if a.fair_baseline:
                 for nm, pool in (("clim", r), ("clim15", r15 if len(r15) >= 20 else r)):
                     c_, m_, _ = pool_scores(phys, {0: pool}, np.zeros(len(v), np.int64), phys[v], conv=lambda x: x)
                     fpool[f"crps_{nm}"].append(c_)
                     fpool[f"mae_{nm}"].append(m_)
             days.append(t.year[v].to_numpy().astype(np.int64) * 1000 + t.dayofyear[v].to_numpy())
-            gauss.append(gaussian_samples(phys[r].astype(np.float64), len(v), a.m, rng))
+            rg = r[np.isfinite(phys[r]).all(1)]   # = r unless --partial: the Gaussian needs complete soundings
+            gauss.append(gaussian_samples(phys[rg].astype(np.float64), len(v), a.m, rng))
             tv = t[v]
             cond = features(lat, lon, z, z, tv.dayofyear.to_numpy(), solar_hour(tv, np.array([lon]))[0],
                             tv.year.to_numpy(), *indices.at(tbl, tv)[:, [0, 3, 1, 2]].T,  # at(): oni, qbo30, qbo50, wwv
@@ -207,6 +239,13 @@ def main():
     fair = {k: np.concatenate(v)[keep] for k, v in fpool.items()} if a.fair_baseline else {}
     if fair:
         fair.update({f"crps_{k}": crps_fair(x, truth) for k, x in sets if k != "clim"})
+    valid, F = None, slice(None)
+    if a.partial:   # AU-6: missing truth columns count in no mean; whole-profile scores keep the complete soundings
+        valid = np.isfinite(truth)
+        truth = np.where(valid, truth, 0.0)
+        F = np.flatnonzero(valid.all(1))
+        print(f"--partial: {len(F):,} complete, {len(truth) - len(F):,} partial soundings; {1 - valid.mean():.2%} of columns missing", flush=True)
+    cm = (lambda z: (z * valid).sum(0) / np.maximum(valid.sum(0), 1)) if a.partial else (lambda z: z.mean(0))
     print(f"{len(truth):,} balloon profiles scored, m = {a.m}", flush=True)
 
     res = pd.DataFrame({"column": physical_names()})
@@ -232,20 +271,20 @@ def main():
         for r in rows_sh:
             print(f"  {r['band']:9} " + "   ".join(f"p{q * 100:g}: {r[f'balloon_p{q * 100:g}']:6.1f} | {r[f'clim_p{q * 100:g}']:6.1f} | {r[f'known_p{q * 100:g}']:6.1f}" for q in qs), flush=True)
         sht.to_csv(a.model.rsplit(".", 1)[0] + "_sonde_shear.csv", index=False)
-    vs = pd.DataFrame([{"var": v, **{f"vs_{k}": variogram_score(x[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n]).mean()
+    vs = pd.DataFrame([{"var": v, **{f"vs_{k}": variogram_score(x[F][..., i * n:(i + 1) * n], truth[F][:, i * n:(i + 1) * n]).mean()
                                      for k, x in sets}} for i, v in enumerate(PROFILE)])
     for k in ("gauss", "known", "unknown"):
         vs[f"vs_skill_{k}"] = 1 - vs[f"vs_{k}"] / vs["vs_clim"]
     for k, x in sets:
-        res[f"crps_{k}"] = (fair[f"crps_{k}"] if fair else crps_ensemble(x, truth)).mean(0)
-        res[f"cov90_{k}"] = coverage90(x, truth).mean(0)
-        res[f"cov99_{k}"] = coverage90(x, truth, 0.99).mean(0)
+        res[f"crps_{k}"] = cm(fair[f"crps_{k}"] if fair else crps_ensemble(x, truth))
+        res[f"cov90_{k}"] = cm(coverage90(x, truth))
+        res[f"cov99_{k}"] = cm(coverage90(x, truth, 0.99))
         med = np.median(x, 1)
-        res[f"mae_{k}"] = fair[f"mae_{k}"].mean(0) if f"mae_{k}" in fair else np.abs(med - truth).mean(0)
-        res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
+        res[f"mae_{k}"] = cm(fair[f"mae_{k}"]) if f"mae_{k}" in fair else cm(np.abs(med - truth))
+        res[f"rmse_{k}"] = np.sqrt(cm((med - truth) ** 2))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "") + ("_12z" if a.hour == 12 else "") + ("_fair" if a.fair_baseline else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "") + ("_12z" if a.hour == 12 else "") + ("_fair" if a.fair_baseline else "") + ("_part" if a.partial else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
@@ -267,19 +306,21 @@ def main():
     known = dict(sets)["known"]
     n = len(HEIGHTS)
     print("\nwhole-profile 99 % coverage (all 44 heights inside at once):  " + "  ".join(
-        f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
-        f" (clim {coverage90(dict(sets)['clim'][..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
+        f"{v} {coverage90(known[F][..., i * n:(i + 1) * n], truth[F][:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
+        f" (clim {coverage90(dict(sets)['clim'][F][..., i * n:(i + 1) * n], truth[F][:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
         for i, v in enumerate(PROFILE)))
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks(), override=fair or None, block_days=a.block_days), stem + "_headline.csv")
-    diag.report(stem, known, truth, physical_names(), band_masks(), months, var_slices())
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks(), valid=valid, override=fair or None, block_days=a.block_days), stem + "_headline.csv")
+    diag.report(stem, known[F], truth[F], physical_names(), band_masks(), months[F], var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag
         extras.write(stem, dict(sets)["unknown"], truth, band_masks(), months, physical_names(), "unknown")
     for sid in np.unique(sids):  # a station-specific failure shows up here
         r = sids == sid
+        if a.partial:
+            r &= valid.all(1)   # complete soundings only
         print(f"DIAG station {sid}: n={int(r.sum())} cov99={coverage90(known[r], truth[r], 0.99).mean():.4f} "
               f"cov90={coverage90(known[r], truth[r]).mean():.4f}")
-    report(stem + "_report", res, vs, (known < truth[:, None]).sum(1), (truth[:3], known[:3]), histories, PROFILE,
+    report(stem + "_report", res, vs, (known[F] < truth[F][:, None]).sum(1), (truth[F][:3], known[F][:3]), histories, PROFILE,
            HEIGHTS, SURFACE, truth_label="truth (balloon)")
     summary.to_csv(f"{stem}_report/summary.csv", index=False)
     print(f"wrote {stem}.score.csv and charts to {stem}_report/")

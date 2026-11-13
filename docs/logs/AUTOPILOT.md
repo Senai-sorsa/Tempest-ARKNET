@@ -905,3 +905,12 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 ## 2026-11-12 21:55 CST (tick work)
 - **AU-7 done.** Shipped stack seed 0 with `--gauss15`: point estimates identical to the earlier run. Margin over a Gaussian baseline, mean of 19 ERA5 bands: +0.080 against the fixed-climate Gaussian (what Earth-GRAM-style tools ship), +0.074 against a recent-climate Gaussian (shape alone): ~92 % shape, ~8 % trend; T 1-12 km margin roughly halves (trend matters for temperature). Suite 277 passed. Quote both labels; `new_plan_kit/b9_gram_compare.py` numbers need them too.
 - **AU-5 step 0 prepared**: `scripts/au5_fresh_pool.py` (shipped a, b + 2021-23 leftover pool), `scripts/au5_splice.py`, runner `scripts/gpu_au5_freshpool.sh` (2024-25 store, two builds, two splices, two scores).
+
+## 2026-11-12 22:45 CST (tick work)
+- **AU-5 step 0 done, rule triggers.** Splice fix (d0b2fdc: the shipped file is in date blocks, not year-sorted). Shipped stack on rebuilt 2024-25 ERA5 rows, old vs fresh (2021-23) leftover pool: most bands under 0.003, but RH 12-18 km cov90 0.930 -> 0.733, RH 5-12 km cov90 -0.02, T 12-18 km skill -0.02. The fresh leftovers carry a mean shift (RH -11 % at 5-12 km, -8 % at 12-18 km, T -0.28 K above 12 km): the 2021-23 balloons drift from the 1991-2020 line, so this is mostly drift, not seen noise. Step 1 queued: a de-meaned fresh pool (`--demean`) as a third truth.
+- **AU-6 fix coded:** `sonde.py --partial` (opt-in): keeps soundings with u, v, T to 5 km and surface complete; masked per-column means and headline `valid=`; climatology fills a missing column from pool soundings valid there; Gaussian from complete soundings; whole-profile scores on complete soundings; `_part` suffix. Tests `tests/test_au6_partial.py`.
+
+## 2026-11-12 22:58 CST (tick work)
+- **AU-6 done (opt-in).** Full suite 283 passed. Shipped balloon run, flag off: score.csv byte-identical. `--partial`: 44 of 111 dropped soundings recovered (67 lack low wind, Feb-Mar 2024 outage); headline skill15_unknown +0.0102 -> +0.0105, cov99 0.9914 unchanged, max band change 0.006: the dropping does not bias the balloon headline beyond noise. Flag stays off. Fixed a print bug in the per-station line (n summed indices).
+- AU-5 step 1 (de-meaned fresh pool) running.
+

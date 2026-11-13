@@ -61,3 +61,18 @@ def test_splice_keeps_the_order_of_a_base_laid_out_in_date_blocks():
     new = dict(cond=np.full((2, 1), 9.0), target=np.ones((2, 1)), year=np.array([2024, 2025]), **meta)
     out = splice(base, new, 2024)
     assert list(out["year"]) == [2022, 2023, 2023, 2024, 2025] and list(out["cond"][:, 0]) == [0, 1, 3, 9, 9]
+
+
+def test_demean_removes_each_groups_mean_and_keeps_the_spread():
+    import importlib.util, pathlib
+    p = pathlib.Path(__file__).parents[1] / "scripts" / "au5_fresh_pool.py"
+    spec = importlib.util.spec_from_file_location("au5_fresh_pool", p)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    rng = np.random.default_rng(2)
+    pool = np.zeros((2, 3, 10, 4, 5), np.float32)
+    pool[:, :, :8] = rng.normal(3.0, 2.0, (2, 3, 8, 4, 5))
+    n = np.full((2, 3), 8)
+    out = m.demean(pool, n)
+    assert np.allclose(out[:, :, :8].mean(2), 0, atol=1e-5) and not out[:, :, 8:].any()
+    assert np.allclose(out[:, :, :8].std(2), pool[:, :, :8].std(2), atol=1e-5)

@@ -16,6 +16,15 @@ import xarray as xr
 from tempest.calibrate import station
 
 
+def demean(pool, n):
+    """(G, 3, P, V, H) pool and (G, 3) counts -> the pool with each group x tercile's mean leftover profile removed: keeps the
+    fresh noise, drops the drift of the newer balloons away from the map's line (AU-5 step 1)."""
+    out = pool.copy()
+    for g, j in np.ndindex(n.shape):
+        out[g, j, :n[g, j]] -= out[g, j, :n[g, j]].mean(0)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--map", default="models/station_map_mix.npz")
@@ -24,6 +33,7 @@ def main():
     ap.add_argument("--first-year", type=int, default=2021)
     ap.add_argument("--last-year", type=int, default=2023)
     ap.add_argument("--out", default="models/station_map_mix_pool2123.npz")
+    ap.add_argument("--demean", action="store_true", help="AU-5 step 1: remove each group x tercile's mean leftover (noise only, no drift)")
     a = ap.parse_args()
     old = station.load(a.map)
     assert list(old["stations"]) == list(station.STATIONS), "map station order differs from the region config"
@@ -34,7 +44,7 @@ def main():
     groups = np.concatenate([station.group_id(s, t.month, (t.hour == 12).astype(int)) for s, (t, *_) in enumerate(pairs)])
     new = station.fit(era, obs, groups, len(old["a"]), ab=(old["a"], old["b"]))
     assert np.array_equal(new["a"], old["a"]) and np.array_equal(new["b"], old["b"])
-    out = dict(old, pool=new["pool"], n=new["n"], cuts=new["cuts"], pool_years=np.array([a.first_year, a.last_year]))
+    out = dict(old, pool=demean(new["pool"], new["n"]) if a.demean else new["pool"], n=new["n"], cuts=new["cuts"], pool_years=np.array([a.first_year, a.last_year]))
     np.savez(a.out, **out)
     print(f"wrote {a.out}: fresh leftovers per group {new['n'].tolist()} (old {old['n'].tolist()})")
 
