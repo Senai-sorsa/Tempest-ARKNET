@@ -107,14 +107,16 @@ def smooth(x, lam):
     return np.linalg.solve(np.eye(n) + lam * d.T @ d, x.T).T
 
 
-def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0):
+def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0, ab=None):
     """Paired level-space profiles (S, 4, 44) + group per sounding -> dict a, b (G, 4, 44) of balloon ~ a + b * ERA5
     (least squares per height; identity where < 50 pairs), moisture tercile cuts (G, 2) of ERA5 RH 5-13 km and
     pool (G, 3, pool_max, 4, 44) of complete leftover profiles per tercile, n (G, 3) of them (0 = none added).
     Leftovers come from soundings as moist as the one corrected: balloon-vs-ERA5 RH scatter is much larger in moist
     air (2023-25 check: RH CRPS 9-18 km -8 %, other variables equal or slightly better).
     ridge > 0 smooths each slope b(z) across heights (Whittaker, penalty on curvature) and refits a(z) so the mean is
-    kept; 0 (default) is the per-height fit as before."""
+    kept; 0 (default) is the per-height fit as before.
+    ab = (a, b) tables (G, 4, 44): keep these lines and only refill the leftover pool from the given pairs (AU-5: a fresh
+    pool from years the lines never saw); None (default) fits the lines as before."""
     rng = np.random.default_rng(seed)
     shape = (n_groups,) + era.shape[1:]
     a, b = np.zeros(shape, np.float32), np.ones(shape, np.float32)
@@ -123,7 +125,9 @@ def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0):
     for g in range(n_groups):
         E, O = era[groups == g], obs[groups == g]
         mean_e, mean_o, has = np.zeros(E.shape[1:]), np.zeros(E.shape[1:]), np.zeros(E.shape[1:], bool)
-        for i in range(E.shape[1]):
+        if ab is not None:
+            a[g], b[g] = ab[0][g], ab[1][g]
+        for i in range(E.shape[1] if ab is None else 0):
             for k in range(E.shape[2]):
                 ok = np.isfinite(E[:, i, k]) & np.isfinite(O[:, i, k])
                 if ok.sum() >= 50:
