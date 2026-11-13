@@ -10,7 +10,8 @@
 * F7: `frame` ("une" = up/east/north, the flight_sim world frame; "enu"; "ned"), `units` ("si" or "us": ft, ft/s, degF, inHg, slug/ft3), `reference` ("asl" or "agl" altitude input) and
   `direction` ("to" = velocity of the air, "from" = reversed vector) are applied once, so lookups cost nothing extra.
 * F12: above the top height (18 km, a parameter) `above_top` is "hold" (wind held; T and p continue along the 1976 standard lapse rates, no jump), "decay" (wind falls off with a 5 km scale),
-  "climatology" (standard atmosphere T and p, wind held) or "raise" (AboveTopError). Below the pad node the pad values are held.
+  "climatology" (an alias of "hold", kept for old callers: T and p continue from the top value along the standard lapse rates; a true switch to the
+  standard atmosphere would put a jump at the top, so it is not built; AU-10) or "raise" (AboveTopError). Below the pad node the pad values are held.
 * A5 (opt-in, default unchanged): below_10m="loglaw" gives the horizontal wind below 10 m the log-law shape ln(z / z0) / ln(10 / z0) of the 10 m wind (z0 from `z0_m=`, else the
   samples' surface_roughness_m, else 0.03 m; e.g. z0_m=Launch.z0()). The default "linear" keeps the straight line to the pad node (0.72 x the 10 m wind at 0 m).
 * F3: the sample schema is height_agl (44,), height_asl (44,), elevation_m, u, v, T, RH, p (N, 44), optional w, t2m, sp, rh2m (N,). `to_samples` of the engine and `atmosphere_set` outputs

@@ -9,6 +9,8 @@ h = 1..12 months with
   climatology      mean and sd of that calendar month in earlier years (Gaussian),
   regression       ridge regression of the target on the latest 6 months of ONI, WWV and QBO30/50 and the calendar month,
                    fitted on origins before t - h, Gaussian with the regression's residual sd for that horizon,
+  regression_phase the same plus the QBO phase inputs of tempest.ingest.index_forecast (sin, cos of the angle of the
+                   standardised (qbo30, qbo50) pair and its amplitude; sd from rows up to the origin) (New_Plan AU-8),
   analog (K = 8)   the tool's current draw: past years' months whose recent values resemble the present ones.
 Scores: CRPS per horizon (lower is better) with 95 % intervals from a bootstrap over origin years, for each index.
 Chronos-2 and CPC/IRI/NMME forecasts from the written plan need an external model download / archive and are not part of
@@ -49,6 +51,22 @@ def features(tab, t_idx, lags=6):
     return np.stack(cols, 1)
 
 
+def phase(tab, t_idx, qbo_sd):
+    """QBO phase inputs at positions t_idx, as in tempest.ingest.index_forecast._design: sin, cos of the angle and the amplitude."""
+    a30, a50 = tab["qbo30"].to_numpy()[t_idx] / qbo_sd[0], tab["qbo50"].to_numpy()[t_idx] / qbo_sd[1]
+    th = np.arctan2(a50, a30)
+    return np.stack([np.sin(th), np.cos(th), np.hypot(a30, a50)], 1)
+
+
+def ridge_crps(X, y, xt, ridge, obs):
+    """Gaussian CRPS of the ridge regression of y on X (standardised inputs), evaluated at the row xt."""
+    mu_x, sd_x = X.mean(0), X.std(0) + 1e-9
+    Z = (X - mu_x) / sd_x
+    beta = np.linalg.solve(Z.T @ Z + ridge * len(Z) / 100 * np.eye(Z.shape[1]), Z.T @ (y - y.mean()))
+    resid = (y - y.mean()) - Z @ beta
+    return float(crps_gauss(y.mean() + (((xt - mu_x) / sd_x) @ beta)[0], resid.std(), obs))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--first-origin", type=int, default=2012)
@@ -66,7 +84,7 @@ def main():
         xs_all = features(tab, np.arange(6, len(tab) - h))                      # candidate training origins
         for c in COLS:
             org_idx = np.arange(6, len(tab) - h)
-            per = {k: [] for k in ("persistence", "climatology", "regression", "analog")}
+            per = {k: [] for k in ("persistence", "climatology", "regression", "regression_phase", "analog")}
             keep = []
             for t in origins:
                 i = pos[t]
@@ -83,12 +101,11 @@ def main():
                 # regression fitted on origins whose target is already known at t
                 train = org_idx + h <= i
                 X, y_all_c = xs_all[train], tab[c].to_numpy()[org_idx[train] + h]
-                mu_x, sd_x = X.mean(0), X.std(0) + 1e-9
-                Z = (X - mu_x) / sd_x
-                beta = np.linalg.solve(Z.T @ Z + a.ridge * len(Z) / 100 * np.eye(Z.shape[1]), Z.T @ (y_all_c - y_all_c.mean()))
-                resid = (y_all_c - y_all_c.mean()) - Z @ beta
-                xt = (features(tab, np.array([i])) - mu_x) / sd_x
-                per["regression"].append(float(crps_gauss(y_all_c.mean() + (xt @ beta)[0], resid.std(), y)))
+                xt = features(tab, np.array([i]))
+                per["regression"].append(ridge_crps(X, y_all_c, xt, a.ridge, y))
+                qsd = np.array([tab["qbo30"].to_numpy()[:i + 1].std() + 1e-9, tab["qbo50"].to_numpy()[:i + 1].std() + 1e-9])
+                Xp = np.hstack([X, phase(tab, org_idx[train], qsd)])
+                per["regression_phase"].append(ridge_crps(Xp, y_all_c, np.hstack([xt, phase(tab, np.array([i]), qsd)]), a.ridge, y))
                 # analog: the tool's draw, using only history before the origin month's year
                 lag = h * 30.4375
                 ens = indices.analog(tab, pd.DatetimeIndex([target_t]), lag, a.m, rng, before=t.year)[0, :, indices.COLS.index(c)]

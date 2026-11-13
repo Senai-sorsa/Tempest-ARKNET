@@ -1030,6 +1030,8 @@ class Launch:
     def stale(self, now=None):
         """C1: True when the real clock has moved into a mode that differs from the one used (e.g. a climate estimate for a time that has since become a forecast)."""
         now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:                                         # AU-17: a naive time is UTC, as everywhere else in the tool
+            now = now.replace(tzinfo=timezone.utc)
         return (now - self.created).total_seconds() > 6 * 3600
 
     def __repr__(self):

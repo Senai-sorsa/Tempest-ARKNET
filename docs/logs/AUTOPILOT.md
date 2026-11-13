@@ -918,3 +918,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **AU-5 done.** Third truth (fresh 2021-23 pool, mean per group x tercile removed). Seen-noise effect: cov99 within 0.003 in every band, cov90 over 0.003 in 8 bands (RH 12-18 km -0.022, winds up to 0.010), headline skill15 +0.0305 -> +0.0300. Drift effect (fresh vs de-meaned): RH 12-18 km cov90 -0.175, T 12-18 km skill -0.023. Fix: README coverage sentence qualified; ERA5 coverage claims quoted against the unseen-noise truth. Follow-up after section 15: station line drift on recent balloons (RH -8 to -11 % aloft).
 - 15.2 complete (AU-5, AU-6, AU-7). Next: 15.3 (AU-8..18).
 
+## 2026-11-13 00:05 CST (tick work)
+- 15.3 started. **AU-10 done** (`above_top="climatology"` documented as an alias of "hold", test that both give identical numbers). **AU-17 done** (`Launch.stale` takes a naive time as UTC; test).
+- **AU-8 step 0:** `scripts/index_bakeoff.py` tested the ridge WITHOUT the QBO-phase inputs (the tool's design); the phase terms in `tempest/ingest/index_forecast.py` came with fix F-28 and were never hindcast. Added method `regression_phase` to the bake-off (same ridge plus sin, cos, amplitude of the standardised QBO phase, sd from rows up to the origin); 2012-25 hindcast running (`models/au8_index_bakeoff.csv`). Which design ships follows from it.
+
