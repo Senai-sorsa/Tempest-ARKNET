@@ -16,11 +16,12 @@ RUNS="0: 0:_den 1: 1:_den"
 log "start"
 for r in $RUNS; do
   S=${r%%:*}; tag=${r##*:}; rows=data/modeF_v2$([ -n "$tag" ] && echo _denver); name=nest${tag}_s$S
+  [ -f models/modeF_n5_$name.pt ] && { log "$name fit exists, kept"; continue; }    # rerun after a stop: keep the fits already made
   until [ "$(free_gb)" -ge 12 ]; do sleep 30; done
   $PY -W ignore -u scripts/il6_modeF.py --rows-dir $rows $R --retrain --fit-only --seed $S --out models/modeF_n5_$name.pt > data/sig3_$name.log 2>&1 && log "$name fit" || { log "FAILED fit $name"; exit 1; }
 done
-log "fits done; waiting for [AV29] done"
-until grep -qE "\[AV29\] done$" data/l3.log; do sleep 60; done
+log "fits done; evals wait for AV29 to finish"
+until grep -qE "[0-9] \[AV29\] done$" data/l3.log; do sleep 60; done
 for r in $RUNS; do
   S=${r%%:*}; tag=${r##*:}; rows=data/modeF_v2$([ -n "$tag" ] && echo _denver); name=nest${tag}_s$S
   until [ "$(free_gb)" -ge 15 ]; do sleep 60; done
