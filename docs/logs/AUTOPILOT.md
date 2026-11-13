@@ -897,3 +897,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 
 ## 2026-11-12 20:58 CST (tick work)
 - **AU-4 done.** Daily skill differences stay correlated 1-7 days (T 12-18 km 19, seasonal drift). Headline intervals now resample 21-day blocks by default (`--block-days 1` = old): median interval width x1.6; 17 of 19 shipped-stack ERA5 bands still clear 0 (RH 0-1 km, rh2m now touch 0). Plan pass rule (93-97 % AR(1) coverage) is unreachable at 730 days for any block (best 0.92 at 21 d): test bound 0.88-0.97, recorded as a deviation. Suite 275 passed. Next AU-5..7.
+
+## 2026-11-12 21:40 CST (tick work)
+- **AU-7 code committed (0d48aca)**: opt-in `score --gauss15` + `margin_gauss15_*`; shipped-stack score running (`scripts/gpu_au7_gauss15.sh`, [AU7] in l3.log). Full suite after it.
+- **AU-6 step 0 done** (`scripts/au6_dropped.py` -> `docs/results/logs/au6_dropped.txt`): 7-9 % of 2024-25 soundings dropped; windy tercile drops +9 to +15 points more than calm, over the 5-point rule. Cause is lost wind (not RH above 10 km); 98 of 122 low-level wind gaps are a Feb-Mar 2024 outage at both stations, and inside a month the windy-calm gap is only +1.5 to +2.0. Decision: rule says fix -> `sonde.py --partial` (opt-in) queued after AU-5 / AU-7 step 0.
