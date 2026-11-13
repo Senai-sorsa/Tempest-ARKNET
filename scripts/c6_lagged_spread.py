@@ -24,6 +24,8 @@ AV4 (New_Plan 13.1, `--cells 0 1 2 6`, rule set 2026-11-13 before the run, from 
 (wind 0-1, 1-5, 5-12 km; T 5-12 km); the other cells keep f = 1. Same fit years, rows and seeds. PASS = C6's rule unchanged (PIT distance change with the
 whole interval below 0, CRPS change <= +0.2 %). KILL: the CRPS interval includes 0. Otherwise MISS. Result: docs/results/logs/c6_av4_cells.log
     PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py --step34 --cells 0 1 2 6
+AV25 (New_Plan 13.1, rule set 2026-11-13 before the run = AV4's rule unchanged): same as AV4 but test rows from 2021 + 2022 (more init dates):
+    PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py --step34 --cells 0 1 2 6 --test-years 2021 2022
 """
 import argparse
 import os
@@ -66,6 +68,7 @@ def main():
     ap.add_argument("--step34", action="store_true")
     ap.add_argument("--rows", type=int, default=2500)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--test-years", type=int, nargs="+", default=[2022], help="AV25: test rows from these years (default 2022 = C6 / AV4)")
     ap.add_argument("--cells", type=int, nargs="+", default=None, help="AV4: apply the factor only in these cells (0-3 wind bands, 4-7 T bands); others f = 1")
     a = ap.parse_args()
     if a.step34:
@@ -218,12 +221,13 @@ def step34(a_):
         return {k: v[ok] for k, v in R.items()}, d[ok]
     assert max(range(2016, 2021)) <= 2020
     tr, dtr = rows_for(range(2016, 2021), a_.rows)
-    te, dte = rows_for([2022], a_.rows)
+    assert min(a_.test_years) > 2020 and max(a_.test_years) <= 2022, "test years must be outside the fit years and before 2023"
+    te, dte = rows_for(a_.test_years, a_.rows * len(a_.test_years))   # fit rows unchanged; same test rows per year
     print("rows", len(dtr), len(dte), flush=True)
     xtr, xte = tool_samples(A, tr, rng).astype(np.float64), tool_samples(A, te, rng).astype(np.float64)
     ytr, yte = tr["obs"].reshape(len(dtr), -1).astype(np.float64), te["obs"].reshape(len(dte), -1).astype(np.float64)
     med = np.median(dtr, 0)
-    lines = [f"C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 ({len(dtr)} rows), test 2022 ({len(dte)} rows); f = a + b d / median(d), clipped 0.5-2"]
+    lines = [f"C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 ({len(dtr)} rows), test {'+'.join(map(str, a_.test_years))} ({len(dte)} rows); f = a + b d / median(d), clipped 0.5-2"]
     xnew = xte.copy()
     for c in range(8):
         if a_.cells is not None and c not in a_.cells:
