@@ -4,6 +4,7 @@
 # Log: data/l3.log [AV28]; per-run logs data/av28_<name>.log.
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
 . scripts/cap_cpu.sh
+export PYTHONPATH=.
 PY=.venv/Scripts/python
 log() { echo "$(date '+%F %T') [AV28] $*" >> data/l3.log; }
 R="--width 128 --depth 2 --coarse 4 --steps 500 --lr 3e-4 --wd 1e-2 --members 2 --save-rows --retrain"
