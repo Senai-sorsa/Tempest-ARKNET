@@ -17,6 +17,8 @@ import numpy as np
 
 from tempest.profiles.to_heights import G0, HEIGHTS, geometric_height, interp_columns, liquid_rh
 
+LOG_TO_FIRST_LEVEL = True   # AU-15 (bug fix, on; False = old): wind from 10 m to the first level above ground in ln(height), not a straight line above 100 m
+
 LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
 
 
@@ -68,8 +70,8 @@ def to_profiles(doc, elevation=None, liquid_phase=True):
     rh_anchor = rh2m if rh2m is not None else np.where(np.isfinite(rh[..., :1].squeeze(-1)), np.clip(rh[..., 0], 0, 100), np.nan)
     out = dict(
         time=np.array(h["time"], dtype="datetime64[m]"),
-        u=interp_columns(hw, np.concatenate([u10[..., None], u], -1), HEIGHTS, 100),
-        v=interp_columns(hw, np.concatenate([v10[..., None], v], -1), HEIGHTS, 100),
+        u=interp_columns(hw, np.concatenate([u10[..., None], u], -1), HEIGHTS, 100, log_first=LOG_TO_FIRST_LEVEL),
+        v=interp_columns(hw, np.concatenate([v10[..., None], v], -1), HEIGHTS, 100, log_first=LOG_TO_FIRST_LEVEL),
         T=interp_columns(ht, np.concatenate([t2m[..., None], temp], -1), HEIGHTS),
         RH=interp_columns(ht, np.concatenate([np.clip(rh_anchor, 0, 100)[..., None], np.clip(rh, 0, 100)], -1), HEIGHTS),
         t2m=t2m.astype(np.float32), sp=sp.astype(np.float32),

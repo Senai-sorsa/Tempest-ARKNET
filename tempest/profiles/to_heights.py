@@ -62,11 +62,12 @@ def liquid_rh(t, r):
     return r * (a * es_l + (1 - a) * es_i) / es_l
 
 
-def interp_columns(h, x, targets, log_below=None):
+def interp_columns(h, x, targets, log_below=None, log_first=False):
     """Interpolate every column (last axis = levels) of x at heights h onto `targets`.
 
     h may hold NaN (unusable level) and need not be sorted. Targets outside a column's valid range -> NaN.
     Targets below `log_below` are interpolated linearly in ln(height), the rest linearly in height.
+    log_first (AU-15): also ln(height) everywhere between a column's lowest two valid levels (the 10 m anchor and the first level above ground).
     """
     h = np.where(np.isfinite(h) & np.isfinite(x), h, np.inf)
     order = np.argsort(h, axis=-1)
@@ -80,10 +81,12 @@ def interp_columns(h, x, targets, log_below=None):
         h0, h1 = np.take_along_axis(h, k0, -1), np.take_along_axis(h, k1, -1)
         x0, x1 = np.take_along_axis(x, k0, -1), np.take_along_axis(x, k1, -1)
         with np.errstate(invalid="ignore", divide="ignore"):
+            w_log = (np.log(t) - np.log(h0)) / (np.log(h1) - np.log(h0))
+            w = (t - h0) / (h1 - h0)
             if log_below is not None and t < log_below:
-                w = (np.log(t) - np.log(h0)) / (np.log(h1) - np.log(h0))
-            else:
-                w = (t - h0) / (h1 - h0)
+                w = w_log
+            elif log_first:
+                w = np.where(k == 0, w_log, w)
         exact = (h0 == t) & (k >= 0)
         val = np.where(exact, x0, x0 + w * (x1 - x0))
         out[..., j] = np.where(ok | exact, val, np.nan)[..., 0]
