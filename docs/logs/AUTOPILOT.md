@@ -901,3 +901,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 ## 2026-11-12 21:40 CST (tick work)
 - **AU-7 code committed (0d48aca)**: opt-in `score --gauss15` + `margin_gauss15_*`; shipped-stack score running (`scripts/gpu_au7_gauss15.sh`, [AU7] in l3.log). Full suite after it.
 - **AU-6 step 0 done** (`scripts/au6_dropped.py` -> `docs/results/logs/au6_dropped.txt`): 7-9 % of 2024-25 soundings dropped; windy tercile drops +9 to +15 points more than calm, over the 5-point rule. Cause is lost wind (not RH above 10 km); 98 of 122 low-level wind gaps are a Feb-Mar 2024 outage at both stations, and inside a month the windy-calm gap is only +1.5 to +2.0. Decision: rule says fix -> `sonde.py --partial` (opt-in) queued after AU-5 / AU-7 step 0.
+
+## 2026-11-12 21:55 CST (tick work)
+- **AU-7 done.** Shipped stack seed 0 with `--gauss15`: point estimates identical to the earlier run. Margin over a Gaussian baseline, mean of 19 ERA5 bands: +0.080 against the fixed-climate Gaussian (what Earth-GRAM-style tools ship), +0.074 against a recent-climate Gaussian (shape alone): ~92 % shape, ~8 % trend; T 1-12 km margin roughly halves (trend matters for temperature). Suite 277 passed. Quote both labels; `new_plan_kit/b9_gram_compare.py` numbers need them too.
+- **AU-5 step 0 prepared**: `scripts/au5_fresh_pool.py` (shipped a, b + 2021-23 leftover pool), `scripts/au5_splice.py`, runner `scripts/gpu_au5_freshpool.sh` (2024-25 store, two builds, two splices, two scores).
