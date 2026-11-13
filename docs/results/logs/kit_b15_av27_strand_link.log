@@ -1,0 +1,10 @@
+2026-11-13 09:06 AV27: STRAND stage 1 arms scored on the link only (lift x truth P_indep); 12 points x 12 months x 3 start hours, seeds 0 / 1
+  seed 0 L    5 m/s: 407 cells (0 skipped, tool P_IND 0); mean lift truth 2.354, SEQ 2.102, TPL 3.507; mean |linked error| IND 0.2550, SEQ 0.0912, TPL 0.2001 (TPL / SEQ 2.19)
+  seed 0 L    8 m/s: 332 cells (0 skipped, tool P_IND 0); mean lift truth 1.192, SEQ 1.280, TPL 1.479; mean |linked error| IND 0.1200, SEQ 0.0640, TPL 0.0812 (TPL / SEQ 1.27)
+  seed 0 L   10 m/s: 161 cells (0 skipped, tool P_IND 0); mean lift truth 1.079, SEQ 1.158, TPL 1.253; mean |linked error| IND 0.0652, SEQ 0.0365, TPL 0.0452 (TPL / SEQ 1.24)
+  seed 1 L    5 m/s: 407 cells (0 skipped, tool P_IND 0); mean lift truth 2.354, SEQ 2.086, TPL 3.482; mean |linked error| IND 0.2550, SEQ 0.0936, TPL 0.1970 (TPL / SEQ 2.11)
+  seed 1 L    8 m/s: 332 cells (0 skipped, tool P_IND 0); mean lift truth 1.192, SEQ 1.278, TPL 1.478; mean |linked error| IND 0.1200, SEQ 0.0667, TPL 0.0815 (TPL / SEQ 1.22)
+  seed 1 L   10 m/s: 161 cells (0 skipped, tool P_IND 0); mean lift truth 1.079, SEQ 1.157, TPL 1.253; mean |linked error| IND 0.0652, SEQ 0.0370, TPL 0.0446 (TPL / SEQ 1.20)
+  cells skipped in collect: 0
+Verdict: KILL (templates no better than the shipped sequence anywhere)
+
