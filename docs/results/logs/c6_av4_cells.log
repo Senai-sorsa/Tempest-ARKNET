@@ -10,3 +10,15 @@ all u, v, T: PIT distance 0.0545 -> 0.0526, change -0.0019 [-0.0037, +0.0001] (i
 AV4 cells [0, 1, 2, 6]: VERDICT MISS (record)
 VERDICT: FAIL, C6 dropped (PIT interval below 0: no; CRPS change <= +0.2 %: yes)
 
+C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 (2500 rows), test 2021+2022 (5000 rows); f = a + b d / median(d), clipped 0.5-2
+wind 0-1 km      a +0.832 b +0.130  median d 2.61  test f 5/50/95 %: 0.86 0.96 1.37
+wind 1-5 km      a +0.723 b +0.213  median d 3.94  test f 5/50/95 %: 0.79 0.92 1.44
+wind 5-12 km     a +0.766 b +0.177  median d 6.30  test f 5/50/95 %: 0.82 0.93 1.41
+T 5-12 km        a +0.791 b +0.158  median d 0.88  test f 5/50/95 %: 0.84 0.94 1.43
+  u: PIT distance 0.026 -> 0.030, CRPS 2.117 -> 2.113
+  v: PIT distance 0.027 -> 0.030, CRPS 2.206 -> 2.195
+  T: PIT distance 0.040 -> 0.041, CRPS 0.844 -> 0.842
+all u, v, T: PIT distance 0.0309 -> 0.0336, change +0.0027 [+0.0001, +0.0041] (init-date blocks, 73 dates); CRPS relative change -0.33 % [-0.58, -0.07]
+AV4 cells [0, 1, 2, 6]: VERDICT MISS (record)
+VERDICT: FAIL, C6 dropped (PIT interval below 0: no; CRPS change <= +0.2 %: yes)
+
