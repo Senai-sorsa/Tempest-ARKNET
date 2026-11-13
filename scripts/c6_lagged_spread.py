@@ -19,6 +19,11 @@ interval entirely below 0, AND the relative change in mean CRPS (u, v, T) is <= 
 
     PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py --step34 [--rows 2500]
 Result: docs/results/logs/c6_lagged_step34.log
+
+AV4 (New_Plan 13.1, `--cells 0 1 2 6`, rule set 2026-11-13 before the run, from the AV4 row): the factor only in the four cells where the premise held
+(wind 0-1, 1-5, 5-12 km; T 5-12 km); the other cells keep f = 1. Same fit years, rows and seeds. PASS = C6's rule unchanged (PIT distance change with the
+whole interval below 0, CRPS change <= +0.2 %). KILL: the CRPS interval includes 0. Otherwise MISS. Result: docs/results/logs/c6_av4_cells.log
+    PYTHONPATH=. .venv/Scripts/python -W ignore scripts/c6_lagged_spread.py --step34 --cells 0 1 2 6
 """
 import argparse
 import os
@@ -61,6 +66,7 @@ def main():
     ap.add_argument("--step34", action="store_true")
     ap.add_argument("--rows", type=int, default=2500)
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--cells", type=int, nargs="+", default=None, help="AV4: apply the factor only in these cells (0-3 wind bands, 4-7 T bands); others f = 1")
     a = ap.parse_args()
     if a.step34:
         return step34(a)
@@ -220,6 +226,8 @@ def step34(a_):
     lines = [f"C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 ({len(dtr)} rows), test 2022 ({len(dte)} rows); f = a + b d / median(d), clipped 0.5-2"]
     xnew = xte.copy()
     for c in range(8):
+        if a_.cells is not None and c not in a_.cells:
+            continue
         cols = cell_cols(c)
         sq = ((xtr[:, :, cols].mean(1) - ytr[:, cols]) ** 2).mean(1)
         var = xtr[:, :, cols].var(1, ddof=1).mean(1)
@@ -248,14 +256,25 @@ def step34(a_):
     lines.append("all u, v, T: PIT distance %.4f -> %.4f, change %+.4f [%+.4f, %+.4f] (init-date blocks, %d dates); CRPS relative change %+.2f %% [%+.2f, %+.2f]" % (
         tv0, tv1, tv1 - tv0, lo_, hi_, len(u), 100 * rc, *np.percentile(100 * np.array(dc), [2.5, 97.5])))
     ok = hi_ < 0 and rc <= 0.002
+    clo, chi = np.percentile(100 * np.array(dc), [2.5, 97.5])
+    if a_.cells is not None:
+        lines.append(f"AV4 cells {a_.cells}: VERDICT {av4_verdict(hi_, rc, clo, chi)}")
     lines.append("VERDICT: %s (PIT interval below 0: %s; CRPS change <= +0.2 %%: %s)" % ("PASS" if ok else "FAIL, C6 dropped", "yes" if hi_ < 0 else "no", "yes" if rc <= 0.002 else "no"))
     print("\n".join(lines))
     if not a_.smoke:
-        with open(os.path.join(REPO, "docs/results/logs/c6_lagged_step34.log"), "a", encoding="utf-8") as fh:
+        with open(os.path.join(REPO, "docs/results/logs/c6_av4_cells.log" if a_.cells is not None else "docs/results/logs/c6_lagged_step34.log"), "a", encoding="utf-8") as fh:
             fh.write("\n".join(lines) + "\n\n")
 
 
+def av4_verdict(pit_hi, rc, crps_lo, crps_hi):
+    """AV4 rule: PASS = C6's rule; KILL = CRPS interval (in %) includes 0; else MISS."""
+    if pit_hi < 0 and rc <= 0.002:
+        return "PASS"
+    return "KILL (CRPS interval includes 0)" if crps_lo <= 0 <= crps_hi else "MISS (record)"
+
+
 def _selfcheck():
+    assert av4_verdict(-0.001, 0.0, -0.5, -0.1) == "PASS" and av4_verdict(0.001, -0.005, -0.9, -0.1).startswith("MISS") and av4_verdict(0.001, -0.001, -0.5, 0.2).startswith("KILL")
     xx = np.repeat(np.linspace(0.5, 2, 10), 50)
     a, b = fit_cell(xx, (0.8 + 0.4 * xx) ** 2, np.ones_like(xx))
     assert abs(a - 0.8) < 0.05 and abs(b - 0.4) < 0.05
