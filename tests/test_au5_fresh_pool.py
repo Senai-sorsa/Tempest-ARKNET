@@ -52,3 +52,12 @@ def test_splice_keeps_training_years_and_replaces_the_test_years():
     out = splice(base, new, 2024)
     assert list(out["year"]) == [2020, 2021, 2023, 2024, 2025, 2025]
     assert list(out["cond"][:, 0]) == [0, 1, 2, 9, 9, 9] and out["target"][3:].all()
+
+
+def test_splice_keeps_the_order_of_a_base_laid_out_in_date_blocks():
+    splice = _splice()
+    meta = dict(cond_names=np.array(["a"]), target_names=np.array(["x"]), rh_target=np.array("dpd"))
+    base = dict(cond=np.arange(6.0)[:, None], target=np.zeros((6, 1)), year=np.array([2022, 2023, 2024, 2023, 2024, 2025]), **meta)
+    new = dict(cond=np.full((2, 1), 9.0), target=np.ones((2, 1)), year=np.array([2024, 2025]), **meta)
+    out = splice(base, new, 2024)
+    assert list(out["year"]) == [2022, 2023, 2023, 2024, 2025] and list(out["cond"][:, 0]) == [0, 1, 3, 9, 9]
