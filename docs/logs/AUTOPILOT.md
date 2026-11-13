@@ -888,3 +888,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 
 ## 2026-11-12 19:30 CST (tick work)
 - **AU-1 (New_Plan 15.1) steps 1-4 done:** opt-in `--fair-baseline` in score.py / sonde.py (fair CRPS for every set, clim / clim15 from the whole pool, no replacement); flag off byte-identical (4 CSVs, 300-row shipped-stack score); plain-formula bonus measured +0.008 at R = 75 (audit said +0.0125); 300-row smoke skill15_known 0.031 -> 0.016 (not a verdict). 4 new tests, full suite 267 passed. Next: step 5, full GPU rescore with --mc + sonde run, both with the flag.
+
+## 2026-11-12 19:45 CST (tick work)
+- **AU-1 step 5 done (fair rescore of the shipped l3_c4w stack, seeds 0 and 1, plus balloons):** ERA5 skill15_unknown +0.030 -> +0.017 (seed 0), +0.031 -> +0.018 (seed 1); balloons +0.010 -> +0.007; shift reproduces to 0.0002 across seeds; 9 of 19 bands still above climatology with intervals > 0, none significantly below; model-vs-Gaussian margin unchanged. Default switch and README rewrite: ASK_LATER 27. Next AU-2.
