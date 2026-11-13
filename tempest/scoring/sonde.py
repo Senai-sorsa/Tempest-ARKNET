@@ -27,7 +27,7 @@ from tempest.ingest import indices
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 from tempest.scoring import diag
 from tempest.scoring.report import report
-from tempest.scoring.score import band_masks, coverage90, crps_ensemble, gaussian_samples, group_keys, physical_names, var_slices, variogram_score
+from tempest.scoring.score import band_masks, coverage90, crps_ensemble, crps_fair, gaussian_samples, pool_scores, group_keys, physical_names, var_slices, variogram_score
 
 DRIVERS = ["oni", "wwv", "qbo30", "qbo50"]
 
@@ -63,6 +63,7 @@ def main():
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
     ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="unknown drivers: analog draw (default) or ridge index forecast (what the tool serves)")
     ap.add_argument("--driver-lead", type=int, default=6)
+    ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole station x month pool without replacement (clim15 pools under 20 soundings fall back to all training years); outputs get a _fair suffix")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     a = ap.parse_args()
@@ -125,6 +126,7 @@ def main():
 
     truth, clim, gauss, known, unknown, months, sids, years = [], [], [], [], [], [], [], []
     clim15, days = [], []  # recent-years baseline and day ids for the headline table
+    fpool = {k: [] for k in ("crps_clim", "mae_clim", "crps_clim15", "mae_clim15")}  # AU-1, filled only with --fair-baseline
     for sid, (slat, slon) in STATIONS.items():
         t, prof, sfc = read_igra(f"{a.igra}/{sid}-drvd.txt.zip", a.first_year, last)
         phys = np.concatenate([prof.reshape(len(t), -1), sfc], 1)
@@ -151,6 +153,11 @@ def main():
             clim.append(phys[draws])
             r15 = r[t.year[r] >= held_from - 15]
             clim15.append(phys[r15[rng.integers(0, len(r15), (len(v), a.m))]] if len(r15) else phys[draws])
+            if a.fair_baseline:
+                for nm, pool in (("clim", r), ("clim15", r15 if len(r15) >= 20 else r)):
+                    c_, m_, _ = pool_scores(phys, {0: pool}, np.zeros(len(v), np.int64), phys[v], conv=lambda x: x)
+                    fpool[f"crps_{nm}"].append(c_)
+                    fpool[f"mae_{nm}"].append(m_)
             days.append(t.year[v].to_numpy().astype(np.int64) * 1000 + t.dayofyear[v].to_numpy())
             gauss.append(gaussian_samples(phys[r].astype(np.float64), len(v), a.m, rng))
             tv = t[v]
@@ -196,6 +203,9 @@ def main():
     truth, months, sids = truth[keep], months[keep], sids[keep]
     clim15, days = np.concatenate(clim15)[keep], np.concatenate(days)[keep]
     sets = [(k, x[keep]) for k, x in sets]
+    fair = {k: np.concatenate(v)[keep] for k, v in fpool.items()} if a.fair_baseline else {}
+    if fair:
+        fair.update({f"crps_{k}": crps_fair(x, truth) for k, x in sets if k != "clim"})
     print(f"{len(truth):,} balloon profiles scored, m = {a.m}", flush=True)
 
     res = pd.DataFrame({"column": physical_names()})
@@ -226,15 +236,15 @@ def main():
     for k in ("gauss", "known", "unknown"):
         vs[f"vs_skill_{k}"] = 1 - vs[f"vs_{k}"] / vs["vs_clim"]
     for k, x in sets:
-        res[f"crps_{k}"] = crps_ensemble(x, truth).mean(0)
+        res[f"crps_{k}"] = (fair[f"crps_{k}"] if fair else crps_ensemble(x, truth)).mean(0)
         res[f"cov90_{k}"] = coverage90(x, truth).mean(0)
         res[f"cov99_{k}"] = coverage90(x, truth, 0.99).mean(0)
         med = np.median(x, 1)
-        res[f"mae_{k}"] = np.abs(med - truth).mean(0)
+        res[f"mae_{k}"] = fair[f"mae_{k}"].mean(0) if f"mae_{k}" in fair else np.abs(med - truth).mean(0)
         res[f"rmse_{k}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for k in ("gauss", "known", "unknown"):
         res[f"skill_{k}"] = 1 - res[f"crps_{k}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "") + ("_12z" if a.hour == 12 else "")
+    stem = a.model.rsplit(".", 1)[0] + "_sonde" + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_scal" if scal else "") + ("_off" if a.offset_from_year else "") + ("_trust" if a.trust else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_seas" if a.seasonal else "") + ("_smap" if a.shear_map else "") + ("_12z" if a.hour == 12 else "") + ("_fair" if a.fair_baseline else "")
     res.to_csv(stem + ".score.csv", index=False)
 
     rows = [(v, b, res[sel]) for v, b, sel in band_masks()]
@@ -259,7 +269,7 @@ def main():
         f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
         f" (clim {coverage90(dict(sets)['clim'][..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
         for i, v in enumerate(PROFILE)))
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks()), stem + "_headline.csv")
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks(), override=fair or None), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), months, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag

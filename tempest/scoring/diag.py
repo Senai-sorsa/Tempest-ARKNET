@@ -113,13 +113,16 @@ def valid_from_fill_top(top, D):
     return ok
 
 
-def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
+def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, override=None):
     """Band table with 95 % intervals from a bootstrap over whole days (rows on one day move together, so resampling
     rows would give falsely narrow intervals). sets: dict name -> (N, m, D) samples, needs clim, known, unknown and
     optionally clim15 (climatology from the last 15 years before the test, so skill is not just "knows it got warmer").
     skill = 1 - CRPS / CRPS_clim; mae = error of the per-column median (the best guess); cov99 = inside the 99 % range.
     valid (N, D) bool, opt-in (IL-143): columns that are real data. Heights a dataset filled above its highest valid level (fill_top) are False and count in no band mean; a row with no valid
-    column in a band drops out of that band. None = every column counts, as before."""
+    column in a band drops out of that band. None = every column counts, as before.
+    override (AU-1, opt-in): dict "crps_<set>" / "mae_<set>" -> ready (N, D) per-row arrays used instead of computing them
+    from the samples (the fair CRPS and the whole-pool climatology of score --fair-baseline). None = as before."""
+    override = override or {}
     from tempest.scoring.score import coverage90, crps_ensemble  # late import: score imports diag
     masks = np.stack([sel for _, _, sel in groups], 1).astype(np.float64)
     if valid is None:
@@ -133,8 +136,8 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
         band = lambda a: (a.astype(np.float64) * vm) @ masks / np.maximum(cnt, 1.0)
     stat = {}
     for k, x in sets.items():
-        stat[f"crps_{k}"] = band(crps_ensemble(x, truth))
-        stat[f"mae_{k}"] = band(np.abs(np.median(x, 1) - truth))
+        stat[f"crps_{k}"] = band(override[f"crps_{k}"] if f"crps_{k}" in override else crps_ensemble(x, truth))
+        stat[f"mae_{k}"] = band(override[f"mae_{k}"] if f"mae_{k}" in override else np.abs(np.median(x, 1) - truth))
     for k in ("known", "unknown"):
         stat[f"cov99_{k}"] = band(coverage90(sets[k], truth, p))
     _, inv = np.unique(day, return_inverse=True)

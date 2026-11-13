@@ -45,6 +45,32 @@ def crps_ensemble(x, y):
     return 2 / m ** 2 * ((x - y[:, None]) * (m * (y[:, None] < x) - i + 0.5)).sum(1)
 
 
+def crps_fair(x, y):
+    """AU-1: fair ensemble CRPS (Ferro 2014), spread term over m (m - 1) pairs instead of m^2: an ensemble of m values
+    is no longer charged ~1/m of its CRPS, so a 75-row climatology pool and 199 model draws are judged alike. Same shapes."""
+    x = np.sort(x, axis=1)
+    m = x.shape[1]
+    i = np.arange(1, m + 1)[None, :, None]
+    return np.abs(x - y[:, None]).mean(1) - ((2 * i - m - 1) * x).sum(1) / max(m * (m - 1), 1)
+
+
+def pool_scores(target, pools, keys_va, truth, conv=None):
+    """AU-1: fair CRPS and median error of a climatology scored from its WHOLE pool, without replacement.
+    pools: key -> target row indices of that group's pool; conv turns rows into physical units (default to_physical;
+    sonde passes rows that already are). Returns (crps (N, D), mae (N, D), pool size R (N,))."""
+    crps, mae, R = np.empty_like(truth, dtype=np.float64), np.empty_like(truth, dtype=np.float64), np.empty(len(truth), np.int64)
+    for k in np.unique(keys_va):
+        sel = np.flatnonzero(keys_va == k)
+        P = np.sort((conv or to_physical)(target[pools[k]]).astype(np.float64), axis=0)  # (R, D)
+        r = len(P)
+        spread_term = ((2 * np.arange(1, r + 1) - r - 1)[:, None] * P).sum(0) / max(r * (r - 1), 1)
+        y = truth[sel].astype(np.float64)
+        crps[sel] = np.stack([np.abs(P - yy).mean(0) for yy in y]) - spread_term
+        mae[sel] = np.abs(np.median(P, 0) - y)
+        R[sel] = r
+    return crps, mae, R
+
+
 def twcrps_ensemble(x, y, threshold):
     """M3: threshold-weighted CRPS for the upper tail (chaining function v(z) = max(z, threshold)): only differences above `threshold` count, so a forecast is judged on strong winds /
     extremes and not on the calm bulk. Same shapes as crps_ensemble; threshold in the units of x (a scalar, or an array broadcast against y). threshold = -inf gives the ordinary CRPS."""
@@ -155,6 +181,7 @@ def main():
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
                     "(<stem>_stress.csv) and print the worst cells; read-only")
     ap.add_argument("--mask-filled", action="store_true", help="IL-143: leave the heights a dataset built with --fill-top filled (above fill_top_idx) out of the headline table; off = they count as before")
+    ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole pool of the group without replacement (clim15 pools under 20 rows fall back to all years); the 199-draw arrays still feed shuffle, variogram, coverage, tail, mc, stress. Outputs get a _fair suffix")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
                     "whole-profile coverage of the simultaneous 99 %% band (output only; samples are not changed)")
     a = ap.parse_args()
@@ -297,6 +324,17 @@ def main():
         from tempest.calibrate import shear_tail
         st, prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
         known, unknown = shear_tail.apply(st, known, prng), shear_tail.apply(st, unknown, prng)
+    fair = {}
+    if a.fair_baseline:   # AU-1: per-row CRPS / median error arrays that replace the plain ones in the CSV and the headline
+        kv = keys[va]
+        p_all = {k: tr[l:h] for k, l, h in zip(kv, lo, hi)}
+        p_15 = {k: (rec[l:h] if h - l >= 20 else p_all[k]) for k, l, h in zip(kv, lo2, hi2)}
+        for name, pools in (("clim", p_all), ("clim15", p_15)):
+            fair[f"crps_{name}"], fair[f"mae_{name}"], R = pool_scores(target, pools, kv, truth)
+            print(f"AU-1 fair baseline {name}: whole-pool size R median {int(np.median(R))} (10-90 % {int(np.percentile(R, 10))}-{int(np.percentile(R, 90))})"
+                  + (f"; {int(np.sum(hi2 - lo2 < 20))} rows with under 20 recent rows use the all-years pool" if name == "clim15" else ""), flush=True)
+        for name, x in (("gauss", gauss), ("known", known), ("unknown", unknown)):
+            fair[f"crps_{name}"] = crps_fair(x, truth)
     res = pd.DataFrame({"column": physical_names()})
     sets = [("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown)]
     n = len(HEIGHTS)
@@ -305,15 +343,15 @@ def main():
     for name in ("gauss", "known", "unknown"):
         vs[f"vs_skill_{name}"] = 1 - vs[f"vs_{name}"] / vs["vs_clim"]
     for name, x in sets:
-        res[f"crps_{name}"] = crps_ensemble(x, truth).mean(0)
+        res[f"crps_{name}"] = (fair[f"crps_{name}"] if fair else crps_ensemble(x, truth)).mean(0)
         res[f"cov90_{name}"] = coverage90(x, truth).mean(0)
         res[f"cov99_{name}"] = coverage90(x, truth, 0.99).mean(0)
         med = np.median(x, 1)
-        res[f"mae_{name}"] = np.abs(med - truth).mean(0)
+        res[f"mae_{name}"] = fair[f"mae_{name}"].mean(0) if f"mae_{name}" in fair else np.abs(med - truth).mean(0)
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
@@ -358,7 +396,7 @@ def main():
             raise SystemExit("--mask-filled needs a dataset built with --fill-top (it has no fill_top_idx)")
         valid = diag.valid_from_fill_top(np.asarray(d["fill_top_idx"])[va], truth.shape[1])
         print(f"--mask-filled: {1 - valid.mean():.1%} of the columns are filled heights and are left out of the headline")
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid), stem + "_headline.csv")
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid, override=fair or None), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag
