@@ -914,3 +914,7 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 - **AU-6 done (opt-in).** Full suite 283 passed. Shipped balloon run, flag off: score.csv byte-identical. `--partial`: 44 of 111 dropped soundings recovered (67 lack low wind, Feb-Mar 2024 outage); headline skill15_unknown +0.0102 -> +0.0105, cov99 0.9914 unchanged, max band change 0.006: the dropping does not bias the balloon headline beyond noise. Flag stays off. Fixed a print bug in the per-station line (n summed indices).
 - AU-5 step 1 (de-meaned fresh pool) running.
 
+## 2026-11-12 23:18 CST (tick work)
+- **AU-5 done.** Third truth (fresh 2021-23 pool, mean per group x tercile removed). Seen-noise effect: cov99 within 0.003 in every band, cov90 over 0.003 in 8 bands (RH 12-18 km -0.022, winds up to 0.010), headline skill15 +0.0305 -> +0.0300. Drift effect (fresh vs de-meaned): RH 12-18 km cov90 -0.175, T 12-18 km skill -0.023. Fix: README coverage sentence qualified; ERA5 coverage claims quoted against the unseen-noise truth. Follow-up after section 15: station line drift on recent balloons (RH -8 to -11 % aloft).
+- 15.2 complete (AU-5, AU-6, AU-7). Next: 15.3 (AU-8..18).
+
