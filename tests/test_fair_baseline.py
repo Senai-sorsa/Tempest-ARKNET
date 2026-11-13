@@ -103,3 +103,31 @@ def test_block_days_one_leaves_the_headline_unchanged_and_blocks_widen_it():
     wk = diag.headline(sets, truth, day, groups, n_boot=200, block_days=7)
     assert np.allclose(wk.skill15_unknown, base.skill15_unknown)
     assert ((wk.skill15_unknown_hi - wk.skill15_unknown_lo) > (base.skill15_unknown_hi - base.skill15_unknown_lo)).all()
+
+
+def test_gauss15_uses_the_recent_rows_of_the_group_and_falls_back_to_the_month(monkeypatch):   # AU-7
+    monkeypatch.setattr(score, "to_physical", lambda t: t)
+    monkeypatch.setattr(score, "clip_ranges", lambda x: x)
+    rng = np.random.default_rng(7)
+    # key = point * 144 + month * 12 + hbin; group A = 5 (full), group B = 17 (month 1, thin: 50 recent rows) + month-1 sibling 18
+    keys = np.r_[np.full(800, 5), np.full(400, 5), np.full(50, 17), np.full(400, 18), [5, 17]]
+    target = np.r_[rng.normal(0, 1, (800, 2)), rng.normal(10, 1, (400, 2)), rng.normal(20, 1, (50, 2)), rng.normal(30, 1, (400, 2)), np.zeros((2, 2))]
+    tr = np.arange(1650)
+    rec = np.arange(800, 1650)               # the recent rows: mean 10 in group 5
+    va = np.array([1650, 1651])
+    g = score.gauss15_samples(keys, rec, va, tr, target, 4000, rng)
+    assert g.shape == (2, 4000, 2)
+    assert abs(g[0].mean() - 10) < 0.1        # recent rows only, not the old mean-0 rows
+    assert 20 < g[1].mean() < 30 and abs(g[1].mean() - (50 * 20 + 400 * 30) / 450) < 0.3   # month fallback pools 17 and 18
+
+
+def test_headline_adds_gauss15_columns_beside_the_old_ones():
+    rng = np.random.default_rng(8)
+    n, m, d = 60, 9, 4
+    sets = {k: rng.normal(size=(n, m, d)) for k in ("clim", "clim15", "known", "unknown", "gauss")}
+    truth, day = rng.normal(size=(n, d)), np.repeat(np.arange(12), 5)
+    groups = [("u", "a", np.array([1, 1, 0, 0], bool)), ("u", "b", np.array([0, 0, 1, 1], bool))]
+    base = diag.headline(sets, truth, day, groups, n_boot=20)
+    new = diag.headline(dict(sets, gauss15=sets["gauss"]), truth, day, groups, n_boot=20)
+    assert new[base.columns].equals(base)
+    assert np.allclose(new.margin_gauss15_unknown, new.margin_gauss_unknown)

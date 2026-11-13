@@ -106,6 +106,26 @@ def gaussian_samples(x, n, m, rng):
     return clip_ranges(mu + (rng.standard_normal((n, m, x.shape[1])) @ L.T) * sd)
 
 
+def gauss15_samples(keys, rec, va, tr, target, m, rng, min_rows=300):
+    """AU-7: Gaussian baseline of the RECENT climate: mean + covariance from the clim15 rows `rec` (last 15 years before the test) of the
+    same grid point x month x 2-hour bin; under min_rows rows the grid point x month of `rec`; if that is empty, of all training rows `tr`."""
+    out = None
+    cnt = np.bincount(keys[rec], minlength=keys.max() + 1)
+    gk = np.where(cnt[keys] >= min_rows, keys, -1 - keys // 12)
+    for g in np.unique(gk[va]):
+        if g >= 0:
+            rows = rec[keys[rec] == g]
+        else:
+            rows = rec[keys[rec] // 12 == -1 - g]
+            rows = rows if len(rows) else tr[keys[tr] // 12 == -1 - g]
+        rows = np.sort(rng.choice(rows, min(len(rows), 3000), replace=False))
+        sel = np.flatnonzero(gk[va] == g)
+        x = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), m, rng)
+        out = np.empty((len(va), m, x.shape[-1]), x.dtype) if out is None else out
+        out[sel] = x
+    return out
+
+
 def group_keys(cond):
     """Grid point x calendar month x 2-hour solar-time bin, from the feature columns."""
     c = {k: cond[:, FEATURES.index(k)] for k in FEATURES}
@@ -182,6 +202,7 @@ def main():
                     "(<stem>_stress.csv) and print the worst cells; read-only")
     ap.add_argument("--mask-filled", action="store_true", help="IL-143: leave the heights a dataset built with --fill-top filled (above fill_top_idx) out of the headline table; off = they count as before")
     ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole pool of the group without replacement (clim15 pools under 20 rows fall back to all years); the 199-draw arrays still feed shuffle, variogram, coverage, tail, mc, stress. Outputs get a _fair suffix")
+    ap.add_argument("--gauss15", action="store_true", help="AU-7 (opt-in): a second Gaussian baseline fitted on the clim15 rows (last 15 years before the test; month-only fallback under 300 rows); headline gets skill15_gauss15 and margin_gauss15_* beside the existing columns. Own random stream: every other number unchanged")
     ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (default %(default)s, from the lag autocorrelation of the daily skill; 1 = the old single-day bootstrap)")
     ap.add_argument("--daily", action="store_true", help="AU-4 step 0: also write <stem>_daily.csv: per day and headline band the row count and the summed CRPS of every set (for the day-to-day autocorrelation of the skill)")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
@@ -236,6 +257,7 @@ def main():
         rows = np.sort(rng.choice(rows, min(len(rows), 3000), replace=False))
         sel = np.flatnonzero(gk[va] == g)
         gauss[sel] = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), a.m, rng)
+    gauss15 = gauss15_samples(keys, rec, va, tr, target, a.m, np.random.default_rng(a.seed + 15015)) if a.gauss15 else None
 
     rep = np.repeat(cond[va], a.m, axis=0)
     if a.year_clamp:   # L14e: the year slope is learned per place, season, hour and height; beyond the clamp year the feature stays at the clamp (optionally plus a pooled warming shift below)
@@ -335,7 +357,7 @@ def main():
             fair[f"crps_{name}"], fair[f"mae_{name}"], R = pool_scores(target, pools, kv, truth)
             print(f"AU-1 fair baseline {name}: whole-pool size R median {int(np.median(R))} (10-90 % {int(np.percentile(R, 10))}-{int(np.percentile(R, 90))})"
                   + (f"; {int(np.sum(hi2 - lo2 < 20))} rows with under 20 recent rows use the all-years pool" if name == "clim15" else ""), flush=True)
-        for name, x in (("gauss", gauss), ("known", known), ("unknown", unknown)):
+        for name, x in (("gauss", gauss), ("known", known), ("unknown", unknown)) + ((("gauss15", gauss15),) if a.gauss15 else ()):
             fair[f"crps_{name}"] = crps_fair(x, truth)
     res = pd.DataFrame({"column": physical_names()})
     sets = [("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown)]
@@ -353,7 +375,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "") + ("_g15" if a.gauss15 else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
@@ -398,7 +420,7 @@ def main():
             raise SystemExit("--mask-filled needs a dataset built with --fill-top (it has no fill_top_idx)")
         valid = diag.valid_from_fill_top(np.asarray(d["fill_top_idx"])[va], truth.shape[1])
         print(f"--mask-filled: {1 - valid.mean():.1%} of the columns are filled heights and are left out of the headline")
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid, override=fair or None,
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15, **({"gauss15": gauss15} if a.gauss15 else {})), truth, day, band_masks(), valid=valid, override=fair or None,
                                       daily=stem + "_daily.csv" if a.daily else None, block_days=a.block_days), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     if a.extras:
