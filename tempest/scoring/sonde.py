@@ -63,6 +63,7 @@ def main():
     ap.add_argument("--shear-tail", help="rare shear patches from tempest.calibrate.shear_tail (needs --calib), applied at grid level; outputs get a _stail suffix")
     ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="unknown drivers: analog draw (default) or ridge index forecast (what the tool serves)")
     ap.add_argument("--driver-lead", type=int, default=6)
+    ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (1 = the old single-day bootstrap)")
     ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole station x month pool without replacement (clim15 pools under 20 soundings fall back to all training years); outputs get a _fair suffix")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
@@ -269,7 +270,7 @@ def main():
         f"{v} {coverage90(known[..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f}"
         f" (clim {coverage90(dict(sets)['clim'][..., i * n:(i + 1) * n], truth[:, i * n:(i + 1) * n], 0.99).all(1).mean():.3f})"
         for i, v in enumerate(PROFILE)))
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks(), override=fair or None), stem + "_headline.csv")
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, days, band_masks(), override=fair or None, block_days=a.block_days), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), months, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag

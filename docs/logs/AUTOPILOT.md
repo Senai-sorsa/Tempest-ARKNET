@@ -894,3 +894,6 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 
 ## 2026-11-12 20:15 CST (tick work)
 - **AU-2 fixed** (forecast rows all shifted by one height difference; on by default, switch back kept). **AU-3 confirmed and fixed:** Open-Meteo's default answers at its 1400 m terrain, the ERA5 grid is 1495.5 m: the tool shifted the pad values twice (+9.7 hPa, +0.6 K); it now asks for the grid height and moves (with a flag) any response at another height. tool_audit identical, suite 272 passed. Open: live A13 check (pad pressure vs ASOS, three days). Next AU-4.
+
+## 2026-11-12 20:58 CST (tick work)
+- **AU-4 done.** Daily skill differences stay correlated 1-7 days (T 12-18 km 19, seasonal drift). Headline intervals now resample 21-day blocks by default (`--block-days 1` = old): median interval width x1.6; 17 of 19 shipped-stack ERA5 bands still clear 0 (RH 0-1 km, rh2m now touch 0). Plan pass rule (93-97 % AR(1) coverage) is unreachable at 730 days for any block (best 0.92 at 21 d): test bound 0.88-0.97, recorded as a deviation. Suite 275 passed. Next AU-5..7.

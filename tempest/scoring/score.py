@@ -182,6 +182,7 @@ def main():
                     "(<stem>_stress.csv) and print the worst cells; read-only")
     ap.add_argument("--mask-filled", action="store_true", help="IL-143: leave the heights a dataset built with --fill-top filled (above fill_top_idx) out of the headline table; off = they count as before")
     ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole pool of the group without replacement (clim15 pools under 20 rows fall back to all years); the 199-draw arrays still feed shuffle, variogram, coverage, tail, mc, stress. Outputs get a _fair suffix")
+    ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (default %(default)s, from the lag autocorrelation of the daily skill; 1 = the old single-day bootstrap)")
     ap.add_argument("--daily", action="store_true", help="AU-4 step 0: also write <stem>_daily.csv: per day and headline band the row count and the summed CRPS of every set (for the day-to-day autocorrelation of the skill)")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
                     "whole-profile coverage of the simultaneous 99 %% band (output only; samples are not changed)")
@@ -398,7 +399,7 @@ def main():
         valid = diag.valid_from_fill_top(np.asarray(d["fill_top_idx"])[va], truth.shape[1])
         print(f"--mask-filled: {1 - valid.mean():.1%} of the columns are filled heights and are left out of the headline")
     diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid, override=fair or None,
-                                      daily=stem + "_daily.csv" if a.daily else None), stem + "_headline.csv")
+                                      daily=stem + "_daily.csv" if a.daily else None, block_days=a.block_days), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag

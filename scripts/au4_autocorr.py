@@ -7,11 +7,9 @@ import argparse
 import numpy as np
 import pandas as pd
 
+from tempest.scoring.diag import day_number
 
-def day_number(d):
-    d = np.asarray(d, np.int64)
-    start = np.array([f"{y}-01-01" for y in d // 1000], "datetime64[D]")
-    return (start + (d % 1000).astype("timedelta64[D]")).astype(np.int64)
+
 
 
 def lag_corr(t, x, lags):

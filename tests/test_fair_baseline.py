@@ -66,3 +66,40 @@ def test_daily_sums_rebuild_the_headline_point_estimate(tmp_path):   # AU-4 step
     assert len(t) == 24 and set(t.day) == set(day) and (t.rows == 5).all()
     s = t.groupby("band")[["crps_known", "crps_clim15"]].sum()
     assert np.allclose(1 - s.crps_known / s.crps_clim15, base.set_index("band").skill15_known)
+
+
+def test_block_bootstrap_holds_the_mean_of_correlated_days_only_with_week_blocks():   # AU-4 pass rule
+    rng = np.random.default_rng(5)
+    n, rho, reps = 730, 0.7, 400
+    day = np.array([(2024 + i // 366) * 1000 + i % 366 for i in range(n)])   # true ids across the year end
+    hit = {1: 0, diag.BLOCK_DAYS: 0}
+    for _ in range(reps):
+        e = rng.normal(size=n)
+        x = np.empty(n)
+        x[0] = e[0] / np.sqrt(1 - rho ** 2)
+        for i in range(1, n):
+            x[i] = rho * x[i - 1] + e[i]
+        for b in hit:
+            _, lo, hi = diag.block_bootstrap_ci(x, day, n_boot=300, seed=int(rng.integers(1 << 30)), block_days=b)
+            hit[b] += lo <= 0 <= hi
+    cov = {b: h / reps for b, h in hit.items()}
+    # plan target 93-97 %: no block reaches it at 730 days (simulated, 600 repeats: 1 d 0.58, 7 d 0.86, 14 d 0.90, 21 d 0.92, 30 d 0.91, 45 d 0.90:
+    # longer blocks drop less cross-cut correlation but leave fewer blocks), so the bound is the best reachable +- 3 SE
+    assert 0.88 <= cov[diag.BLOCK_DAYS] <= 0.97, cov
+    assert cov[1] < 0.80, cov
+
+
+def test_block_days_one_leaves_the_headline_unchanged_and_blocks_widen_it():
+    rng = np.random.default_rng(6)
+    n, m, d = 400, 9, 4
+    day = np.repeat(np.arange(200), 2) + 2024000
+    shared = np.repeat(np.cumsum(rng.normal(size=200)) * 0.3, 2)[:, None, None]   # slow drift shared by the model's error
+    sets = {k: rng.normal(size=(n, m, d)) for k in ("clim", "clim15", "known")}
+    sets["unknown"] = rng.normal(size=(n, m, d)) + shared
+    truth = rng.normal(size=(n, d))
+    groups = [("u", "a", np.array([1, 1, 0, 0], bool)), ("u", "b", np.array([0, 0, 1, 1], bool))]
+    base = diag.headline(sets, truth, day, groups, n_boot=200)
+    assert base.equals(diag.headline(sets, truth, day, groups, n_boot=200, block_days=1))
+    wk = diag.headline(sets, truth, day, groups, n_boot=200, block_days=7)
+    assert np.allclose(wk.skill15_unknown, base.skill15_unknown)
+    assert ((wk.skill15_unknown_hi - wk.skill15_unknown_lo) > (base.skill15_unknown_hi - base.skill15_unknown_lo)).all()
