@@ -1,0 +1,12 @@
+C6 steps 3-4: shipped mode F (199 members) on 00Z-start rows with the 36 h older 12Z run; fit 2016-2020 (2500 rows), test 2022 (2500 rows); f = a + b d / median(d), clipped 0.5-2
+wind 0-1 km      a +0.832 b +0.131  median d 2.61  test f 5/50/95 %: 0.86 0.98 1.40
+wind 1-5 km      a +0.722 b +0.212  median d 3.94  test f 5/50/95 %: 0.79 0.97 1.49
+wind 5-12 km     a +0.763 b +0.178  median d 6.30  test f 5/50/95 %: 0.83 0.97 1.49
+T 5-12 km        a +0.795 b +0.157  median d 0.88  test f 5/50/95 %: 0.85 0.99 1.47
+  u: PIT distance 0.061 -> 0.060, CRPS 2.301 -> 2.290
+  v: PIT distance 0.050 -> 0.048, CRPS 2.386 -> 2.374
+  T: PIT distance 0.053 -> 0.049, CRPS 0.890 -> 0.887
+all u, v, T: PIT distance 0.0545 -> 0.0526, change -0.0019 [-0.0037, +0.0001] (init-date blocks, 36 dates); CRPS relative change -0.48 % [-0.92, -0.13]
+AV4 cells [0, 1, 2, 6]: VERDICT MISS (record)
+VERDICT: FAIL, C6 dropped (PIT interval below 0: no; CRPS change <= +0.2 %: yes)
+
