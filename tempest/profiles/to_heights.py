@@ -116,14 +116,16 @@ assert np.allclose(fill_top(np.array([[1, 2, np.nan, np.nan], [1, np.nan, 3, 4],
                    [[1, 2, 2, 2], [1, np.nan, 3, 4], [np.nan] * 4], equal_nan=True)
 
 
-def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m):
+def profiles_from_levels(z, u, v, t, r, z_sfc, u10, v10, u100, v100, t2m, d2m, wind_from=100.0):
     """Arrays (..., L) on pressure levels and (...) surface fields -> dict of (..., 44) profiles.
 
     Pressure levels at or below the ground are dropped. Wind below 100 m comes from the 10/100 m anchors only.
+    wind_from (AU-18, opt-in 150): pressure-level winds used only above this height AGL; a level just above the 100 m anchor
+    makes a false 100-150 m shear step (p99 +21 % on the 18 % of columns with a level at 100-150 m). Default 100 = the built stores.
     """
     agl = geometric_height(z) - geometric_height(z_sfc)[..., None]
     agl = np.where(agl > 0, agl, np.nan)
-    agl_w = np.where(agl > 100, agl, np.nan)                 # pressure-level winds only above the 100 m anchor
+    agl_w = np.where(agl > wind_from, agl, np.nan)           # pressure-level winds only above the 100 m anchor (AU-18: wind_from)
     shape = agl.shape[:-1] + (1,)
     hw = np.concatenate([np.full(shape, 10.0), np.full(shape, 100.0), agl_w], -1)
     ht = np.concatenate([np.full(shape, 2.0), agl], -1)
@@ -175,6 +177,7 @@ def main():
     ap.add_argument("--hours", default="12-23,0-4", help="UTC hours to keep, e.g. 5-11 (the night hours the default leaves out) or all")
     ap.add_argument("--last-year", type=int, help="leave out later years (e.g. 2025: no 2026 holdout data in the store)")
     ap.add_argument("--first-year", type=int, help="leave out earlier years (e.g. 1991: the CDS/ARCO fill starts there)")
+    ap.add_argument("--wind-from", type=float, default=100.0, help="AU-18 (opt-in 150): pressure-level winds only above this height AGL; 100 = the built stores")
     a = ap.parse_args()
     hours = parse_hours(a.hours)
 
@@ -217,7 +220,7 @@ def main():
             lv = em
         sf = lambda n: b[n].transpose("latitude", "longitude", "valid_time").values.reshape(n_pt, -1)
         prof, rh2m = profiles_from_levels(lv("z"), lv("u"), lv("v"), lv("t"), lv("r"), np.broadcast_to(z_sfc[:, None], (n_pt, b.sizes["valid_time"])),
-                                          sf("u10"), sf("v10"), sf("u100"), sf("v100"), sf("t2m"), sf("d2m"))
+                                          sf("u10"), sf("v10"), sf("u100"), sf("v100"), sf("t2m"), sf("d2m"), a.wind_from)
         out = xr.Dataset({**{k: (("point", "time", "height"), prof[k]) for k in PROFILE},
                           "t2m": (("point", "time"), sf("t2m")), "sp": (("point", "time"), sf("sp")),
                           "rh2m": (("point", "time"), rh2m.astype(np.float32)),
