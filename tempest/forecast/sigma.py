@@ -81,6 +81,13 @@ def fit(d):
     return tab
 
 
+def nest_widths(tab, width):
+    """NEST (stage 3): hidden width per lead day, width x (4 - 3 x (s_d - s_min) / (s_max - s_min)) / 4 in quarters; s_d = mean srel of day d."""
+    s = tab["srel"].mean(1)
+    q = np.rint(4 - 3 * (s - s.min()) / max(s.max() - s.min(), 1e-9)).astype(int)
+    return [int(width * k // 4) for k in q]
+
+
 def base_scale(tab, d):
     """-> base (n, C) = climate + beta x forecast anomaly, s (n, C)."""
     cm, month = _climate_mean(tab, d)

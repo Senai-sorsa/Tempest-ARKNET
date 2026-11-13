@@ -53,6 +53,7 @@ ap.add_argument("--fit-only", action="store_true", help="N6 (New_Plan 10.4): sto
 ap.add_argument("--init", default="", help="N2: start the network from this saved .pt (fine-tune, with its normalisation); empty = fresh start (as before)")
 ap.add_argument("--all-leads", action="store_true", help="N5 full run (New_Plan 10.4): keep rows beyond 7.5 d as lead bin 9 and score leads 1 / 3 / 5 / 7 / 9; the network is still fit on leads <= 7.5 d unless --fit-beyond. Off = as before")
 ap.add_argument("--fit-beyond", action="store_true", help="N5: with --all-leads, fit the network on all leads plus 10 %% climate-anchor rows (forecast = a random same-season truth profile, lead 15 d)")
+ap.add_argument("--nest", action="store_true", help="SIGMA stage 3 NEST (New_Plan 14.3): with --sigma, lead day d uses the first k_d of --width hidden units, k_d = width x (4 - 3 x (s_d - s_min) / (s_max - s_min)) / 4 rounded to quarters, s_d = mean SIGMA s / climate spread of that day (small noise -> all units, largest -> a quarter); off = as before")
 ap.add_argument("--sigma", action="store_true", help="SIGMA stage 2 (New_Plan 14.3): with --all-leads, fit on all leads with the target (truth - base) / s, base = climate + beta x forecast anomaly, beta and s tabled per lead day (tempest/forecast/sigma.py, from the fit rows); members = base + s x network. Off = as before")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 ap.add_argument("--test-year", type=int, choices=(2021, 2022), default=2022, help="AV1 (New_Plan 13.1): 2021 = score on 2021 with the range map fit on 2022 (a year no network saw in fit or step choice); outputs get the suffix _t2021, so the 2022 tables stay. Default 2022 = as before")
@@ -128,9 +129,10 @@ if a.sigma:                                                                    #
     from tempest.forecast import sigma as SG
     _sg = SG.fit(tr)
     print(f"SIGMA: beta at lead day 1 / 5 / 10 (mean over columns) {_sg['beta'][[0, 4, 9]].mean(1).round(2).tolist()}", flush=True)
+assert not a.nest or a.sigma, "--nest needs --sigma"
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
-               step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
+               step_weight=0.0, linear_features=[], seed=a.seed, **({"nest_widths": SG.nest_widths(_sg, a.width)} if a.nest else {}))   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
     fit = tr if a.fit_beyond or a.sigma or not a.all_leads else {k: v[tr["lead_bin"] != 9] for k, v in tr.items()}   # N5 binned arm: as shipped, leads <= 7.5 d
     if a.fit_beyond:                                                           # N5: climate anchors; own rng so every other draw stays as before
         _ar = np.random.default_rng(500 + a.seed)

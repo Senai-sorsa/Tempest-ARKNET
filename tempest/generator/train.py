@@ -62,7 +62,8 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 noise_t_dims=0, noise_t_nu=4.0,   # Gemini idea 1: this many noise numbers are Student-t (model noise_t)
                 noise_t_head=0, noise_t_clip=8.0,                   # Gemini idea 1b: the first K t numbers also scale a zero-init output head (past the layer norms)
                 jump_k=0, jump_top=3000.0,
-                conv_c=0, conv_layers=3, conv_k=5)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
+                conv_c=0, conv_layers=3, conv_k=5,
+                nest_widths=None)           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -206,6 +207,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
 
     if cfg["conv_c"] and n_prof:
         model_kw["conv"] = dict(C=int(cfg["conv_c"]), layers=int(cfg["conv_layers"]), k=int(cfg["conv_k"]), n_var=len(PROFILE), n_h=len(HEIGHTS))
+
+    if cfg["nest_widths"]:
+        li = names.index("lead_days")
+        model_kw["nest"] = dict(col=li, mu=float(cm[li]), sd=float(cs[li]), widths=[int(w) for w in cfg["nest_widths"]])
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:

@@ -26,12 +26,15 @@ class Block(nn.Module):
             nn.init.zeros_(self.cfilm.bias)
         self.ff = nn.Sequential(nn.Linear(width, width), nn.SiLU(), nn.Linear(width, width))
 
-    def forward(self, h, z, zc=None):
+    def forward(self, h, z, zc=None, mask=None):
         s, b = self.film(z).chunk(2, dim=-1)
         if zc is not None:
             sc, bc = self.cfilm(zc).chunk(2, dim=-1)
             s, b = s + sc, b + bc
-        return h + self.ff(self.norm(h) * (1 + s) + b)
+        if mask is None:
+            return h + self.ff(self.norm(h) * (1 + s) + b)
+        x = (self.norm(h) * (1 + s) + b) * mask                                   # NEST: units past the row's width stay 0 everywhere
+        return (h + self.ff[2](self.ff[1](self.ff[0](x)) * mask)) * mask
 
 
 class Generator(nn.Module):
@@ -44,7 +47,8 @@ class Generator(nn.Module):
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
                  linear_cols: list[int] | None = None, interactions: bool = False, product_pairs: list | None = None,
                  geo: dict | None = None, context_cols: list[int] | None = None, terrain_head: dict | None = None,
-                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None, conv: dict | None = None):
+                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None, conv: dict | None = None,
+                 nest: dict | None = None):
         """Loop-3 options, all off by default (= the adopted network, same parameters and outputs):
         geo = dict(cols=[lat, lon positions], mu=[..], sd=[..], L=10, siren=0): spherical harmonics of the real
           lat/lon (un-normalised with mu/sd) replace the two raw columns; siren > 0 passes them through a 2-layer
@@ -66,7 +70,10 @@ class Generator(nn.Module):
         conv = dict(C=32, layers=3, k=5, n_var=4, n_h=44) (L26): a 1-D convolutional refinement along the heights. The trunk state is projected to C
           features per height, stacked with the network's own profile outputs, passed through `layers` residual convolutions of width k and added back
           to the profile outputs (last layer zero-initialised, so the network starts as without it). Neighbouring heights see each other: aimed at
-          height-to-height roughness (surface jumps, shear tail)."""
+          height-to-height roughness (surface jumps, shear tail).
+        nest = dict(col=i, mu=.., sd=.., widths=[10 ints]) (NEST, SIGMA stage 3, New_Plan 14.3): ordered units; a row whose lead (cond column i,
+          un-normalised with mu / sd) falls in lead day d (1..10) uses only the first widths[d - 1] hidden units (the rest are zeroed after the
+          input layer, inside and after every block and after the head's norm; the norms' statistics see the zeros), so one network is wide where the noise level is small and narrow where it is large."""
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.geo = dict(geo) if geo else None
@@ -98,6 +105,10 @@ class Generator(nn.Module):
         self.inp = nn.Linear(n_in + noise_dim, width)
         self.ctx_sep = bool(ctx_sep and self.context_cols)
         self.blocks = nn.ModuleList(Block(width, emb, self.ctx_sep) for _ in range(depth))
+        self.nest = dict(nest) if nest else None
+        if self.nest:
+            assert len(self.nest["widths"]) == 10 and all(0 < w <= width for w in self.nest["widths"])
+            self.register_buffer("nest_mask", (torch.arange(width)[None] < torch.tensor(self.nest["widths"])[:, None]).float())   # (10, width)
         self.head = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, n_out))
         self.noise_t = dict(noise_t) if noise_t else None
         if self.noise_t and self.noise_t.get("head"):
@@ -166,9 +177,14 @@ class Generator(nn.Module):
             if not self.ctx_sep:
                 z, zc = z + zc, None
         h = self.inp(torch.cat([c, eps], dim=-1))
+        mask = self._nest_mask(full) if self.nest else None
+        if mask is not None:
+            h = h * mask
         for blk in self.blocks:
-            h = blk(h, z, zc)
+            h = blk(h, z, zc) if mask is None else blk(h, z, zc, mask)
         hn = self.head[0](h)
+        if mask is not None:
+            hn = hn * mask
         out = self.head[1](hn)
         if self.noise_t and self.noise_t.get("head"):
             K = int(self.noise_t["head"])
@@ -185,6 +201,11 @@ class Generator(nn.Module):
             s = self.slope(slope_in).view(len(cond), x.shape[1], -1)
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
         return out
+
+    def _nest_mask(self, full):
+        lead = full[:, int(self.nest["col"])] * float(self.nest["sd"]) + float(self.nest["mu"])
+        day = torch.clamp(torch.ceil(lead - 1e-6), 1, 10).long() - 1                # sigma.lead_day
+        return self.nest_mask[day].unsqueeze(1)                                    # (B, 1, width)
 
     def _conv(self, h, out):
         C, nv, nh = int(self.conv["C"]), int(self.conv["n_var"]), int(self.conv["n_h"])
