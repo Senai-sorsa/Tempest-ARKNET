@@ -1,0 +1,5 @@
+2026-11-13 05:54 AV6 (a): fixed 10 m wind widening per site, fit 2016-01-01..2022-12-31 (CRPS-best on grid 1.0-3.0), scored 2023-01-01..2024-12-31; WB2 IFS ENS 50 members vs ASOS 00 UTC, leads 1-7 d pooled; 21-day blocks
+  TCS ws: factor 1.35 (fit 1987 cases); scored 405 cases: CRPS 1.2902 -> 1.2683, change -0.0218 [-0.0397, -0.0043]; 90 % coverage error 0.238 -> 0.120
+  MAF ws: factor 1.55 (fit 2017 cases); scored 407 cases: CRPS 1.3154 -> 1.2709, change -0.0444 [-0.0683, -0.0202]; 90 % coverage error 0.273 -> 0.121
+Verdict: PASS
+
