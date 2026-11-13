@@ -50,3 +50,19 @@ def test_headline_override_with_the_plain_arrays_changes_nothing():
     assert base.equals(diag.headline(sets, truth, day, groups, n_boot=50, override=ov))
     fair = diag.headline(sets, truth, day, groups, n_boot=50, override={"crps_clim15": score.crps_fair(sets["clim15"], truth)})
     assert not base["skill15_known"].equals(fair["skill15_known"])
+
+
+def test_daily_sums_rebuild_the_headline_point_estimate(tmp_path):   # AU-4 step 0
+    rng = np.random.default_rng(4)
+    n, m, d = 60, 9, 4
+    sets = {k: rng.normal(size=(n, m, d)) for k in ("clim", "clim15", "known", "unknown")}
+    truth, day = rng.normal(size=(n, d)), np.repeat(np.arange(12), 5) + 2024000
+    groups = [("u", "a", np.array([1, 1, 0, 0], bool)), ("u", "b", np.array([0, 0, 1, 1], bool))]
+    path = tmp_path / "x_daily.csv"
+    base = diag.headline(sets, truth, day, groups, n_boot=20)
+    assert base.equals(diag.headline(sets, truth, day, groups, n_boot=20, daily=str(path)))
+    import pandas as pd
+    t = pd.read_csv(path)
+    assert len(t) == 24 and set(t.day) == set(day) and (t.rows == 5).all()
+    s = t.groupby("band")[["crps_known", "crps_clim15"]].sum()
+    assert np.allclose(1 - s.crps_known / s.crps_clim15, base.set_index("band").skill15_known)

@@ -113,7 +113,7 @@ def valid_from_fill_top(top, D):
     return ok
 
 
-def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, override=None):
+def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, override=None, daily=None):
     """Band table with 95 % intervals from a bootstrap over whole days (rows on one day move together, so resampling
     rows would give falsely narrow intervals). sets: dict name -> (N, m, D) samples, needs clim, known, unknown and
     optionally clim15 (climatology from the last 15 years before the test, so skill is not just "knows it got warmer").
@@ -121,7 +121,9 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, 
     valid (N, D) bool, opt-in (IL-143): columns that are real data. Heights a dataset filled above its highest valid level (fill_top) are False and count in no band mean; a row with no valid
     column in a band drops out of that band. None = every column counts, as before.
     override (AU-1, opt-in): dict "crps_<set>" / "mae_<set>" -> ready (N, D) per-row arrays used instead of computing them
-    from the samples (the fair CRPS and the whole-pool climatology of score --fair-baseline). None = as before."""
+    from the samples (the fair CRPS and the whole-pool climatology of score --fair-baseline). None = as before.
+    daily (AU-4 step 0, opt-in): csv path; writes per day id and band the row count and the summed band-mean CRPS of every set
+    (sum / rows = that day's mean; the headline means are sum over days / rows over days). None = nothing written."""
     override = override or {}
     from tempest.scoring.score import coverage90, crps_ensemble  # late import: score imports diag
     masks = np.stack([sel for _, _, sel in groups], 1).astype(np.float64)
@@ -146,6 +148,12 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, 
     c = np.vstack([np.ones(nd), rng.multinomial(nd, np.full(nd, 1 / nd), n_boot)])  # times each day is drawn; row 0 = as is
     tot = c @ np.bincount(inv, minlength=nd)  # rows per replicate
     daysum = lambda v: np.stack([np.bincount(inv, v[:, g], nd) for g in range(v.shape[1])], 1)  # (nd, G)
+    if daily is not None:
+        w = np.ones((len(inv), len(groups))) if have is None else have
+        days = np.unique(day)
+        pd.concat([pd.DataFrame({"day": days, "var": v, "band": b, "rows": daysum(w)[:, g],
+                                 **{k: daysum(x * w)[:, g] for k, x in stat.items() if k.startswith("crps_")}})
+                   for g, (v, b, _) in enumerate(groups)], ignore_index=True).to_csv(daily, index=False)
     if have is None:
         mean = {k: (c @ daysum(v)) / tot[:, None] for k, v in stat.items()}  # (1 + n_boot, G)
     else:                                                 # rows weighted by "has a valid column in the band"
