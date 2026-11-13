@@ -419,7 +419,8 @@ class Launch:
                 if k in s:
                     m = s[k].mean(0, keepdims=True)
                     s[k] = (m + t_fac * (s[k] - m)).astype(np.float32)
-        s = self._regust(s, base._ensure_pool()["launch_times"][:1].repeat(n), measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
+        times = np.resize(base._ensure_pool()["launch_times"], n)     # AU-12: the base pool's window times, cycled to n (was every sample at the first one's time)
+        s = self._regust(s, times, measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
         s["elevation_m"] = elev
@@ -434,8 +435,9 @@ class Launch:
                 if z > 4.0 and name_ not in far:
                     far.append(name_)
         flags_far = [f"observation-far-outside-the-prior-{'-'.join(far)}-kept-as-real-check-for-a-typo"] if far else []
-        return dict(samples=s, launch_times=bp["launch_times"][:1].repeat(n), infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
-                    flags=list(bp["flags"]) + flags_far + (["t-widened-x%.2f" % t_fac] if t_fac is not None and t_fac > 1.0 else []) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []) + (["radar-wind-" + self._obs["_radar_src"].replace(" ", "-")] if "_radar_src" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
+        multi = len(np.unique(times.astype("datetime64[h]"))) > 1         # the conditioned members are drawn from the whole window's pool: their hours are labels, not used by the update
+        return dict(samples=s, launch_times=times, infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
+                    flags=list(bp["flags"]) + flags_far + (["t-widened-x%.2f" % t_fac] if t_fac is not None and t_fac > 1.0 else []) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []) + (["radar-wind-" + self._obs["_radar_src"].replace(" ", "-")] if "_radar_src" in self._obs else []) + (["window-hours-not-used-by-conditioning"] if multi else []), day_share=bp["day_share"], window=bp["window"])
 
     def _obs_to_engine(self, base):
         o, eng_obs = self._measurements(), {}

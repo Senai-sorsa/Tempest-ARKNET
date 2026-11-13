@@ -124,6 +124,7 @@ def feature_matrix(names, lat, lon, elev_site, elev_grid, doy, solar_hour, year,
 
 
 LAPSE, SHIFT_SCALE = 0.0065, 1500.0
+RH_SHIFT_BLEND = False   # AU-9 switch back: True restores the old second fade of the humidity change (under-applied aloft)
 
 
 def _pbl_top(T):
@@ -152,7 +153,8 @@ def site_shift(phys, dz, shift_mode=None, top_m=1500.0):
     t_old = phys[:, 2 * nh:3 * nh].astype(np.float64)
     t_new = t_old - LAPSE * d2 * w
     rh = phys[:, 3 * nh:4 * nh]
-    phys[:, 3 * nh:4 * nh] = np.clip(rh * es_liquid(t_old) / es_liquid(t_new) * w + rh * (1 - w), 0, 100)
+    kept = rh * es_liquid(t_old) / es_liquid(t_new)                         # AU-9: t_new already carries the fade w, so the dew point is kept fully
+    phys[:, 3 * nh:4 * nh] = np.clip(kept * w + rh * (1 - w) if RH_SHIFT_BLEND else kept, 0, 100)
     phys[:, 2 * nh:3 * nh] = t_new
     phys[:, 4 * nh + 2] = np.clip(phys[:, 4 * nh + 2] * es_liquid(t) / es_liquid(t - LAPSE * dz), 0, 100)
     phys[:, 4 * nh] = t - LAPSE * dz

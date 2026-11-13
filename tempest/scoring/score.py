@@ -178,6 +178,7 @@ def main():
     ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
+    ap.add_argument("--template-before-year", type=int, default=None, help="AU-14: with --template-cell / --pooled-template, templates from years before this one (the export uses 2021; default: the first test year, as before)")
     ap.add_argument("--debias", help="L3-34: per point x month x 4-hour-bin mean-error table from tempest.scoring.debias (needs --calib), applied after the calibration maps; outputs get a _debias suffix")
     ap.add_argument("--year-clamp", type=int, help="L14e: hold the year feature of the scored rows at this year (the straight-line year slopes are not extrapolated beyond it)")
     ap.add_argument("--year-shift", type=float, default=0.0, help="with --year-clamp: pooled warming, K per year, added to t2m and T up to 10 km for the years beyond the clamp")
@@ -320,10 +321,13 @@ def main():
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         tpl = clim
+        t_before = a.template_before_year or a.first_test_year or int(year[va].min())
+        if a.template_before_year:
+            print(f"shuffle templates from years before {t_before} (--template-before-year)")
         if a.template_cell:                                                          # IL-95: templates per block of N x N grid points, as shipped in the tool
-            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), t_before, cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
         if a.pooled_template:                                                        # IL-94: templates pooled over grid points, as shipped in the tool
-            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), pooled=True)
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), t_before, pooled=True)
         known, unknown = shuf_mod.apply(known, tpl, a.shuffle_w), shuf_mod.apply(unknown, tpl, a.shuffle_w)
     if a.shear_map:
         if not cal:
@@ -375,7 +379,7 @@ def main():
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "") + ("_g15" if a.gauss15 else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "") + ("_g15" if a.gauss15 else "") + (f"_tb{a.template_before_year}" if a.shuffle and a.template_before_year else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 

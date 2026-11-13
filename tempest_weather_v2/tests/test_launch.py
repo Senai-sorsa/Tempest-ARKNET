@@ -94,7 +94,11 @@ def test_window_draws_several_hours_and_reports_it():
     assert len({int(t.astype("datetime64[h]").astype("int64")) for t in pool["launch_times"]}) >= 4
     atms = L.atmospheres(20)
     assert len(atms) == 20 and atms[3].launch_time is not None
+    cond = L.observe(wind_10m="14 mph", wind_from_deg=240)                          # AU-12: conditioning keeps the window's hours and says they are labels
+    cp = cond._ensure_pool()
+    assert len(np.unique(cp["launch_times"].astype("datetime64[h]"))) >= 4 and "window-hours-not-used-by-conditioning" in cp["flags"]
     one = Launch("spaceport_america", WHEN, mode="ai", n=100)
+    assert "window-hours-not-used-by-conditioning" not in one.observe(wind_10m="14 mph", wind_from_deg=240)._ensure_pool()["flags"]
     assert "10:00 MDT" in one.local_time_note and "solar" in one.local_time_note
 
 

@@ -56,8 +56,10 @@ def test_observe_with_weights_moves_the_median_less_than_an_exact_pin():
     old = L.observe(wind_10m="9 m/s", wind_from_deg=240, age_hours=3.0).weather(all=True).wind_10m
     far = L.observe(wind_10m="9 m/s", wind_from_deg=240, age_hours=3.0, distance_km=120, elevation_diff_m=80).weather(all=True).wind_10m
     assert abs(pin - 9.0) < 0.5
-    assert abs(old - prior) > 0.2 and abs(pin - prior) > abs(old - prior) > abs(far - prior) - 1e-9     # exact pin > 3 h old > 3 h old and far away
-    assert abs(far - prior) < abs(old - prior)
+    assert abs(old - prior) > 0.2 and abs(pin - prior) > abs(old - prior)                              # exact pin > 3 h old
+    # ASK_LATER 23 (adopted 2026-11-11): a neighbour's rho is capped at the own-station rho of the same age (0.72 ** 3 = 0.37 < its gain 0.46 here),
+    # so the far report moves the 10 m speed as much as the 3 h old one, never more; the old strict '<' only held by float noise (1e-8)
+    assert abs(far - prior) <= abs(old - prior) + 1e-6
 
 
 def test_observe_latest_end_to_end_and_errors():
