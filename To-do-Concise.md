@@ -7,7 +7,8 @@
 [x] AV25 **MISS** 2026-11-13 05:19: on 2021+2022 test dates PIT gets worse +0.0027 [+0.0001, +0.0041], CRPS -0.33 % [-0.58, -0.07] -> C6/AV4 line closed for calibration; CRPS-only rule = ASK_LATER 28 (user's call). Next: AV24, then STRAND stage 1.
 [x] AV6 (a) **PASS** 2026-11-13 05:55: fixed wind widening of the raw IFS ENS (TCS 1.35, MAF 1.55, fit 2016-22): CRPS -0.022 [-0.040, -0.004] / -0.044 [-0.068, -0.020], coverage error 0.24 -> 0.12 / 0.27 -> 0.12 in 2023-24. Not adopted (tool has no raw-ENS path; IL-101 widens already). AV6 (b) blocked: HRES on disk ends 2022-12. Next: AV24, then STRAND stage 1.
 [x] AV24 **MISS** 2026-11-13 07:22: retrained-on-mix better at every lead in all 4 runs (-0.8..-2.4 %), 1 / 3 d intervals < 0 in all 4, 7 d crosses 0 -> AV26 (pool 2021 + 2022).
-[x] AV26 **MISS** 2026-11-13 08:21: pooled 2021+2022, mix better at every lead in all 4 runs, 14/16 intervals < 0 (NM/TX 5 d and Denver 7 d cross 0) -> no clean third test year; looser rule = ASK_LATER 29 (user's call). Next: STRAND stage 1 (rule-first script).
+[x] AV26 **MISS** 2026-11-13 08:21: pooled 2021+2022, mix better at every lead in all 4 runs, 14/16 intervals < 0 (NM/TX 5 d and Denver 7 d cross 0) -> no clean third test year; looser rule = ASK_LATER 29 (user's call). 
+[x] STRAND stage 1 (climate mode) **MISS** 2026-11-13 08:41: moving templates cut the shipped sequence's 3-h run error to 0.50-0.65 (needed 0.5 at every limit); floor = tool 10 m wind windier than ERA5 (per-hour gap 0.12-0.19) -> AV27 (link only, `b15_av27_strand_link.py`, running). Then AV5, SIGMA stage 2.
 
 **NEW 2-DAY PLAN (2026-11-10, not started): `New_Plan.md` in the repo root merges `Innovative idea review.md`, `Limitations to solve.md` and the open list of handover section 14.4 into parallel lanes (1 GPU, 3 CPU, 1 download) for 48 h. The status lines below are from Nov 7-8 and are older than that plan.**
 

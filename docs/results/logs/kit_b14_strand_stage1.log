@@ -1,0 +1,10 @@
+2026-11-13 08:41 STRAND stage 1 (climate mode): P(10 m wind under L for 3 h), tool members re-ordered three ways; 12 points x 12 months x start (15, 18, 21) UTC; templates 1991-2005, truth 2006-2020; n 1024
+  seed 0 L    5 m/s: 407 open cells; mean P real 0.591, IND 0.221, SEQ 0.353, TPL 0.478; mean |error| IND 0.3699, SEQ 0.2374, TPL 0.1199 (TPL / SEQ 0.51); marginal check |P_indep tool - truth| 0.1228
+  seed 0 L    8 m/s: 332 open cells; mean P real 0.876, IND 0.575, SEQ 0.688, TPL 0.764; mean |error| IND 0.3015, SEQ 0.1911, TPL 0.1188 (TPL / SEQ 0.62); marginal check |P_indep tool - truth| 0.1923
+  seed 0 L   10 m/s: 161 open cells; mean P real 0.936, IND 0.689, SEQ 0.783, TPL 0.839; mean |error| IND 0.2475, SEQ 0.1539, TPL 0.0987 (TPL / SEQ 0.64); marginal check |P_indep tool - truth| 0.1853
+  seed 1 L    5 m/s: 407 open cells; mean P real 0.591, IND 0.221, SEQ 0.354, TPL 0.479; mean |error| IND 0.3691, SEQ 0.2364, TPL 0.1194 (TPL / SEQ 0.50); marginal check |P_indep tool - truth| 0.1229
+  seed 1 L    8 m/s: 332 open cells; mean P real 0.876, IND 0.574, SEQ 0.685, TPL 0.761; mean |error| IND 0.3024, SEQ 0.1937, TPL 0.1217 (TPL / SEQ 0.63); marginal check |P_indep tool - truth| 0.1946
+  seed 1 L   10 m/s: 161 open cells; mean P real 0.936, IND 0.688, SEQ 0.781, TPL 0.837; mean |error| IND 0.2479, SEQ 0.1557, TPL 0.1007 (TPL / SEQ 0.65); marginal check |P_indep tool - truth| 0.1863
+  cells skipped (outside the served hours / too few windows): 0
+Verdict: MISS (record)
+

@@ -73,7 +73,8 @@ def judge(err):
     return "MISS (record)"
 
 
-def main():
+def collect():
+    """-> ({seed: {L: (cells, 5) array of (P real, P IND, P SEQ, P TPL, truth P_indep)}}, skipped cells, number of points). Shared with b15 (AV27)."""
     from tempest_weather import api
     ds = xr.open_zarr(K.REPO + "/data/pilot/profiles80.zarr")
     la, lo = ds.lat.values, ds.lon.values
@@ -82,9 +83,7 @@ def main():
     t = pd.DatetimeIndex(sub.time.values)
     assert t.year.max() <= 2020, "no data after 2020 here"
     W = np.hypot(sub.u10.values, sub.v10.values)                           # (P, T)
-    lines = [f"STRAND stage 1 (climate mode): P(10 m wind under L for 3 h), tool members re-ordered three ways; {len(pts)} points x 12 months x "
-             f"start {STARTS} UTC; templates {TEMPLATE[0]}-{TEMPLATE[1]}, truth {TRUTH[0]}-{TRUTH[1]}; n {N}"]
-    err, skipped = {}, 0
+    out, skipped = {}, 0
     for seed in (0, 1):
         rng = np.random.default_rng(100 + seed)
         rows = {L: [] for L in LIMITS}
@@ -111,9 +110,19 @@ def main():
                             continue
                         ps, pind = probs(seq, L)
                         rows[L].append((pr, pind, ps, probs(tp, L)[0], pir))
+        out[seed] = {L: np.array(rows[L]) for L in LIMITS}
+    return out, skipped, len(pts)
+
+
+def main():
+    rows, skipped, npts = collect()
+    lines = [f"STRAND stage 1 (climate mode): P(10 m wind under L for 3 h), tool members re-ordered three ways; {npts} points x 12 months x "
+             f"start {STARTS} UTC; templates {TEMPLATE[0]}-{TEMPLATE[1]}, truth {TRUTH[0]}-{TRUTH[1]}; n {N}"]
+    err = {}
+    for seed in (0, 1):
         err[seed] = {}
         for L in LIMITS:
-            r = np.array(rows[L])
+            r = rows[seed][L]
             e = tuple(float(np.abs(r[:, j] - r[:, 0]).mean()) for j in (1, 2, 3))
             err[seed][L] = e
             lines.append(f"  seed {seed} L {L:>4.0f} m/s: {len(r)} open cells; mean P real {r[:, 0].mean():.3f}, IND {r[:, 1].mean():.3f}, SEQ {r[:, 2].mean():.3f}, "
