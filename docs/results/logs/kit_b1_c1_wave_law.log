@@ -1,0 +1,8 @@
+2026-11-10 20:15 C1 wave-law check at EPZ, 2005-2022: 13018 balloon / ERA5 pairs
+band       class of N2 (low, mid, high): mean d x 1e6 [95 %]                                     c (d = c N2)   rises?
+0-1 km        5.37 [ -2.16,  12.48]    59.16 [ 54.80,  63.53]   105.22 [ 93.62, 117.72]      0.1245      yes
+1-5 km       27.81 [ 27.22,  28.37]    35.26 [ 34.38,  36.06]    48.43 [ 46.74,  50.10]      0.3087      yes
+5-12 km      23.19 [ 22.73,  23.68]    33.47 [ 32.78,  34.16]    85.13 [ 83.52,  86.84]      0.3271      yes
+12-18 km     97.02 [ 94.88,  98.94]   127.60 [125.13, 130.22]   130.60 [128.07, 133.12]      0.2724      yes
+VERDICT: C1 PASSES (d rises with N2 in 1-5 and 5-12 km). b2_shear_target_fit.py may be run with --form c1.
+

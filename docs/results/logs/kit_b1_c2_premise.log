@@ -1,0 +1,11 @@
+2026-11-10 20:20 C2 premise check: 1500 rows of 2023, 199 members, thresholds from 40000 truth rows
+set                      unstable rate   shear rate
+truth (2023 rows)        0.2064          0.0031
+real rows                0.1974          0.0043
+real rows + shuffle      0.3266          0.0208
+model                    0.2183          0.0004
+model + shuffle          0.3109          0.0203
+model + shuffle + maps   0.2127          0.0066
+share of the excess (model + shuffle over real rows) that the shuffle alone makes: unstable 1.00, shear 1.00
+VERDICT: SHUFFLE is the main fault -> run b2_group_rank_shuffle.py (CPU). Do NOT run b2_c2_finetune.py.
+

@@ -1,0 +1,16 @@
+2026-11-10 20:31 A3 observe from another station: CRPS (m/s) / 90 % coverage of the 10 m speed at the target, 2023-25, 08-20 local
+TCS: 300 hours used, 0 skipped
+  no report                  n  300  CRPS 1.690  minus no report on the same hours +0.000 [+0.000, +0.000]  coverage 0.80
+  own station, 1 h old       n  300  CRPS 1.209  minus no report on the same hours -0.481 [-0.612, -0.354]  coverage 0.80
+  ONM (94 km), 1 h old       n  262  CRPS 1.474  minus no report on the same hours -0.246 [-0.379, -0.096]  coverage 0.73   FAIL
+  LRU (110 km), 1 h old      n  256  CRPS 1.537  minus no report on the same hours -0.288 [-0.459, -0.120]  coverage 0.71   FAIL
+  ALM (127 km), 1 h old      n  236  CRPS 1.657  minus no report on the same hours -0.234 [-0.384, -0.088]  coverage 0.68   FAIL
+  ELP (180 km), 1 h old      n  255  CRPS 1.603  minus no report on the same hours -0.185 [-0.363, -0.010]  coverage 0.71   FAIL
+  ABQ (209 km), 1 h old      n  252  CRPS 1.614  minus no report on the same hours -0.110 [-0.289, +0.067]  coverage 0.67   FAIL
+MAF: 300 hours used, 0 skipped
+  no report                  n  300  CRPS 1.474  minus no report on the same hours +0.000 [+0.000, +0.000]  coverage 0.92
+  own station, 1 h old       n  300  CRPS 0.953  minus no report on the same hours -0.521 [-0.628, -0.428]  coverage 0.91
+  FST (133 km), 1 h old      n  280  CRPS 1.347  minus no report on the same hours -0.131 [-0.237, -0.020]  coverage 0.82   FAIL
+  PEQ (139 km), 1 h old      n  179  CRPS 1.509  minus no report on the same hours -0.020 [-0.193, +0.168]  coverage 0.72   FAIL
+Read it like this: PASS = the neighbour's report helps and the spread is honest. Any FAIL -> report it; the distance table (obs.py REP_TABLE) is a core change, not part of this kit.
+

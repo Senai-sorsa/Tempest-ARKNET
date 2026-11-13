@@ -1,0 +1,12 @@
+2026-11-10 20:04 C5 three-way referee at El Paso: 365 forecasts 2021-22, 80 with balloon + radar + ERA5 at the same hour
+  all year 0.5-2 km  days  68, radar covered 75% of layer pairs: err var balloon 2.34 [1.43, 3.45]; err var radar 6.10 [4.20, 7.99]; err var forecast 1.58 [1.23, 1.93]; ratio lower bound 1.49 [1.32, 1.65]; ratio upper bound 1.68 [1.57, 1.83]
+  all year 2-5 km    days  39, radar covered 24% of layer pairs: err var balloon 1.78 [-14.96, 17.15]; err var radar 6.62 [3.31, 9.70]; err var forecast 1.76 [0.85, 3.49]; ratio lower bound 0.92 [0.49, 1.41]; ratio upper bound 1.54 [1.30, 1.84]
+  all year 0.5-5 km  days  70, radar covered 41% of layer pairs: err var balloon 2.34 [1.18, 3.18]; err var radar 6.59 [4.62, 8.56]; err var forecast 1.62 [1.20, 2.12]; ratio lower bound 1.33 [1.14, 1.53]; ratio upper bound 1.63 [1.51, 1.76]
+  Apr-Sep  0.5-2 km  days  45, radar covered 91% of layer pairs: err var balloon 2.70 [1.69, 4.03]; err var radar 5.59 [3.49, 7.84]; err var forecast 1.64 [1.25, 2.04]; ratio lower bound 1.53 [1.35, 1.71]; ratio upper bound 1.67 [1.53, 1.89]
+  Apr-Sep  2-5 km    days  30, radar covered 30% of layer pairs: err var balloon 3.06 [0.32, 4.88]; err var radar 5.66 [2.39, 8.64]; err var forecast 1.26 [0.59, 2.13]; ratio lower bound 1.16 [0.74, 1.67]; ratio upper bound 1.77 [1.53, 2.11]
+  Apr-Sep  0.5-5 km  days  45, radar covered 50% of layer pairs: err var balloon 2.86 [1.91, 3.93]; err var radar 5.72 [3.56, 7.93]; err var forecast 1.49 [1.08, 2.00]; ratio lower bound 1.43 [1.24, 1.64]; ratio upper bound 1.70 [1.57, 1.88]
+  Oct-Mar  0.5-2 km  days  23, radar covered 53% of layer pairs: err var balloon 0.32 [-2.81, 2.15]; err var radar 6.32 [2.97, 10.09]; err var forecast 1.09 [0.68, 1.52]; ratio lower bound 1.61 [1.19, 2.17]; ratio upper bound 2.00 [1.70, 2.50]
+  Oct-Mar  2-5 km    only 9 days with all three systems: not computed
+  Oct-Mar  0.5-5 km  days  25, radar covered 28% of layer pairs: err var balloon -2.56 [-42.63, 37.74]; err var radar 6.77 [3.59, 9.43]; err var forecast 1.71 [0.90, 3.70]; ratio lower bound 1.11 [0.58, 1.70]; ratio upper bound 1.65 [1.31, 2.11]
+VERDICT: C5 usable. Lower bound 1.33: pass it as --ratio 1.33 to b2_shear_target_fit.py (never above 1.7). Remember the lower bound is biased high (coarse forecast levels).
+

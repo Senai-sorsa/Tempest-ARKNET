@@ -1,0 +1,11 @@
+# 2026-11-11 03:11:57 p3_vad_condition --radar EPZ --balloon USM00072364 --sigma 4.16 (C4 follow-up)
+120 days 2021-2023, radar EPZ, balloon USM00072364 (00Z, radar volume 23 UTC), sensor sd 4.16 m/s, u and v averaged
+  2.5-5 km free               MAE  5.80  CRPS  4.18 ( +0.0 % vs free)  cov90 0.88
+  2.5-5 km radar 0.5-2 km     MAE  3.97  CRPS  2.92 (+30.0 % vs free)  cov90 0.95
+  2.5-5 km radar+all to 5 km  MAE  3.35  CRPS  2.74 (+34.4 % vs free)  cov90 0.50  (overlaps the observed levels)
+  5-12 km  free               MAE  9.88  CRPS  7.02 ( +0.0 % vs free)  cov90 0.86
+  5-12 km  radar 0.5-2 km     MAE  8.34  CRPS  5.97 (+14.9 % vs free)  cov90 0.94
+  5-12 km  radar+all to 5 km  MAE  7.83  CRPS  5.59 (+20.3 % vs free)  cov90 0.90
+  12-18 km free               MAE  6.53  CRPS  4.60 ( +0.0 % vs free)  cov90 0.86
+  12-18 km radar 0.5-2 km     MAE  6.02  CRPS  4.30 ( +6.7 % vs free)  cov90 0.93
+  12-18 km radar+all to 5 km  MAE  5.93  CRPS  4.19 ( +9.0 % vs free)  cov90 0.93

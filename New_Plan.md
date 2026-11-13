@@ -5,6 +5,12 @@ Written 2026-11-10. Sources merged: `Innovative idea review.md` (run list C1-C6,
 `docs/HANDOVER_2026-11-10b.md` section 14.4 plus the unticked boxes of `docs/plans/FIVE_DAY_PLAN.md`.
 The global track (G0-G6, supercomputer) is not in this plan.
 
+**STOP FIRST (user, 2026-11-12 evening): section 15 comes before everything else in this file.** A code audit found
+that the climatology baseline is scored unfairly (a no-skill model shows about +1.2 % "skill" against the recent-15-year
+pool), two forecast-mode height bugs, too-narrow bootstrap intervals and eleven smaller defects. No new trial
+(training, verdict score, export) starts until 15.1 to 15.4 are done; running jobs may finish but their verdicts are
+not read before AU-1. Sections 10 to 14 wait.
+
 **Status 2026-11-11:** the code for this plan is in `new_plan_kit/` (runbook: `new_plan_kit/README.md`; read it first).
 Most of block 1 and the CPU fits of block 2 have been run; the results and what they changed are in section 9.
 Where this file names a `scripts/...` file or a switch that section 9 says does not exist, the kit script named there is the real one.
@@ -248,6 +254,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | C6 run-to-run disagreement, step 2 premise (`scripts/c6_lagged_spread.py`): lagged HRES pairs from the F-V2 refetch, 36 h apart (00Z newer vs 12Z older; the recipe's 12 h pair is not on disk), 2016-2020, 182 400 rows; Spearman rho of d = RMS(newer - older) with e = RMS(newer - ERA5) per band | PREMISE PASSES narrowly: mean within-lead-bin rho >= 0.3 in 4 of 8 cells (wind 0-1 km 0.30, 1-5 km 0.37, 5-12 km 0.38; T 5-12 km 0.33; wind 12-18 km 0.26, T 0-1 / 1-5 / 12-18 km 0.18 / 0.27 / 0.22). Rule amended BEFORE the 2016-2020 run (after a 2016 smoke run) from rho pooled over leads (0.30-0.62, inflated: d and e both grow with lead) to the within-lead mean (stricter) | go to step 3 (fit f = a + b d / median(d) on 2016-2020) and step 4 (2022 PIT / CRPS next to fv2_eval.py); expect the gain, if any, in wind 1-12 km | `docs/results/logs/c6_lagged_premise.log` |
 | C6 steps 3-4 (`scripts/c6_lagged_spread.py --step34`): spread factor f = a + b d / median(d) per wind / T band (8 x 2 numbers), fitted on 2016-2020 (2500 00Z-start rows with the 36 h older run), applied to the shipped mode F members, tested on 2022 (2500 rows, 36 init dates) | FAIL by the pre-set rule (C6 dropped): PIT distance over u, v, T 0.0545 -> 0.0527, change -0.0018 [-0.0051, +0.0007] (interval not below 0). CRPS did improve: -0.69 % [-1.19, -0.24] (u 2.301 -> 2.287, v 2.386 -> 2.369, T 0.890 -> 0.883); fitted b +0.10 to +0.21, test f 5-95 % about 0.8-1.5 | no change to the tool; a CRPS-based rule would pass, but changing the rule after the result is the user's call (shortcut: 36 h lag only, 12 h pairs not on disk) | `docs/results/logs/c6_lagged_step34.log` |
 | A5 (Limitations to solve): wind below 10 m above ground. Opt-in `below_10m="loglaw"` in `tempest_weather_v2.readers.Atmosphere` and `tempest_weather.flight_sim_readers.TempestWind` (z0 from `z0_m=`, number or per-sample array, else samples["surface_roughness_m"], else 0.03 m): horizontal wind = 10 m wind x ln(z / z0) / ln(10 / z0), 0 below z0 | DONE behind a flag, default unchanged (straight line to the 0.72 pad node). New tests: log shape at 1 / 2 / 5 m in the scalar, vector and velocity paths, calm below z0, unchanged at and above 10 m, T / p / RH unchanged, sample roughness used, bad option and bad z0 raise. Full suite 395 passed | making loglaw the default is the user's call; only matters for rails under about 3 m | `docs/results/logs/tests_after_A5.log` |
+| Architecture step 0 for section 14 (`new_plan_kit/b7_arch_step0.py`; Mode F rows 2016-2019, NM/TX, 350,399 rows, read-only) | Today's target (truth - forecast) grows 12.6 x (wind) / 18 x (T) in variance from lead < 1 d to 7.5-10 d and exceeds the climate spread beyond 7.5 d (1.11; 10 m 1.45); a measured pull toward climate cuts it to 0.77. Two runs 30-72 h apart: error correlation 0.37-0.53, best fixed mix -1 to -5 % squared error up to 4 d, -6 to -13 % at 4-7.5 d. A run's own 6 h change ranks its error at 0.25-0.39 (0.5-9 km). One run's errors 6 h apart correlate 0.16-0.28 at days 1-2, up to 0.80 at days 6-7.5. A place's own error memory adds under 2.2 % for wind | Premises of SIGMA and CHORUS hold; STRAND holds beyond day 4 only; ECHO dropped. Nothing trained, nothing in the tool changes | `docs/results/logs/kit_b7_arch_step0.log` |
 | A7 (Limitations to solve): does the site roughness reach the turbulence step? Traced: `Launch.engine()` built the engine with no roughness and `TempestFlightSimEngine.sample_sobol_batch` used `z0_roughness_m=0.03` unless the caller passed `launch.z0()` by hand; it was not passed on any path | DONE behind a flag, default unchanged: `Launch.engine()` now puts the site roughness (median of the land-cover map values, = `Launch.z0()`) in `engine.info["z0_m"]`, and `sample_sobol_batch(z0_roughness_m="site")` uses it (a bad string or a missing value raises). New tests: default unchanged, 'site' = the info value and differs from 0.03, errors; Launch test checks info z0_m = Launch.z0(). Full suite 396 passed | making 'site' the default for Launch engines is the user's call (changes Dryden strength near the ground at rough sites) | `docs/results/logs/tests_after_A7.log` |
 | IL-129 (`_cdf` / `_ppf` past the pool min / max; CPU-C list) | ALREADY DONE: `tail_extrap` (outer-5 % slope) has been in `TempestFlightSimEngine` and ON by default since 2026-11-08; the real-pool IL-128 rerun (2026-11-11, `kit_b1_quick_il128.log`) ran with it: no inflation, worst ratio 0.84 (the copula sampling loses 16-34 % of p99.9 shear) | nothing to build; item closed | `docs/results/logs/kit_b1_quick_il128.log` |
 | Labels in saved files (CPU-C; Limitations 5.2.13 / 5.2.16) | BUG FOUND AND FIXED: `Launch.save` wrote the observations but `Launch.load` never read them back, so a reloaded CONDITIONED file (its samples are conditioned, 10 m wind 14.0 mph) said it was a plain climate estimate; same for the HRRR anchor. Now save also writes `hrrr_note`, and load adds "conditioned on N measurements before saving (not yet validated)" / "ground wind anchored to ... before saving" to the trust line. Mode and "atmosphere only" were already carried. Numbers unchanged; old files with observations get the label too. New test; full suite 397 passed | label-only fix (plain bug) | `docs/results/logs/tests_after_labels.log` |
@@ -470,6 +477,12 @@ levels were joined by straight lines in height, which adds a little to the ballo
 gap is an upper estimate. Part of the gap is balloon noise and drift (about 0.5 m/s is usual for the
 instrument; not measured here). Stage 3 bounds the real part with the radar as a third referee.
 
+**Added after the second check (12.2):** real balloons carry 1.4 m/s (1-5 km), 1.7 m/s (5-12 km) and
+3.0 m/s (12-18 km) of wind BETWEEN the 13 levels. So part of the gap above is fine detail that a
+13-level forecast cannot hold. Stage 1a (section 9 row "RA stage 1a", run by the loop session on all
+84 months) measured the gap at the level heights themselves: 1.5-1.6 m/s below 6 km and 1.8-2.0 m/s
+above, against 1.8-2.7 here. The gap therefore has two parts with two owners: the coarse part stays with RA (improvement 9), the fine part goes to idea VS in section 12.
+
 ### 11.6 Tests, with the rules set now
 
 Rules for all stages: fit on valid times 2016-20, range map on 2021, test on 2022 (the Mode F
@@ -499,8 +512,13 @@ coarse gap of improvement 9 leaves out the finest layers.
 ### 11.7 What is new here and what is not
 
 Not new: the review already lists a "detail network" (Group 3 idea 1, ERA5 profile in, balloon out;
-rated 6, parked) and the C5 referee. RA grows from both. New: (a) the finding that the data for it is
-already on disk at 986 stations; (b) learning it from forecasts, so the truth is independent; (c) the
+rated 6, parked) and the C5 referee. RA grows from both.
+**Correction (2026-11-12, found while checking the logs for section 12):** `docs/plans/GLOBAL_PLAN.md`
+line 21 already plans "one pooled correction, ERA5 to balloon departures, over hundreds of IGRA
+stations" for the global model, and the world points were placed at balloon stations for that reason.
+So point (a) below is not a discovery: it is a planned step that was never built, and its data is ready.
+New: (a) the check that the data for it is on disk at 986 stations, with forecasts beside them, so it
+can be built now and on this laptop, without waiting for the global model; (b) learning it from forecasts, so the truth is independent; (c) the
 measured rule that the gap does not depend on lead, which makes it one added layer for all modes and
 leaves every ERA5 score alone; (d) the ground, the 24 hours and the pad inside the same world model;
 (e) a 6-number version that ships if the network fails.
@@ -509,3 +527,851 @@ Risks: balloon noise counted as real air (stage 3); hour and region tied togethe
 levels in the balloon files partly interpolated; the post-2022 change in balloon processing (review
 trap 5: fit on 2016-22 only, year as an input); a gap added to a member can break the limits the
 lapse map enforces (check the superadiabatic share in stage 5).
+
+---
+
+## 12. Second set: six ideas that change the structure (added 2026-11-12; step 0 measured for three, nothing else run)
+
+Asked for: bolder ideas than section 11, taken from new AI work and from other fields, checked
+against everything already logged, and improved in rounds. This section keeps the rounds.
+Rules as before: nothing in the tool changes, every idea is opt-in, and every idea has a simple rule
+it must beat and a rule that closes it.
+
+### 12.1 How the set was made
+
+1. **Everything logged was read first**, so nothing here repeats it: the 208 IL items and groups in
+   `docs/logs/AUTOPILOT.md`, the review (Groups 1-3, C1-C6), `Secondary ideas.md` (21 ideas, both N
+   sets), `Limitations to solve.md`, `docs/plans/GLOBAL_PLAN.md`, `docs/research/FUTURE_OPTIONS.md`.
+   Each idea below names its nearest logged relative and says what differs.
+2. **Outside work was searched** (list in 12.10). Where a search spoke against an idea, the idea was
+   dropped or changed (12.9).
+3. **The four patterns of our own history were kept as hard limits:** a new network body with the same
+   inputs gives nothing; fits at 2-3 sites fail; a simple rule often ties a network; a step in the
+   wrong place of the stack is undone by the next one.
+
+The six, in order of how much they could change:
+
+| Id | Name | Comes from | One line |
+|---|---|---|---|
+| VS | Vertical next-scale model | image generators that draw coarse first, then finer (2024-26) | One learned step, trained on millions of real balloons, writes the fine layers between the heights the models can see. Replaces the shear map and the lapse map with one joint step. |
+| SV | Site vector | recommender systems ("cold start") and few-shot learning | Every place gets 8 numbers. Unknown place: guessed from terrain, with honest extra spread. Each real reading sharpens them by an exact formula. |
+| IT | Instrument switches | batch correction in single-cell biology; before / after studies in economics | When a station changes its balloon model, the air does not change. That jump measures instrument noise, so it can be removed from the truth. |
+| DP | Drone profiler | robot state estimation | A hobby drone flying a cross pattern calibrates itself, then measures the wind from 10 to 120 m at the pad: the layer that carries half of the apogee spread and has no truth today. |
+| MF | Two-speed Monte Carlo | NASA entry and landing studies | Thousands of cheap flights steer a few hundred full flights. Same accuracy for a fraction of the flights. |
+| FF | Flow frame | protein-structure and geometric networks | Describe wind along and across the flow, and mirror the southern half of the globe, so world data looks alike everywhere. Weakest of the six after its own check. |
+
+### 12.2 Step 0, measured today (`new_plan_kit/b6_ideas_step0.py`, log `kit_b6_ideas_step0.log`)
+
+Data on disk only, fit years only, 90 stations picked at random.
+
+**(a) For VS. What a 13-level view of a real balloon loses** (21,847 balloons, 2019):
+
+| Height | Real wind between the 13 levels (m/s, typical / 1 in 10) | Thin unstable layers (Richardson number under 1): real balloon | The same balloon seen at 13 levels |
+|---|---|---|---|
+| 1-5 km | 1.40 / 1.97 | 15.2 % | 3.5 % |
+| 5-12 km | 1.72 / 2.41 | 14.8 % | 2.6 % |
+| 12-18 km | 2.98 / 4.34 | 12.3 % | 0.7 % |
+
+In plain words: the thin layers where shear and turbulence live are 4 to 17 times rarer in a coarse
+view than in real air. The fine wind rises a little with stability (5-12 km: 1.54 / 1.75 / 1.87 m/s
+from the least to the most stable third), the direction C1 found. Limit: part of the fine wind is
+balloon noise (that is idea IT), and the tool's own members are finer than 13 levels (stage 0b of VS).
+
+**(b) For SV. Is the ground-wind gap a fixed property of the place?** (10 m speed, real minus ERA5,
+71 stations, 8,846 pairs, 2016-20)
+
+- Real / ERA5 mean speed per station: 0.61 at the calm tenth, 0.98 in the middle, 1.33 at the windy
+  tenth. The TCS factor we fitted by hand is an ordinary case, not a special one.
+- A station keeps its offset: odd dates against even dates agree with a correlation of 0.88.
+- The fixed offset is 1.01 m/s between stations, against 2.06 m/s of day-to-day scatter (19 % of the
+  squared gap).
+- **A plain average of the first 5 / 10 / 30 readings explains 25 % / 53 % / 71 % of the station's
+  later offset.** Ten readings at a new pad recover half of what years of record would give.
+
+**(c) For FF. Is the gap different along the wind and across it?** (4,133 rows, leads 6-24 h)
+
+- Overall, no: 2.47 against 2.33 m/s at 1.5 km, 3.29 against 3.30 at 12 km.
+- In the fastest tenth of jet winds (57 m/s), yes: 4.25 along against 3.41 across, and the real wind
+  is 1.0 m/s faster than the forecast (part of that is the straight-line joining of 13 levels).
+- So the first form of FF (turn everything into the flow frame) is not supported. A smaller form is.
+
+### 12.3 VS: the vertical next-scale model
+
+**What it replaces.** Today the fine structure of a member is made by three separate steps: the
+shuffle borrows the order of ERA5 days, the shear map bends the wind, the lapse map bends the
+temperature. They are fitted one after another and they fight: the shear map moves the share of
+unstable layers AWAY from balloons (0.675 -> 0.650 at 0-1 km, 0.307 -> 0.287 at 1-5 km; real 0.73
+and 0.35), and the 12-18 km band sits at 0.06-0.08 against 0.15 real (section 9, G2-7). Stability
+depends on wind and temperature together, and no step sees both.
+
+**Where it comes from.** The image generators that won in 2024-26 do not draw a picture pixel by
+pixel. They draw a small coarse picture first, then each finer scale given all coarser ones (VAR,
+"next-scale prediction"; later MVAR and the "iterative refinement" reading of it). The search found no use
+of this on vertical profiles or on weather data with results, only a proposal.
+
+| Version | Attack on the version before | Change |
+|---|---|---|
+| v0 | - | A small "language model" of balloons: one token per height, read from the ground up, trained on real balloons. |
+| v1 | A token model along the heights was tried inside the generator (IL-8, IL-9, IL-23, IL-29) and body changes give nothing (pattern P1). | **Not in the generator.** VS is a step after the stack. Its input is the member's own coarse profile, which is rich. It writes only what lies between the heights the member can be trusted at. |
+| v2 | Ground-up order piles up error, and the big things (where the jet is) are already known. | **Coarse to fine.** Scale 0 = the member seen at about 13 heights (given, never changed). Scale 1 = 26 heights, scale 2 = all 44. Scale 3 = a 100 m grid, later, where fine balloon data exists. Each scale is drawn given all coarser ones. |
+| v3 | Bins lose the tails; a raw value output would be a new head with a new loss (pattern P7). | **Tokens are 64 bins of the leftover at each scale**, sized by the member's own shear and stability. Inside a bin: uniform. In the outer bins: the tail law the tool already uses. The training score is the log score, which is proper, so the ranges come out calibrated. One "temperature" number per scale is fitted on the held-out year (3 numbers). |
+| v4 | Drawing all heights of a scale at once makes wind and temperature independent again, and that is the exact fault of today's stack. | **Each layer is drawn as one piece:** u, then v given u, then temperature given both, on alternating heights (two half-passes per scale). The model then learns the link the Richardson number checks. |
+| v5 | It would move calibrated ranges (review trap 2) and the ERA5 headline (trap 1). | **Values at the coarse heights are never changed**, so the calibrated ranges and every score at those heights stay. Only the heights between move. Opt-in `detail="real"`; with it on, the shear map and lapse map are switched off, not stacked. |
+| v6 | The tool's members are not 13-level objects; where does "trusted" end? | **Stage 0b decides it from data:** variance of member against balloon, scale by scale. The hand-over is the finest scale where the member still has 80 % of the real variance. |
+| v7 | Simple rules tie networks here (pattern P4). | **The bar is a library:** add one whole real leftover (a balloon minus its own coarse view) from a balloon of the same band and stability third. This is the logged "wiggles" idea (review Group 2 idea 1), which was never run because it waited for 1-second data. On the 44 heights it needs none. VS must beat it. |
+| v8 | Balloon swing and sensor noise would be learned as real layers. | Idea IT gives VS an instrument input, set to "no instrument" when the tool runs. |
+| v9 | The tool is numpy-only. | A 4-layer model of width 128 needs 6 passes for 199 members: plain matrix products. Export as arrays, as today. |
+
+**Final form.** `member (after calibration and shuffle) -> coarse view (kept) -> VS draws scales 1, 2 (u, v, T together, real-balloon statistics) -> member with real fine layers`.
+
+| Stage | What | Pass rule (set now) | Kill rule | Cost |
+|---|---|---|---|---|
+| 0 | What does a coarse view lose? | Done, 12.2 (a). Dead if the loss were small; it is 4-17 times. | - | done |
+| 0b | Member against balloon variance per scale, El Paso and Midland 2021-22. Sets the hand-over scale. | - | Members already hold 80 % at the finest scale: nothing to add, close VS. | 1 h CPU |
+| 1 | The library bar on the shipped stack with shear and lapse maps off. Left-out stations and El Paso / Midland, 2022. | Share of unstable layers within 0.03 of balloons in every band; share of temperature rises below 3 km within 0.05 (today 0.52 against 0.32); top 1 % shear within 10 % of balloons; CRPS against balloons not worse than the shipped stack. | - (it is the bar) | 3 h CPU |
+| 2 | VS itself. Fit on balloons 1991-2020 of all stations but one in five (roughly 5-8 million profiles, estimated from the 2019 count, not counted), check on 2021, test on 2022. | Beats the bar on the vertical variogram score with an interval that excludes 0, both seeds, and meets every stage-1 limit. | Not better than the bar in either seed: the bar ships as the opt-in, VS is closed. | 1-2 h GPU per seed |
+| 3 | On the shipped tool path, all modes; apogee and max-shear spread through the flight engine. | ERA5 scores at the coarse heights unchanged; `tool_audit.py` and `shipped_check.py` pass. | Any coarse-height score moves. | 2 h CPU |
+
+Nearest logged relatives: IL-8 (tokens inside the generator), the detail network (ERA5 in, balloon
+out, one step, parked), the wiggles library (never run). New: coarse-to-fine order, wind and
+temperature drawn together, the coarse heights locked, one step in place of two maps.
+Honest odds: the bar improving the unstable-layer shares, medium to high (it uses real leftovers).
+VS beating the bar, medium. Risk: a real leftover added to a member that already has some fine
+structure counts it twice; stage 0b is there for that.
+
+### 12.4 SV: the site vector
+
+**What it replaces.** Site effects are handled today by hand-fitted single numbers at places with a
+record (IL-207b at TCS: CRPS -0.079, confirmed), and every attempt to reach the pad failed: borrowed
+day / night shape (S2, premise wrong), map then update (S1, seed spread), launch-week average (O3: the
+factor moved only 0.9-1.2 in two weeks), two neighbours (O1). The pad has no record.
+
+**Where it comes from.** A film service facing a new user has the same problem: no history. The
+standard cure is a short vector per user, guessed from what is known about them, then updated with
+each rating. Few-shot learning uses the same idea (a small "context" vector per task, the rest shared).
+
+| Version | Attack on the version before | Change |
+|---|---|---|
+| v0 | - | Inside RA, every station gets its own 8 numbers, learned with the network. For the pad, guess them from terrain. |
+| v1 | The first "in-context site calibrator" was rejected: no airports beside ERA5 points, more name than mechanism. | **The data objection is gone** (986 stations with surface wind beside world points, section 11) **and the mechanism is one line:** the last layer of RA is linear, `gap = features(conditions) x (shared weights + site vector)`. |
+| v2 | A guessed vector is wrong by an unknown amount, and the tool's spread is "weather only" (limitation 5.2.16). | **Learn how wrong the guess usually is.** Across the 986 stations fit `site vector = B x terrain facts + scatter`. The scatter becomes extra spread at any place without a record. The tool is then honestly wider at an unknown pad than at an airport. |
+| v3 | How do readings enter? O3 used a slow fixed average. | **Exact update.** With a linear last layer and a known prior, the new site vector after k readings is one closed formula (Bayes for a linear model), numpy-only: `Launch.learn_site(readings)`. It moves fast when readings agree and slowly when they scatter. Step 0: even a plain mean gets 53 % from 10 readings. |
+| v4 | One bad reading would bend the site. | Readings far outside the predicted range get less weight (two passes of a Student-t weight; the patched review idea G2-2: widen, never reject). |
+| v5 | Where do pad readings come from, if there is no anemometer? | Any of: a week of a cheap anemometer; the drone of idea DP; the user's past launch-day notes. Each is a few numbers; SV does not care which. |
+| v6 | "What helps at home hurts away" (pattern P2): a vector learned on flat airports may mislead in a valley. | **Train so that no station is left behind:** add to the loss the spread of the per-station losses (risk extrapolation, V-REx). The model is pushed toward rules that hold at every station. One number to set, chosen on left-out stations. |
+
+| Stage | What | Pass rule (set now) | Kill rule | Cost |
+|---|---|---|---|---|
+| 0 | Is the gap a fixed property of the place, and how fast is it learned? | Done, 12.2 (b): correlation 0.88; 10 readings explain 53 %. | - | done |
+| 1 | Linear version, no network: speed factor and offset per station from terrain facts (ridge), update from k readings. Leave-station-out over all stations, 10 m wind, test 2022. | k = 0 (terrain only) beats "no site term" with an interval that excludes 0. k = 10 reaches half of the gain of the station's own full fit. Coverage 0.85-0.95 at k = 0, 10, 30. | k = 30 reaches under 30 % of the full-fit gain: site terms stay per site, by hand. | 2 h CPU |
+| 2 | Replay at TCS and MAF with hourly airport data 2023-25 (never used in the fit): k = 1, 3, 7 days of readings before each test day. | At TCS, 7 days give at least half of the IL-207b gain (-0.079) with coverage 0.85-0.95; MAF not worse. | TCS gain under a quarter. | 1 h CPU |
+| 3 | Inside RA (stage 2 of section 11) as the last layer, with the V-REx term. | RA with SV beats RA without it at left-out stations, both seeds. | - | part of RA |
+
+Nearest logged relatives: IL-207b (one number, one site), O3 (slow average), the rejected in-context
+calibrator, GLOBAL_PLAN's "local adaptation". New: a prior from terrain with a measured scatter, an
+exact update, site uncertainty as spread, one mechanism from zero readings to a full record.
+Honest odds: stage 1 with readings, high (step 0 nearly shows it). Terrain-only guess, medium to low.
+
+### 12.5 IT: instrument switches as free experiments
+
+**The problem it solves.** RA and VS learn from balloons. A balloon reading is real air plus swing,
+sensor lag and processing. Today we can bound that only at El Paso with the radar (C5: 80 hours).
+Balloon models differ by country, so "instrument" and "climate" look like one thing.
+
+**Where it comes from.** Biologists who read single cells in different labs have the same tangle
+("batch effects") and remove it by giving the model the batch as an input, then asking for the answer
+with the batch switched off. Economists separate a cause from a trend with before / after comparisons
+against places where nothing changed.
+
+| Version | Attack | Change |
+|---|---|---|
+| v0 | - | Give RA and VS the balloon model as an input; at run time set it to "none". |
+| v1 | Balloon model and country are the same thing in the data; the input would soak up climate. | **Use only the switches.** Many stations changed their balloon model inside 2016-22. The air at a station does not change on that day. Compare the leftover (balloon minus forecast) before and after, against stations that did not switch in the same months. Only that contrast teaches the instrument input. |
+| v2 | The input could still carry real effects. | It may change only two small things: the noise size and a bias by height. It never sees the weather inputs. |
+| v3 | How do we know it is right? | Two outside checks: the El Paso radar bound (C5), and the known 2023 processing change (review trap 5), which the method must find by itself as a switch. If it does, low-level balloons after 2022 become usable again. |
+
+Step 0 is a download of a few MB (the public IGRA station history file; not on disk) and a count.
+Pass: at least 100 switches in 2016-22, and a noise estimate for the newest balloon model whose
+interval excludes 0 and sits below the C5 upper bound. Kill: under 30 switches, or the estimate
+changes sign between two halves of the stations: keep the radar bound only. Cost: 2 h CPU.
+Nearest logged relatives: review Group 3 idea 1 patch ("give sonde type and year as inputs"), IL-67 / IL-72 (era
+offsets). New: using the switch dates as experiments, and limiting what the input may change.
+Honest odds: medium. It is cheap, and without it RA and VS inherit balloon noise as "real air".
+
+### 12.6 DP: the drone profiler
+
+**The problem it solves.** 87 % of the wind-driven apogee spread comes from 0-300 m and 53 % from
+50-150 m (P6). There is no truth there at the pad: sodars need access, the taper data is blocked,
+the pad has no tower (ASK_LATER 15, 20). Every ground-wind idea ended with "needs pad data".
+
+**Where it comes from.** A hovering drone leans into the wind; the lean angle gives the wind. A fleet
+calibrated this way matched a 99 m tower to under 0.3 m/s and 8 degrees (Lindenberg, 2021). The known
+limit: the lean-to-wind curve belongs to one airframe and needs a tower to calibrate.
+
+| Version | Attack | Change |
+|---|---|---|
+| v0 | - | Hover at 20, 40, 60, 80, 100, 120 m for 20 s each; read the lean from the flight log. |
+| v1 | The curve needs a tower, which the pad lacks. | **Self-calibration by a cross pattern.** At one height fly straight out and back at three set speeds, on two crossing lines. Out and back, the wind adds and subtracts: half the sum of the two ground speeds is the airspeed, half the difference is the wind. That gives lean against airspeed for this airframe from the log alone (2 numbers). No tower. |
+| v2 | A single profile is one moment. | It enters twice: as a reading for `observe` (a profile from 10 to 120 m with a stated error), and as readings for the site vector (SV), so each flight also improves the pad's long-term picture. |
+| v3 | Rules and safety. | 120 m is the usual legal ceiling for hobby drones and it covers most of the 50-150 m layer. Flown well before the launch, never during. The tool only reads a log file; it never controls a drone. |
+| v4 | Can we test it without a drone? | Yes: the 200 m tower data on disk (TTU, 131 hours). Replay: give `observe` the tower winds at 6 heights with 0.5 m/s error, score the 50-150 m layer 30 and 60 minutes later against the tower. |
+
+Pass (set now, tower replay): CRPS of the 50-150 m mean wind 30 minutes later at least 40 % better
+than the tool with only a 10 m report. Kill: under 15 %. Cost: 2 h CPU; then it waits for the user
+(a drone and one flight log: new ASK_LATER item). Nearest logged relatives: none (no file mentions a
+drone); limitation 5.2.5 idea 5 (an anemometer at the pad, parked). Honest odds: the replay passing,
+medium to high (a measured profile where we have none); real use depends on the user owning a drone.
+
+### 12.7 MF: two-speed Monte Carlo
+
+**The problem it solves.** The tool's purpose is Monte Carlo. A full flight simulation is slow, so
+users run a few hundred, and the error of a 1 % tail from 200 flights is large (IL-40, M18).
+`montecarlo.py` has Latin hypercube, Sobol and importance sampling, but no way to use a cheap model.
+
+**Where it comes from.** NASA's entry and landing studies ran thousands of cheap trajectories beside
+a few full ones and combined them (multi-model Monte Carlo, control variates). The cheap model does
+not have to be right. It only has to move the same way as the full one.
+
+| Version | Attack | Change |
+|---|---|---|
+| v0 | - | Run the full simulator on n atmospheres and a cheap point-mass ascent on 50 x n. Correct the full result by how the cheap one differs between the small and the large set. |
+| v1 | The gain depends on how alike the two are, which nobody knows beforehand. | A pilot of 50 paired flights measures it and gives the best split of the budget by a known formula. The tool prints "equal to N plain flights". |
+| v2 | Writing a cheap flight model per rocket is work. | **Controls that need no flight model:** weighted layer winds with the P6 weights. Their exact mean over the pool costs nothing (100,000 draws, no flights). |
+| v3 | Tails matter most and control variates help means most. | For tail odds the cheap model chooses which atmospheres the full model flies (the existing `run_importance`, steered by the cheap score, not by one fixed metric). |
+
+Pass (set now): on the validation rocket, against a 5,000-flight reference, 200 full flights with MF
+give an error of mean and spread of apogee and landing distance at least 5 times smaller (in variance)
+than 200 plain flights, and at least 2 times for a 1 % tail; coverage of the printed intervals
+0.90-0.98 over 100 repeats. Kill: under 2 times on the mean. Cost: 3 h CPU with the in-repo engine.
+Nearest logged relatives: IL-34, M9 (importance sampling), IL-40. New: a second fidelity, and
+controls with exactly known means taken from the pool. Honest odds: high for means and spreads
+(v2 alone should do it, because apogee follows the low-level wind closely), medium for tails.
+
+### 12.8 FF: the flow frame (reduced after its own check)
+
+First form: turn every wind into "along the flow, across the flow" before any world model sees it,
+and mirror southern-hemisphere rows, so a jet over New Mexico and a jet over Chile are one pattern
+(the idea behind the local frames of protein-structure networks). Step 0 (12.2 c) does not support
+turning everything: the gap is the same in both directions except in fast jets. Reduced form: keep
+east / north, add three inputs (speed, and the along-flow part of the forecast shear and of the
+terrain slope), and add mirrored southern rows. Test: the N2 "world as it is" arm, which missed by
+1.2-3.7 %. Pass: the miss shrinks by a third at leads 1-3 d in both boxes and seeds. Kill: under a
+tenth: closed. Cost: two Mode F runs per box (about 45 min CPU). Honest odds: low to medium.
+
+### 12.9 Looked at and dropped in this round
+
+| Candidate | Why dropped |
+|---|---|
+| Winds from airliner radio signals (ADS-B / Mode-S) near the pad | The open method was measured at 4.78 m/s error against 3.88 for a 6-hour forecast, so it would add noise to a forecast that is already better. US aircraft also do not send airspeed openly. |
+| Prediction-powered inference (few true labels + many model labels give tighter intervals) | Needs many cases with no label. Our balloons exist at nearly every hour we can score, so there is nothing unlabeled of the same kind to add. |
+| The 2026 "drifting" one-step generators as a new loss in the main network | A whole-profile loss in the main network has failed in every form (IL-47, IL-49, IL-62; pattern P7). Kept only as a second training rule for VS if the token version is too slow. |
+| Ready-made table models that predict without training (TabPFN, TabICL) as the gap model | A real candidate for a zero-training bar in RA stage 2, but it needs a new package and model weights; installs need the user. Listed for ASK_LATER, not built. |
+| Guidance, as in image generators, to strengthen the weak driver response | Drivers lift climate mode by about 3 % in all; nothing to amplify. |
+| A reusable-holdout rule for the 30+ decisions made on 2024-25 | Sound, but it is a checking rule, not a change to the system (the reason the "referee network" was rejected). |
+| Balloon tracks from the public tracking network as fine truth | Readings are uncalibrated and depend on volunteer receivers; the 1-second cadence could not be confirmed. Kept as a possible source for VS scale 3 only. |
+
+### 12.10 How the pieces fit, and the order
+
+```
+pool member (today's tool, unchanged)
+   -> RA  coarse real-air gap ........ section 11   } both trained on balloons with the
+   -> VS  fine layers, u / v / T together .. 12.3   } instrument switched off (IT, 12.5)
+   -> SV  the place: terrain guess, then readings (12.4)  <- drone profile (DP, 12.6)
+   -> observe (unchanged), now on real-air members
+   -> MF  two-speed Monte Carlo over the result (12.7)
+```
+
+Order, by cost and by what each one unlocks: (1) SV stage 1 and the VS library bar, side by side on
+the CPU: both are simple, both ship something even if the networks fail. (2) IT step 0 (small
+download) and the DP tower replay. (3) MF, any time; it touches nothing else. (4) RA stage 2 and VS
+stage 2 on the GPU, after N1 / N6. (5) FF last.
+
+Place in the overall work order (user, 2026-11-12): these six run at the very end, after sections
+13 and 14; see step 8 of 13.5.
+
+Sources checked on 2026-11-12 (searches; abstracts and summaries only, the papers were not read in
+full): next-scale image generation and its reading as iterative refinement (arXiv 2510.02826; MVAR,
+arXiv 2505.12742); drone wind from lean angle against a 99 m tower (Atmos. Meas. Tech. 14, 3795,
+2021); aircraft-derived wind and its error (github.com/junzis/meteo-particle-model; PLOS ONE 2018
+and 2022); multi-model Monte Carlo for entry and landing (NASA NTRS 20205002995; arXiv 2306.10800);
+prediction-powered inference and its limits (arXiv 2311.01453, 2505.20178); table models for
+distributions (arXiv 2603.08206, 2602.11139, 2601.22371); one-step "drifting" generators (arXiv
+2602.04770); weather models trained on observations (GraphDOP, arXiv 2412.15687); balloon tracking
+archive (registry.opendata.aws/sondehub-telemetry).
+
+## 13. Variations of the near misses (added 2026-11-12; nothing here has been run)
+
+Source: `Almost ideas.md` (experiments that failed by a small margin or on one clause, showed a
+measured benefit, and were closed without a follow-up). Each row below is a VARIATION of one of
+them, not a new idea. IDs are AV1 to AV21 ("almost, variation").
+
+**Standing note for every row (user, 2026-11-12):** this is a variation. If it fails but still
+shows potential (a benefit with an interval that excludes 0 somewhere, or a miss on one clause
+only), log one more variation of it here as a new AV row before closing the parent. Close a parent
+only when a variation shows no benefit at all.
+
+Guards that stay in force while doing that:
+- The pass and kill rules below are set now, before any run. A parent's old rule is not loosened
+  after seeing its result; where a looser rule is the only change, the row says "user's call".
+- The forking-paths rule (AUTOPILOT pitfall 14) applies per parent: with n variants tried, the gain
+  needed to adopt one grows with n, and it must hold on both seeds.
+- Where the split, band or threshold of a variation is already suggested by the parent's test-year
+  result, it is fixed here in writing and confirmed on rows the parent was not scored on (stated
+  per row). Otherwise the result is labelled "chosen on test" and cannot be adopted (pitfall 15).
+- Defaults stay bit-identical, every switch is off by default, a trained model gets a new name, two
+  seeds, never 2026, exports need the user's go.
+
+### 13.1 Forecast mode (Mode F)
+
+| ID | Variation of | What changes | Pass and kill rule (set now) | Cost | Note |
+|---|---|---|---|---|---|
+| AV1 | N6 big world-start Mode F (KILL: lead 1 d -4.7 to -5.8 %, lead 3 d -1.4 to -3.4 %, lead 7 d +2.2 to +4.0 % worse) | Lead split: the N6 model serves leads up to 3 d, the shipped small model serves 5 and 7 d. No training; the N6 networks exist. The split point (between 3 and 5 d) is fixed here | Confirm on the validation year first: the split picked there must be the same (N6 better at 1 and 3 d, not at 5 and 7 d). PASS: on 2022, leads 1 and 3 d at least 1 % better than shipped with an interval excluding 0, both boxes, both seeds, cov99 within 0.003; leads 5 and 7 d identical to shipped. KILL: the validation year picks a different split | 1 h CPU | VARIATION. If it still shows potential, try more (e.g. a smooth weight between 3 and 5 d, needs the IL-75 leads) |
+| AV22 | AV1 lead split (KILL 2026-11-12 on a 0.1 % tie at NM/TX 5 d in 2021; 1 and 3 d better on 2021 and 2022) | Smooth blend by lead in place of a hard split: members drawn from the N6 model with share w(lead), from the small model with 1 - w, w = 1 at 1 d, 0 at 7 d, one free value at 3 d and at 5 d, both picked on 2021 (`--test-year 2021` tables, already on disk) on a 0 / 0.25 / 0.5 / 0.75 / 1 grid, then fixed | PASS: on 2022 every lead equals or beats the small model, 1 and 3 d at least 1 % better with the interval excluding 0, both boxes, both seeds, cov99 within 0.003. KILL: any lead worse than small by more than 0.5 % on 2022, or the 2021 pick differs between the boxes by more than one grid step | 1 h CPU (mixing only; needs per-row member draws saved, a small addition to `--save-rows`) | VARIATION of a variation (forking paths: second try on N6, so the gain to adopt grows; see pitfall 14). Logged by the loop 2026-11-12 after AV1's KILL |
+| AV23 | AV2 long-lead use (MISS 2026-11-12: 7-22 % better than climate at days 8-10, cov99 0.978-0.983 vs 0.990) | Members beyond 7.5 d drawn from the N5 all-lead network with share w(day), from the climate generator with 1 - w (the IL-74 fade); one w per day 8 / 9 / 10 picked on a 0.5 / 0.6 / 0.7 / 0.8 / 0.9 grid on 2021 rows, then fixed. Needs a 2021 scoring of the N5 networks (`--test-year 2021`, N5 flags) and member-level rows | PASS: on 2022 at days 8, 9, 10 each better than climate and than the binned model with interval < 0, both boxes and seeds, cov99 within 0.003 of climate. KILL: cov99 still more than 0.003 below climate at w = 0.5, or worse than climate at any day | 2 h CPU (4 scorings on 2021 + mixing) | VARIATION of a variation (second try on N5; pitfall 14). Logged by the loop 2026-11-12 after AV2's MISS |
+| AV2 | N5 all-lead network (KILL: leads 1-3 worse by +0.9 to +2.7 %; beyond 7.5 d -2.9 to -3.7 % better than binned and better than climate) | Long-lead-only use: the N5 network serves only leads beyond 7.5 d, where the tool now falls back to the climate generator. Leads up to 7.5 d untouched. No training | PASS: beyond 7.5 d better than the binned model and than the climate model with an interval excluding 0, both boxes, both seeds, at days 8, 9 and 10 each (not only pooled); cov99 within 0.003. KILL: worse than climate at any of days 8-10 in either box | 1 h CPU | VARIATION. If it still shows potential, try more (e.g. a blend weight toward climate by lead, the IL-74 idea) |
+| AV3 | AV1 + AV2 | One router: N6 model up to 3 d, shipped model 5-7 d, N5 network beyond 7.5 d. Only if AV1 and AV2 both pass | PASS: every lead bin equals or beats what the tool serves today, no bin worse by more than 0.5 %, both boxes, both seeds. KILL: any bin worse by more than 1 % | 1 h CPU | VARIATION (combination). Opt-in only; export is the user's step |
+| AV4 | C6 run-to-run disagreement spread (FAIL: PIT -0.0018 [-0.0051, +0.0007]; CRPS -0.69 % [-1.19, -0.24]) | Apply the factor only in the four cells where the premise held (wind 0-1, 1-5, 5-12 km; T 5-12 km; rho 0.30-0.38); the other four cells keep factor 1. Same fit years 2016-2020 | Same rule as C6, unchanged: PIT distance change with the whole interval below 0 on 2022, CRPS not worse. KILL: CRPS interval includes 0 | 30 min CPU | VARIATION. If it still shows potential, try more: more test init dates (2022 has 36), 12 h pairs if a refetch brings them. A CRPS-only rule is the user's call, not run on my own |
+| AV5 | N2 world-start fine-tune (MISS on the "world as is within 1 %" clause; fine-tuned -0.8 to -2.7 %, 16 of 16 intervals below 0; control showed the gain is the world start) | No new model. Third training seed of own / own + 300 / fine-tuned on the 4-year box rows, judged on the fine-tuned model alone | PASS: fine-tuned better than own + 300 with an interval excluding 0 at 3 or more of 4 leads, both boxes, all three seeds (seeds 0 and 1 already show leads 1, 5, 7 d). KILL: the third seed fails at 2 or more leads in a box. Dropping the "world as is" clause is the user's call | 1.5 h CPU | VARIATION (confirmation). If it still shows potential, try more (500 or 1000 fine-tune steps; N2-B already passed for a data-poor box) |
+| AV6 | G1-5 spread tracker (FAIL: TCS T CRPS +0.002 > 0.0009; coverage error fell in 4 of 4 cells; the factor sat at the 1.5 cap) | (a) One fixed widening factor per variable fitted on 2016-22, no tracking, wind only. (b) The same test on the tool's own forecast-mode output instead of the raw ensemble (the test G1-5 named as missing) | PASS: coverage error falls and CRPS not worse by more than 0.0009 in every site x variable cell tested, 2023-24. KILL: the tool's output already covers within 0.03 of 0.90 (nothing to fix) | 1.5 h CPU | VARIATION. If it still shows potential, try more (factor by lead; temperature with its own factor) |
+
+### 13.2 Launch-day observations and ground wind
+
+| ID | Variation of | What changes | Pass and kill rule (set now) | Cost | Note |
+|---|---|---|---|---|---|
+| AV7 | O1 two neighbours at once (FAIL: better in 4 of 4 runs, interval excludes 0 in 1 of 4) | Same method, 600 hours per target instead of 200, two new hour seeds | Same rule: interval excludes 0 at both targets in both seeds, coverage >= 0.80. KILL: interval includes 0 at both targets in both seeds | 3 h CPU | VARIATION. If it still shows potential, try more (a third target; three neighbours) |
+| AV8 | S1 site map first, update second (FAIL: ONM coverage 0.78 vs 0.80 in one seed; cell factors differ 0.086 vs 0.05; CRPS better at 12 of 12 pair-seeds) | 120 prior hours per cell instead of 40 (steadier factors); neighbours outside the trained area (ONM, FST, ABQ; IL-209) are left out, stated here before the run | Same rule: coverage >= 0.80 at every servable pair, factor gap between seeds <= 0.05, CRPS better than B. KILL: factor gap still above 0.05 | 2 h CPU | VARIATION. If it still shows potential, try more (IL-208: height-difference term so ONM can come back in) |
+| AV9 | O4 analog tail fix (FAIL: tail not halved; CRPS better at both sites with intervals below 0; TCS coverage 0.89 -> 0.83) | Shift the analog's upper tail as before but keep its spread (no narrowing), so the coverage loss is removed. Referee only, not a tool feature | PASS: CRPS interval below 0 at both sites on a second hour seed, coverage not lower by more than 0.02. Then it replaces the plain analog as the referee. KILL: coverage still falls by more than 0.02 | 1 h CPU | VARIATION. If it still shows potential, try more (K other than 40) |
+| AV10 | O3 launch-week factor (FAIL: helps both sites in seed 1, neutral in seed 0; MAF coverage 0.91 -> 0.90) | Start from the IL-207b per-site factor instead of 1.0 (O3 ran without a starting shape because S2 was dropped) | Same rule: CRPS better at both sites in both seeds, coverage not lower. KILL: not better than the IL-207b factor alone | 1.5 h CPU | VARIATION. If it still shows potential, try more (alpha other than 1/30 per day) |
+| AV11 | A2 past-mode spread x1.2 (FAIL: airports -8 / -13 %, both USCRN basin sites worse) | Switch by station type only: x1.2 when the target is an airport ASOS site, 1.0 elsewhere. No descriptor model (P7 was neutral) | PASS: no site worse by more than 0.0009, the airports better with an interval excluding 0, tested leave-one-airport-out over the airports on disk. KILL: any left-out airport worse | 1 h CPU | VARIATION. If it still shows potential, try more. A pad is not an airport, so the pad default stays 1.0 either way |
+| AV12 | P2 gust as a mixed-layer wind measurement (-2.3 % MAE in mixed air, about 0 at night: "too small to wire") | Daytime gate: use the gust only at 10-18 h local solar time; no change at night by construction | PASS: at least 2 % MAE gain in the gated hours with an interval excluding 0, second station as a check. KILL: under 1 % | 1 h CPU | VARIATION. If it still shows potential, try more (gate by boundary-layer depth instead of the clock) |
+| AV13 | Regional gust law (ties the built-in law; better above 5 m/s, worse below) | Switch by speed: regional law above 5 m/s model wind, built-in law below. The 5 m/s threshold is fixed here from the log | PASS: better than the built-in law overall with an interval excluding 0 and not worse below 5 m/s, tested across stations (fit one airport, test the other). KILL: the cross-station test loses the gain | 1 h CPU | VARIATION. If it still shows potential, try more (a smooth weight instead of a step) |
+| AV14 | P6W wind loss term to 150 m (closed neutral: every 10-300 m wind column +0.001 to +0.0015, mean +0.0001) | The check IL-180 asked for and that was not found in the logs: a second TRAINING seed plus the night score | PASS: 10-300 m wind columns gain at least 0.001 in both training seeds, day and night, no other band worse beyond the paired tolerance 0.0009. Else closed for good | 40 min GPU, 1 h CPU | VARIATION (confirmation). If it still shows potential, try more; pad data (ASK_LATER 15) stays the stronger lever for the lowest 150 m |
+
+### 13.3 Climate generator and shear
+
+| ID | Variation of | What changes | Pass and kill rule (set now) | Cost | Note |
+|---|---|---|---|---|---|
+| AV15 | Shear target, forms "ratio" and "c1" (each passed one band: ratio 1.03 at 5-12 km but 1.22 at 1-5 km; c1 0.97 at 1-5 km but 0.82 at 5-12 km) | Hybrid fixed here: c1 at 1-5 km, ratio at 5-12 km. Because that choice comes from the test balloons, it is judged only on a balloon block neither form was scored on (refit with two fit years held out, or a third station) | PASS: p99 new / balloon within 0.90-1.10 in both bands on the fresh block, CRPS not worse by more than 0.1 %. KILL: either band outside 0.85-1.15 | 2 h CPU | VARIATION. Low priority: IL-201 showed 100-300 m shear does not move apogee; this matters for loads only. If it still shows potential, try more |
+| AV16 | IL-103 balloon-fitted shear map (not adopted: CRPS unchanged, 12-18 km p99 24.6 -> 29.0 vs 28.5 for pre-2023 balloons; 5-12 km overshoots 22.8 vs 21.6; 0-1 km not fixable) | Aloft only: the balloon map acts at 12-18 km, every lower band keeps the shipped map | PASS: 12-18 km p99 within 10 % of pre-2023 balloons on 2021-22, bands below 12 km bit-identical, CRPS change within 0.1 %. KILL: 12-18 km CRPS worse by more than 0.1 % | 1 h CPU | VARIATION. Export needs the user. If it still shows potential, try more (add the 5-12 km band with a damped map) |
+| AV17 | IL-10 trust layer refit on NM/TX (discarded: ERA5 +0.0008, balloons +0.0007 against a 0.001 margin; T 12-18 km -0.0043) | Same fit on the current l21 stack with the weights for T and u 12-18 km forced to zero (the band whose target changed around 2020) | PASS: paired gain above 0.0009 on ERA5 over 3 score seeds, balloons not worse by more than 0.0013, coverage error not worse by more than 0.0004, no band worse. KILL: paired gain under 0.0005 | 1 h GPU scoring | VARIATION. If it still shows potential, try more (surface and 0-1 km bands only, where it gained most: rh2m +0.0095) |
+| AV18 | IL-54 shear-tail loss weight 2.0 (discarded: balloons +0.0010, at the margin; the 99.9th shear did not rise) | Two more training seeds on the current base, to see if the balloon gain is real. The weakest entry of the list | PASS: balloons gain at least 0.0013 in both new seeds with ERA5 not lower. Else closed for good | 1 h GPU | VARIATION (confirmation). Run last |
+
+### 13.4 New-region transfer (Denver zero-shot)
+
+| ID | Variation of | What changes | Pass and kill rule (set now) | Cost | Note |
+|---|---|---|---|---|---|
+| AV19 | L3-26 Student-t noise (rejected: NM/TX shape FAIL on vertical correlation 0.076 -> 0.109 and shear KS; Denver -0.1918 -> -0.1729 with better coverage) | Judge it inside the full stack (shuffle + shear map + lapse map), which re-imposes exactly the vertical correlation and shear that failed. No retrain; the model exists | PASS: NM/TX stack headline within the paired tolerance 0.0009 and shape not FAIL; Denver zero-shot gain over the base of at least 0.01 kept. KILL: event-coverage gap still worse beyond its tolerance | 1.5 h GPU scoring | VARIATION. If it still shows potential, try more (fewer Student-t noise numbers, 4 instead of 8) |
+| AV20 | L3-4 SIREN location encoding (not adopted: NM/TX PASS + shape PASS, Denver 22 % of the gap, but Denver T 12-18 km -0.30 and 12x ERA5's surface jumps) | SIREN plus the climatology inputs of L3-7 (tropopause height, per-height mean and sd), which the log says carry the stratospheric temperature the coordinates drop. L3-7 was sidelined, never run | PASS: NM/TX within 0.0009 and shape not FAIL; Denver zero-shot better than SIREN alone (-0.156 on the fill-top set) with T 12-18 km not below -0.05. KILL: Denver T 12-18 km still below -0.15 | 40 min GPU, 1 h CPU, plus the L3-7 feature code | VARIATION. The log says single-box tests of location encodings are weak; if it still shows potential, try more once several boxes exist |
+| AV21 | L3-34 / L3-48 climatology debias (works alone: Denver -0.1918 -> -0.0253 with the logit fix; redundant once the local trust blend is on) | Learn in anomaly space instead of correcting afterwards (L3-8, SAMOS targets: standardised by a smooth per-point climatology). Sidelined, never run; needs the dataset option | PASS: Denver zero-shot at or above -0.088 (half the gap) with NM/TX within 0.0009 and shape not FAIL. KILL: NM/TX worse by more than 0.0015 | 3 h code, 40 min GPU, 1 h CPU | VARIATION. The most expensive row; belongs with the global-mode work. If it still shows potential, try more (climatology smoothed in space, L3-9) |
+
+### 13.5 Order
+
+Cheapest and best-supported first; one heavy Mode F evaluation at a time (14-17 GB RAM).
+
+1. AV1, AV2 (no training, 1 h each), then AV3 if both pass.
+   Then the no-training first stages of section 14, one after the other: SIGMA stage 1 (bar B0,
+   30 min CPU), CHORUS stage 1 (rebuild rows at fixed points, 1 h CPU), STRAND stage 0 (20 min CPU).
+2. AV4, AV6 (CPU, under 2 h each). AV4's disagreement factor is also the starting point for
+   SIGMA improvement 5; AV4 is still judged alone, by its own rule.
+3. AV5 (third seed). Then SIGMA stage 2 (same world start as AV5; 1.5 h CPU per seed), judged by
+   N5's rule; if AV3 passed, also reported against the AV3 router.
+   Only if SIGMA stage 2 passes: SIGMA stage 3 (NEST, 30 min GPU), and CHORUS stage 2 (also needs
+   CHORUS stage 1 to pass).
+4. AV7, AV8, AV10, AV9, AV11 (observation lane, CPU, in this order).
+5. AV17, AV19 (GPU scoring only), AV14.
+6. AV16, AV15, AV12, AV13. STRAND stage 1 here (climate and past mode), only if its stage 0 did
+   not stop it.
+7. AV20, AV21 (new code and training), AV18.
+8. At the very end, the six ideas of section 12, in the order of 12.10: (a) SV stage 1 and the VS
+   library bar, side by side on the CPU; (b) IT step 0 (small download) and the DP tower replay;
+   (c) MF; (d) VS stage 2 on the GPU; (e) FF last. RA (section 11) is not one of the six and keeps
+   its own order in 11.6.
+
+Steps 1-3, 6 and 8 were extended on 2026-11-12 (user: section 14 where it fits, section 12 last).
+The rules of each idea are in its own section and are unchanged.
+
+Not variations, so not listed here: the items that already passed but were never built or shipped
+(`Almost ideas.md` part E: A1 persistence law, N1 cross-fit, N2-B, ENSF2 export, G2-2). They wait
+for the user's go, not for a new test.
+
+## 14. Three architecture ideas for the forecast engine (added 2026-11-12; step 0 measured, nothing trained)
+
+Asked for: three ideas that are only about the AI architecture, each a new design for a major part,
+taken from AI work elsewhere, checked against everything logged, then attacked and improved.
+
+Why the forecast engine (Mode F and what surrounds it): it holds our largest skill (0.69 at one day),
+and four of the last kills are about its design, not its data: N4 (one network for two input sets),
+N5 (one network for all leads), N6 (a big network), C6 (run disagreement as spread). The climate
+generator is input-limited (pattern P1), so a new body there has failed every time. Here the inputs
+are rich and the design is the limit.
+
+Rules as in sections 10-13: data on disk only, defaults bit-identical, a trained model gets a new
+name, two seeds, fit years 2016-2020, test 2022, never 2026, pass and kill rules set now.
+
+### 14.1 The three ideas
+
+| Id | Idea in one line | Taken from | Part it replaces | Logged failure it answers | Nearest logged relative |
+|---|---|---|---|---|---|
+| SIGMA | Lead time is a noise level. The network gets a built-in shortcut (forecast pulled toward climate by a measured amount) and learns only what is left, scaled to size 1 at every lead | Image diffusion: the EDM recipe (Karras 2022), the reason one network works at every noise level | Mode F target and scaling, the four lead bins, the untuned ramp to climate in `router.py` | N5 KILL, N6 KILL, the routers AV1-AV3 | N5 (lead as an input, target unchanged) |
+| CHORUS | Every forecast source is one token with its own measured error size. Tokens are mixed by a closed rule first; the network learns only the correction. A missing source is a missing token, never a row of zeros | Set and token models (Deep Sets, Perceiver), multi-source language models | Two separate networks (HRES-only, ENSF2) and the choice between them (ASK_LATER 21) | N4 KILL, C6 FAIL by rule | N4 (zeros plus a "present" bit) |
+| STRAND | A member is one path through the launch window. Its random numbers age from hour to hour by a measured curve, and it keeps one real day as its template across the window | Video generation (noise linked between frames); Andrae et al. 2024 did it for a global diffusion model | The sampler: today every hour and lead is drawn on its own | none yet: the tool has no window product from the pool | review G3-2, patch line "same random numbers for all leads" |
+
+### 14.2 Step 0, measured today (`new_plan_kit/b7_arch_step0.py`, log `kit_b7_arch_step0.log`)
+
+Rows: `data/modeF_v2`, NM/TX box, 350,399 rows, fit years 2016-2019 (beta fitted on 2016-18, shown
+on 2019). Truth is ERA5. Eight heights from 10 m to 15 km. Read-only, about one minute.
+
+**(a) Size of today's training target, truth minus forecast, as a share of the climate spread
+(variance; 1.0 = no better than climate):**
+
+| Lead | 0.25-1 d | 1-2 d | 2-4 d | 4-6 d | 6-7.5 d | 7.5-10 d |
+|---|---|---|---|---|---|---|
+| Wind, today's target | 0.09 | 0.13 | 0.23 | 0.43 | 0.72 | 1.11 |
+| Wind, after the shortcut | 0.08 | 0.12 | 0.21 | 0.38 | 0.57 | 0.77 |
+| T, today's target | 0.05 | 0.08 | 0.15 | 0.30 | 0.60 | 0.93 |
+| T, after the shortcut | 0.05 | 0.08 | 0.15 | 0.28 | 0.51 | 0.70 |
+| Share of the squared wind loss | 0.02 | 0.02 | 0.08 | 0.16 | 0.20 | 0.51 |
+| Share of the rows | 0.10 | 0.10 | 0.20 | 0.20 | 0.15 | 0.25 |
+
+- The target grows 12.6 times (wind) and 18 times (T) from the first bin to the last. Half of the
+  squared loss sits in the last bin; leads under 2 days hold 20 % of the rows and 4 % of the loss.
+- Beyond 7.5 days the target is LARGER than the climate spread (1.11; 1.45 at 10 m). The network
+  must first undo the forecast before it can add anything.
+- The measured pull toward climate (beta; 1 = trust the forecast fully): 10 m wind 0.82 / 0.79 /
+  0.75 / 0.61 / 0.46 / 0.30 by lead bin; 5 km wind 0.99 / 0.98 / 0.92 / 0.79 / 0.61 / 0.41. So
+  even at day 1 the 10 m forecast should be pulled 18 % toward climate (target 0.28 -> 0.24).
+- This fits N5: with all leads in one network the short leads lost 1-2.7 % and the leads beyond
+  7.5 days won 3 %. The long leads own the loss.
+- Limits: the training loss is absolute, not squared, so the imbalance there is about the square
+  root (3.5-4 times). A network can learn the pull by itself; the table shows what it must spend
+  its capacity on, not a gain. Climate means come from 26 rows per cell, so ratios are a bit high.
+
+**(b) Two runs for the same hour and place (2,200-3,100 pairs per lead bin, older run 30-72 h older):**
+their wind errors correlate only 0.37-0.53. The best fixed mix of the two cuts the squared error by
+1-5 % up to 4 days and by 6-13 % at 4-7.5 days (0.5-3 km: 3.8 / 4.9 / 5.4 / 10.2 / 13.2 %). The
+size of their disagreement ranks the newer run's error at 0.15-0.38 (C6 found 0.30-0.38).
+
+**(c) One run alone:** its own change over the next 6 hours ranks its error at 0.25-0.39 for 0.5-9 km
+at leads of 1-7.5 days (0.10-0.21 at 10 m). This needs no second run and no extra feed.
+
+**(d) One run at two leads, same place, wind error correlation:**
+
+| First lead | 6 h apart | 12 h apart | 24 h apart |
+|---|---|---|---|
+| 0.25-2 d | 0.16-0.28 | 0.02-0.11 | 0.02-0.13 |
+| 2-4 d | 0.29-0.48 | 0.10-0.25 | 0.09-0.16 |
+| 4-6 d | 0.42-0.69 | 0.18-0.50 | 0.06-0.31 |
+| 6-7.5 d | 0.49-0.80 | 0.23-0.60 | 0.06-0.39 |
+
+A pool that draws each lead on its own has 0.00 here. The truth itself, 6 h apart: 0.65-0.89.
+Limit: the store has 6-hour steps, so nothing is known for 1-3 hours apart.
+
+**(e) Memory of the place (a fourth candidate, ECHO, see 14.6):** subtracting the place's own mean
+error changes the wind error by -2.2 to +1.7 %. The 20 most similar past forecasts of the SAME
+place do worse than the 40 most similar of ALL places (10 m wind -7 to -15 % against -15 to -27 %;
+aloft at short leads +1 to +4.5 %, i.e. worse than no correction).
+
+### 14.3 SIGMA: lead time is a noise level
+
+**Version 0.** A forecast is the truth with noise added, and the noise grows with lead. Image
+diffusion networks face the same thing: one network, every noise level. What made that work is the
+EDM recipe: output = shortcut x input + scale x network, with the shortcut and the scale set by the
+noise level, so the network's own job has size 1 everywhere. Ours:
+
+```
+member = climate mean + beta x (forecast - climate mean) + s x F(inputs, noise draw)
+beta, s : measured tables (how much to trust the forecast, how large the rest is)
+F       : the engression network, target (truth anomaly - beta x forecast anomaly) / s, size 1 at every lead
+```
+
+**Improvements, in the order the flaws were found:**
+
+1. *Flaw: beta and s by lead only.* They differ by height (10 m 0.82, 5 km 0.99 at day 1). Now one
+   smooth curve per height and variable, two numbers each, so any lead works. No bins, no seam
+   between routers, no ramp.
+2. *Flaw: where does "climate" come from at a new place?* From the climate generator's own pool
+   (mean and spread per height), which the tool has everywhere. At very long lead beta -> 0 and
+   s -> 1: the forecast pool BECOMES the climate pool by the formula. That is N7's aim (one
+   generator) without N7's training.
+3. *Flaw: resampling noise.* With the same noise draw at every lead, a member moves smoothly from
+   its climate value to its forecast value as launch day nears. The go / no-go number over the
+   countdown then changes because the weather changed, not because the dice were rolled again.
+4. *Flaw: N6.* A big network was best at 1-3 days (-4.7 to -5.8 %) and worse at 7 days (+2.2 to
+   +4.0 %). Scaling the target does not stop overfitting on noisy rows. Fix (NEST, from nested
+   "Matryoshka" networks): the units are ordered; rows with large s train and use only the first
+   128, rows with small s use all 512. One network, large where there is signal, small where not.
+5. *Flaw: s knows only the lead, not the day.* Three free signals rank the error inside a lead bin
+   (14.2 b, c): run disagreement, the run's own 6-hour change, the spread of errors of similar past
+   forecasts (0.20-0.44). s = table x g(signals), g a monotone rule with four numbers, held to
+   0.8-1.5. This is the C6 factor (CRPS -0.69 % [-1.19, -0.24]) placed inside the target, so the
+   network trains on what is left over.
+6. *Flaw: a simple rule may tie (P4).* Arm B0 is the formula with F replaced by a plain bell-curve
+   draw. SIGMA must beat B0 and the shipped model. B0 ships nothing, it is the bar.
+7. *Later, not in the first test:* one noise level per height. A height with a radar reading gets
+   the reading's s, the others keep the forecast's. Then `observe` is the same network (the
+   any-sensor idea of the review, G3-5, given a concrete body). Only after stages 1-2.
+
+**Stages.** (1) CPU, no training, 30 min: arm B0 on 2020, to fix the curves and see the bar.
+(2) Train SIGMA at the shipped size (width 128, depth 2) on all leads to 10 days, world start as in
+N2; 1.5 h CPU per seed. PASS = N5's own rule, unchanged: leads 1-7 within 0.5 % of the shipped
+binned model, beyond 7.5 days better than the climate model and the router mix. KILL = N5's: worse
+by more than 1 % at leads 1-3 in both seeds. (3) NEST at width 512, 30 min GPU. PASS = N6's rule,
+unchanged: at least 1 % better at every lead, interval excluding 0, both boxes, both seeds, cov99
+within 0.003. KILL: lead 7 d worse in both boxes.
+Honest odds: stage 2 medium, stage 3 medium to low. What is new against the nearest work: N5 gave
+the network the lead and changed nothing else; ERDM (2025) sets noise by lead inside a many-step
+diffusion model; no logged idea and no source found reads a forecast as an already-noised truth
+with a measured noise level in a one-step network.
+
+### 14.4 CHORUS: every source is a token
+
+**Version 0.** Sources: the newest run, older runs for the same hour, the same run 6 h before and
+after, ensemble mean and spread, later an AI model. Each becomes a token (profile, source type,
+lead). A query attends over whichever tokens exist and feeds the SIGMA body.
+
+**Improvements:**
+
+1. *Flaw: free attention over 3-5 tokens will tie a plain network (P4) and can overfit.* Start as
+   the closed rule: weights from each token's own s and the measured error link between sources
+   (0.37-0.53). This is the best fixed mix of 14.2 b, written as attention with no free numbers.
+2. *Flaw: why would this survive where N4 died?* N4 fed zeros and a "present" bit; the trunk saw
+   two different input worlds and lost 1.0-2.6 % in both. Here the trunk always sees ONE mixed
+   profile with the same statistics; more sources only make its s smaller. A missing source cannot
+   push the inputs off their range. That is the mechanism that differs.
+3. *Flaw: what exists on launch day?* The same run's neighbours in time are always there (one
+   download holds every lead). Yesterday's run is kept by the tool's own logger. The ensemble
+   stays optional. So the smallest live set needs no new feed.
+4. The weighted disagreement between tokens goes into SIGMA's g (improvement 5 there). One place
+   for C6, the ENSF2 spread and the 6-hour change, in place of three separate attempts.
+5. *Learned part, only after 1-4 pass:* small zero-started corrections to the weights by source
+   type, lead and height band ("attention that starts as the closed rule").
+
+**Stages.** (1) CPU, 1 h, no training: rebuild rows at fixed points from `data/raw/wb2_hres_v2`
+(the random points of today's rows give too few pairs; 12 h pairs then exist too). Feed the shipped
+Mode F the mixed profile against the newest run alone. PASS: CRPS better with an interval excluding
+0 at 5 and 7 d, not worse by more than 0.5 % at 1 and 3 d, 2022, both seeds. KILL: no lead better.
+(2) One network with 1 to K tokens. PASS = N4's rule, unchanged: with the ensemble within 0.5 % of
+ENSF2, without it within 0.5 % of HRES-only, both boxes. KILL = N4's: either side worse by more
+than 1 % in both seeds. Honest odds: stage 1 medium to high at 5-7 d, stage 2 medium.
+Nearest published work: lead times as tokens for post-processing AI forecasts (Hua and Sobash,
+arXiv 2505.11750); none found that treats lagged runs as tokens or starts attention as the closed
+mix.
+
+### 14.5 STRAND: a member is a path
+
+**Version 0.** One noise draw for all hours and leads of a member (published for a global diffusion
+model: Andrae et al., arXiv 2410.05431; logged as one patch line in the review, never run).
+
+**Improvements:**
+
+1. *Flaw: "same noise" means error correlation 1.0.* Measured 6 h apart: 0.16-0.28 at days 1-2,
+   up to 0.80 at days 6-7.5 (14.2 d). Noise must AGE: next = r x previous + sqrt(1 - r x r) x new,
+   r from the measured curve by lead and gap.
+2. *Flaw: the network is not a straight line in its noise.* So r is tuned per lead bin until the
+   OUTPUT errors show the measured correlation (5 numbers, fit years).
+3. *Flaw: the stack order (trap 2).* The shuffle re-orders each lead on its own and wipes the link.
+   Fix: a member keeps ONE real day as template across the window, with the template hour moving
+   with the clock. Whole members only, ranks never mixed (trap 3).
+4. *Flaw: where does it pay?* At day 1 the error part is 3-8 % of the climate spread aloft, so the
+   window is carried by the forecast itself. The gain is at days 4-7 (planning a scrub day), at
+   10 m, and in climate and past mode, where the truth 6 h apart correlates 0.65-0.89.
+5. *Flaw: a launch window is 1-3 h, the forecast store has 6 h steps.* First target is therefore
+   climate and past mode on the hourly ERA5 box store (33 years on disk).
+
+**Stages.** (0) CPU, 20 min: real probability that 10 m wind stays under a limit for 3 hours in a
+row, against the same from independent draws. STOP if they differ by under 0.02. (1) Aged noise plus
+moving templates. PASS: that probability error halves, per-hour CRPS within 0.0009, both seeds.
+KILL: any per-hour score worse beyond tolerance. Honest odds: low to medium; the premise holds
+fully only beyond day 4. Its core is published; ours adds the measured ageing curve, the one-step
+network and the pass through the shuffle.
+
+### 14.6 Measured or weighed, then dropped
+
+| Candidate | Why dropped |
+|---|---|
+| ECHO: the place's own past forecast errors as a prompt (in-context learning, as in table foundation models), to get the N2 fine-tune gain with no training | Measured (14.2 e): inside one box the place's own memory adds under 2.2 % for wind and same-place look-alikes do worse than all-place ones. What all-place look-alikes gain (10 m wind -15 %) is what SIGMA's beta already gives (-14 %). The regional form (world against box, the real N2 gap) is not tested |
+| Network weights written by a second network from terrain (as "text to LoRA", 2025) | Terrain and climate descriptors have not predicted the local part so far (N2-C MISS, L3-5); overlaps SV (12.4) in aim |
+| One latent "real air" with a small head per instrument (as in learning from many noisy labellers) | It is RA + IT + C5 trained as one object; nothing new to measure before RA stage 2 |
+| A learned table of numbers per place (as node parameters in AIFS) | Same aim as SV; needs the global training run of `GLOBAL_PLAN.md` |
+| One calibration network conditioned on season, hour, spread | Splitting calibration by season and by spread found nothing (IL-2, review "what failed" 3); the useful signals are forecast-side and now sit in SIGMA's g |
+
+### 14.7 How the three fit, and the order
+
+```
+sources (runs, neighbours in time, ensemble)  -> CHORUS: one mixed profile + its error size s
+mixed profile, s                              -> SIGMA : shortcut + s x network (NEST width by s)
+noise draws that age, one template day        -> STRAND: members that are paths
+-> range calibration, shuffle, maps (unchanged) -> pool
+```
+
+Each part can pass or fail alone. Order: SIGMA stage 1-2 first (it decides the body), CHORUS
+stage 1 beside it (no training), STRAND stage 0 any time. One Mode F job at a time (14-17 GB).
+Place in the overall work order: steps 1, 3 and 6 of 13.5.
+
+Not checked: everything in 14.2 is one box (NM/TX), ERA5 as truth, 2019 as the shown year; the
+lagged pairs are 30-72 h apart only; outside papers were read as search summaries, not in full.
+Sources: EDM (arXiv 2206.00364); Elucidated Rolling Diffusion (arXiv 2506.20024); Continuous
+Ensemble Forecasting (arXiv 2410.05431); leads as tokens (arXiv 2505.11750); Matryoshka
+representation learning (arXiv 2205.13147).
+
+---
+
+## 15. STOP FIRST: code audit of 2026-11-12, to be fixed before any more trials (added 2026-11-12 evening; nothing here has been fixed)
+
+Source: a read-through of the core code on 2026-11-12 (`tempest/generator`, `tempest/scoring`, `tempest/calibrate`,
+`tempest/forecast`, `tempest/profiles`, the ingest parsers, `tempest_weather` and `tempest_weather_v2`). Three items were
+reproduced with small scripts; the rest are from reading and say so. No code was changed by the audit.
+
+### 15.0 The gate (user instruction, 2026-11-12: "to be done immediately, before any more trials")
+
+1. **No new trial starts until 15.1 to 15.4 are done.** A trial = any training run, any scoring run whose number will
+   be read as a verdict, any export. Sections 10 to 14 wait. Jobs already running may finish; their verdicts are
+   **not read** until AU-1 is in and the run is rescored with it (or the verdict is of the kind AU-1 does not touch,
+   see the table in 15.1).
+2. Order: AU-1, AU-2, AU-3, AU-4 (the four that change numbers people read), then AU-5 to AU-7 (step 0 of each
+   first, they may close with one line), then 15.3 (small defects, one sitting), then 15.4 (re-read of old verdicts).
+3. The usual rules hold for every item: one change at a time; new behaviour behind a flag that is off until its
+   check passes (a plain bug with one right answer may be on by default with a switch back to the old behaviour, as
+   `OPTIONS["permute_blocks"]` was); a test for every fix; no pytest while a GPU score runs; `scripts/tool_audit.py`
+   after anything that touches the shipped tool; commits as the standing rules say.
+4. **The 2026 January-June final test is not rerun for any of this** (it was run once, lock `data/FINAL_TEST_DONE`).
+   Where an item changes how its numbers should be read, the report gets a caveat line and the question goes to
+   `docs/agent/ASK_LATER.md`.
+5. Each item ends with one dated line in section 9 (result and what it changed) and one line in
+   `docs/AI_MISTAKES_CHECKLIST.md` section B where it is a new class of mistake (AU-1 and AU-3 are).
+
+Overview:
+
+| Id | What is wrong | Status of the evidence | Changes old numbers? | Cost |
+|---|---|---|---|---|
+| AU-1 | The climatology baseline is scored from a thin pool with an estimator that punishes thin pools | measured | **yes: every "skill vs climatology" number** | 1 day, one GPU score per headline |
+| AU-2 | Forecast mode moves samples to the site with the wrong grid heights | reproduced | forecast-mode t2m / pressure / density off the grid points | 1 h |
+| AU-3 | Forecast mode very likely corrects surface values for height twice | from the Open-Meteo documentation, not yet seen live | forecast-mode pad pressure and temperature | 2 h, one live call |
+| AU-4 | Bootstrap intervals resample single days although weather lasts several days | reasoning, size not measured | interval widths, so verdicts near zero | half a day |
+| AU-5 | The ERA5 truth of the test years carries noise profiles the model was trained on | from reading | coverage on ERA5 (not relative skill) | step 0 half a day |
+| AU-6 | Balloon scoring and the correction pool use complete soundings only | from reading | balloon scores, if the drop depends on the weather | step 0 2 h |
+| AU-7 | The Earth-GRAM-style margin mixes shape and warming | from reading | how the 6.7 % is described | 2 h + one score |
+| AU-8 .. AU-18 | eleven smaller defects | AU-8 and AU-13 measured, the rest from reading | small or none | 1 day together |
+
+### 15.1 The four that change numbers
+
+#### AU-1. The climatology baseline is handicapped by its pool size
+
+**What is wrong.** `tempest/scoring/score.py` lines 187-197 build the two climatology sets (`clim`, `clim15`) by
+drawing m = 199 samples **with replacement** from the real rows of the test row's group (grid point x month x 2-hour
+bin). `crps_ensemble` (line 40) is the plain ensemble CRPS, not the fair one: an ensemble built from R distinct real
+values is charged about `E|X - X'| / (2R)` on top of its true CRPS, roughly 1/R of the CRPS. The model draws 199 fresh
+values, so it pays 1/199 only. The gap is credited to the model as skill.
+
+**Evidence (2026-11-12, scratch scripts, nothing saved in the repo).** In `data/train/pilot80_dpd.npz` the test rows of
+2024-25 have a median of **75** pool rows for `clim15` (10th to 90th percentile 61 to 86) and **221** for `clim`.
+A synthetic model with **no skill at all** (199 draws from the true distribution) scored against such pools:
++0.0125 at R = 75, +0.0101 at R = 100, +0.0047 at R = 220, +0.0011 at R = 900. The README headline is +2.8 % against
+the recent 15 years on ERA5 and +0.8 % on balloons, so a large part of the first number may be this effect.
+Not measured: the real pools are not independent rows (same weather on neighbouring days), so the true size on our
+data can differ from the synthetic one; the balloon pools (`sonde.py` lines 146-153) were not counted.
+
+**What it does not touch.** A comparison of two models against the same baseline keeps its sign (both get the same
+bonus). The Gaussian baseline draws fresh values from a fitted law, so "model minus Gaussian" is not inflated; but
+"Gaussian vs climatology" was flattered by the same amount as the model.
+
+**Fix.**
+1. `score.py`: new flag `--fair-baseline` (off by default until step 4 passes; outputs get a `_fair` suffix).
+   - Add `crps_fair(x, y)`: same sorted formula, spread term divided by `m (m - 1)` instead of `m^2`. Use it for
+     every set when the flag is on.
+   - Score `clim` and `clim15` from the **whole pool of the group, without replacement**: per group key, the sorted
+     physical rows of the pool (cache per key, as `trust.ClimPool` already does), fair CRPS with m = R for that row.
+     Rows whose pool has fewer than 20 rows fall back to the all-years pool and are counted in the log line.
+   - Keep the 199-draw `clim` array for everything that needs an (N, 199, D) array (shuffle templates, variogram
+     score, coverage, `--tail`, `--mc`, `--stress`); only the CRPS and MAE columns of the baselines change source.
+   - `diag.headline`: accept ready per-row CRPS arrays for the baselines (`crps_override={"clim": ..., "clim15": ...}`)
+     so the bootstrap uses the fair numbers.
+2. Same change in `tempest/scoring/sonde.py` (balloon pools `r` and `r15` per station and month) behind the same flag.
+3. Every other place that scores a climatology the same way: `grep -rn "crps_ensemble\|crps_sorted" tempest scripts new_plan_kit`
+   and list each caller in the log with "pool with replacement: yes / no". Known ones: `scripts/il6_modeF.py` (mode F
+   skill vs climate), `scripts/fv2_eval.py`, the kit scripts that print skill vs climate (b8 AV1 / AV2 among them),
+   `tempest/calibrate/trust.py` (its w = 0 end is the pool's quantiles at 199 levels, so it is not affected: note it).
+4. Tests (`tests/test_fair_baseline.py`): (a) the synthetic no-skill model gives |skill| < 0.002 with the flag and
+   about +0.012 without (R = 75); (b) with a pool of exactly 199 distinct rows the fair pool score equals the fair
+   score of those 199 as an ensemble; (c) flag off reproduces today's CSV byte for byte on a small fixture.
+5. One GPU score of the shipped stack (`l3_c4w`, the exact flags of the last headline run) with `--fair-baseline`,
+   and one `sonde` run. Write both headlines side by side into section 9.
+6. Second step, only if step 5 shows the pool is still the limit: the dataset keeps about 8 % of the available
+   point-hours, so a baseline built from the profile store itself would have about 900 hours per group. Measure first
+   (`new_plan_kit`, CPU, between GPU steps: store read) how much the fair whole-pool CRPS still falls from R = 75 to
+   the full store on 2,000 test rows; build the store-based baseline only if it moves skill15 by more than 0.003.
+
+**Pass rule (set now).** The flag becomes the default when tests 4a-4c pass and the rerun is reproducible to 0.0005
+on a second score seed. From then on every pass rule that names "skill15" means the fair number.
+
+**After the fix.** Update the README status lines, `docs/results/FINAL_REPORT.md` (caveat only, no rerun, see 15.0
+point 4), the Earth-GRAM comparison text, and re-read the verdicts listed in 15.4.
+
+#### AU-2. Forecast mode moves samples to the site with the wrong grid heights
+
+**What is wrong.** `tempest_weather/api.py` line 496: `dz_row = (elev - elev_row[:n]) if used != "past" else ...`.
+`elev_row` is the height of the grid point each block of 199 samples was assigned to (right for the climate
+generator, which runs at that point). In forecast mode the profile was built **once**, at the nearest grid point's
+height (`_forecast_phys(..., elev_grid, ...)`), so every row needs the same shift `elev - elev_grid`.
+
+**Evidence.** Canned forecast (the fixture of `tests/test_tool_forecast_mode.py`), Spaceport America (32.99, -106.97),
+n = 1024, `elevation=1401`: 995 samples were moved by -94.5 m and 29 by -115 m, a 2 hPa split in surface pressure
+inside one answer. Small here because the four neighbours are 1383 to 1516 m and the weights are lopsided; half-way
+between two points 300 m apart it is several hPa and a few tenths of a kelvin, two-peaked.
+
+**Fix.** One line: `dz_row = (elev - elev_row[:n]) if used == "ai" else np.full(n, elev - elev_grid)` (the fetch-failure
+fallback sets `used = "ai"` before this line, so it stays right). Plain bug: on by default, with
+`OPTIONS["forecast_single_shift"] = True` and the old line behind `False`.
+
+**Test.** In `tests/test_tool_forecast_mode.py`: wrap `_core.site_shift`, call `atmosphere_set` in forecast mode at an
+off-grid point with n = 1024, assert the `dz` it received has one value equal to `info["elevation_m"] - info["grid_elevation_m"]`.
+Then `scripts/tool_audit.py`.
+
+#### AU-3. Forecast mode very likely corrects surface values for height twice
+
+**What is wrong.** `tempest_weather/sources/openmeteo.py` lines 21-24 send no `elevation`. The Open-Meteo
+documentation says that by default 2 m temperature and surface pressure are downscaled to its own 90 m terrain height
+at the requested point. The tool reads them as values at the ERA5 grid height (`forecast.py` line 113 keeps `sp` as
+given; `forecast_profile` measures the pressure levels against `z_sfc_m` = the grid height) and then shifts them to
+the site (`api.py` 496-498). With `elevation=1401` at Spaceport America (grid 1495.5 m) that second shift is about
++9.6 hPa and +0.6 K, about 1 % in pad density. Mode F was trained on grid-height fields (WeatherBench2 HRES against
+the ERA5 grid), so the grid height is the consistent input.
+
+**Not verified:** no live call was made in the audit. Step 0 settles it.
+
+**Step 0 (one live call, minutes).** For one grid-misaligned point fetch the same hour three ways: default,
+`&elevation=<ERA5 grid height>`, `&elevation=nan`. Print `doc["elevation"]`, `temperature_2m`, `surface_pressure` of
+each. If the three agree, close AU-3 with one line. If they differ as the documentation says, do the fix.
+
+**Fix.**
+1. `openmeteo.url` / `fetch` take `elevation=None` and send it when given.
+2. `_forecast_phys` calls the default fetch with `elevation=z_sfc` (the grid height). A user-supplied `fetch(lat, lon, day)`
+   keeps its three-argument form: call it as today, then compare `doc.get("elevation")` with the grid height.
+3. In both cases, if the response carries an `elevation` more than 5 m from the grid height, move `t2m` and `sp` from
+   the response height to the grid height first (same lapse rate and hypsometric step as `_core.site_shift`) and add
+   the flag `forecast-surface-values-moved-from-source-height`. No silent path.
+4. The bias state (`tempest_weather/bias.py`, written by `scripts/update_bias.py` from the logger files): check which
+   height its forecasts were fetched at. If the state was built from default (terrain-height) forecasts, its
+   2 m temperature bias includes the height offset; rebuild the state from the same request the tool now makes, or
+   apply the bias before step 3. Write down which.
+5. `tempest/nearterm/ensemble.py` already uses `doc["elevation"]`: nothing to do there; say so in the log.
+
+**Tests.** Unit test with a canned response that carries `elevation` 90 m below the grid: output `sp` and `t2m` at the
+site equal the hand-computed single shift. Live check once (A13): the tool's forecast-mode pad pressure against the
+nearest ASOS altimeter-derived station pressure on three days, before and after.
+
+#### AU-4. Bootstrap intervals use one-day blocks
+
+**What is wrong.** `tempest/scoring/diag.py` lines 140-143 (`headline`) and 85-102 (`block_bootstrap_ci`) resample
+whole days. Score differences stay correlated over a weather system (several days), so the intervals are too narrow
+and a result whose interval just clears zero may not be a result. The size is not measured.
+
+**Step 0.** Scorer flag `--daily` writes `<stem>_daily.csv`: per day and band, the summed CRPS of each set and the
+row count (cheap, the arrays are already there). From one existing-configuration run compute the lag 1 to 10 day
+autocorrelation of the daily mean difference (model minus clim15) per band.
+
+**Fix.** `block_days` argument in both functions (default 1 = today's numbers). Day ids become true day numbers
+(`year * 1000 + doy` is not continuous across the year end: convert with `datetime64`), block id = day number
+// block_days. Choose the block as the first lag where the autocorrelation is below 0.1 in every headline band,
+rounded up, at least 3; print the intervals for 1, 3, 5 and 7 days side by side once.
+
+**Pass rule.** The chosen block becomes the default for every interval a rule reads. Test: an AR(1) daily series with
+rho = 0.7 gives a 95 % interval that holds the true mean in 93-97 % of 400 synthetic repeats with the chosen block and
+clearly fewer with block 1.
+
+### 15.2 Three that change how results are read (step 0 first; each may close with one line)
+
+#### AU-5. The ERA5 "truth" of the test years carries noise the model has seen
+
+**What is wrong.** `tempest/calibrate/station.py` `apply` (lines 154-172) adds one leftover balloon profile from a
+fixed pool (fit years up to 2020, at most 3,000 per group and moisture class) to every corrected ERA5 row, training
+years and test years alike. The scorer's truth for 2024-25 therefore contains the very leftover profiles the
+generator was trained to reproduce. Relative skill is fair (the baselines get the same truth); **coverage and
+calibration on ERA5 are flattered**, because the real 2024-25 departures are a fresh draw.
+
+**Step 0.** Fit a second leftover pool from the 2021-23 balloon pairs with the existing a, b tables (rows the map
+never used). Rebuild only the 2024-25 test rows with that pool (`build_dataset` gets `--leftover-pool FILE`
+`--first-year 2024`), score the shipped stack against both truths with the same seed. If cov99, cov90 and CRPS differ
+by less than the seed noise (0.003) in every band, close with one line.
+
+**Fix if it matters.** Keep the fresh-pool test file as the standard truth for coverage claims; say in README and the
+report that ERA5 coverage is "against a truth with an unseen noise pool"; balloon coverage stays the reference.
+No retraining: the training targets are not wrong, only the test truth was too familiar.
+
+#### AU-6. Balloon scoring and the correction pool use complete soundings only
+
+**What is wrong.** `tempest/scoring/sonde.py` line 131 keeps a sounding only if all four variables are present at all
+44 heights to 18 km plus the surface; `station.py` line 140 does the same for the leftover pool (and `modeP.load_pairs`
+for mode P). Balloons that burst early or lose wind tracking are dropped. If that happens more on windy or stormy
+days, the scores and the correction miss exactly those days.
+
+**Step 0 (CPU, light).** For each station and test year: share dropped; then, using ERA5 at the launch hour, the
+dropped share by class of 500 hPa wind speed (terciles) and by month, and which variable and height caused the drop
+(humidity above 10 km is the likely main cause, which is not weather-dependent). If the dropped share does not rise
+with wind by more than 5 points between the calm and the windy tercile, close with that table.
+
+**Fix if it matters.** `sonde.py --partial`: keep a sounding when at least the lowest 5 km of wind and temperature
+are complete; score per column with a validity mask (`diag.headline` already takes `valid`); baselines for a column
+come from pool soundings valid at that column; whole-profile statistics stay on complete soundings and say so.
+For the pool in `station.fit`: allow leftovers whose only gaps are humidity above 10 km, with those heights taken
+from a complete leftover of the same group (flagged in the table as `n_patched`). Refit, compare the tables, and
+retrain only if the windy-tercile correction changes by more than its own bootstrap noise.
+
+#### AU-7. The Earth-GRAM-style margin mixes profile shape and warming
+
+**What is wrong.** `score.py` lines 201-209 fit the Gaussian baseline on all training years, while the model has the
+year as an input and `clim15` uses the last 15 years. "Beats the Earth-GRAM-style reference by 6.7 %" is true as
+measured but part of it is the trend, not the non-Gaussian shape.
+
+**Fix.** Add a second Gaussian set `gauss15` fitted on the same recent-15-year rows as `clim15` (thin groups: the
+existing month-only fallback, threshold 300 rows instead of 600 for this set). Headline gets `margin_gauss15_*`
+beside the existing columns (additive, nothing removed). One score. Report both: "against a fixed-climate Gaussian
+(what such tools ship)" and "against a Gaussian of the recent climate (the shape part alone)". Do this together with
+AU-1 step 5 so it costs no extra run. Keep `new_plan_kit/b9_gram_compare.py` (another session's, untouched) in mind:
+its numbers need the same two labels.
+
+### 15.3 Smaller defects (one sitting; each with its own test)
+
+| Id | Where | What is wrong | Fix | Check |
+|---|---|---|---|---|
+| AU-8 | `tempest_weather/sources/indices.py` 34-37 vs `tempest/ingest/index_forecast.py` 28-35 | The tool's index forecast is called a copy of the tested ridge but lacks its three QBO-phase inputs (sin, cos of the phase angle, amplitude). Measured: QBO means differ by 1-3 m/s at 3, 6, 12 months; spreads agree. `--driver-mode ridge` therefore scores something slightly different from what ships. | First read `scripts/index_bakeoff.py` to see which design the 2012-25 hindcast tested. Port that one into `Indices._design` / `forecast` (QBO sd from the rows up to the last observed month). Code only, no export. | Parity test: tool mean and covariance equal `index_forecast.fit` at h = 1, 6, 12 to 1e-6 relative on the exported snapshot. |
+| AU-9 | `tempest_weather/_core.py` 155, `tempest/generator/sample.py` 96 | Site shift of humidity: the new temperature already carries the height fade `w`; the humidity line blends with `w` again, so the change is under-applied aloft (about 1.5 instead of 4 points of RH at 1.5 km for a 500 m site offset). | Replace the blend by `rh * es(t_old) / es(t_new)` in both files in the same commit (the parity test ties them). | Hand value at one height; one `sonde` run (it uses `to_site`): RH 0-1 km and 1-5 km CRPS not worse than seed noise. |
+| AU-10 | `tempest_weather_v2/readers.py` 299-314 | `above_top="climatology"` does exactly what `"hold"` does; the docstring promises standard-atmosphere T and p. | Correct the docstring ("alias of hold: T and p continue from the top value along the standard lapse rates"); a true switch to the standard atmosphere would put a jump at 18 km, so do not build it. | Test that the two policies return identical numbers, so the alias is deliberate. |
+| AU-11 | `tempest/calibrate/spread.py` 30, `_core.py` 55 | The width floor of the range map is 10 % of the median half-width **of the batch**: thousands of rows in the scorer, one block of 199 in the tool (where it does nothing). Near-saturated or bone-dry humidity rows are treated differently in scoring and serving. | Step 0: count how often the floor binds in the scorer per column. If below 0.1 % of cells outside RH, close. Else store the per-column floor in the calibration file at fit time (`hw_floor`), use it in `apply` when present (old files unchanged), refit the shipped maps and re-export. | Parity test tool vs scorer on rows with RH pinned at 100 %. |
+| AU-12 | `tempest_weather_v2/launch.py` 437 | A conditioned pool sets every sample's launch time to the first sample's, so a time window collapses silently after `observe()`. | Keep the base pool's times (cycled to n), evaluate the gust law per sample hour as `_regust` already can, add the flag `window-hours-not-used-by-conditioning`. | Test: windowed Launch + `observe()` keeps more than one distinct launch hour and carries the flag. |
+| AU-13 | `tempest/calibrate/station.py` 55-79, `configs/region.toml` | Measured: 914 of 20,571 Santa Teresa soundings (all 1991-95, the El Paso site before the move) start about 60 m from the listed launch height and are paired with the present site's grid point. | `read_igra(..., launch_height=None, tol_m=30)`: with a height given, drop soundings whose first level is further away and print the count. Step 0: refit the station map with the filter and compare a, b and the pool sizes; adopt the filter for new fits; retrain nothing unless a table entry moves by more than its bootstrap noise. | Unit test with two synthetic soundings; the count line in the fit log. |
+| AU-14 | `tempest/export_tool.py` 113-116 vs `score.py` 273 | Shuffle templates: the export uses years before 2021, the scorer years before the first test year. | No change to the shipped assets. Add `--template-before-year` to the scorer and use 2021 in runs that claim to score "as shipped"; `tool_audit.py` already scores the real assets. | The flag appears in the run header of the next as-shipped score. |
+| AU-15 | `tempest/nearterm/ensemble.py` 66-72 | No 100 m anchor: wind between 10 m and the first pressure level above ground is linear in height above 100 m, which reads low at 100-300 m (a log profile gives 62 % of the step at 100 m between 10 and 400 m, the line 23 %). Not used by the shipped tool yet. | Interpolate in ln(height) up to the first level above ground (per column), or request the 80 / 120 / 180 m winds where the model serves them and use them as anchors. Before any calibration on the logger archive starts. | Synthetic log-profile test: error at 100, 150, 200, 300 m below 0.2 m/s. |
+| AU-16 | `tempest/scoring/ridge_drivers.py` 34-35 | ONI and the 3-month lagged ONI are drawn independently although they move together; for leads under 3 months the lag is already observed but is drawn. Inactive today (no shipped model has the lag input). | When the lag month is observed, use it; otherwise draw both from one joint forecast (fit at h and h - 3 with a shared residual draw). Do it before any p2-feature model is scored in ridge mode. | Test: correlation of the drawn pair within 0.1 of the observed one at h = 6. |
+| AU-17 | `tempest_weather_v2/launch.py` 1030-1033 | `stale(now)` fails on a naive `now`. | Treat a naive `now` as UTC, as the rest of the tool does. | One-line test. |
+| AU-18 | `tempest/profiles/to_heights.py` 123 | A pressure level a few metres above the 100 m anchor sits next to the 100 m wind and can make a false shear step in the 100-150 m layer. | Step 0: share of rows with a level at 100-150 m above ground and the 99th-percentile shear of that layer with and without them. Only if it shows: use pressure-level winds from 150 m up. A store rebuild, so it waits for the next planned rebuild. | The step 0 table. |
+
+Also noted, no action now: (a) the "unknown drivers" set keeps the smoothed global temperature as known; that only
+matters for a p2-feature model at multi-year lead (the shipped models use `year`). (b) Mode F is tested on one year
+(2022) against ERA5, an analysis of the same model family as the forecast; already stated in the tool's trust line.
+
+### 15.4 Old verdicts to re-read once AU-1 and AU-4 are in
+
+Do not rerun everything. Sort the verdict tables (section 9, `docs/logs/AUTOPILOT.md`, `To-do-Concise.md`) into:
+
+| Kind of verdict | Touched by AU-1? | Touched by AU-4? | Action |
+|---|---|---|---|
+| Model A vs model B, same rows, same baseline (most KEEP / FAIL decisions) | sign no, size slightly | yes if the interval edge was within one interval-width of zero | recompute the interval from the saved per-row or daily files where they exist; else mark "interval to confirm" |
+| "Beats climatology by x" (README, FINAL_REPORT, tool trust lines, mode F skill by lead, AV1 / AV2) | **yes** | yes | rescore the shipped stack once (AU-1 step 5); for the others state the pool size R of their baseline and the expected bonus 1/R until rescored |
+| Rules with an absolute skill threshold ("skill15 >= ...", "above climate at day N") | **yes** | yes | re-read against the fair number; a pass within 1/R of the threshold is reopened |
+| Coverage rules (cov99, cov90) | no | interval only | nothing, except AU-5 for ERA5 coverage |
+| Earth-GRAM comparison | model-vs-Gaussian no; Gaussian-vs-climate yes | yes | AU-7 wording |
+| 2026 Jan-Jun final test | yes (its climate skill) | yes | caveat line only; rerun is the user's decision (ASK_LATER) |
+
+### 15.5 What the audit did not cover
+
+Read in full: the generator (train, model, sample, features, dataset build), `score.py`, `sonde.py`, `diag.py`, the
+calibration modules used by the shipped stack, the forecast modes, `to_heights`, the index code, `tempest_weather`
+(`api`, `_core`, `engine`, `forecast`, `bias`, `coherence`, sources) and most of `tempest_weather_v2/launch.py`,
+`readers.py`, `timeutil.py`, `weather_calc.py`. **Not read:** the 296 files in `scripts/`, `new_plan_kit/`,
+`tempest_weather_v2/stats.py` and `montecarlo.py`, `tempest_weather/flight/dryden.py`, `tempest/output/`,
+`tempest/ops/`, `scoring/mc.py`, `metrics_ext.py`, `extras.py`, `stress.py`. Verdicts that rest on those scripts
+are unaudited. The test suite was not run (a GPU job was running). Checked and found sound: the year splits of the
+generator, the range maps, debias, trust layer and mode F (no test-year leakage); the index order oni / wwv / qbo30 /
+qbo50 across dataset build, scorers and tool; wind direction signs; the IGRA column positions; the altimeter and
+density-altitude formulas; the shuffle cell indexing between export and tool.

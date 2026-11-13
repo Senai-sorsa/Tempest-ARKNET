@@ -1,0 +1,18 @@
+2026-11-11 01:44 Shear target, form ratio, ratio 1.33: mean factor per band 1.00, 1.33, 1.33, 1.33; fit 1500 rows of 2021; test 1200 balloons 2024-25 (EPZ + MAF, 00Z + 12Z)
+shear (m/s per km) p50 / p99 / p99.9: shipped maps | new maps | balloons
+  0-1 km   14.0/68.8/97.9 | 14.1/67.1/93.2 | 14.1/103.0/155.3   p99 new / balloon 0.65
+  1-5 km   5.6/22.6/33.4 | 6.9/29.8/42.9 | 6.4/24.4/36.1   p99 new / balloon 1.22
+  5-12 km  5.1/19.2/28.2 | 6.1/25.3/38.2 | 6.1/24.6/33.3   p99 new / balloon 1.03
+  12-18 km 7.0/24.8/34.7 | 8.5/32.6/45.4 | 10.4/31.6/42.1   p99 new / balloon 1.03
+mean CRPS of u, v against balloons: shipped 4.6518, new 4.6525 (+0.01 %)
+VERDICT: FAIL (p99 within 10 % in 1-5 and 5-12 km: NO; CRPS not worse by more than 0.15 %: yes). Try the other --form once; if both fail, close the shear target.
+
+2026-11-11 03:29 Shear target, form c1, ratio 1.33: mean factor per band 1.00, 1.33, 1.46, 1.60; fit 1500 rows of 2021; test 1200 balloons 2024-25 (EPZ + MAF, 00Z + 12Z)
+shear (m/s per km) p50 / p99 / p99.9: shipped maps | new maps | balloons
+  0-1 km   14.0/68.8/97.9 | 14.0/66.8/93.1 | 14.1/103.0/155.3   p99 new / balloon 0.65
+  1-5 km   5.6/22.6/33.4 | 6.6/23.6/33.6 | 6.4/24.4/36.1   p99 new / balloon 0.97
+  5-12 km  5.1/19.2/28.2 | 6.3/20.1/29.9 | 6.1/24.6/33.3   p99 new / balloon 0.82
+  12-18 km 7.0/24.8/34.7 | 9.3/25.9/35.6 | 10.4/31.6/42.1   p99 new / balloon 0.82
+mean CRPS of u, v against balloons: shipped 4.6518, new 4.6506 (-0.03 %)
+VERDICT: FAIL (p99 within 10 % in 1-5 and 5-12 km: NO; CRPS not worse by more than 0.15 %: yes). Try the other --form once; if both fail, close the shear target.
+

@@ -1,0 +1,11 @@
+# 2026-11-11 03:15:13 p3_vad_condition --radar MAF --balloon USM00072265 --sigma 3.0 (C4 follow-up)
+120 days 2021-2023, radar MAF, balloon USM00072265 (00Z, radar volume 23 UTC), sensor sd 3.0 m/s, u and v averaged
+  2.5-5 km free               MAE  5.05  CRPS  3.64 ( +0.0 % vs free)  cov90 0.89
+  2.5-5 km radar 0.5-2 km     MAE  3.91  CRPS  2.86 (+21.5 % vs free)  cov90 0.95
+  2.5-5 km radar+all to 5 km  MAE  3.38  CRPS  2.79 (+23.6 % vs free)  cov90 0.54  (overlaps the observed levels)
+  5-12 km  free               MAE  8.46  CRPS  6.02 ( +0.0 % vs free)  cov90 0.88
+  5-12 km  radar 0.5-2 km     MAE  7.70  CRPS  5.59 ( +7.2 % vs free)  cov90 0.94
+  5-12 km  radar+all to 5 km  MAE  6.83  CRPS  5.00 (+17.1 % vs free)  cov90 0.92
+  12-18 km free               MAE  6.21  CRPS  4.47 ( +0.0 % vs free)  cov90 0.87
+  12-18 km radar 0.5-2 km     MAE  6.11  CRPS  4.43 ( +0.8 % vs free)  cov90 0.92
+  12-18 km radar+all to 5 km  MAE  5.77  CRPS  4.22 ( +5.6 % vs free)  cov90 0.93

@@ -1,0 +1,7 @@
+2026-11-11 01:11 G1-4 oracle templates: 600 rows of 2024-25, 199 members, shuffle only (no maps), variogram score per variable (columns / sd)
+variable   today's templates   oracle templates   gain
+u          102.1723            105.2465           -3.0%
+v          109.8418            120.9639           -10.1%
+T          25.3388             25.4169            -0.3%
+VERDICT: mean gain -4.5%, under 1 %: even perfect templates do not help. Close G1-4 and G3-4.
+

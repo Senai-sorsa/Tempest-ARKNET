@@ -1,0 +1,22 @@
+2026-11-11 01:46 C4 radar error from innovations: 945 radar hours (EPZ 418, MAF 102, HDX 90, FTG 335), tool sample set 1024, heights 500-5000 m
+height m   radar minus tool: mean (bias) / rms    tool spread    R diagonal (m/s)2
+500        -0.68 / 6.04                       5.14           +10.21
+1000       -0.60 / 5.90                       5.25           +7.30
+1500       -0.59 / 6.01                       5.10           +10.08
+2000       -0.58 / 6.37                       5.40           +12.01
+2500       -0.54 / 6.87                       5.92           +13.18
+3000       -0.15 / 7.30                       6.56           +11.25
+3500       +0.71 / 7.44                       7.24           +1.23
+4000       +1.12 / 7.89                       7.83           -2.17
+4500       +1.29 / 8.50                       8.42           -0.88
+5000       +1.35 / 8.93                       9.00           -5.86
+radar error of one level: sd 2.37 m/s, 95 % interval [2.57, 3.55] (hand-set value today: 3.0)
+height over which errors stay alike: L 901 m
+sd by age of the radar volume (0, 1, 2, 3 h): 2.37, 2.40, 2.42, 2.35 -> growth a +0.00 per hour (sd(age) = sd (1 + a age))
+sd to give an engine that takes levels as independent: 4 levels 3.02 m/s, all 10 levels 4.16 m/s
+VERDICT: C4 measured. Now run the test (CPU, about 10 min each; EPZ + Santa Teresa balloons, then MAF + Midland):
+  PYTHONPATH=. .venv/Scripts/python -W ignore scripts/p3_vad_condition.py --sigma 3.02
+  PYTHONPATH=. .venv/Scripts/python -W ignore scripts/p3_vad_condition.py --sigma 4.16
+  PYTHONPATH=. .venv/Scripts/python -W ignore scripts/p3_vad_condition.py --sigma 4.16 --radar MAF --balloon USM00072265
+  Compare with the same commands at --sigma 3.0. Adopt rule: row 'radar+all' beats row 'radar' at 2.5-5 km and coverage is 0.85 or more. Changing VAD_SIGMA_MS is a core change: report, do not edit.
+

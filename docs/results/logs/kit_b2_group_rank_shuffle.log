@@ -1,0 +1,11 @@
+2026-11-11 00:59 C2 fallback, group-rank shuffle: fit 1500 rows of 2021, test 1500 rows of 2024-25, group size 2000, 199 members, paired draw
+set                       unstable rate   shear rate   CRPS (standardised, u v T)
+truth (2023 rows)         0.2064          0.0031       -
+range map only            0.2241          0.0004       0.4249
+shipped shuffle           0.3152          0.0197       0.4249
+shipped shuffle + maps    0.2153          0.0064       0.4248
+new shuffle               0.2618          0.0099       0.4272
+new shuffle + new maps    0.1917          0.0049       0.4271
+kill rule before the maps: unstable under 0.26 NO; shear rate halved NO; CRPS not worse by more than 0.0006 NO (+0.0022)
+VERDICT: C2 fallback KILLED. C2 is closed; the shipped shuffle + maps stay.
+

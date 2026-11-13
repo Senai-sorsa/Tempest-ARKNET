@@ -1,0 +1,84 @@
+2026-11-11 01:57 A3-fix v2, neighbour reports: CRPS (m/s) and 90 % coverage of the 10 m speed at the target, 2023-25, 08-20 local, report 1 h old, 200 hours per target, paired
+TCS: 200 hours, 0 skipped; no report coverage 0.84; D used no quantile map (neighbour outside the trained area) for {'ONM (94 km)': 181, 'ABQ (209 km)': 161}
+  no report                       n  200  CRPS 1.437  coverage 0.84
+  own station    A shipped        n  200  CRPS 1.046  coverage 0.82
+  own station    B rho=gain       n  200  CRPS 1.046  coverage 0.82  minus shipped +0.000 [+0.000, +0.000]  (identical: OK)
+  own station    C component      n  200  CRPS 1.051  coverage 0.74  minus shipped +0.005 [-0.035, +0.042]
+  ONM (94 km)    A shipped        n  181  CRPS 1.394  coverage 0.71
+  ONM (94 km)    B rho=gain       n  181  CRPS 1.337  coverage 0.82  minus shipped -0.057 [-0.099, -0.012]   ok
+  ONM (94 km)    C component      n  181  CRPS 1.307  coverage 0.83  minus shipped -0.087 [-0.178, +0.006]   ok
+  ONM (94 km)    D rho=gain+qmap  n  181  CRPS 1.337  coverage 0.82  minus shipped -0.057 [-0.099, -0.012]   ok
+  LRU (110 km)   A shipped        n  172  CRPS 1.396  coverage 0.72
+  LRU (110 km)   B rho=gain       n  172  CRPS 1.315  coverage 0.81  minus shipped -0.081 [-0.146, -0.009]   fail
+  LRU (110 km)   C component      n  172  CRPS 1.279  coverage 0.88  minus shipped -0.117 [-0.219, -0.011]   ok
+  LRU (110 km)   D rho=gain+qmap  n  172  CRPS 1.341  coverage 0.81  minus shipped -0.055 [-0.134, +0.036]   fail
+  ALM (127 km)   A shipped        n  161  CRPS 1.453  coverage 0.70
+  ALM (127 km)   B rho=gain       n  161  CRPS 1.386  coverage 0.83  minus shipped -0.067 [-0.129, -0.001]   ok
+  ALM (127 km)   C component      n  161  CRPS 1.359  coverage 0.88  minus shipped -0.094 [-0.189, +0.003]   ok
+  ALM (127 km)   D rho=gain+qmap  n  161  CRPS 1.397  coverage 0.83  minus shipped -0.056 [-0.126, +0.015]   ok
+  ELP (180 km)   A shipped        n  171  CRPS 1.387  coverage 0.74
+  ELP (180 km)   B rho=gain       n  171  CRPS 1.364  coverage 0.83  minus shipped -0.023 [-0.105, +0.058]   ok
+  ELP (180 km)   C component      n  171  CRPS 1.376  coverage 0.85  minus shipped -0.011 [-0.117, +0.092]   ok
+  ELP (180 km)   D rho=gain+qmap  n  171  CRPS 1.383  coverage 0.82  minus shipped -0.004 [-0.096, +0.089]   ok
+  ABQ (209 km)   A shipped        n  161  CRPS 1.462  coverage 0.69
+  ABQ (209 km)   B rho=gain       n  161  CRPS 1.368  coverage 0.84  minus shipped -0.093 [-0.202, +0.001]   ok
+  ABQ (209 km)   C component      n  161  CRPS 1.362  coverage 0.89  minus shipped -0.099 [-0.241, +0.023]   ok
+  ABQ (209 km)   D rho=gain+qmap  n  161  CRPS 1.368  coverage 0.84  minus shipped -0.093 [-0.202, +0.001]   ok
+MAF: 200 hours, 0 skipped; no report coverage 0.94; D used no quantile map (neighbour outside the trained area) for {'FST (133 km)': 182}
+  no report                       n  200  CRPS 1.388  coverage 0.94
+  own station    A shipped        n  200  CRPS 0.900  coverage 0.94
+  own station    B rho=gain       n  200  CRPS 0.900  coverage 0.94  minus shipped +0.000 [+0.000, +0.000]  (identical: OK)
+  own station    C component      n  200  CRPS 0.858  coverage 0.92  minus shipped -0.042 [-0.129, +0.013]
+  FST (133 km)   A shipped        n  182  CRPS 1.130  coverage 0.90
+  FST (133 km)   B rho=gain       n  182  CRPS 1.180  coverage 0.92  minus shipped +0.050 [-0.005, +0.104]   ok
+  FST (133 km)   C component      n  182  CRPS 1.268  coverage 0.94  minus shipped +0.138 [+0.051, +0.225]   fail
+  FST (133 km)   D rho=gain+qmap  n  182  CRPS 1.180  coverage 0.92  minus shipped +0.050 [-0.005, +0.104]   ok
+  PEQ (139 km)   A shipped        n  119  CRPS 1.463  coverage 0.76
+  PEQ (139 km)   B rho=gain       n  119  CRPS 1.334  coverage 0.92  minus shipped -0.129 [-0.226, -0.027]   ok
+  PEQ (139 km)   C component      n  119  CRPS 1.374  coverage 0.94  minus shipped -0.089 [-0.252, +0.077]   ok
+  PEQ (139 km)   D rho=gain+qmap  n  119  CRPS 1.306  coverage 0.92  minus shipped -0.157 [-0.267, -0.044]   ok
+Coverage rule per neighbour: 0.85-0.95 (TCS: at least its no-report coverage minus 0.03). CRPS rule: lower end of the interval vs shipped <= +0.02 m/s.
+VERDICT: no variant passes -> the neighbour problem is not the speed-space rho alone; report, keep the shipped default.
+
+2026-11-11 02:43 A3-fix v2, neighbour reports: CRPS (m/s) and 90 % coverage of the 10 m speed at the target, 2023-25, 08-20 local, report 1 h old, 200 hours per target, paired, hour seed 1
+TCS: 200 hours, 0 skipped; no report coverage 0.83; D used no quantile map (neighbour outside the trained area) for {'ONM (94 km)': 181, 'ABQ (209 km)': 162}
+  no report                       n  200  CRPS 1.553  coverage 0.83
+  own station    A shipped        n  200  CRPS 1.107  coverage 0.82
+  own station    B rho=gain       n  200  CRPS 1.107  coverage 0.82  minus shipped +0.000 [+0.000, +0.000]  (identical: OK)
+  own station    C component      n  200  CRPS 1.109  coverage 0.78  minus shipped +0.002 [-0.036, +0.046]
+  ONM (94 km)    A shipped        n  181  CRPS 1.576  coverage 0.65
+  ONM (94 km)    B rho=gain       n  181  CRPS 1.510  coverage 0.75  minus shipped -0.066 [-0.111, -0.017]   fail
+  ONM (94 km)    C component      n  181  CRPS 1.499  coverage 0.81  minus shipped -0.077 [-0.171, +0.014]   ok
+  ONM (94 km)    D rho=gain+qmap  n  181  CRPS 1.510  coverage 0.75  minus shipped -0.066 [-0.111, -0.017]   fail
+  LRU (110 km)   A shipped        n  177  CRPS 1.555  coverage 0.72
+  LRU (110 km)   B rho=gain       n  177  CRPS 1.466  coverage 0.81  minus shipped -0.089 [-0.167, -0.006]   ok
+  LRU (110 km)   C component      n  177  CRPS 1.459  coverage 0.83  minus shipped -0.095 [-0.209, +0.025]   ok
+  LRU (110 km)   D rho=gain+qmap  n  177  CRPS 1.495  coverage 0.81  minus shipped -0.060 [-0.154, +0.039]   ok
+  ALM (127 km)   A shipped        n  166  CRPS 1.537  coverage 0.71
+  ALM (127 km)   B rho=gain       n  166  CRPS 1.495  coverage 0.83  minus shipped -0.041 [-0.101, +0.021]   ok
+  ALM (127 km)   C component      n  166  CRPS 1.507  coverage 0.84  minus shipped -0.030 [-0.125, +0.060]   ok
+  ALM (127 km)   D rho=gain+qmap  n  166  CRPS 1.506  coverage 0.83  minus shipped -0.030 [-0.094, +0.033]   ok
+  ELP (180 km)   A shipped        n  170  CRPS 1.584  coverage 0.69
+  ELP (180 km)   B rho=gain       n  170  CRPS 1.464  coverage 0.82  minus shipped -0.120 [-0.216, -0.015]   ok
+  ELP (180 km)   C component      n  170  CRPS 1.473  coverage 0.88  minus shipped -0.111 [-0.242, +0.030]   ok
+  ELP (180 km)   D rho=gain+qmap  n  170  CRPS 1.481  coverage 0.82  minus shipped -0.102 [-0.213, +0.018]   ok
+  ABQ (209 km)   A shipped        n  162  CRPS 1.554  coverage 0.66
+  ABQ (209 km)   B rho=gain       n  162  CRPS 1.503  coverage 0.81  minus shipped -0.051 [-0.155, +0.050]   ok
+  ABQ (209 km)   C component      n  162  CRPS 1.545  coverage 0.83  minus shipped -0.009 [-0.138, +0.118]   ok
+  ABQ (209 km)   D rho=gain+qmap  n  162  CRPS 1.503  coverage 0.81  minus shipped -0.051 [-0.155, +0.050]   ok
+MAF: 200 hours, 0 skipped; no report coverage 0.92; D used no quantile map (neighbour outside the trained area) for {'FST (133 km)': 178}
+  no report                       n  200  CRPS 1.410  coverage 0.92
+  own station    A shipped        n  200  CRPS 0.907  coverage 0.93
+  own station    B rho=gain       n  200  CRPS 0.907  coverage 0.93  minus shipped +0.000 [+0.000, +0.000]  (identical: OK)
+  own station    C component      n  200  CRPS 0.899  coverage 0.90  minus shipped -0.009 [-0.042, +0.024]
+  FST (133 km)   A shipped        n  178  CRPS 1.306  coverage 0.81
+  FST (133 km)   B rho=gain       n  178  CRPS 1.269  coverage 0.88  minus shipped -0.036 [-0.097, +0.023]   ok
+  FST (133 km)   C component      n  178  CRPS 1.315  coverage 0.93  minus shipped +0.009 [-0.089, +0.119]   ok
+  FST (133 km)   D rho=gain+qmap  n  178  CRPS 1.269  coverage 0.88  minus shipped -0.036 [-0.097, +0.023]   ok
+  PEQ (139 km)   A shipped        n  125  CRPS 1.392  coverage 0.78
+  PEQ (139 km)   B rho=gain       n  125  CRPS 1.282  coverage 0.93  minus shipped -0.110 [-0.197, -0.021]   ok
+  PEQ (139 km)   C component      n  125  CRPS 1.360  coverage 0.94  minus shipped -0.032 [-0.181, +0.129]   ok
+  PEQ (139 km)   D rho=gain+qmap  n  125  CRPS 1.268  coverage 0.94  minus shipped -0.124 [-0.231, -0.010]   ok
+Coverage rule per neighbour: 0.85-0.95 (TCS: at least its no-report coverage minus 0.03). CRPS rule: lower end of the interval vs shipped <= +0.02 m/s.
+VERDICT: PASS for C component -> add the simplest passing variant to launch.py behind a switch (default off), one test, full suite; then adopt (New_Plan section 8).
+

@@ -1,0 +1,3 @@
+2026-11-11 01:08 G1-7 trend-input check: the shipped network (models/l3_c4w) takes these inputs: lat, lon, elev_site, elev_grid, doy_sin, doy_cos, hour_sin, hour_cos, year, oni, wwv, qbo30, qbo50
+VERDICT: trend input present (year). G1-7 only needs the replay (b3_trackers.py drift).
+
