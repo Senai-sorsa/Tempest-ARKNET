@@ -53,6 +53,7 @@ ap.add_argument("--fit-only", action="store_true", help="N6 (New_Plan 10.4): sto
 ap.add_argument("--init", default="", help="N2: start the network from this saved .pt (fine-tune, with its normalisation); empty = fresh start (as before)")
 ap.add_argument("--all-leads", action="store_true", help="N5 full run (New_Plan 10.4): keep rows beyond 7.5 d as lead bin 9 and score leads 1 / 3 / 5 / 7 / 9; the network is still fit on leads <= 7.5 d unless --fit-beyond. Off = as before")
 ap.add_argument("--fit-beyond", action="store_true", help="N5: with --all-leads, fit the network on all leads plus 10 %% climate-anchor rows (forecast = a random same-season truth profile, lead 15 d)")
+ap.add_argument("--sigma", action="store_true", help="SIGMA stage 2 (New_Plan 14.3): with --all-leads, fit on all leads with the target (truth - base) / s, base = climate + beta x forecast anomaly, beta and s tabled per lead day (tempest/forecast/sigma.py, from the fit rows); members = base + s x network. Off = as before")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
 ap.add_argument("--test-year", type=int, choices=(2021, 2022), default=2022, help="AV1 (New_Plan 13.1): 2021 = score on 2021 with the range map fit on 2022 (a year no network saw in fit or step choice); outputs get the suffix _t2021, so the 2022 tables stay. Default 2022 = as before")
 a = ap.parse_args()
@@ -68,6 +69,7 @@ cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 assert 1 <= a.fit_years <= 4, "--fit-years 1-4"
 tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021 if a.test_year == 2022 else 2022]), cat([a.test_year])
 assert a.all_leads or not a.fit_beyond, "--fit-beyond needs --all-leads"
+assert not a.sigma or (a.all_leads and not a.fit_beyond and not a.fit_rows_dir), "--sigma needs --all-leads, without --fit-beyond / --fit-rows-dir"
 LEADS = (1, 3, 5, 7, 9) if a.all_leads else (1, 3, 5, 7)
 def sub(d, n):
     """random subset of rows; ONE index for all arrays (drawing a new index per array once misaligned forecast and truth)"""
@@ -122,10 +124,14 @@ assert a.ens_mask > 0 or not a.ens_absent, "--ens-absent needs an --ens-mask net
 STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "") + ("" if a.test_year == 2022 else f"_t{a.test_year}")
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 assert a.test_year == 2022 or (os.path.exists(a.out) and not a.retrain), "--test-year 2021 scores an existing network only (no training)"
+if a.sigma:                                                                    # SIGMA: tables from the fit rows; rebuilt the same way for a re-score
+    from tempest.forecast import sigma as SG
+    _sg = SG.fit(tr)
+    print(f"SIGMA: beta at lead day 1 / 5 / 10 (mean over columns) {_sg['beta'][[0, 4, 9]].mean(1).round(2).tolist()}", flush=True)
 if a.retrain or not os.path.exists(a.out):
     cfg = dict(width=a.width, depth=a.depth, noise_dim=a.noise_dim, m=4, batch=1024, steps=a.steps, eval_every=125, patience=6, val_years=1, lr=a.lr, weight_decay=a.wd, es_weight=0.1,
                step_weight=0.0, linear_features=[], seed=a.seed)   # 2026-11-10: train() seeds from cfg['seed'] (torch.manual_seed alone did nothing)
-    fit = tr if a.fit_beyond or not a.all_leads else {k: v[tr["lead_bin"] != 9] for k, v in tr.items()}   # N5 binned arm: as shipped, leads <= 7.5 d
+    fit = tr if a.fit_beyond or a.sigma or not a.all_leads else {k: v[tr["lead_bin"] != 9] for k, v in tr.items()}   # N5 binned arm: as shipped, leads <= 7.5 d
     if a.fit_beyond:                                                           # N5: climate anchors; own rng so every other draw stays as before
         _ar = np.random.default_rng(500 + a.seed)
         _i = _ar.choice(len(tr["obs"]), len(tr["obs"]) // 10, replace=False)
@@ -146,7 +152,7 @@ if a.retrain or not os.path.exists(a.out):
         print(f"N2: network fit on {a.fit_rows_dir}: {len(fit['obs']):,} rows", flush=True)
     if a.init:
         cfg["init"] = a.init
-    train(cmat(fit), F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+    train(cmat(fit), SG.target(_sg, fit) if a.sigma else F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
     if a.fit_only:
         raise SystemExit(0)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
@@ -158,7 +164,7 @@ def draw_net(d):
     out = np.empty((len(c), m, F.D), np.float32)
     for i in range(0, len(c), 500):
         out[i:i + 500] = net(np.repeat(c[i:i + 500], m, 0)).reshape(len(c[i:i + 500]), m, -1)
-    return F.to_physical(d["hres"].reshape(len(c), -1), out)
+    return F.to_physical(d["hres"].reshape(len(c), -1), SG.to_residual(_sg, d, out) if a.sigma else out)
 
 
 # alignment guard: forecast error must grow with lead time, otherwise forecast and truth are not the same cases

@@ -35,13 +35,14 @@ def judge(near, beyond_ok, days_ok):
     return "PASS" if ok else "KILL" if kill else "MISS (record, no adoption)"
 
 
-def main():
+def main(arm="all", label="all-lead", log="b5_modeF_alllead", head="N5 one Mode F network from day 1 to climate"):
+    """arm: the new model's stem part (models/modeF_n5_<arm>{tag}_s{s}); shared with b18 (SIGMA stage 2)."""
     M = os.path.join(K.REPO, "models")
-    lines = [f"N5 one Mode F network from day 1 to climate vs the binned model; mean CRPS by lead {NEAR} and {BEYOND} (= 7.5-10 d), {METHOD}"]
+    lines = [f"{head} vs the binned model; mean CRPS by lead {NEAR} and {BEYOND} (= 7.5-10 d), {METHOD}"]
     near, bok, dok, missing = {}, {}, {}, []
     for box, tag in (("NM/TX", ""), ("Denver", "_den")):
         for s in (0, 1):
-            st = {k: os.path.join(M, f"modeF_n5_{k}{tag}_s{s}") for k in ("bin", "all")}
+            st = {"bin": os.path.join(M, f"modeF_n5_bin{tag}_s{s}"), "all": os.path.join(M, f"modeF_n5_{arm}{tag}_s{s}")}
             if not all(os.path.exists(v + "_eval.csv") and os.path.exists(v + "_rows.npz") for v in st.values()):
                 missing.append(f"{box} s{s}")
                 continue
@@ -50,7 +51,7 @@ def main():
             assert all((rw["all"][f] == rw["bin"][f]).all() for f in ("day", "lead", "lead_days")), f"{box} s{s}: arms scored on different rows"
             r = sc["all"] / sc["bin"]
             near[(box, s)] = r.loc[list(NEAR)]
-            lines.append(f"  {box:<6} seed {s}: binned " + " / ".join(f"{v:.3f}" for v in sc["bin"]) + "; all-lead " + " / ".join(f"{v:.3f}" for v in sc["all"])
+            lines.append(f"  {box:<6} seed {s}: binned " + " / ".join(f"{v:.3f}" for v in sc["bin"]) + f"; {label} " + " / ".join(f"{v:.3f}" for v in sc["all"])
                          + "; change " + " / ".join(f"{100 * (v - 1):+.1f}" for v in r) + " %")
             k = rw["all"]["lead"] == BEYOND
             day = list(rw["all"]["day"][k])
@@ -61,16 +62,16 @@ def main():
             ld = np.ceil(rw["all"]["lead_days"][k] - 1e-6).astype(int)                 # 7.75-8.0 -> day 8, ..., 9.25-10 -> day 10
             per = {d: (rw["all"]["crps"][k][ld == d].mean(), rw["all"]["crps_clim"][k][ld == d].mean()) for d in (8, 9, 10) if (ld == d).any()}
             dok[(box, s)] = all(a_ <= c_ for a_, c_ in per.values())
-            lines.append("    beyond 7.5 d, all-lead minus: " + ", ".join(f"{ref} {m:+.3f} [{lo:+.3f}, {hi:+.3f}]" for ref, (m, lo, hi) in iv.items())
-                         + "; all-lead / climate by lead day: " + ", ".join(f"{d} d {a_:.3f} / {c_:.3f}" for d, (a_, c_) in per.items()))
+            lines.append(f"    beyond 7.5 d, {label} minus: " + ", ".join(f"{ref} {m:+.3f} [{lo:+.3f}, {hi:+.3f}]" for ref, (m, lo, hi) in iv.items())
+                         + f"; {label} / climate by lead day: " + ", ".join(f"{d} d {a_:.3f} / {c_:.3f}" for d, (a_, c_) in per.items()))
     if missing:
         lines.append("Incomplete, missing: " + ", ".join(missing))
-        K.report("b5_modeF_alllead", lines)
+        K.report(log, lines)
         return
     lines.append("Rule (pre-set): PASS = leads 1-7 within +0.5 % of binned at every lead, beyond 7.5 d better than binned and climate with interval < 0, "
                  "never worse than climate at day 8 / 9 / 10 (all boxes, seeds); KILL = leads 1 and 3 mean > +1 % at both boxes in both seeds.")
     lines.append("Verdict: " + judge(near, bok, dok))
-    K.report("b5_modeF_alllead", lines)
+    K.report(log, lines)
 
 
 def _selfcheck():
