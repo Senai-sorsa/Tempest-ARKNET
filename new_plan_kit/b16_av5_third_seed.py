@@ -33,13 +33,13 @@ def judge(wins):
     return "PASS" if all(n >= 3 for n in wins.values()) else "MISS (record)"
 
 
-def main():
+def score(stems_fn, lines):
+    """stems_fn(tag, seed) -> {'own', 'fine-tuned', 'own+300' (the control)} model stems; appends lines -> wins[(box, seed)]. Shared with b17 (AV28)."""
     M = os.path.join(K.REPO, "models")
-    lines = [f"AV5: N2 fine-tuned (world start + 300 steps) vs own + 300, seeds {SEEDS}; mean CRPS by lead {LEADS}"]
     wins = {}
     for box, tag in (("NM/TX", ""), ("Denver", "_den")):
         for s in SEEDS:
-            st = {k: os.path.join(M, v) for k, v in stems(tag, s).items()}
+            st = {k: os.path.join(M, v) for k, v in stems_fn(tag, s).items()}
             miss = [v for v in st.values() if not (os.path.exists(v + "_eval.csv") and os.path.exists(v + "_rows.npz"))]
             assert not miss, f"missing: {miss}"
             sc = {k: by_lead(v) for k, v in st.items()}
@@ -55,6 +55,12 @@ def main():
             lines.append(f"  {box:<6} s{s}: own " + " / ".join(f"{v:.3f}" for v in sc["own"]) + "; fine-tuned change vs own "
                          + " / ".join(f"{100 * (v - 1):+.1f}" for v in sc["fine-tuned"] / sc["own"]) + " %; vs own+300 "
                          + " / ".join(f"{100 * (v - 1):+.1f}" for v in sc["fine-tuned"] / sc["own+300"]) + " %; minus own+300: " + ", ".join(iv) + f"; wins {n} of 4")
+    return wins
+
+
+def main():
+    lines = [f"AV5: N2 fine-tuned (world start + 300 steps) vs own + 300, seeds {SEEDS}; mean CRPS by lead {LEADS}"]
+    wins = score(stems, lines)
     lines.append("Verdict: " + judge(wins))
     K.report("b16_av5_third_seed", lines)
 
