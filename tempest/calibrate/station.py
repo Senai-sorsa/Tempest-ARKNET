@@ -268,12 +268,12 @@ def main():
     ap.add_argument("--check-to", type=int, default=2025)
     ap.add_argument("--ridge", type=float, default=0.0, help="smooth the correction slopes across heights (0 = off, the "
                     "per-height fit); choose it offline with scripts/ridge_check.py")
-    ap.add_argument("--launch-tol", type=float, default=None, help="AU-13 (opt-in): drop soundings whose first level is more than this many m "
-                    "from the station's listed launch height (configs/region.toml); default keeps all")
+    ap.add_argument("--launch-tol", type=float, default=30.0, help="AU-13 (bug fix, on for new fits): drop soundings whose first level is more "
+                    "than this many m from the station's listed launch height (configs/region.toml); negative = keep all (old fits)")
     a = ap.parse_args()
 
     ds = xr.open_zarr(a.profiles)
-    pairs = station_pairs(ds, a.igra, a.first_year, a.check_to, a.launch_tol)
+    pairs = station_pairs(ds, a.igra, a.first_year, a.check_to, a.launch_tol if a.launch_tol >= 0 else None)
     groups = [group_id(s, t.month, (t.hour == 12).astype(int)) for s, (t, *_) in enumerate(pairs)]
     fit_rows = [t.year <= a.last_year for t, *_ in pairs]
     held = [~m for m in fit_rows]
