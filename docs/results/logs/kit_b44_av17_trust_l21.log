@@ -1,0 +1,10 @@
+2026-11-14 08:20 ERA5 seed 0: mean skill15_unknown +0.0299 -> +0.0305 (+0.0006); mean |cov99-0.99| 0.0027 -> 0.0026 (-0.0001); bands worse: none
+  per band d skill15: u 0-1 km +0.0000; u 1-5 km -0.0000; u 5-12 km +0.0000; u 12-18 km +0.0000; v 0-1 km +0.0022; v 1-5 km +0.0002; v 5-12 km +0.0000; v 12-18 km +0.0000; T 0-1 km +0.0000; T 1-5 km -0.0000; T 5-12 km +0.0000; T 12-18 km -0.0000; RH 0-1 km +0.0000; RH 1-5 km +0.0000; RH 5-12 km -0.0000; RH 12-18 km -0.0000; t2m surface +0.0000; sp surface +0.0000; rh2m surface +0.0090
+ERA5 seed 1: mean skill15_unknown +0.0312 -> +0.0318 (+0.0006); mean |cov99-0.99| 0.0028 -> 0.0028 (-0.0000); bands worse: none
+  per band d skill15: u 0-1 km -0.0000; u 1-5 km -0.0000; u 5-12 km +0.0000; u 12-18 km +0.0000; v 0-1 km +0.0028; v 1-5 km +0.0011; v 5-12 km +0.0000; v 12-18 km +0.0000; T 0-1 km +0.0000; T 1-5 km +0.0000; T 5-12 km -0.0000; T 12-18 km +0.0000; RH 0-1 km -0.0000; RH 1-5 km +0.0000; RH 5-12 km +0.0000; RH 12-18 km -0.0000; t2m surface +0.0000; sp surface +0.0000; rh2m surface +0.0076
+ERA5 seed 2: mean skill15_unknown +0.0304 -> +0.0311 (+0.0007); mean |cov99-0.99| 0.0031 -> 0.0030 (-0.0001); bands worse: none
+  per band d skill15: u 0-1 km -0.0000; u 1-5 km -0.0000; u 5-12 km -0.0000; u 12-18 km -0.0000; v 0-1 km +0.0028; v 1-5 km +0.0009; v 5-12 km +0.0000; v 12-18 km -0.0000; T 0-1 km +0.0000; T 1-5 km +0.0000; T 5-12 km +0.0000; T 12-18 km +0.0000; RH 0-1 km +0.0000; RH 1-5 km -0.0000; RH 5-12 km +0.0000; RH 12-18 km +0.0000; t2m surface -0.0000; sp surface +0.0000; rh2m surface +0.0097
+Balloons seed 0: mean skill15_unknown +0.0102 -> +0.0114 (+0.0012); mean |cov99-0.99| (+0.0001); lowest cov99 0.9815; bands worse: none
+AV17 rule (pre-set): PASS = ERA5 gain > 0.0009 (mean of 3 seeds), balloons not worse by > 0.0013, cov error not worse by > 0.0004, no band worse; KILL = ERA5 gain < 0.0005.
+AV17 verdict: MISS (record, no adoption; ERA5 gain +0.0006)
+
