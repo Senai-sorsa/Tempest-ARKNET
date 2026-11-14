@@ -104,3 +104,23 @@ def test_nest_train_save_sample(tmp_path):
     assert s.members[0][0].nest is not None
     x = s(np.repeat(cond[:5], 3, 0))
     assert np.isfinite(np.asarray(x)).all()
+
+
+def test_nest_with_student_t_round_trip(tmp_path):
+    """AV30: nest + Student-t noise both survive train -> checkpoint -> Sampler."""
+    import torch
+    from tempest.generator.sample import Sampler
+    from tempest.generator.train import train
+    rng = np.random.default_rng(1)
+    n = 300
+    cond = rng.normal(0, 1, (n, 4)).astype(np.float32)
+    cond[:, 3] = rng.uniform(0.25, 10, n)
+    cfg = dict(width=32, depth=1, noise_dim=4, steps=4, batch=64, eval_every=2, seed=0, linear_features=[], val_block_frac=0, val_years=1,
+               nest_widths=[32] * 5 + [8] * 5, noise_t_dims=2, noise_t_nu=4.0)
+    out = str(tmp_path / "nt.pt")
+    train(cond, rng.normal(0, 1, (n, 3)).astype(np.float32), np.where(np.arange(n) < 200, 2016, 2017), cfg, out=out, device="cpu",
+          meta=dict(cond_names=["a", "b", "c", "lead_days"]), log=lambda *a: None)
+    ck = torch.load(out, map_location="cpu", weights_only=True)
+    assert ck["model_kw"]["noise_t"]["dims"] == 2 and ck["model_kw"]["nest"]["widths"][-1] == 8
+    g = Sampler(ck, device="cpu").members[0][0]
+    assert g.nest is not None and g.noise_t["dims"] == 2

@@ -32,13 +32,13 @@ def judge(ratio, sig, dcov):
     return "PASS" if ok else "KILL" if kill else "MISS (record, no adoption)"
 
 
-def main():
+def main(arm="nest", ref2="sig", name="b20_sigma_stage3", title="SIGMA stage 3 (NEST, width 512)"):
     M = os.path.join(K.REPO, "models")
-    lines = [f"SIGMA stage 3 (NEST, width 512) vs N5 binned; mean CRPS by lead {NEAR} (+ {BEYOND} = beyond 7.5 d, information)"]
+    lines = [f"{title} vs N5 binned; mean CRPS by lead {NEAR} (+ {BEYOND} = beyond 7.5 d, information)"]
     ratio, sig, dcov, missing = {}, {}, {}, []
     for box, tag in (("NM/TX", ""), ("Denver", "_den")):
         for s in (0, 1):
-            b, g, n = (os.path.join(M, f"modeF_n5_{a}{tag}_s{s}") for a in ("bin", "sig", "nest"))
+            b, g, n = (os.path.join(M, f"modeF_n5_{a}{tag}_s{s}") for a in ("bin", ref2, arm))
             if not all(os.path.exists(v + e) for v in (b, n) for e in ("_eval.csv", "_rows.npz")):
                 missing.append(f"{box} s{s}")
                 continue
@@ -58,15 +58,15 @@ def main():
                          + "  change " + " / ".join(f"{100 * (v - 1):+.1f}" for v in r) + " %; NEST minus binned: " + ", ".join(iv)
                          + "; cov99 difference " + " / ".join(f"{v:+.4f}" for v in dc))
             if os.path.exists(g + "_eval.csv"):
-                lines.append(f"           vs stage 2 (information): " + " / ".join(f"{100 * (v - 1):+.1f}" for v in (sn / by_lead(g)).values) + " %")
+                lines.append(f"           vs {ref2} (information): " + " / ".join(f"{100 * (v - 1):+.1f}" for v in (sn / by_lead(g)).values) + " %")
     if missing:
         lines.append("Incomplete, missing: " + ", ".join(missing))
-        K.report("b20_sigma_stage3", lines)
+        K.report(name, lines)
         return
     lines.append("Rule (pre-set): PASS = NEST >= 1 % better than binned at every lead 1/3/5/7 with interval < 0, both boxes and seeds, cov99 within 0.003; "
                  "KILL = 7 d worse (seed mean) in both boxes.")
     lines.append("Verdict: " + judge(ratio, sig, dcov))
-    K.report("b20_sigma_stage3", lines)
+    K.report(name, lines)
 
 
 def _selfcheck():
