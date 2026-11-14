@@ -11,6 +11,9 @@ KILL: NM/TX worse by more than 0.0015.
 Otherwise MISS: record, no adoption (a model change needs the user in any case).
 Correction 2026-11-14 15:10 (reading the result only, rule unchanged): compare_shape.py exits 1 on a shape FAIL, which check=True turned into a crash
 (AV20 first verdict run 15:01:53); the exit code 0 / 1 is now accepted and the SHAPE RESULT line is read as before.
+Correction 2026-11-14 16:05 (input step only, rule unchanged): the Denver score refused models/av21.calib2021.npz because it records the hash of
+models/av21.pt and the table swap changes the file; scripts/gpu_av21.sh now scores Denver with the same calibration re-tagged for av21_denfill.pt
+(models/av21_denfill.calib2021.npz, content identical).
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/b56_av21_anom.py
 Result: docs/results/logs/kit_b56_av21_anom.log
 """

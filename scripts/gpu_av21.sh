@@ -7,7 +7,7 @@ cd /c/Users/Senai/Tempest-ARKNET || exit 1
 . scripts/cap_cpu.sh
 PY=.venv/Scripts/python
 NT=data/train/pilot80_dpd.npz DEN=data/train/denver_full_fill_dpd.npz CFG=configs/generator_av21.toml
-M=models/av21.pt C=models/av21.calib2021.npz DM=models/av21_denfill.pt
+M=models/av21.pt C=models/av21.calib2021.npz DM=models/av21_denfill.pt DC=models/av21_denfill.calib2021.npz
 log() { echo "$(date '+%F %T') [AV21] $*" >> data/l3.log; }
 busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | ? { \$_.CommandLine -match 'generator.train|calibrate|scoring|il6_modeF|pytest|diagnose|av20_overlay' }).Count" | tr -d '\r'; }
 chain() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='bash.exe'\" | ? { \$_.CommandLine -match 'gpu_av20' }).Count" | tr -d '\r'; }
@@ -34,6 +34,8 @@ fi
 if [ ! -f models/av21_denfill_cal2021_headline.csv ]; then
   wait_free
   [ -f $DM ] || PYTHONPATH=. $PY -W ignore scripts/av21_table.py $M $DEN $DM > data/av21_table.log 2>&1 || { log "FAILED denver table"; exit 2; }
-  $PY -W ignore -u -m tempest.scoring.score --model $DM --data $DEN --m 199 --first-test-year 2024 --last-test-year 2025 --calib $C --extras > data/av21_denfill.log 2>&1 && log "denver scored" || { log "FAILED denver score"; exit 2; }
+  # the NM/TX calibration unchanged, re-tagged with the swapped model's hash (spread.load refuses a hash mismatch; only the table buffers differ)
+  [ -f $DC ] || PYTHONPATH=. $PY -c "import sys, numpy as np; from tempest.calibrate.spread import model_hash; c = dict(np.load(sys.argv[1])); c['model_sha'] = np.array(model_hash(sys.argv[2])); np.savez(sys.argv[3], **c)" $C $DM $DC || { log "FAILED denver calib tag"; exit 2; }
+  $PY -W ignore -u -m tempest.scoring.score --model $DM --data $DEN --m 199 --first-test-year 2024 --last-test-year 2025 --calib $DC --extras > data/av21_denfill.log 2>&1 && log "denver scored" || { log "FAILED denver score"; exit 2; }
 fi
 PYTHONPATH=".;new_plan_kit;scripts" $PY -W ignore new_plan_kit/b56_av21_anom.py >> data/l3.log 2>&1 && log done || log "FAILED verdict"
