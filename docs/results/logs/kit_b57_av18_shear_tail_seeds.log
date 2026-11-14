@@ -1,0 +1,7 @@
+2026-11-14 17:42 AV18 IL-54 shear-tail weight 2.0 (p2g) on seeds 100 / 200, paired with p2f_s1 / p2f_s2 (weight 1.0)
+  seed 1: balloons p2f +0.0073 -> p2g +0.0086 (+0.0012); ERA5 p2f +0.0271 -> p2g +0.0279 (+0.0008)
+  seed 2: balloons p2f +0.0071 -> p2g +0.0084 (+0.0013); ERA5 p2f +0.0276 -> p2g +0.0279 (+0.0003)
+  seed 0 (IL-54, for reference): balloons +0.0083 -> +0.0093 (+0.0010), ERA5 +0.0277 -> +0.0278
+AV18 rule (pre-set): PASS = balloons >= +0.0013 in both seeds with ERA5 >= 0 in both; else MISS and the line is closed.
+AV18 verdict: MISS, IL-54 line closed (seed 1: balloons +0.0012 (needs >= +0.0013), ERA5 +0.0008 (needs >= 0); seed 2: balloons +0.0013 (needs >= +0.0013), ERA5 +0.0003 (needs >= 0))
+
