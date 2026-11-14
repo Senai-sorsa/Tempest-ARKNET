@@ -1,0 +1,35 @@
+2026-11-14 06:47 O3 launch-week factor: start IL-207b cell factor, alpha 1/60 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, 300 days per site, seed 0
+TCS: 300 test days, 0 skipped; mean factor k=3 1.111 (range 0.955-1.318), k=7 1.110 (range 0.935-1.339), k=14 1.108 (range 0.905-1.368)
+  no factor  CRPS 1.516  coverage 0.80
+  IL-207b alone  CRPS 1.458  coverage 0.84
+  k=3        CRPS 1.457  coverage 0.84  minus IL-207b alone -0.0010 [-0.0052, +0.0037]
+  k=7        CRPS 1.455  coverage 0.84  minus IL-207b alone -0.0026 [-0.0097, +0.0042]  fail
+  k=14       CRPS 1.453  coverage 0.84  minus IL-207b alone -0.0043 [-0.0150, +0.0061]
+MAF: 300 test days, 0 skipped; mean factor k=3 1.019 (range 0.828-1.174), k=7 1.018 (range 0.827-1.196), k=14 1.015 (range 0.811-1.205)
+  no factor  CRPS 1.545  coverage 0.89
+  IL-207b alone  CRPS 1.499  coverage 0.90
+  k=3        CRPS 1.493  coverage 0.90  minus IL-207b alone -0.0061 [-0.0117, -0.0007]
+  k=7        CRPS 1.491  coverage 0.90  minus IL-207b alone -0.0077 [-0.0154, +0.0004]  fail
+  k=14       CRPS 1.487  coverage 0.90  minus IL-207b alone -0.0117 [-0.0238, +0.0013]
+Rule (pre-set): k = 7 CRPS better than IL-207b alone (interval excludes 0) and coverage not lower, both sites, both seeds.
+Seed verdict: FAIL -> O3 closed
+
+2026-11-14 07:23 O3 launch-week factor: start IL-207b cell factor, alpha 1/60 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, 300 days per site, seed 1
+TCS: 300 test days, 0 skipped; mean factor k=3 1.103 (range 0.957-1.324), k=7 1.103 (range 0.942-1.331), k=14 1.102 (range 0.926-1.348)
+  no factor  CRPS 1.645  coverage 0.80
+  IL-207b alone  CRPS 1.580  coverage 0.85
+  k=3        CRPS 1.576  coverage 0.85  minus IL-207b alone -0.0045 [-0.0089, +0.0001]
+  k=7        CRPS 1.579  coverage 0.85  minus IL-207b alone -0.0013 [-0.0099, +0.0063]  fail
+  k=14       CRPS 1.575  coverage 0.85  minus IL-207b alone -0.0051 [-0.0159, +0.0049]
+MAF: 300 test days, 0 skipped; mean factor k=3 1.029 (range 0.839-1.175), k=7 1.027 (range 0.814-1.192), k=14 1.024 (range 0.808-1.212)
+  no factor  CRPS 1.512  coverage 0.86
+  IL-207b alone  CRPS 1.505  coverage 0.87
+  k=3        CRPS 1.497  coverage 0.87  minus IL-207b alone -0.0076 [-0.0122, -0.0035]
+  k=7        CRPS 1.499  coverage 0.87  minus IL-207b alone -0.0053 [-0.0126, +0.0022]  fail
+  k=14       CRPS 1.497  coverage 0.87  minus IL-207b alone -0.0078 [-0.0194, +0.0034]
+Rule (pre-set): k = 7 CRPS better than IL-207b alone (interval excludes 0) and coverage not lower, both sites, both seeds.
+Seed verdict: FAIL -> O3 closed
+
+2026-11-14 07:23 AV33 rule (pre-set): PASS = k = 7 minus IL-207b alone interval < 0 and coverage not lower at TCS and MAF in seeds 0 and 1; KILL = difference >= 0 in all 4.
+AV33 verdict: MISS (record, no adoption)
+
