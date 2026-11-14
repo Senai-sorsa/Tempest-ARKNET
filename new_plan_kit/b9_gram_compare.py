@@ -6,6 +6,9 @@ Sources (each gives m whole profiles of u, v, T, p on the 44 model heights for e
   gaussfull   --standin: bell curve with the station's own balloon mean and FULL covariance of u, v, T over all heights (1991-2020, same month and hour),
               p from the drawn surface pressure by the hydrostatic rule. NOT Earth-GRAM: it is the ceiling for any bell-curve method at a balloon station.
               It is written to data/kit/gram_gaussfull.npz and read back through the external path, so that path is exercised today.
+  bank        --bank (E5, New_Plan 16): m real balloon profiles of the same station, calendar month and UTC hour, 1991-2020, drawn without repeats from the complete
+              ones (u, v, T, p at all 44 heights). The measured-profile bar: true shear, layers and coupling by construction, no skill beyond climatology.
+              Written to data/kit/gram_bank.npz and read back through the external path like gaussfull. Report only, no rule.
   external    --extra NAME=FILE.npz, any number of times (real Earth-GRAM later). File format: `case` (n,) strings "<station id>|YYYY-MM-DDTHH" as in the
               case list, and `u`, `v` [m/s], `T` [K], `p` [Pa], each (n, members, 44) on the model heights above ground. Make it from a long CSV
               (columns case, member, height_m [above ground], u, v, T, p; any heights that span 10 m - 18 km) with --from-csv IN.csv OUT.npz.
@@ -150,6 +153,23 @@ def build_standin(todo, m, rng):
     return path
 
 
+def bank_members(sid, month, hour, m, rng):
+    """m complete balloon profiles of one station, calendar month and UTC hour, 1991-2020, without repeats -> dict u, v, T, p (m, 44)."""
+    c = clim(sid, month, hour)
+    ok = np.flatnonzero(np.isfinite(np.hstack([c["u"], c["v"], c["T"], c["lnp"]])).all(1))
+    assert len(ok) >= m, f"{sid} month {month} hour {hour}: only {len(ok)} complete balloons for {m} members"
+    k = rng.choice(ok, m, replace=False)
+    return {"u": c["u"][k], "v": c["v"][k], "T": c["T"][k], "p": np.exp(c["lnp"][k])}
+
+
+def build_bank(todo, m, rng):
+    path = os.path.join(K.OUT, "gram_bank.npz")
+    os.makedirs(K.OUT, exist_ok=True)
+    mem = [bank_members(sid, t.month, t.hour, m, rng) for _, sid, t, _ in todo]
+    np.savez_compressed(path, case=np.array([c[0] for c in todo]), **{k: np.stack([x[k] for x in mem]).astype(np.float32) for k in ("u", "v", "T", "p")})
+    return path
+
+
 def load_external(path):
     """-> (dict case id -> row, dict u, v, T, p of (n, members, 44))."""
     d = np.load(path, allow_pickle=False)
@@ -251,6 +271,7 @@ def main():
     ap.add_argument("--per-group", type=int, default=200, help="balloons per station x hour (4 groups)")
     ap.add_argument("--m", type=int, default=100, help="members made per case for the tool and the stand-in")
     ap.add_argument("--standin", action="store_true", help="add the full-covariance bell curve (written to data/kit, read back as an external source)")
+    ap.add_argument("--bank", action="store_true", help="E5: add the measured-profile bank (written to data/kit, read back as an external source)")
     ap.add_argument("--extra", action="append", default=[], metavar="NAME=FILE.npz")
     ap.add_argument("--cases-out", metavar="FILE.csv", help="write the case list for Earth-GRAM runs and stop")
     ap.add_argument("--from-csv", nargs=2, metavar=("IN.csv", "OUT.npz"), help="convert a long table to the external format and stop")
@@ -268,6 +289,8 @@ def main():
     extras = [x.split("=", 1) for x in a.extra]
     if a.standin:
         extras.insert(0, ["gaussfull", build_standin(todo, a.m, np.random.default_rng(1))])
+    if a.bank:
+        extras.insert(1 if a.standin else 0, ["bank", build_bank(todo, a.m, np.random.default_rng(2))])
     ext = {name: load_external(path) for name, path in extras}
     names = ["tool"] + list(ext)
     m = min([a.m] + [arr["u"].shape[1] for _, arr in ext.values()])
@@ -395,6 +418,8 @@ def _selfcheck():
     assert vert_err(base, base) == 0.0 and cross_err(base, base) == 0.0
     noise = {q: rng.standard_normal((400, K.NH)) for q in base}
     assert vert_err(noise, base) > 0.3
+    bk = bank_members(K.EPZ, 1, 0, 50, np.random.default_rng(0))     # 50 distinct complete real profiles, p in Pa
+    assert bk["u"].shape == (50, K.NH) and np.isfinite(bk["p"]).all() and len({r.tobytes() for r in bk["T"]}) == 50 and 3e3 < np.median(bk["p"]) < 1.1e5
     v0, lo, hi = boot(lambda i: float(np.mean(i)), np.repeat(np.arange(50), 2), 50)
     assert lo < v0 < hi
     z = np.array([0.0, 5.0, 20000.0])                         # long table -> npz: linear in height, log in pressure
