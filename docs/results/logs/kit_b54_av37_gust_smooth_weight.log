@@ -1,0 +1,7 @@
+2026-11-14 14:10 AV37 smooth weight w = logistic((ERA5 10 m wind - 5) / 1) vs AV13 step: 120115 hours DEN + APA, test 2021-23 39434
+  law fitted on DEN, scored on APA (17996 h): CRPS built-in 1.1273, step 1.1140, smooth 1.1153
+  law fitted on APA, scored on DEN (21438 h): CRPS built-in 1.0858, step 1.0748, smooth 1.0727
+  pooled: step vs built-in +1.09 % (AV13 reported +1.09 %); smooth vs built-in +1.14 %; smooth vs step +0.05 % (95 % interval -0.02 to +0.12); below 5 m/s smooth vs built-in +0.082 % (36307 h)
+AV37 rule (pre-set): PASS = better than the step with interval excluding 0 AND below 5 m/s not worse than built-in; KILL = worse than the step; else MISS.
+AV37 verdict: MISS (vs step +0.05 % [-0.02, +0.12] (interval must exclude 0), below 5 m/s vs built-in +0.08 % (needs >= 0))
+
