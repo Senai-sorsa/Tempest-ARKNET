@@ -1,0 +1,12 @@
+2026-11-14 12:07 AV16 aloft-only balloon shear map: 2623 balloons 2021-22 (EPZ + MAF, 00Z + 12Z), installed tool, climate mode
+shear (m/s per km) p50 / p99 / p99.9 by band: tool | tool + aloft balloon map | balloons
+  0-1 km   13.9/68.0/96.4 | 13.9/68.0/96.4 | 11.7/75.4/109.9
+  1-5 km   5.6/22.7/33.5 | 5.6/22.7/33.5 | 6.0/24.1/37.3
+  5-12 km  5.0/19.0/27.8 | 5.0/19.0/27.8 | 5.4/21.6/31.7
+  12-18 km 6.8/24.6/34.7 | 7.5/29.0/38.9 | 9.3/28.5/38.5
+  CRPS u+v all heights 4.4626 -> 4.4635 (+0.021 %); 12-18 km 4.4119 -> 4.4150 (+0.071 %)
+  heights below 12 km bit-identical: True
+  E5 bar (report only): 12-18 km p99 / balloons = tool 0.866, tool + aloft map 1.017; bank was 0.85 on 2024-25
+AV16 rule (pre-set): PASS = 12-18 km p99 within 10 % of 2021-22 balloons, lower bands bit-identical, CRPS within 0.1 %; KILL = 12-18 km CRPS worse > 0.1 %; else MISS.
+AV16 verdict: PASS (12-18 km p99 29.0 vs balloons 28.5 = 1.017, lower bands identical, CRPS +0.021 %)
+
