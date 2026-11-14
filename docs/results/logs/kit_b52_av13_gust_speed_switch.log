@@ -1,0 +1,7 @@
+2026-11-14 14:06 AV13 Denver gust law switched by model wind (region law at ERA5 10 m wind >= 5 m/s, built-in below): 120115 hours DEN + APA, fit <= 2020 66767, test 2021-23 39434; 199 members, same uniforms for every law
+  law fitted on DEN, scored on APA 2021-23 (17996 hours, 1321 at model wind >= 5): CRPS built-in flag 1 1.127, flag 0 1.176, region law everywhere 1.190, switch 1.114; >= 5 m/s: built-in 1.997, region 1.816
+  law fitted on APA, scored on DEN 2021-23 (21438 hours, 1806 at model wind >= 5): CRPS built-in flag 1 1.086, flag 0 1.206, region law everywhere 1.073, switch 1.075; >= 5 m/s: built-in 1.887, region 1.756
+  pooled cross-station: gain +1.09 % (95 % interval +0.91 to +1.27); below 5 m/s +0.000 % (36307 hours, identical by construction); at / above +7.86 % [+6.65, +9.02] (3127 hours)
+AV13 rule (pre-set): PASS = cross-station gain > 0 with interval excluding 0 AND not worse below 5 m/s; KILL = cross-station gain <= 0; else MISS.
+AV13 verdict: PASS (cross-station gain +1.09 % [+0.91, +1.27], below 5 m/s +0.00 %)
+
