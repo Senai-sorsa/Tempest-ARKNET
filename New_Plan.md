@@ -299,6 +299,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | SIGMA stage 3 NEST (New_Plan 14.3; opt-in `il6_modeF.py --sigma --nest`, width 512, nested widths per lead day from SIGMA's s table; GPU runner `scripts/gpu_sigma3.sh`; `new_plan_kit/b20_sigma_stage3.py`, rule in its header before the run: N6's rule vs N5 binned) | **MISS by the pre-set rule** 2026-11-13 18:35. Change vs binned at 1 / 3 / 5 / 7 d (beyond 7.5 d): NM/TX s0 -1.8 / -0.7 / -0.5 / -1.3 (-4.0) %, s1 -2.1 / -1.2 / -0.9 / -1.2 (-3.7) %; Denver s0 -1.9 / -1.8 / -1.6 / -1.7 (-4.7) %, s1 -1.6 / -1.1 / -1.5 / -1.6 (-4.6) %; ALL 20 intervals below 0. Fails two clauses: the 1 % bar at NM/TX 3 d s0 and 5 d both seeds, and cov99 within 0.003 (NEST 0.978-0.984 at every lead; binned 0.991-0.993 at 1 d falling to 0.958-0.963 at 7 d, so NEST covers less at 1-3 d by ~0.01 and more at 7 d by ~0.02). Vs SIGMA stage 2 (width 128): -1.3 to -1.5 % at 1 d, -0.7 to -1.3 % at 3 d, ~0 at 7 d and beyond; cov99 0.002-0.004 closer to 0.99 | Not adopted. Benefit shown (every interval < 0, both boxes, both seeds) -> one more variation logged: AV30 (New_Plan 13) | `docs/results/logs/kit_b20_sigma_stage3.log` |
 | AV30 NEST + Student-t noise (New_Plan 13; `il6_modeF.py --sigma --nest --noise-t-dims 8 --noise-t-nu 4`, opt-in, default off; `scripts/gpu_av30.sh`; `new_plan_kit/b21_av30_nest_t.py`, rule in its header before the run: stage 3's rule unchanged) | **MISS by the pre-set rule** 2026-11-13 20:17. Change vs binned at 1 / 3 / 5 / 7 d (beyond 7.5 d): NM/TX s0 -2.4 / -1.4 / -0.9 / -1.4 (-4.0) %, s1 -1.8 / -1.2 / -0.8 / -1.0 (-3.6) %; Denver s0 -2.5 / -1.5 / -1.6 / -1.7 (-4.7) %, s1 -2.1 / -1.7 / -1.5 / -1.9 (-4.5) %; all 20 intervals below 0. Fails the same two clauses as NEST: under 1 % at NM/TX 5 d (both seeds) and cov99 (-0.012 at 1 d, -0.008 to -0.009 at 3 d, +0.019 to +0.020 at 7 d, unchanged from NEST). Vs NEST: -0.5 to -0.6 % at 1 d in 3 of 4 runs, else within +-0.7 % | Not adopted. The heavier noise tails did not move cov99 at all, so the short-lead under-coverage is not a noise-shape problem (likely the s table / PIT step); no further NEST variation logged (AV30 was the one variation) | `docs/results/logs/kit_b21_av30_nest_t.log` |
 | AV7 O1 two neighbours again (New_Plan 13; `new_plan_kit/b22_av7_two_neighbours.py` running `b4_two_neighbours.py --n 600`, seeds 2 and 3; rule in its header before the run: O1's rule unchanged) | **PASS by the pre-set rule** 2026-11-13 21:05. Merged report minus best single neighbour: TCS (LRU + ONM, map on) -0.063 [-0.108, -0.020] / -0.066 [-0.098, -0.034], coverage 0.81 / 0.81; ELP (LRU + ALM) -0.042 [-0.066, -0.019] / -0.043 [-0.073, -0.014], coverage 0.84 / 0.86 (seed 2 / 3; 427-472 hours each, 0 skipped). With 600 h the intervals all exclude 0 (O1 at 200 h: 1 of 4). Caution: TCS merged coverage 0.81 sits just above the 0.80 bar (single neighbours 0.84); first variation of O1 | Not adopted yet: shipping means `observe_latest` merges the two best stations (a tool change) -> ASK_LATER 31 | `docs/results/logs/kit_b22_av7_two_neighbours.log` |
+| AV8 S1 map first, update second again (New_Plan 13; `new_plan_kit/b23_av8_map_then_update.py` running `b4_debias_then_update.py --fit 120 --drop ONM,FST,ABQ`, seeds 0 and 1; rule in its header before the run: S1's rule unchanged) | **MISS by the pre-set rule** 2026-11-13 22:16. Factor gap between seeds 0.029 (S1: 0.086; rule 0.05) and coverage >= 0.80 at every pair in both seeds (TCS own seed 1 exactly 0.80). Map + B minus B, seed 0 / 1: TCS own +0.002 [-0.025, +0.029] (fail, bar +0.0009) / -0.010; TCS LRU -0.055 [-0.090, -0.024] / -0.059 [-0.095, -0.026]; MAF own -0.008 / -0.024 [-0.041, -0.009]; MAF PEQ -0.030 / -0.010. The only failed clause is one own-report point estimate inside its noise | Not adopted. Benefit shown (7 of 8 better, stable factors) -> one more variation logged: AV31 (same with 600 test hours) | `docs/results/logs/kit_b23_av8_map_then_update.log` |
 | AU-10 above_top "climatology" (New_Plan 15.3; `tempest_weather_v2/readers.py`) | DONE 2026-11-13: docstring corrected ("climatology" is an alias of "hold": T and p continue from the top value along the standard lapse rates; no true standard-atmosphere switch, it would put a jump at the top). No number changes. Test: the two policies return identical air and wind arrays below, at and up to 30 km above the top. |
 | AU-17 Launch.stale naive time (New_Plan 15.3; `tempest_weather_v2/launch.py`) | DONE 2026-11-13 (bug fix, on): a naive `now` is taken as UTC (it raised TypeError). Test: naive 1 h and 7 h after creation give False / True. |
 
@@ -871,6 +872,7 @@ Guards that stay in force while doing that:
 | AV28 | AV5 (KILL 2026-11-13 by one interval: Denver seed 2 5 d reached +0.001; every point estimate favours the world start) | No new model type: world network + 500 fine-tune steps vs own model + 500 steps, seeds 0 / 1 / 2, both boxes (`scripts/cpu_av28.sh`, 12 runs; verdict `new_plan_kit/b17_av28_ft500.py`) | PASS = wins >= 3 of 4 leads in both boxes, all three seeds; KILL = wins <= 1 in 3 or more of the 6 runs (no benefit; N2 closes); else MISS | ~2 h CPU | VARIATION (second of N2, after AV5; step count named in the AV5 row before its result). Logged by the loop 2026-11-13 |
 | AV29 | AV28 (MISS 2026-11-13: all 24 point estimates favour the world start, Denver seed 2 wins 1 of 4 with three intervals ending at +0.001 to +0.002) | No training: the AV28 networks (ft500 and own500, seeds 0-2, both boxes) also scored on 2021 (`--test-year 2021`, range map on 2022), pooled with the 2022 rows, day blocks over both years (as AV26) | AV28's rule unchanged on the pooled rows: PASS = wins >= 3 of 4 in all 6 runs; KILL = wins <= 1 in 3 or more runs; else MISS. The 2021 rows were not used by AV5 / AV28 | ~2 h CPU, after SIGMA stage 2 | VARIATION (third of N2; forking paths: n = 3, adoption would also need its own go). Logged by the loop 2026-11-13 |
 | AV30 | SIGMA stage 3 NEST (MISS 2026-11-13: better than binned at every lead with every interval < 0, but under 1 % at NM/TX 3-5 d and cov99 off by ~0.01 at 1-3 d, short-lead tails too narrow) | Same as NEST (width 512, --sigma --nest, depth 2, coarse 4, 2 members, seeds 0 / 1, both boxes, GPU) plus Student-t noise in the generator (existing option `noise_t_dims`, nu = 4; Gemini idea 1) to give the short leads heavier tails. One change against NEST | SIGMA stage 3's rule unchanged (N6's rule vs N5 binned; KILL = 7 d worse in both boxes); report cov99 by lead vs NEST | ~1.5 h GPU (fits ~5 min, evals ~20 min each, one at a time) | VARIATION (first of NEST). Logged by the loop 2026-11-13 18:40; rule goes in the verdict header before any run |
+| AV31 | AV8 (MISS 2026-11-13: factor gap fixed 0.086 -> 0.029, coverage >= 0.80 everywhere, map + B beats B at 7 of 8 pair-seeds (LRU -0.055 / -0.059 with intervals < 0); the one fail is TCS own report seed 0, +0.002 [-0.025, +0.029] vs the +0.0009 bar) | Same as AV8 (120 prior hours per cell, ONM / FST / ABQ out, seeds 0 and 1, same map fit hours) with 600 test hours per target instead of 200, so the own-report difference is measured, not guessed | AV8's rule unchanged (PASS: coverage >= 0.80 and CRPS(map + B) - CRPS(B) <= +0.0009 at every pair, both seeds, factor gap <= 0.05; KILL: gap > 0.05) | ~3 h CPU | VARIATION (second of S1). Logged by the loop 2026-11-13 22:30; rule goes in the verdict header before any run |
 | AV2 | N5 all-lead network (KILL: leads 1-3 worse by +0.9 to +2.7 %; beyond 7.5 d -2.9 to -3.7 % better than binned and better than climate) | Long-lead-only use: the N5 network serves only leads beyond 7.5 d, where the tool now falls back to the climate generator. Leads up to 7.5 d untouched. No training | PASS: beyond 7.5 d better than the binned model and than the climate model with an interval excluding 0, both boxes, both seeds, at days 8, 9 and 10 each (not only pooled); cov99 within 0.003. KILL: worse than climate at any of days 8-10 in either box | 1 h CPU | VARIATION. If it still shows potential, try more (e.g. a blend weight toward climate by lead, the IL-74 idea) |
 | AV3 | AV1 + AV2 | One router: N6 model up to 3 d, shipped model 5-7 d, N5 network beyond 7.5 d. Only if AV1 and AV2 both pass | PASS: every lead bin equals or beats what the tool serves today, no bin worse by more than 0.5 %, both boxes, both seeds. KILL: any bin worse by more than 1 % | 1 h CPU | VARIATION (combination). Opt-in only; export is the user's step |
 | AV4 | C6 run-to-run disagreement spread (FAIL: PIT -0.0018 [-0.0051, +0.0007]; CRPS -0.69 % [-1.19, -0.24]) | Apply the factor only in the four cells where the premise held (wind 0-1, 1-5, 5-12 km; T 5-12 km; rho 0.30-0.38); the other four cells keep factor 1. Same fit years 2016-2020 | Same rule as C6, unchanged: PIT distance change with the whole interval below 0 on 2022, CRPS not worse. KILL: CRPS interval includes 0 | 30 min CPU | VARIATION. If it still shows potential, try more: more test init dates (2022 has 36), 12 h pairs if a refetch brings them. A CRPS-only rule is the user's call, not run on my own |
@@ -1586,3 +1588,176 @@ Global Wind Atlas scaling and its limits: wes.copernicus.org/preprints/wes-2026-
 wind databases and wind pairs: ntrs.nasa.gov 20050092294, 20110002632, 19990008476. Tropopause-relative
 averaging: Randel, Wu and Forster 2007 (J. Atmos. Sci.), acp.copernicus.org/articles/19/6985/2019.
 Ordering methods: Lerch et al. 2020 (npg.copernicus.org/articles/27/349/2020), arXiv 2206.10237.
+
+---
+
+## 17. Experiments from `Useful results.md` (added 2026-11-13 evening; nothing here has been run)
+
+Source: `Useful results.md` in the repo root (the review of the last 48 hours). Part 3 of that file
+gives six new ideas, each with its attack rounds; they are UR1 to UR6 below. Parts 1 and 2 leave
+nine more things that still need a run before they can be adopted or closed; they are UR7 to UR15.
+The attack rounds and the outside sources are in `Useful results.md` and are not repeated here.
+
+Rules as in sections 10-14: data on disk only unless the row says otherwise, defaults bit-identical,
+every switch off by default, a trained model gets a new name, never 2026, 21-day blocks, the pass
+and kill rule goes into the header of the verdict script before any run, adoption and exports stay
+with the user. One forecast-mode (Mode F) evaluation at a time (14-17 GB). The standing note of
+section 13 applies: a miss that still shows a benefit gets one more variation before its parent
+closes; the forking-paths rule (pitfall 14) counts per parent.
+
+Two rows change a rule that an earlier verdict used (UR1's cov99 clause, UR13). Both are marked
+"user's call" and are not adopted on my own.
+
+### 17.1 The six new ideas
+
+**UR1. TAILCAL: fix the far tails per lead day, touch nothing else**
+
+| | |
+|---|---|
+| What | After the range map, move only the part of each member set outside its own 5-95 % range by a factor from a table: variable (u, v, T) x lead day x lower / upper tail, pooled over heights, smoothed across lead days. Factors may be below 1. A rising map per height, so member ranks and the Schaake shuffle do not change. No training |
+| Why here | cov99 is the clause that stopped AV2, NEST and AV30. The shipped-style binned model itself covers 0.991-0.993 at 1 d and 0.958-0.963 at 7 d; NEST is flat near 0.98. AV30 showed the noise shape is not the cause. The uniform RH stretch cost +5.9 % CRPS because it moved the whole distribution |
+| Where in the code | Kit script on the saved per-row member draws of `il6_modeF.py` (binned N5, SIGMA `modeF_n5_sig*`, NEST); opt-in step, default off |
+| Step 0 | Count the rows outside the 99 % range per variable x lead day in the 2021 rows. Fewer than 200 in any cell: pool neighbouring lead days first |
+| Test | Fit on 2021 rows, judge on 2022; then the swap (fit 2022, judge 2021) as a check. Three models in this order: binned, SIGMA stage 2, NEST. Both boxes, both seeds |
+| Pass rule (set now) | On the judged year: cov99 within 0.005 of 0.99 at every lead 1 / 3 / 5 / 7 d and beyond 7.5 d, CRPS not worse by more than 0.2 %, cov90 within 0.003 of before; in all 4 box x seed runs and in the swap |
+| Kill rule | CRPS worse by more than 0.5 % at any lead, or the swap gives factors that differ by more than 0.15 |
+| Cost | About 1 h CPU, no training |
+| Note | Judging cov99 against 0.99 in place of "within 0.003 of binned" is a rule change for NEST and AV2: user's call. On the binned model it is a fix for a measured fault and needs no old rule |
+
+**UR2. One forecast engine, stacked in a fixed order**
+
+| | |
+|---|---|
+| What | One network built in stages, each stage kept only if it earns its place: (1) SIGMA [done, PASS], (2) + NEST [done, MISS on cov99 and the 1 % bar], (3) + world start on SIGMA's scaled target, with beta / s tables built on the world pairs and swapped for the box's tables at fine-tune (500 box steps), (4) + the closed-rule older-run mix as the input profile (AV24's rows), (5) + the ensemble: its mean as one more source in the mix, its spread only as a scale on s held to 0.8-1.5; no feed = the plain table. UR1's tail table is the last step of every stage |
+| Why here | Each part was measured alone: NEST +1.3 to 1.5 % at 1 d over SIGMA, world start -0.7 to -2.5 %, mix -0.8 to -2.4 %, ensemble features -1.9 to -3.1 %. N4 showed that optional inputs in the trunk lose 1.0-2.6 %; here the trunk always sees one profile of the same kind |
+| Where in the code | `il6_modeF.py --sigma --nest` exists; new opt-in pieces: world tables in `tempest/forecast/sigma.py`, mixed rows from `scripts/chorus_stage1_rows.py --all-years`, an s scale from the ensemble spread |
+| Step 0 | Stage 3 only: the world network on the scaled target, as it is (no box steps), against each box's own SIGMA model. Reported, not a gate: within 1 % at every lead would be the clause N2 failed |
+| Test | Stages 3, 4, 5 in this order. Three seeds, both boxes, 2021 + 2022 pooled |
+| Pass rule (set now) | A stage is kept if it beats the stage before by at least 0.5 % (mean of leads 1-7 d) with the interval below 0 in both boxes, no lead worse by more than 0.5 %, and UR1's coverage rule holds. The stack stops at the first stage that fails; later stages are then tried once on the last kept stage |
+| Kill rule | Stage 3 not better than NEST at any lead in both boxes: the stack is closed at NEST + UR1 |
+| Cost | Stage 3: 2 h CPU rows, 30 min GPU. Stages 4-5: about 1.5 h GPU each (fits about 5 min, evaluations one at a time) |
+| Note | This is one more forecast-mode variation on 2021-22. Its final word comes from UR15 (2023-24 rows) |
+
+**UR3. One measured "grid to point" table in place of widening factors**
+
+| | |
+|---|---|
+| What | The real-air gap of RA stage 1a (6 height bands, sd per wind component 1.5-2.0 m/s) with the instrument noise removed in squares (radar as the third instrument, the C5 referee), added as spread in every mode as a separate "real air" output. The centre comes from the site (UR4); the table never widens to hide an offset |
+| Why here | RA stage 1a PASS (coverage against balloons 0.83-0.90 -> 0.90-0.92); AV6 PASS (raw ensemble needs x1.35 / x1.55 at TCS / MAF); G1-5's tracker sat at its cap; x1.2 helps airports and hurts basins; IL-207 showed TCS was bias, not spread |
+| Where in the code | Kit script; the tool is not changed. Data: the G1-5 / AV6 rows (WB2 IFS ENS at TCS / MAF vs ASOS, 2016-24) and the RA gap rows |
+| Test | (a) 10 m: add the 10 m gap sd (1.54 m/s, fit 2016-20, no site fit) to the raw ensemble members, score 2023-24 at TCS and MAF beside AV6's fitted factors. (b) RA coverage by lead bin (6-24 h, 1-3 d, 3-5 d, 5-10 d) at the left-out stations, 2022, which stage 1a only gave pooled |
+| Pass rule (set now) | (a) coverage error at or under 0.15 at both sites and CRPS within 0.010 of AV6's fitted-factor result at both. (b) 90 % coverage 0.87-0.93 in every band x lead bin |
+| Kill rule | (a) coverage error above 0.20 at either site: the gap is not what the fitted factors measure, keep per-site fits. (b) any band x lead bin under 0.85 |
+| Cost | About 1 h CPU, no download |
+| Note | Scored against stations and balloons only; scores against ERA5 are expected to get worse and are not part of the rule |
+
+**UR4. FIRST-10: a pad's own wind offset from its first days of readings**
+
+| | |
+|---|---|
+| What | Site factor = 1 + w x (measured ratio - 1), w = n / (n + k), n = days with readings, k fitted on the fit stations. The uncertainty left in the factor, (1 - w) x the between-station spread (1.01 m/s), goes into the pool as extra spread. Order: site centre first, then `observe`, then the second neighbour |
+| Why here | SV step 0: a station keeps its offset (0.88), and 5 / 10 / 30 readings explain 25 / 53 / 71 % of it. IL-207b PASS. S1: map first beat the update alone at 12 of 12. S2: the TCS error has the same sign day and night, so one factor is enough. O3 failed with a slow decaying average (the factor moved only 0.9-1.2 in two weeks) |
+| Where in the code | Kit script on the 71 stations of the SV step 0 (`b6_ideas_step0.py` rows); `Launch(site_cal=...)` already takes the map |
+| Step 0 | Fit k per day on half the stations (fit years 2016-20). Stop if no k explains at least 40 % of the offset at n = 10 days on the other half |
+| Test | Leave-one-station-out replay: each station is a new pad fed n = 3, 5, 10, 30 days. Arms: no site term / plain average / shrinkage / shrinkage + leftover spread. Two hour seeds, test hours 2023-25 |
+| Pass rule (set now) | At n = 10: 10 m CRPS better than "no site term" with the interval below 0 over all stations, at least 75 % of stations better, no station worse by more than 0.03, coverage 0.85-0.95; and shrinkage not worse than the plain average at n = 3 |
+| Kill rule | Not better than "no site term" at n = 30 |
+| Cost | About 4 h CPU per seed, no download |
+| Note | Replaces AV10 (O3 restarted from the IL-207b factor) as the follow-up of O3; AV10 stays logged but runs only if UR4 fails. If E1's step 0 passes, the atlas factor becomes the prior centre in a second run |
+
+**UR5. Calm-window fix: the per-hour wind first, the link second**
+
+| | |
+|---|---|
+| What | (1) Find where the climate-mode 10 m speed becomes windier than ERA5. (2) Map the 10 m speed by quantile to the ERA5 speed of the same point, month and hour (fit years), keep the direction. (3) Only if the 3-hour error is still above 0.02: two lag tables (calm and windy hours) in place of one in `atmosphere_sequence` |
+| Why here | STRAND stage 0: independent hours give 0.41 for "under 5 m/s for 3 h", real 0.64. Stage 1 and AV27: the floor is the per-hour wind (gap 0.12-0.19); the shipped sequence already carries most of the link (error 0.04-0.09) but under-links at 5 m/s (lift 2.10 vs 2.35) and over-links at 8-10 m/s. The 16:35 code read found no intended widening in climate mode |
+| Where in the code | Kit script on the AV27 cells (12 points x 12 months x 15 / 18 / 21 UTC); the map is an opt-in step after the calibration stack |
+| Step 0 | u, v and speed against ERA5 at the AV27 points after each stage of the stack (network, PIT recal, range map, shuffle, maps, site shift). Untested guess to check: widening u and v separately raises the mean speed. If one stage holds the drift, fix it there and skip the map |
+| Test | P(10 m wind under 5 / 8 / 10 m/s for 3 h) against ERA5 2006-20 (b14's cells and seeds), and against ASOS 3-hour windows at TCS and MAF as a second referee |
+| Pass rule (set now) | Per-hour gap |P_indep tool - truth| under 0.03 at every limit, mean 3-hour error at most half of the shipped sequence's (0.237 / 0.191 / 0.154), u and v cov90 at 10 m within 0.003 of before, per-hour CRPS within 0.0009; both seeds |
+| Kill rule | u or v coverage moves by more than 0.01, or the 3-hour error is not better than shipped at any limit |
+| Cost | Step 0 30 min CPU; map and score 1 h CPU; lag tables 2 h CPU if needed |
+| Note | This also closes the open side check of AV27 (To-do: "climate-mode 10 m wind windier than ERA5 u10") |
+
+**UR6. The 12-18 km package: calibration maps in a tropopause coordinate**
+
+| | |
+|---|---|
+| What | For 9-18 km only: range map, station line and shear map indexed by distance from each member's own tropopause (lapse-rate rule on the member's T; fall back to the coldest point; a member with neither keeps the fixed-height maps). Below 9 km bit-identical |
+| Why here | The band loses everywhere: T 12-18 km worse than climatology (-0.030 / -0.039), RH cov99 0.948, shear p99 24.6 vs 28.5, unstable layers 0.067 vs 0.149, the trust layer lost only there (IL-10), SIREN at Denver -0.30 there, skill autocorrelation 19 days there (AU-4). E4 (16.4) names the candidate cause; this extends E4 from fine structure to the maps |
+| Step 0 | E4's step 0, unchanged (balloons only): spread at fixed distance from the tropopause against fixed-height spread at 10-16 km, and whether the change after 2020 is a height shift |
+| Test | Refit the three maps in the new coordinate on <= 2020 balloons; score 2024-25 ERA5 (fair baseline) and balloons, two score seeds |
+| Pass rule (set now) | Step 0 as E4: tropopause-relative spread under 70 % of fixed-height spread at 3 or more levels. Full run: T 12-18 km skill15 better by at least 0.010 with the interval below 0 on balloons, RH 12-18 km cov99 at or above 0.97, no band below 9 km changed, headline not worse by more than 0.0009 |
+| Kill rule | Step 0 over 90 %: closed, and E4 with it |
+| Cost | Step 0 30 min CPU; full run 3 h code, 1 h GPU scoring |
+| Note | UR11 (RH station line) runs first; AV16 and AV17 are judged again on top if this passes |
+
+### 17.2 Still open from parts 1 and 2 of `Useful results.md`
+
+| ID | From | What to run | Pass and kill rule (set now) | Cost |
+|---|---|---|---|---|
+| UR7 | SIGMA stage 2 (PASS) | Its cov99 and cov90 by lead (1 / 3 / 5 / 7 d, beyond 7.5 d) are not in `kit_b18_sigma_stage2.log`. Print them from the saved evaluation rows, beside binned and climate. No new evaluation if the rows are on disk | Measurement. Reading set now: cov99 within 0.005 of 0.99 at every lead = ready to offer for export; else it waits for UR1 | 15 min CPU |
+| UR8 | N1 cross-fit (PASS, caveat) | The missing control: the base recipe (4 members, fixed 6000 steps) trained on 1991-2023 with no fold held out, range map on 2021-23; scored like N1 (seeds 0 / 100, 2024-25 ERA5 + balloons) | PASS (the gain is cross-fitting): N1 beats the control by at least 0.0006 ERA5 skill15 in both seeds, balloons not worse. KILL: under 0.0003 in both seeds: the gain is the 3 extra years, export the control recipe's idea (more years), not the folds | 1 h GPU, 1 h CPU |
+| UR9 | IL-207b (PASS; the 15.4 re-read asks to confirm seed 1) | One new hour seed (seed 2), 300 h per site, 21-day blocks | PASS: TCS CRPS interval below 0, coverage not lower, MAF within 0.0009. KILL: interval includes 0: the factor stays opt-in with a warning | 1 h CPU |
+| UR10 | G2-2 Student-t widening (PASS for ground reports only) | The same widening on the radar path: `observe_radar(..., t_update=True)` through `Launch`, EPZ days 2023, the most surprising 10 % by D^2 | G2-2's rule: surprising 10 % cov90 at 2.5-5 km closer to 0.90, the other 90 % CRPS change inside its interval around 0. KILL: the other 90 % worse beyond noise | 1 h CPU |
+| UR11 | RH 12-18 km widening (FAIL) and AU-5 (2021-23 balloons 8-11 % drier aloft than the 1991-2020 line) | Refit the station line for RH above 5 km on recent years (fit 2016-22, the 1991-2020 pool kept), score 2024-25 00Z balloons. Then re-measure cov99; tails-only (UR1's method on the RH leftovers) only if it is still under 0.97 | PASS: RH 5-12 km balloon skill15 above 0 (now -0.015) and RH 12-18 km cov99 up by at least 0.01 with CRPS not worse by more than 0.5 %. KILL: CRPS worse by more than 1.5 % | 2 h CPU |
+| UR12 | C6 / AV4 / AV25 (closed for calibration; CRPS better on every test) | The signal on the centre, not the spread: in SIGMA, beta x h(d), h a falling rule with 2 numbers held to 0.7-1.0, d = run disagreement in the 4 premise cells; second arm d = the run's own 6-hour change (needs no second run). Fit 2016-20, no network retrain in the first pass (B0tab arm of SIGMA stage 1), judged on 2021 + 2022 | PASS: CRPS better than B0tab with the interval below 0 at leads 3, 5 and 7 d, PIT distance not worse (interval includes 0 or below), both boxes. KILL: no lead better. A new parent (not a fourth C6 variation): the use differs | 1.5 h CPU |
+| UR13 | CHORUS / AV24 / AV26 (ASK_LATER 29) | No run on disk can add to it: a looser rule is the user's call. The run that can: UR15, then AV24's networks scored on 2023-24 | AV24's rule unchanged, on 2023-24 alone | with UR15 |
+| UR14 | AV7 (seed 2 PASS, seed 3 running) and AV8 | After both have a verdict: the stack. Site map first (AV8's 120 h cells), then the merged two-neighbour report. TCS and ELP, 600 h, two new hour seeds | PASS: stack better than merged alone with the interval below 0 at both targets, coverage at or above 0.80 (TCS merged alone is 0.81). KILL: coverage under 0.80 at either target | 3 h CPU |
+| UR15 | "One download unblocks four verdicts" | HRES 2023-24 for both boxes (a Colab pull by the user, like every HRES store), rows built with the shipped recipe. Then, with no training: AV24 (UR13), AV29's networks, SIGMA / NEST / the kept UR2 stage, and AV6 part (b) on the tool's own forecast output | Each item's own rule, unchanged, on 2023-24 alone. This is the clean third test year | download: user; rows 2 h CPU; evaluations about 40 min each |
+
+Already logged elsewhere and unchanged, so not repeated here: AV8, AV9, AV11, AV12, AV13, AV16,
+AV17 (section 13), E1, E3, E5 (section 16). E5 (the measured-profile bank as a bar) should run
+before AV15 / AV16.
+
+Recommendations from `Useful results.md` that need the user's word, not a run: drop AV22 and AV23
+(SIGMA and NEST do the same job in one network); make `--fair-baseline` the default before any
+number is quoted outside (ASK_LATER 27); exports of SIGMA, the world start (AV29) and ENSF2.
+
+### 17.3 Order
+
+Cheapest and best-supported first; after the section 13.5 step 4 queue that is running now (AV7,
+then AV8). One Mode F evaluation at a time.
+
+1. UR7 (15 min), then UR1 on binned, SIGMA and NEST.
+2. UR5 step 0 and UR4 step 0 side by side (CPU); UR3 (a) and (b).
+3. UR4 full replay; UR5 map; UR9; UR12.
+4. GPU beside the CPU items: UR8, then UR2 stage 3 (4 and 5 only if 3 is kept).
+5. UR11, then UR6 step 0 beside E4's (the same run); UR6 full run only if step 0 passes.
+6. UR14 once AV7 and AV8 have verdicts; UR10 in any gap.
+7. UR15 and UR13 when the user has made the pull.
+
+### 17.4 What to change in the shipped system now, and what to hold (added 2026-11-13 evening; nothing here has been changed)
+
+From part 1 of `Useful results.md`. Recommendation only: every row in the first table flips a
+default, so each needs the user's go at the moment it is done (hard rule: flags off by default).
+When done: backup of the old assets, full suite at 16 threads, `scripts/tool_audit.py`,
+`scripts/shipped_check.py`, one line in AUTOPILOT. The golden hashes in `tests/test_flags_off.py`
+may need a refresh for the second and third row (not checked whether those tests cover these code
+paths; a refresh also needs the user's go).
+
+**Change now** (passed its rule, low risk, nothing later depends on it):
+
+| Change | Why now | Risk |
+|---|---|---|
+| `--fair-baseline` as the scoring default in `score.py` / `sonde.py`, and the README headline rewritten (ERA5 skill15 +2.8 % -> about +1.7 to +1.8 %; ASK_LATER 27) | The current headline is overstated by about 0.013 (AU-1 step 5). No tool output changes | None to the tool. Old score logs are no longer directly comparable (model-vs-model differences keep their sign) |
+| Student-t widening on for ground reports: `observe(..., t_update=True)` as the default (G2-2) | Acts only on the most surprising 10 % of reports (cov90 0.85 -> 0.92); the other 90 %: CRPS -0.0003 [-0.0020, +0.0013] | Small. `observe_radar` stays off until UR10 |
+| Site roughness for turbulence in `Launch` engines: `z0_roughness_m="site"` as the default for engines built by `Launch.engine()` (A7) | Close to a bug fix: the site roughness never reached the Dryden step on any path | Near-ground turbulence strength changes at rough sites, so flight-sim outputs move |
+
+No change needed: the Holloman radar result (O2). The pad can use `observe_radar` with Holloman
+as it is, with no distance term.
+
+**Hold** (one cheap check outstanding, or it would be exported twice):
+
+| Item | Waits for |
+|---|---|
+| SIGMA for days 8-10 (`--sigma`) | UR7 (15 min): its cov99 by lead was never printed, and the same use failed on that clause with the N5 network (AV2). If low: UR1 first |
+| World start + 500 box steps (AV29) | UR2 stage 3. Third variation of N2, and the forecast model would be exported again after the stack: export once |
+| ENSF2 ensemble features | Could ship now as opt-in (three seeds, off by default, audits unchanged); bundled with the same single forecast-model export |
+| N1 cross-fitted members | UR8 (the control for the three extra training years) |
+| Real-air gap as an opt-in output | UR3 (b): coverage by lead; so far measured pooled only |
+| IL-207b per-site factor (`tcs_speed_factor`) | UR9 (one more hour seed); stays opt-in meanwhile |
+| Older-run mix, two neighbours, NEST | UR15 / UR13, AV7 seed 3 then UR14, UR1 |
+
+Stay opt-in for good (they suit some sites only): `Launch(past_wind_spread=1.2)` (airport-like
+sites), `below_10m="loglaw"` (rails under about 3 m).
