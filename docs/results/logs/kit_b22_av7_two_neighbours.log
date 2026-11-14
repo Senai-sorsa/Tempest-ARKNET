@@ -1,0 +1,35 @@
+2026-11-13 20:42 O1 two neighbours at once: CRPS (m/s) and 90 % coverage of the 10 m speed, 2023-25, 08-20 local, report 1 h old, 600 hours per target, paired, seed 2
+TCS from LRU + ONM: 462 hours, 0 skipped; error correlation r +0.39 (16042 fit hours 2019-22); mean gains LRU 0.46, ONM 0.53, merged 0.66; map on (tcs_speed_factor)
+  no report  CRPS 1.627  coverage 0.86
+  LRU        CRPS 1.504  coverage 0.84
+  ONM        CRPS 1.450  coverage 0.84
+  merged     CRPS 1.387  coverage 0.81
+  merged minus best single (ONM) -0.063 [-0.108, -0.020], merged coverage 0.81  ok
+ELP from LRU + ALM: 427 hours, 0 skipped; error correlation r +0.43 (16235 fit hours 2019-22); mean gains LRU 0.49, ALM 0.45, merged 0.62; no map
+  no report  CRPS 1.659  coverage 0.85
+  LRU        CRPS 1.336  coverage 0.87
+  ALM        CRPS 1.514  coverage 0.84
+  merged     CRPS 1.294  coverage 0.84
+  merged minus best single (LRU) -0.042 [-0.066, -0.019], merged coverage 0.84  ok
+Rule (pre-set): merged CRPS better than the best single neighbour, interval excludes 0, coverage >= 0.80; both targets, both seeds.
+Seed verdict: PASS (needs the other seed)
+
+2026-11-13 21:05 O1 two neighbours at once: CRPS (m/s) and 90 % coverage of the 10 m speed, 2023-25, 08-20 local, report 1 h old, 600 hours per target, paired, seed 3
+TCS from LRU + ONM: 472 hours, 0 skipped; error correlation r +0.39 (16042 fit hours 2019-22); mean gains LRU 0.45, ONM 0.52, merged 0.65; map on (tcs_speed_factor)
+  no report  CRPS 1.548  coverage 0.85
+  LRU        CRPS 1.405  coverage 0.85
+  ONM        CRPS 1.382  coverage 0.84
+  merged     CRPS 1.316  coverage 0.81
+  merged minus best single (ONM) -0.066 [-0.098, -0.034], merged coverage 0.81  ok
+ELP from LRU + ALM: 429 hours, 0 skipped; error correlation r +0.43 (16235 fit hours 2019-22); mean gains LRU 0.50, ALM 0.45, merged 0.62; no map
+  no report  CRPS 1.723  coverage 0.84
+  LRU        CRPS 1.346  coverage 0.87
+  ALM        CRPS 1.553  coverage 0.84
+  merged     CRPS 1.303  coverage 0.86
+  merged minus best single (LRU) -0.043 [-0.073, -0.014], merged coverage 0.86  ok
+Rule (pre-set): merged CRPS better than the best single neighbour, interval excludes 0, coverage >= 0.80; both targets, both seeds.
+Seed verdict: PASS (needs the other seed)
+
+2026-11-13 21:05 AV7 rule (pre-set): PASS = interval < 0 and coverage >= 0.80 at TCS and ELP in seeds 2 and 3; KILL = interval includes 0 in all 4.
+AV7 verdict: PASS
+
