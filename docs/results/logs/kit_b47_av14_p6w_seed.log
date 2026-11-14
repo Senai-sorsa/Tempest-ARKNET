@@ -1,0 +1,9 @@
+2026-11-14 10:51 train seed 0 DAY (p6w_d21_s0 vs a24_all21_s0): mean skill15 +0.0299 -> +0.0300; 10-300 m wind mean gain +0.0011 (min +0.0003, max +0.0015); bands worse than -0.0009: u 12-18 km -0.0012, v 1-5 km -0.0026, v 5-12 km -0.0022, v 12-18 km -0.0015, sp surface -0.0013
+  per column: u_10 +0.0014; u_50 +0.0014; u_100 +0.0015; u_150 +0.0014; u_200 +0.0012; u_300 +0.0013; v_10 +0.0004; v_50 +0.0003; v_100 +0.0006; v_150 +0.0010; v_200 +0.0011; v_300 +0.0012
+train seed 0 NIGHT (p6w_night vs a24_allnight): mean skill15 +0.0311 -> +0.0311; 10-300 m wind mean gain -0.0009 (min -0.0020, max +0.0007); bands worse than -0.0009: v 0-1 km -0.0012, T 5-12 km -0.0015, RH 5-12 km -0.0012, sp surface -0.0025
+  per column: u_10 -0.0005; u_50 -0.0000; u_100 -0.0004; u_150 -0.0007; u_200 -0.0009; u_300 -0.0007; v_10 +0.0007; v_50 -0.0005; v_100 -0.0018; v_150 -0.0020; v_200 -0.0020; v_300 -0.0019
+train seed 100 DAY: files missing
+train seed 100 NIGHT: files missing
+AV14 rule (pre-set): PASS = in all four pairs 10-300 m wind mean gain >= 0.001 and no band worse than -0.0009; else closed for good.
+AV14 verdict: MISS, closed for good (train seed 0 DAY: wind +0.0011, worse u 12-18 km -0.0012, v 1-5 km -0.0026, v 5-12 km -0.0022, v 12-18 km -0.0015, sp surface -0.0013; train seed 0 NIGHT: wind -0.0009, worse v 0-1 km -0.0012, T 5-12 km -0.0015, RH 5-12 km -0.0012, sp surface -0.0025; not run, cannot change the verdict: train seed 100 DAY, train seed 100 NIGHT)
+
