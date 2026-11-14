@@ -1,0 +1,12 @@
+2026-11-13 18:35 SIGMA stage 3 (NEST, width 512) vs N5 binned; mean CRPS by lead (1, 3, 5, 7) (+ 9 = beyond 7.5 d, information)
+  NM/TX  seed 0: binned 1.392 / 2.041 / 2.834 / 3.730 / 4.404; NEST 1.367 / 2.026 / 2.820 / 3.682 / 4.227  change -1.8 / -0.7 / -0.5 / -1.3 / -4.0 %; NEST minus binned: 1d -0.025 [-0.032, -0.017], 3d -0.015 [-0.024, -0.006], 5d -0.014 [-0.028, -0.001], 7d -0.048 [-0.086, -0.017], 9d -0.177 [-0.231, -0.129]; cov99 difference -0.0124 / -0.0088 / +0.0009 / +0.0190
+           vs stage 2 (information): -1.3 / -0.7 / -0.1 / +0.1 / -0.1 %
+  NM/TX  seed 1: binned 1.392 / 2.043 / 2.838 / 3.729 / 4.390; NEST 1.363 / 2.018 / 2.814 / 3.685 / 4.226  change -2.1 / -1.2 / -0.9 / -1.2 / -3.7 %; NEST minus binned: 1d -0.029 [-0.036, -0.022], 3d -0.025 [-0.034, -0.016], 5d -0.025 [-0.039, -0.010], 7d -0.044 [-0.076, -0.018], 9d -0.164 [-0.214, -0.119]; cov99 difference -0.0120 / -0.0084 / +0.0010 / +0.0181
+           vs stage 2 (information): -1.4 / -1.1 / -0.5 / +0.1 / +0.1 %
+  Denver seed 0: binned 1.570 / 2.144 / 2.873 / 3.830 / 4.505; NEST 1.540 / 2.106 / 2.827 / 3.764 / 4.292  change -1.9 / -1.8 / -1.6 / -1.7 / -4.7 %; NEST minus binned: 1d -0.030 [-0.042, -0.017], 3d -0.038 [-0.050, -0.025], 5d -0.046 [-0.064, -0.027], 7d -0.066 [-0.096, -0.034], 9d -0.214 [-0.269, -0.157]; cov99 difference -0.0126 / -0.0093 / -0.0001 / +0.0203
+           vs stage 2 (information): -1.5 / -1.3 / -0.4 / +0.0 / +0.0 %
+  Denver seed 1: binned 1.570 / 2.143 / 2.872 / 3.829 / 4.494; NEST 1.544 / 2.119 / 2.830 / 3.769 / 4.289  change -1.6 / -1.1 / -1.5 / -1.6 / -4.6 %; NEST minus binned: 1d -0.026 [-0.039, -0.012], 3d -0.023 [-0.037, -0.010], 5d -0.042 [-0.060, -0.022], 7d -0.060 [-0.092, -0.030], 9d -0.205 [-0.258, -0.153]; cov99 difference -0.0129 / -0.0098 / -0.0013 / +0.0192
+           vs stage 2 (information): -1.4 / -0.7 / -0.1 / +0.1 / -0.2 %
+Rule (pre-set): PASS = NEST >= 1 % better than binned at every lead 1/3/5/7 with interval < 0, both boxes and seeds, cov99 within 0.003; KILL = 7 d worse (seed mean) in both boxes.
+Verdict: MISS (record, no adoption)
+

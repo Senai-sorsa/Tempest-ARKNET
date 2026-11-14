@@ -14,7 +14,7 @@
 [x] AV28 **MISS** 2026-11-13 13:30: wins 4/4/3 NM/TX, 3/3/1 Denver; all 24 point estimates favour the world start -> N2 not closed; AV29 (same networks scored on 2021 + 2022 pooled, no training) queued after SIGMA stage 2.
 [x] SIGMA stage 2 **PASS** 2026-11-13 15:10: leads 1-7 within +0.5 % of binned (mostly better), beyond 7.5 d -3.9 to -4.8 % vs binned, all intervals < 0; flag stays opt-in (default = user's call).
 [x] AV29 **PASS** 2026-11-13 17:14 (pooled 2021 + 2022): world start + 500 steps beats own + 500 in all 6 runs (wins 4/4/4 NM/TX, 3/3/4 Denver; -0.7 to -2.5 %). Not adopted: third N2 variation, needs the user's go -> ASK_LATER.
-[ ] SIGMA stage 3 RUNNING (25c56ce, `gpu_sigma3.sh`: GPU fits now, evals after AV29; verdict `b20_sigma_stage3.py`; full suite still to run when RAM allows): NEST width 512, GPU, N6's rule (CHORUS stage 2 not triggered: CHORUS stage 1 MISS).
+[x] SIGMA stage 3 NEST **MISS** 2026-11-13 18:35: better than binned at every lead, all 20 intervals < 0 (-0.5 to -2.1 % at 1-7 d, -3.7 to -4.7 % beyond 7.5 d), but < 1 % at NM/TX 3-5 d and cov99 ~0.01 low at 1-3 d. Not adopted. [ ] AV30 logged (NEST + Student-t noise, same rule, ~1.5 h GPU).
 
 **NEW 2-DAY PLAN (2026-11-10, not started): `New_Plan.md` in the repo root merges `Innovative idea review.md`, `Limitations to solve.md` and the open list of handover section 14.4 into parallel lanes (1 GPU, 3 CPU, 1 download) for 48 h. The status lines below are from Nov 7-8 and are older than that plan.**
 
