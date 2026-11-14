@@ -60,6 +60,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=200)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--report", default="b4_two_neighbours", help="log name (AV7 writes its own log; default = as before)")
     a = ap.parse_args()
     from tempest_weather_v2 import obs as O
     from tempest_weather_v2 import sitecal
@@ -121,7 +122,7 @@ def main():
         lines.append(f"  merged minus best single ({best}) {dm:+.3f} [{dlo:+.3f}, {dhi:+.3f}], merged coverage {cov:.2f}  {'ok' if ok else 'fail'}")
     lines.append("Rule (pre-set): merged CRPS better than the best single neighbour, interval excludes 0, coverage >= 0.80; both targets, both seeds.")
     lines.append("Seed verdict: " + ("PASS (needs the other seed)" if verdict else "FAIL -> O1 closed; observe_latest keeps one station"))
-    K.report("b4_two_neighbours", lines)
+    K.report(a.report, lines)
 
 
 def _selfcheck():
