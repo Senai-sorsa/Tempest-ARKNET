@@ -9,6 +9,8 @@ Rule written 2026-11-14 before any AV21 run (New_Plan 13 AV21 row, unchanged):
 PASS: Denver zero-shot at or above -0.088 (half the gap) with NM/TX within 0.0009 (mean skill15 >= p2f - 0.0009) and shape not FAIL.
 KILL: NM/TX worse by more than 0.0015.
 Otherwise MISS: record, no adoption (a model change needs the user in any case).
+Correction 2026-11-14 15:10 (reading the result only, rule unchanged): compare_shape.py exits 1 on a shape FAIL, which check=True turned into a crash
+(AV20 first verdict run 15:01:53); the exit code 0 / 1 is now accepted and the SHAPE RESULT line is read as before.
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/b56_av21_anom.py
 Result: docs/results/logs/kit_b56_av21_anom.log
 """
@@ -41,8 +43,10 @@ def main():
     _, s_n = compare(pd.read_csv(p("generator_80_p2f_cal2021_headline.csv")), pd.read_csv(p("av21_cal2021_headline.csv")), tol=TOL)
     d_nmtx = s_n["mean_skill15_new"] - s_n["mean_skill15_base"]
     lines.append(f"  NM/TX mean skill15: p2f {s_n['mean_skill15_base']:+.4f}, AV21 {s_n['mean_skill15_new']:+.4f} ({d_nmtx:+.4f})")
-    sh = subprocess.run([sys.executable, os.path.join(K.REPO, "scripts", "compare_shape.py"), p("generator_80_p2f_shape_diag.csv"), p("av21_shape_diag.csv"),
-                         "--noise", p("generator_80_p2f_s1_shape_diag.csv"), p("generator_80_p2f_s2_shape_diag.csv")], capture_output=True, text=True, check=True).stdout
+    run = subprocess.run([sys.executable, os.path.join(K.REPO, "scripts", "compare_shape.py"), p("generator_80_p2f_shape_diag.csv"), p("av21_shape_diag.csv"),
+                         "--noise", p("generator_80_p2f_s1_shape_diag.csv"), p("generator_80_p2f_s2_shape_diag.csv")], capture_output=True, text=True)
+    assert run.returncode in (0, 1), run.stderr   # compare_shape exits 1 on a shape FAIL
+    sh = run.stdout
     res = [ln for ln in sh.splitlines() if ln.startswith("SHAPE RESULT")]
     assert len(res) == 1, sh
     lines += ["  shape vs p2f:"] + ["    " + ln for ln in sh.splitlines()[-6:]]
