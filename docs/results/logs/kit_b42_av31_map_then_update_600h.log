@@ -1,0 +1,59 @@
+2026-11-14 04:31 S1 map first, update second: test 2023-25, 08-20 local, report 1 h old, 600 hours per target, map from 120 prior hours per cell (2015-22), seed 0
+TCS: map 08-11/cool 0.947, 08-11/warm 0.992, 12-15/cool 0.993, 12-15/warm 1.098, 16-20/cool 0.942, 16-20/warm 1.211
+  600 test hours, 0 skipped
+  no report -      n  600  CRPS 1.540  coverage 0.79
+  no report map -  n  600  CRPS 1.469  coverage 0.82
+  own       A      n  600  CRPS 1.044  coverage 0.81
+  own       B      n  600  CRPS 1.044  coverage 0.81
+  own       map A  n  600  CRPS 1.040  coverage 0.83
+  own       map B  n  600  CRPS 1.040  coverage 0.83  minus B -0.004 [-0.014, +0.006]  ok
+  LRU       A      n  517  CRPS 1.457  coverage 0.80
+  LRU       B      n  517  CRPS 1.457  coverage 0.80
+  LRU       map A  n  517  CRPS 1.421  coverage 0.82
+  LRU       map B  n  517  CRPS 1.421  coverage 0.82  minus B -0.036 [-0.057, -0.017]  ok
+MAF: map 08-11/cool 1.063, 08-11/warm 1.145, 12-15/cool 0.857, 12-15/warm 1.003, 16-20/cool 0.850, 16-20/warm 1.081
+  600 test hours, 0 skipped
+  no report -      n  600  CRPS 1.535  coverage 0.90
+  no report map -  n  600  CRPS 1.475  coverage 0.91
+  own       A      n  600  CRPS 0.922  coverage 0.92
+  own       B      n  600  CRPS 0.922  coverage 0.92
+  own       map A  n  600  CRPS 0.903  coverage 0.93
+  own       map B  n  600  CRPS 0.903  coverage 0.93  minus B -0.019 [-0.030, -0.007]  ok
+  PEQ       A      n  340  CRPS 1.439  coverage 0.88
+  PEQ       B      n  340  CRPS 1.439  coverage 0.88
+  PEQ       map A  n  340  CRPS 1.417  coverage 0.89
+  PEQ       map B  n  340  CRPS 1.417  coverage 0.89  minus B -0.022 [-0.047, +0.002]  ok
+Seed verdict: pairs PASS (needs the other seed and the factor check)
+
+2026-11-14 05:45 S1 map first, update second: test 2023-25, 08-20 local, report 1 h old, 600 hours per target, map from 120 prior hours per cell (2015-22), seed 1
+TCS: map 08-11/cool 0.952, 08-11/warm 0.994, 12-15/cool 0.992, 12-15/warm 1.076, 16-20/cool 0.956, 16-20/warm 1.233
+  600 test hours, 0 skipped
+  no report -      n  600  CRPS 1.670  coverage 0.80
+  no report map -  n  600  CRPS 1.606  coverage 0.83
+  own       A      n  600  CRPS 1.085  coverage 0.83
+  own       B      n  600  CRPS 1.085  coverage 0.83
+  own       map A  n  600  CRPS 1.079  coverage 0.84
+  own       map B  n  600  CRPS 1.079  coverage 0.84  minus B -0.006 [-0.020, +0.007]  ok
+  LRU       A      n  510  CRPS 1.542  coverage 0.81
+  LRU       B      n  510  CRPS 1.542  coverage 0.81
+  LRU       map A  n  510  CRPS 1.508  coverage 0.82
+  LRU       map B  n  510  CRPS 1.508  coverage 0.82  minus B -0.034 [-0.054, -0.014]  ok
+MAF: map 08-11/cool 1.057, 08-11/warm 1.163, 12-15/cool 0.873, 12-15/warm 1.010, 16-20/cool 0.846, 16-20/warm 1.065
+  600 test hours, 0 skipped
+  no report -      n  600  CRPS 1.472  coverage 0.91
+  no report map -  n  600  CRPS 1.441  coverage 0.92
+  own       A      n  600  CRPS 0.910  coverage 0.93
+  own       B      n  600  CRPS 0.910  coverage 0.93
+  own       map A  n  600  CRPS 0.890  coverage 0.94
+  own       map B  n  600  CRPS 0.890  coverage 0.94  minus B -0.020 [-0.031, -0.011]  ok
+  PEQ       A      n  338  CRPS 1.390  coverage 0.89
+  PEQ       B      n  338  CRPS 1.390  coverage 0.89
+  PEQ       map A  n  338  CRPS 1.387  coverage 0.89
+  PEQ       map B  n  338  CRPS 1.387  coverage 0.89  minus B -0.003 [-0.029, +0.023]  ok
+Factor stability vs seed 0: largest cell gap 0.022 (ok, rule <= 0.05)
+Rule (pre-set): map + B coverage >= 0.80 at every pair, CRPS(map + B) - CRPS(B) <= +0.0009 at every pair, both seeds; factors within 0.05.
+VERDICT (both seeds now on file; read the other seed's rows too): this seed PASSES and factors are stable
+
+2026-11-14 05:45 AV31 rule (pre-set): PASS = map + B coverage >= 0.80 and CRPS minus B <= +0.0009 at every pair, both seeds, factor gap <= 0.05; KILL = gap > 0.05.
+AV31 verdict: PASS
+
