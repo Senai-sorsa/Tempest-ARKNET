@@ -1,0 +1,11 @@
+2026-11-14 12:38 AV35 AV16 + damped 5-12 km balloon shear map (damp 0.5): 2623 balloons 2021-22 (EPZ + MAF, 00Z + 12Z), installed tool, climate mode
+shear (m/s per km) p50 / p99 / p99.9 by band: tool | tool + map | balloons
+  0-1 km   13.9/68.0/96.4 | 13.9/68.0/96.4 | 11.7/75.4/109.9
+  1-5 km   5.6/22.7/33.5 | 5.6/22.7/33.5 | 6.0/24.1/37.3
+  5-12 km  5.0/19.0/27.8 | 5.0/20.9/30.7 | 5.4/21.6/31.7
+  12-18 km 6.8/24.6/34.7 | 7.5/29.1/39.0 | 9.3/28.5/38.5
+  CRPS u+v change: all heights +0.026 %, 5-12 km +0.012 %, 12-18 km +0.071 %
+  heights below 5 km bit-identical: True
+AV35 rule (pre-set): PASS = 5-12 km and 12-18 km p99 within 10 % of 2021-22 balloons, below 5 km bit-identical, CRPS within 0.1 %; KILL = 5-12 or 12-18 km CRPS worse > 0.1 %; else MISS.
+AV35 verdict: PASS (p99 / balloons 5-12 km 0.969, 12-18 km 1.021, lower bands identical, CRPS +0.026 %)
+
