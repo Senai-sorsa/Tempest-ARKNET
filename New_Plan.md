@@ -300,6 +300,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | AV30 NEST + Student-t noise (New_Plan 13; `il6_modeF.py --sigma --nest --noise-t-dims 8 --noise-t-nu 4`, opt-in, default off; `scripts/gpu_av30.sh`; `new_plan_kit/b21_av30_nest_t.py`, rule in its header before the run: stage 3's rule unchanged) | **MISS by the pre-set rule** 2026-11-13 20:17. Change vs binned at 1 / 3 / 5 / 7 d (beyond 7.5 d): NM/TX s0 -2.4 / -1.4 / -0.9 / -1.4 (-4.0) %, s1 -1.8 / -1.2 / -0.8 / -1.0 (-3.6) %; Denver s0 -2.5 / -1.5 / -1.6 / -1.7 (-4.7) %, s1 -2.1 / -1.7 / -1.5 / -1.9 (-4.5) %; all 20 intervals below 0. Fails the same two clauses as NEST: under 1 % at NM/TX 5 d (both seeds) and cov99 (-0.012 at 1 d, -0.008 to -0.009 at 3 d, +0.019 to +0.020 at 7 d, unchanged from NEST). Vs NEST: -0.5 to -0.6 % at 1 d in 3 of 4 runs, else within +-0.7 % | Not adopted. The heavier noise tails did not move cov99 at all, so the short-lead under-coverage is not a noise-shape problem (likely the s table / PIT step); no further NEST variation logged (AV30 was the one variation) | `docs/results/logs/kit_b21_av30_nest_t.log` |
 | AV7 O1 two neighbours again (New_Plan 13; `new_plan_kit/b22_av7_two_neighbours.py` running `b4_two_neighbours.py --n 600`, seeds 2 and 3; rule in its header before the run: O1's rule unchanged) | **PASS by the pre-set rule** 2026-11-13 21:05. Merged report minus best single neighbour: TCS (LRU + ONM, map on) -0.063 [-0.108, -0.020] / -0.066 [-0.098, -0.034], coverage 0.81 / 0.81; ELP (LRU + ALM) -0.042 [-0.066, -0.019] / -0.043 [-0.073, -0.014], coverage 0.84 / 0.86 (seed 2 / 3; 427-472 hours each, 0 skipped). With 600 h the intervals all exclude 0 (O1 at 200 h: 1 of 4). Caution: TCS merged coverage 0.81 sits just above the 0.80 bar (single neighbours 0.84); first variation of O1 | Not adopted yet: shipping means `observe_latest` merges the two best stations (a tool change) -> ASK_LATER 31 | `docs/results/logs/kit_b22_av7_two_neighbours.log` |
 | AV8 S1 map first, update second again (New_Plan 13; `new_plan_kit/b23_av8_map_then_update.py` running `b4_debias_then_update.py --fit 120 --drop ONM,FST,ABQ`, seeds 0 and 1; rule in its header before the run: S1's rule unchanged) | **MISS by the pre-set rule** 2026-11-13 22:16. Factor gap between seeds 0.029 (S1: 0.086; rule 0.05) and coverage >= 0.80 at every pair in both seeds (TCS own seed 1 exactly 0.80). Map + B minus B, seed 0 / 1: TCS own +0.002 [-0.025, +0.029] (fail, bar +0.0009) / -0.010; TCS LRU -0.055 [-0.090, -0.024] / -0.059 [-0.095, -0.026]; MAF own -0.008 / -0.024 [-0.041, -0.009]; MAF PEQ -0.030 / -0.010. The only failed clause is one own-report point estimate inside its noise | Not adopted. Benefit shown (7 of 8 better, stable factors) -> one more variation logged: AV31 (same with 600 test hours) | `docs/results/logs/kit_b23_av8_map_then_update.log` |
+| AV9 O4 analog tail fix, upward shift only (New_Plan 13; `new_plan_kit/b39_av9_analog_up_only.py` running `b4_analog_tail.py --up-only`; the analog has no seed, so odd / even test days are the two replicates; rule in its header before the run) | **KILL by the pre-set rule** 2026-11-13 22:58. Coverage still falls by more than 0.02 at TCS: 0.89 -> 0.85 (odd days) / 0.84 (even). MAF 0.92 -> 0.90 / 0.91. CRPS is better everywhere (TCS -0.018 [-0.025, -0.012], MAF -0.027 [-0.033, -0.020], every half < 0); strong-wind under-prediction TCS 2.44 -> 2.09, MAF 1.87 -> 1.36 m/s. So the coverage loss is not the 0 m/s floor: the upward shift itself moves the TCS band off the calm hours | Closed; the plain analog stays the referee. No further variation (KILL) | `docs/results/logs/kit_b39_av9_analog_up_only.log` |
 | AU-10 above_top "climatology" (New_Plan 15.3; `tempest_weather_v2/readers.py`) | DONE 2026-11-13: docstring corrected ("climatology" is an alias of "hold": T and p continue from the top value along the standard lapse rates; no true standard-atmosphere switch, it would put a jump at the top). No number changes. Test: the two policies return identical air and wind arrays below, at and up to 30 km above the top. |
 | AU-17 Launch.stale naive time (New_Plan 15.3; `tempest_weather_v2/launch.py`) | DONE 2026-11-13 (bug fix, on): a naive `now` is taken as UTC (it raised TypeError). Test: naive 1 h and 7 h after creation give False / True. |
 
@@ -1761,3 +1762,69 @@ as it is, with no distance term.
 
 Stay opt-in for good (they suit some sites only): `Launch(past_wind_spread=1.2)` (airport-like
 sites), `below_10m="loglaw"` (rails under about 3 m).
+
+### 17.5 Code for 17.1-17.4: what exists and how to run it (added 2026-11-13 evening; code written and self-checked, no experiment run)
+
+Every rule above is copied into the header of its verdict script (written before any result, as always). New code only: every new flag is
+off by default; edited files keep their old behaviour without the flag (checked: see "Verified" at the end). Commands run from the repo root in
+Git Bash; kit scripts need `PYTHONPATH=".;new_plan_kit;scripts"`. Runners follow the usual pattern (`. scripts/cap_cpu.sh`, one Mode F
+evaluation at a time with a free-RAM wait, a `[TAG]` line per run in `data/l3.log`, finished files kept on a rerun). Launch with
+`nohup bash scripts/<runner>.sh &`. Results land in `docs/results/logs/kit_<name>.log`.
+
+| ID | Inputs to make first | Runner (heavy part) | Verdict script | Cost |
+|---|---|---|---|---|
+| UR7 | none (reads `models/modeF_n5_*_eval.csv`) | none | `new_plan_kit/b24_ur7_sigma_cov.py` | seconds |
+| UR1 | member files of the existing binned / SIGMA / NEST networks, 2022 and 2021 | `scripts/cpu_ur1_members.sh` (24 evaluations, no training; writes `data/kit/ur_members/` and `_mem` stems) | `b25_ur1_tailcal.py` | ~8 h CPU/GPU, then ~30 min |
+| UR2 st. 3 | UR1's member files | `scripts/gpu_ur2_stage3.sh` (NEST seed 2, world SIGMA-NEST per seed, 500-step fine-tunes, own + 500 control) | `b26_ur2_stack.py --stage 3` | ~1.5 h GPU fits + ~20 evaluations |
+| UR2 st. 4-5 | the stage 3 verdict (sets BASE) | `BASE=nest MIX=0 STAGES="4 5" bash scripts/gpu_ur2_stage45.sh` (builds the mixed rows with `scripts/ur2_mix_rows.py` if missing) | `b26_ur2_stack.py --stage 4 --base nest`, then `--stage 5 --base nest --mix 0` | rows 1-2 h CPU per box; ~2 x 12 fits + evaluations |
+| UR3 | none | none | `b27_ur3_gridpoint.py [--parts a,b,c]` | (a) 10 min, (c) 20 min, (b) 30-60 min and several GB |
+| UR4 | none | none | `b28_ur4_first10.py [--form offset]` | ~20-40 min |
+| UR5 | none | none | `b29_ur5_calm_window.py --step 0`, then `--step 1` | ~1 h + 1-2 h |
+| UR6 | none | none | `b30_ur6_tropopause.py --step 0`; `--step 1` only if step 0 passes (after UR11) | minutes; step 1 ~2-3 h |
+| UR8 | none | `scripts/gpu_ur8_control.sh` (`n1_crossfit.py --same-fold 0`, seeds 0 / 100, then the N1 scores) | `b31_ur8_control.py` | ~1 h GPU + ~2 h scoring |
+| UR9 | none | none | `b32_ur9_il207b_seed2.py` | ~30 min |
+| UR10 | none | none | `b33_ur10_radar_t.py` | 30-60 min |
+| UR11 | none | none | `b34_ur11_rh_line.py` | 20-40 min |
+| UR12 | `scripts/ur2_mix_rows.py nmtx` and `denver` (also UR2 stage 4's rows) | none | `b35_ur12_beta_signal.py` | rows 1-2 h per box; verdict 30-60 min |
+| UR14 | AV7 and AV8 verdicts | none | `b36_ur14_obs_stack.py` | ~3 h CPU |
+| UR15 / UR13 | the download: `scripts/ur15_opendata.py fetch nmtx --with-older` (`--smoke` first; same for `denver`), then `rows nmtx` / `rows denver` | `scripts/cpu_ur15_eval.sh` | `b37_ur15_third_period.py --gate`, then without `--gate` | ~46 GB per box with --with-older (~26 GB without; inside the 50 GB budget), hours over the network; ~25 evaluations |
+
+**UR15 changed source (found while building, 2026-11-13).** The WeatherBench 2 HRES archive ends 2022-12 and no 2023-24 copy was found;
+Open-Meteo's archive of past runs refuses every pressure-level variable (tested: surface only). The source is now ECMWF open data on AWS
+(the operational IFS run, free, no account, from 2023-01-18): 00Z starts every 4th day, steps 24 / 72 / 120 / 168 / 216 h (lead bins
+1 / 3 / 5 / 7 and day 9), and with `--with-older` the 12Z run 36 h earlier (UR13, as CHORUS stage 1). So the period is 2023-24 as planned.
+Limits, written into the scripts before any result: 9 pressure levels instead of 13 and a 0.4 deg grid (nearest grid point). End-to-end check
+on one forecast (2023-06-02, 16 rows): 1-day errors below 12 km near the WB2 rows (T 0.6-1.5 K vs 0.4-1.1 K), but 12-18 km far off
+(T 3.4 K vs 0.5 K) because there is no 150 / 100 hPa level and the profile is interpolated across the tropopause. Therefore every UR15
+score, interval and the gate use only the 12 cells below 12 km (set now, before any result); 12-18 km is printed as information.
+`b37 --gate` must pass (raw error below 12 km grows with lead; 1-day size within 30 % of the 2022 WB2 rows) before any UR15 verdict is
+read. On one sample day the whole-profile error was 1.55 x WB2's: the gate may still fail; that is what it is for.
+
+**New code, by file.**
+- `tempest/forecast/tailcal.py` (UR1): fit / apply / save / load of the tail table; uses the scorer's own order-statistic ranges, so the 90 %
+  range is exactly unchanged and member ranks never change. Nothing in the tool calls it yet; an opt-in step would load a table from
+  `data/kit/ur1_tail_*.npz` (written by b25).
+- `tempest/forecast/sigma.py`: `fit(d, ens_scale=False)`; with `True` (UR2 stage 5) s is scaled by the ensemble spread, held to 0.8-1.5.
+- `tempest/calibrate/tropo.py` (UR6): lapse-rate tropopause finder, tropopause-relative quantile map.
+- `scripts/il6_modeF.py`, new opt-in flags: `--save-members FILE`, `--stem-suffix SFX`, `--test-file FILE` (UR15), `--sigma-ens-scale`, and
+  `--sigma` together with `--fit-rows-dir` (UR2 stage 3: world tables for the world fit, box tables for evaluation), `--save-cell-rows`
+  (UR15: per-row scores of the 16 cells, so a band can be left out).
+- `scripts/n1_crossfit.py --same-fold F` (UR8 control).
+- `scripts/ur2_mix_rows.py` (UR2 stage 4 rows, UR12 signals), `scripts/ur15_opendata.py` (UR15 download `fetch`, `rows`, and `mix` for UR13).
+- `scripts/change_now_status.py` (17.4): prints where the three "change now" defaults stand, the one edit that flips each, and the latest
+  verdict line of every held item. Read-only. The flips themselves are one-line edits, left for the user's go.
+- `new_plan_kit/ur_common.py` (shared helpers), `b24`-`b37` (verdicts), `tests/test_ur_kit.py` (7 tests).
+
+**Known demanding clause (self-check, synthetic data, not a result).** In UR4 a station near the regional value can lose ~0.08 CRPS at
+n = 10 days while the method gains on average, so the pre-set "no station worse by more than 0.03" clause may decide UR4. The rule is unchanged.
+
+**UR7 measured (2026-11-13, b24, no new run).** SIGMA stage 2's 99 % range is 0.976-0.983 at every lead in all 4 box x seed runs (NEST
+0.978-0.984; binned 0.991-0.993 at 1 d falling to 0.958-0.963 at 7 d and 0.930-0.935 beyond 7.5 d; climate pool 0.988-0.991). By the
+reading set in 17.2: SIGMA waits for UR1 before any export.
+
+**Verified (2026-11-13).** `tests/test_ur_kit.py` 7 passed and `tests/test_sigma.py` 7 passed. `scripts/il6_modeF.py` without the new
+flags gives byte-identical `_eval.csv` and `_rows.npz` to the committed version (tiny run, one thread, plain and `--sigma`). Smoke runs of
+`--save-members` + `--stem-suffix`, `--test-file`, `--sigma --fit-rows-dir` (world fit, 644,571 rows), the world network's evaluation,
+the fine-tune from it, and `--sigma-ens-scale` all ran. Every kit script's self-check passes on import. `ur15_opendata.py` was checked end to
+end on one real forecast (fetch, assemble, rows, older run across a month boundary). Not run: any experiment except UR7, any full-size job.
+The full test suite was not re-run (the loop's AV8 job was running); run it before any adoption.

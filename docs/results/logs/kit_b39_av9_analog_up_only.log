@@ -1,0 +1,19 @@
+2026-11-13 22:58 O4 analog tail fix: library 2015-23, test 2024-25, K = 40, fix = analog speed + (ERA5 10 m speed now - analogs' mean ERA5 10 m speed)
+TCS: 9756 test hours, 1152 with obs >= 8 m/s
+  plain analog  CRPS 1.010  coverage 0.89  strong-wind under-prediction 2.44 m/s
+  gap fix       CRPS 0.992  coverage 0.85  strong-wind under-prediction 2.09 m/s
+  fix minus plain CRPS -0.0182 [-0.0247, -0.0121]; under-prediction ratio 0.85  fail
+  half odd days  fix minus plain CRPS -0.0172 [-0.0255, -0.0092]  coverage 0.89 -> 0.85
+  half even days fix minus plain CRPS -0.0193 [-0.0297, -0.0101]  coverage 0.89 -> 0.84
+MAF: 10427 test hours, 1668 with obs >= 8 m/s
+  plain analog  CRPS 0.829  coverage 0.92  strong-wind under-prediction 1.87 m/s
+  gap fix       CRPS 0.802  coverage 0.91  strong-wind under-prediction 1.36 m/s
+  fix minus plain CRPS -0.0267 [-0.0334, -0.0201]; under-prediction ratio 0.73  fail
+  half odd days  fix minus plain CRPS -0.0246 [-0.0328, -0.0168]  coverage 0.92 -> 0.90
+  half even days fix minus plain CRPS -0.0289 [-0.0408, -0.0188]  coverage 0.92 -> 0.91
+Rule (pre-set): under-prediction at >= 8 m/s at most half of plain AND CRPS fix minus plain <= +0.0009, at TCS and MAF.
+VERDICT: FAIL -> the plain analog stays the referee; tail bias recorded as a known limit of the referee
+
+2026-11-13 22:58 AV9 rule (pre-set): PASS = interval < 0 and coverage drop <= 0.02 at TCS and MAF in odd and even days; KILL = a drop > 0.02.
+AV9 verdict: KILL
+
