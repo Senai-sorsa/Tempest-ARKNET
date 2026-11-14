@@ -1,0 +1,13 @@
+2026-11-13 23:39 AV11 past-mode 10 m spread x1.2 vs x1.0 at the airports (past + ERA5 anchor), 2019-22, local 10-18 h, 120 hours each, seed 0
+TCS: 120 hours, 0 skipped; x1.0 CRPS 1.142 cov 0.75 | x1.2 CRPS 1.130 cov 0.80 | x1.2 minus x1.0 -0.0124 [-0.0401, +0.0165]  neutral
+ONM: 0 hours, 361 skipped -> not servable (first: ValueError("(34.0225, -106.9031) is outside the trained area {'lat': (31.0, 34.0)
+LRU: 120 hours, 0 skipped; x1.0 CRPS 1.108 cov 0.76 | x1.2 CRPS 1.132 cov 0.78 | x1.2 minus x1.0 +0.0237 [+0.0032, +0.0442]  worse
+ELP: 120 hours, 0 skipped; x1.0 CRPS 1.192 cov 0.71 | x1.2 CRPS 1.193 cov 0.76 | x1.2 minus x1.0 +0.0012 [-0.0214, +0.0236]  worse
+ALM: 120 hours, 0 skipped; x1.0 CRPS 1.147 cov 0.72 | x1.2 CRPS 1.135 cov 0.77 | x1.2 minus x1.0 -0.0121 [-0.0423, +0.0161]  neutral
+MAF: 120 hours, 0 skipped; x1.0 CRPS 0.958 cov 0.82 | x1.2 CRPS 0.928 cov 0.91 | x1.2 minus x1.0 -0.0293 [-0.0500, -0.0099]  better
+FST: 0 hours, 361 skipped -> not servable (first: ValueError("(30.9157, -102.9163) is outside the trained area {'lat': (31.0, 34.0)
+PEQ: 120 hours, 0 skipped; x1.0 CRPS 1.124 cov 0.72 | x1.2 CRPS 1.143 cov 0.74 | x1.2 minus x1.0 +0.0186 [-0.0008, +0.0356]  worse
+ABQ: 0 hours, 361 skipped -> not servable (first: ValueError("(35.0402, -106.6092) is outside the trained area {'lat': (31.0, 34.0)
+Rule (pre-set): PASS = every servable airport x1.2 minus x1.0 interval < 0 (USCRN sites 1.0, change 0); KILL = any airport > +0.0009.
+AV11 verdict: KILL
+
