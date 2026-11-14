@@ -1,0 +1,9 @@
+2026-11-14 14:08 MAF ASOS + USM00072265 balloons: 5132 matched launches 2016-23 with blh, gated (blh >= 1000 m) 1332 (UTC hours: 00Z 1276, 12Z 20, 18Z 30, 19Z 2, 20Z 3, 21Z 1); test 2021-23 gated 508, outside 1409
+  median blh gated 1902 m, not gated 308 m; mean speed aloft (test, gated) 8.23 m/s
+  MAE ws10 1.940 -> ws10 + gust excess 1.797 m/s; gain +7.37 % (95 % interval +3.75 to +11.30); coefficients b [-0.932  1.063  0.806]
+ELP ASOS + USM00072364 balloons: 4548 matched launches 2016-23 with blh, gated (blh >= 1000 m) 1557 (UTC hours: 00Z 1534, 12Z 17, 18Z 5, 20Z 1); test 2021-23 gated 490, outside 1040
+  median blh gated 2632 m, not gated 124 m; mean speed aloft (test, gated) 7.33 m/s
+  MAE ws10 2.262 -> ws10 + gust excess 2.141 m/s; gain +5.31 % (95 % interval +1.74 to +8.92); coefficients b [-0.125  0.966  0.64 ]
+AV36 rule (pre-set): PASS = MAF gated gain >= 2 % with interval > 0 AND ELP / EPZ gated gain > 0; KILL = MAF gated gain < 1 %; else MISS.
+AV36 verdict: PASS (MAF gated gain +7.37 % [+3.75, +11.30], second station +5.31 %)
+
