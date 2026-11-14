@@ -44,6 +44,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--start", choices=("none", "il207b"), default="none", help="il207b (AV10): start from the IL-207b cell factor; base arm = that factor alone")
     ap.add_argument("--report", default="b4_launch_week_replay")
+    ap.add_argument("--alpha", type=float, default=ALPHA, help="decay step per day (AV32: 1/60)")
     a = ap.parse_args()
     from b3_il207b_site_shift import cell_of
     base = "no factor" if a.start == "none" else "IL-207b alone"
@@ -52,7 +53,7 @@ def main():
     K.ram_gate(4.0)
     rng = np.random.default_rng(a.seed)
     arms = ("no factor",) + ((base,) if a.start != "none" else ()) + tuple(f"k={k}" for k in KS)
-    lines = [f"O3 launch-week factor: start {'1.0 (no S2 shape)' if a.start == 'none' else 'IL-207b cell factor'}, alpha 1/30 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, {a.n} days per site, seed {a.seed}"]
+    lines = [f"O3 launch-week factor: start {'1.0 (no S2 shape)' if a.start == 'none' else 'IL-207b cell factor'}, alpha 1/{1 / a.alpha:.0f} per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, {a.n} days per site, seed {a.seed}"]
     verdict = True
     for st, tz in SITES.items():
         z = ZoneInfo(tz)
@@ -92,7 +93,7 @@ def main():
                     out[base] = score(speed10(Launch(lat, lon, when, tz="UTC", n=200, seed=seed, units="si", elevation=elev, mode="ai",
                                                      site_cal={"method": "ratio", "ratio": f0})), y)
                 for k in KS:
-                    f = decay(rs[-k:], start=f0)
+                    f = decay(rs[-k:], start=f0, alpha=a.alpha)
                     facs[k].append(f)
                     out[f"k={k}"] = score(speed10(Launch(lat, lon, when, tz="UTC", n=200, seed=seed, units="si", elevation=elev, mode="ai",
                                                          site_cal={"method": "ratio", "ratio": f})), y)
