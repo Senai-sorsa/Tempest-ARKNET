@@ -27,7 +27,7 @@ import zipfile
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator, afcrps, energy_score, make_generator
+from tempest.generator.model import ANOM_COLS, Generator, afcrps, energy_score, fit_anom_table, make_generator
 from tempest.generator.sample import standard_pressure
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -63,6 +63,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 noise_t_head=0, noise_t_clip=8.0,                   # Gemini idea 1b: the first K t numbers also scale a zero-init output head (past the layer norms)
                 jump_k=0, jump_top=3000.0,
                 conv_c=0, conv_layers=3, conv_k=5,
+                anom_clim=False,            # AV21: learn standardised anomalies from a per-point harmonic climatology (model anom); False = off
                 nest_widths=None)           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
@@ -211,6 +212,15 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     if cfg["nest_widths"]:
         li = names.index("lead_days")
         model_kw["nest"] = dict(col=li, mu=float(cm[li]), sd=float(cs[li]), widths=[int(w) for w in cfg["nest_widths"]])
+
+    anom_tab = None
+    if cfg["anom_clim"]:                              # AV21: climatology fitted on the training-row sample `ref` only (no validation / test years)
+        ac = [names.index(k) for k in ANOM_COLS]
+        assert not set(ANOM_COLS) & set(cfg["ignore_inputs"]), "anom_clim needs the real lat / lon / doy / hour columns"
+        anom_tab = fit_anom_table(np.asarray(cond[ref][:, ac], np.float64), tref, 1e-3 * ts)
+        model_kw["anom"] = dict(cols=ac, mu=[float(cm[i]) for i in ac], sd=[float(cs[i]) for i in ac], P=len(anom_tab[0]),
+                                tm=[float(x) for x in tm], ts=[float(x) for x in ts])
+        log(f"anom_clim: harmonic climatology at {len(anom_tab[0])} points from {len(ref)} training rows")
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:
@@ -362,6 +372,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
                                linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {}),
                                **({"product_pairs": pp} if pp else {}), **model_kw).to(device)
+        if anom_tab is not None:
+            model.set_anom(*anom_tab)
         if init_ck:
             model.load_state_dict(init_ck[k % len(init_ck)]["state"])
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
