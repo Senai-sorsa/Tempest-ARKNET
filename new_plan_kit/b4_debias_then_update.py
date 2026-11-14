@@ -43,7 +43,11 @@ def main():
     ap.add_argument("--n", type=int, default=200)
     ap.add_argument("--fit", type=int, default=40, help="tool prior hours per cell for the map")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--drop", default="", help="AV8: comma list of neighbour stations to leave out (default none = as before)")
+    ap.add_argument("--report", default="b4_debias_then_update", help="log name; a non-default name also names the factor files (default = as before)")
     a = ap.parse_args()
+    drop = {s for s in a.drop.split(",") if s}
+    tag = "s1" if a.report == "b4_debias_then_update" else a.report
     from tempest_weather_v2 import obs as O
     from tempest_weather_v2.launch import Launch
     K.ram_gate(4.0)
@@ -72,7 +76,7 @@ def main():
         lines.append(f"{st}: map " + ", ".join(f"{c} {v:.3f}" for c, v in sorted(k.items())))
 
         own = K.asos_speed(st, range(2023, 2026))
-        nb = {s: v for s, v in neighbours(st).items() if s in PAIRS[st]}
+        nb = {s: v for s, v in neighbours(st).items() if s in PAIRS[st] and s not in drop}
         other = {s: K.asos_speed(s, range(2023, 2026)) for s in nb}
         res, days, skipped = {}, {}, 0
         for h in test_hours(own, tz, a.n, rng):
@@ -120,9 +124,9 @@ def main():
                 lines.append(f"  {nbr}: no usable reports -> counts as fail")
     os.makedirs(K.OUT, exist_ok=True)
     if not os.environ.get("KIT_SMOKE"):
-        with open(os.path.join(K.OUT, f"s1_factors_seed{a.seed}.json"), "w") as fh:
+        with open(os.path.join(K.OUT, f"{tag}_factors_seed{a.seed}.json"), "w") as fh:
             json.dump(factors, fh)
-    other_seed = os.path.join(K.OUT, f"s1_factors_seed{1 - a.seed}.json")
+    other_seed = os.path.join(K.OUT, f"{tag}_factors_seed{1 - a.seed}.json")
     if a.seed in (0, 1) and os.path.exists(other_seed):
         with open(other_seed) as fh:
             prev = json.load(fh)
@@ -133,7 +137,7 @@ def main():
         lines.append("VERDICT (both seeds now on file; read the other seed's rows too): " + ("this seed PASSES and factors are stable" if ok_all and ok_f else "FAIL -> S1 closed; keep B and the map as separate opt-ins"))
     else:
         lines.append("Seed verdict: " + ("pairs PASS (needs the other seed and the factor check)" if ok_all else "FAIL -> S1 closed (kill rule: a seed misses)"))
-    K.report("b4_debias_then_update", lines)
+    K.report(a.report, lines)
 
 
 def _selfcheck():
