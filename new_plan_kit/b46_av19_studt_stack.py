@@ -2,7 +2,9 @@
 + its own shear map + its own lapse map), which re-imposes the vertical correlation and shear on which it failed alone (vcorr_err 0.076 -> 0.109, shear KS).
 Base = the p2f generator (models/generator_80_p2f, trained on the same data/train/pilot80_dpd.npz) with ITS full stack: g80lm_lmap_s{0,1,2} (seed 0 is the paired base,
 seeds 1/2 give the shape-noise tolerance). studt's shear map and lapse map are fitted with p2f's recipe (shear_map --shuffle --full --template-cell 8; lapse_map after it).
-Denver zero-shot (data/train/denver_full_fill_dpd.npz, as the L3-26 retry): studt stack vs p2f stack, both scored here, seed 0. Runner: scripts/gpu_av19.sh.
+(Checked 2026-11-14: p2f's cell-8 map came from scripts/ap_il96.sh with exactly these flags on the same data; its lapse map from scripts/ap_g_lmap80.sh, same command.)
+Denver zero-shot (data/train/denver_full_fill_dpd.npz, as the L3-26 retry): studt stack vs p2f stack, both scored here, seed 0. One seed suffices: p2f Denver seeds 1/2
+differ from seed 0 by -0.0001 / -0.0003 (l3_p2fden_s* headlines), ~30x below the 0.01 bar. Runner: scripts/gpu_av19.sh.
 Rule written 2026-11-14 before any AV19 run (New_Plan 13 AV19 row, unchanged):
 PASS: NM/TX stack headline within the paired tolerance (studt mean skill15_unknown >= p2f stack seed 0 - 0.0009) AND shape not FAIL (scripts/compare_shape.py vs p2f stack
       seed 0, seed noise from seeds 1/2: no metric WORSE) AND Denver zero-shot gain over the base >= 0.01 (mean skill15_unknown, studt stack minus p2f stack).
