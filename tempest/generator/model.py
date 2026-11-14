@@ -110,7 +110,8 @@ class Generator(nn.Module):
         anom = dict(cols=[ANOM_COLS positions], mu=[6], sd=[6], P=points, tm=[n_out], ts=[n_out]) (AV21, L3-8 SAMOS): the network's output is read as a
           standardised anomaly z and mapped to the normalised target (mu_c + sd_c z - tm) / ts, where mu_c / sd_c are a per-point harmonic climatology
           (buffers anom_keys / anom_cmu / anom_clv, filled by set_anom from fit_anom_table; the point is the nearest table point to the row's lat / lon).
-          Swapping the table for another region's (scripts/av21_table.py) moves the climatology without retraining."""
+          Swapping the table for another region's (scripts/av21_table.py) moves the climatology without retraining.
+          anom mean_only = True (AV40): only mu_c is used, the anomaly is scaled by the training sd ts (the log-spread table is ignored)."""
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.geo = dict(geo) if geo else None
@@ -262,6 +263,8 @@ class Generator(nn.Module):
             p = d.argmin(1)
             X = anom_basis(raw[:, 2], raw[:, 3], raw[:, 4], raw[:, 5], torch)
             mu = torch.einsum("bk,bkd->bd", X, self.anom_cmu[p])
+            if self.anom.get("mean_only"):                              # AV40: climatology mean only, the spread stays the training sd ts
+                return (mu.unsqueeze(1) - self.anom_tm) / self.anom_ts + z.float()
             sd = torch.exp(0.5 * torch.einsum("bk,bkd->bd", X, self.anom_clv[p]).clamp(-60, 60))
             sd = torch.minimum(torch.maximum(sd, 0.05 * self.anom_ts), 10 * self.anom_ts)
             return ((mu.unsqueeze(1) + sd.unsqueeze(1) * z.float()) - self.anom_tm) / self.anom_ts

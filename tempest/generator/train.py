@@ -64,6 +64,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 jump_k=0, jump_top=3000.0,
                 conv_c=0, conv_layers=3, conv_k=5,
                 anom_clim=False,            # AV21: learn standardised anomalies from a per-point harmonic climatology (model anom); False = off
+                anom_mean_only=False,       # AV40: with anom_clim, use the climatology mean only (anomaly spread = training sd); False = AV21 mean + spread
                 nest_widths=None)           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
@@ -220,6 +221,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         anom_tab = fit_anom_table(np.asarray(cond[ref][:, ac], np.float64), tref, 1e-3 * ts)
         model_kw["anom"] = dict(cols=ac, mu=[float(cm[i]) for i in ac], sd=[float(cs[i]) for i in ac], P=len(anom_tab[0]),
                                 tm=[float(x) for x in tm], ts=[float(x) for x in ts])
+        if cfg["anom_mean_only"]:
+            model_kw["anom"]["mean_only"] = True
         log(f"anom_clim: harmonic climatology at {len(anom_tab[0])} points from {len(ref)} training rows")
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch

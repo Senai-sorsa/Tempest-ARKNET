@@ -70,3 +70,21 @@ def test_train_and_reload(tmp_path):
     model = make_generator("mlp", ck["n_cond"], ck["n_out"], c["noise_dim"], c["width"], c["depth"], linear_cols=ck.get("linear_cols"), **ck["model_kw"])
     model.load_state_dict(ck["state"])
     assert model.anom["P"] == 2 and float(model.anom_cmu.abs().sum()) > 0
+
+
+def test_mean_only_ignores_spread():
+    """AV40: anom mean_only maps z to (mu - tm) / ts + z, whatever the log-spread table holds."""
+    rng = np.random.default_rng(3)
+    c6, k, a, b = _rows(4000, rng)
+    y = np.column_stack([20 + 4 * k + (1 + 3 * k) * rng.standard_normal(len(k)), 5 * rng.standard_normal(len(k))])
+    tab = fit_anom_table(c6, y, np.array([1e-3, 1e-3]))
+    cm, cs, tm, ts = c6.mean(0), c6.std(0), y.mean(0), y.std(0)
+    g = Generator(6, 2, noise_dim=4, width=16, depth=1,
+                  anom=dict(cols=list(range(6)), mu=cm.tolist(), sd=cs.tolist(), P=2, tm=tm.tolist(), ts=ts.tolist(), mean_only=True))
+    g.set_anom(*tab)
+    full = torch.tensor((c6[:8] - cm) / cs, dtype=torch.float32)
+    z = torch.randn(8, 2, 2)
+    out = g._anom(full, z).numpy()
+    X = anom_basis(c6[:8, 2], c6[:8, 3], c6[:8, 4], c6[:8, 5], np)
+    mu = np.einsum("bk,bkd->bd", X, tab[1][1 - k[:8]])
+    assert np.allclose(out, (mu[:, None] - tm) / ts + z.numpy(), atol=1e-3)
