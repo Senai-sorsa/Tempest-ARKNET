@@ -1,0 +1,10 @@
+2026-11-14 13:11 AV15 shear target hybrid (c1 at 1-5 km, ratio 1.33 at 5-18 km): mean factor per band 1.00, 1.33, 1.33, 1.33; fit 1500 rows of 2021; FRESH test block 1200 balloons 2022 (EPZ + MAF, 00Z + 12Z)
+shear (m/s per km) p50 / p99 / p99.9: shipped maps | hybrid maps | balloons
+  0-1 km   13.9/68.2/96.6 | 13.9/66.4/92.0 | 12.0/80.5/117.6   p99 new / balloon 0.824
+  1-5 km   5.7/22.8/33.6 | 6.8/23.8/33.7 | 6.0/24.0/37.1   p99 new / balloon 0.994
+  5-12 km  5.0/19.1/28.0 | 5.7/25.3/38.0 | 5.4/21.8/30.0   p99 new / balloon 1.164
+  12-18 km 6.8/24.7/34.8 | 7.6/32.5/45.6 | 9.3/28.4/38.8   p99 new / balloon 1.147
+mean CRPS of u, v against balloons: shipped 4.4704, hybrid 4.4733 (+0.065 %)
+AV15 rule (pre-set): PASS = p99 new / balloon 0.90-1.10 in 1-5 and 5-12 km on the fresh block, CRPS not worse > 0.1 %; KILL = either band outside 0.85-1.15; else MISS.
+AV15 verdict: KILL (p99 new / balloon 1-5 km 0.994, 5-12 km 1.164: outside 0.85-1.15)
+
