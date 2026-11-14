@@ -24,6 +24,9 @@ SITES = {"TCS": "America/Denver", "MAF": "America/Chicago"}
 KS = (3, 7, 14)
 ALPHA = 1.0 / 30.0
 HIST_LOCAL = (9, 13, 17)
+# AV10 (--start il207b, opt-in): IL-207b per-cell factors, mean of its two hour seeds (fit 2021-22; TCS = sitecal.TCS_SPEED_FACTOR)
+IL207B = {"TCS": {"08-11/cool": 0.985, "08-11/warm": 1.015, "12-15/cool": 1.135, "12-15/warm": 1.135, "16-20/cool": 1.06, "16-20/warm": 1.29},
+          "MAF": {"08-11/cool": 1.13, "08-11/warm": 1.13, "12-15/cool": 0.89, "12-15/warm": 1.005, "16-20/cool": 0.86, "16-20/warm": 1.125}}
 
 
 def decay(ratios, start=1.0, alpha=ALPHA):
@@ -39,13 +42,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=150, help="test days per site")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--start", choices=("none", "il207b"), default="none", help="il207b (AV10): start from the IL-207b cell factor; base arm = that factor alone")
+    ap.add_argument("--report", default="b4_launch_week_replay")
     a = ap.parse_args()
+    from b3_il207b_site_shift import cell_of
+    base = "no factor" if a.start == "none" else "IL-207b alone"
     from tempest_weather_v2 import obs as O
     from tempest_weather_v2.launch import Launch
     K.ram_gate(4.0)
     rng = np.random.default_rng(a.seed)
-    arms = ("no factor",) + tuple(f"k={k}" for k in KS)
-    lines = [f"O3 launch-week factor: start 1.0 (no S2 shape), alpha 1/30 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, {a.n} days per site, seed {a.seed}"]
+    arms = ("no factor",) + ((base,) if a.start != "none" else ()) + tuple(f"k={k}" for k in KS)
+    lines = [f"O3 launch-week factor: start {'1.0 (no S2 shape)' if a.start == 'none' else 'IL-207b cell factor'}, alpha 1/30 per day, history at 09/13/17 local; one 08-20 local test hour per day, 2023-25, {a.n} days per site, seed {a.seed}"]
     verdict = True
     for st, tz in SITES.items():
         z = ZoneInfo(tz)
@@ -80,8 +87,12 @@ def main():
                 rs = [ratio(d - timedelta(days=j)) for j in range(max(KS), 0, -1)]      # oldest first
                 y, out = obs[h][0], {}
                 out["no factor"] = score(speed10(Launch(lat, lon, when, tz="UTC", n=200, seed=seed, units="si", elevation=elev, mode="ai")), y)
+                f0 = 1.0 if a.start == "none" else IL207B[st][cell_of(h, z)]
+                if a.start != "none":
+                    out[base] = score(speed10(Launch(lat, lon, when, tz="UTC", n=200, seed=seed, units="si", elevation=elev, mode="ai",
+                                                     site_cal={"method": "ratio", "ratio": f0})), y)
                 for k in KS:
-                    f = decay(rs[-k:])
+                    f = decay(rs[-k:], start=f0)
                     facs[k].append(f)
                     out[f"k={k}"] = score(speed10(Launch(lat, lon, when, tz="UTC", n=200, seed=seed, units="si", elevation=elev, mode="ai",
                                                          site_cal={"method": "ratio", "ratio": f})), y)
@@ -98,20 +109,21 @@ def main():
             verdict = False
             continue
         arr = {k: np.array(v) for k, v in res.items()}
-        lines.append(f"  no factor  CRPS {arr['no factor'][:, 0].mean():.3f}  coverage {arr['no factor'][:, 1].mean():.2f}")
+        for nm in arms[:len(arms) - len(KS)]:
+            lines.append(f"  {nm:<9}  CRPS {arr[nm][:, 0].mean():.3f}  coverage {arr[nm][:, 1].mean():.2f}")
         for k in KS:
             name = f"k={k}"
-            dm, dlo, dhi = K.block_boot(arr[name][:, 0] - arr["no factor"][:, 0], days, draws=1000)
-            cov, cov0 = arr[name][:, 1].mean(), arr["no factor"][:, 1].mean()
-            row = f"  {name:<9}  CRPS {arr[name][:, 0].mean():.3f}  coverage {cov:.2f}  minus no factor {dm:+.4f} [{dlo:+.4f}, {dhi:+.4f}]"
+            dm, dlo, dhi = K.block_boot(arr[name][:, 0] - arr[base][:, 0], days, draws=1000)
+            cov, cov0 = arr[name][:, 1].mean(), arr[base][:, 1].mean()
+            row = f"  {name:<9}  CRPS {arr[name][:, 0].mean():.3f}  coverage {cov:.2f}  minus {base} {dm:+.4f} [{dlo:+.4f}, {dhi:+.4f}]"
             if k == 7:
                 ok = dhi < 0 and round(cov, 2) >= round(cov0, 2)
                 verdict &= bool(ok)
                 row += "  ok" if ok else "  fail"
             lines.append(row)
-    lines.append("Rule (pre-set): k = 7 CRPS better than no factor (interval excludes 0) and coverage not lower, both sites, both seeds.")
+    lines.append(f"Rule (pre-set): k = 7 CRPS better than {base} (interval excludes 0) and coverage not lower, both sites, both seeds.")
     lines.append("Seed verdict: " + ("PASS (needs the other seed)" if verdict else "FAIL -> O3 closed"))
-    K.report("b4_launch_week_replay", lines)
+    K.report(a.report, lines)
 
 
 def _selfcheck():
