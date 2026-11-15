@@ -1,0 +1,9 @@
+2026-11-15 11:00 UR6 tropopause coordinate, step 0
+  step 0: 50607 soundings 1991-2025, tropopause found for 99.8%; median height 13500 m above the station
+  (i) T spread after removing station x month means, 1991-2020: fixed height 10 km 3.18, 11 km 3.63, 12 km 3.57, 13 km 3.11, 14 km 2.99, 15 km 3.22, 16 km 3.30 | from the tropopause -3 km 9.11, -2 km 8.32, -1 km 7.53, +0 km 7.11, +1 km 5.76, +2 km 5.33, +3 km 4.71 K; median fixed 3.22 vs median relative 7.11
+  (ii) 2021-25 minus 1991-2020: tropopause height +219 m; mean T change at fixed heights +0.71, +0.74, +0.66, +0.52, +0.44, +0.29, -0.00 K; at fixed distance from the tropopause -0.50, -0.33, -0.16, -0.06, +0.16, +0.05, -0.02 K
+  (ii) reading: a height shift if the relative-coordinate change is clearly smaller than the fixed-height change (|mean| 0.19 vs 0.48 K)
+      same physical level (fixed height vs the distance it typically has from the tropopause): 10 km 2.86, 11 km 2.51, 12 km 2.33, 13 km 2.42, 14 km 2.38, 15 km 1.79, 16 km 1.62
+  step 0 verdict (rule on the same-physical-level ratios): KILL (the coordinate adds nothing; UR6 and E4 close)
+Rule (pre-set, New_Plan 17.1): step 0 PASS = relative spread < 70 % of fixed-height spread at >= 3 levels, KILL = > 90 % at all; step 1 PASS = T 12-18 km skill +0.010 with interval > 0, RH 12-18 km cov99 >= 0.97, no band below 9 km changed, mean skill not worse by > 0.0009.
+

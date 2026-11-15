@@ -114,3 +114,4 @@ Processes to finish and check:
 - 2026-11-15 10:32 UR11 KILL (RH 5-18 km CRPS +17 %). Next: WD4/WD9 step 0, UR6 step 0 + E4 step 0.
 - 2026-11-15 10:50 WD4 b50 running (CPU): record verdict (measurement; follow-up only if q ratio > 1.15 at 4/6). Then WD9 step 0, UR6 step 0 + E4 step 0.
 - 2026-11-15 WD4 done (no follow-up; ABQ/FST no cells - optional check). Next: WD9 step 0, UR6 step 0 + E4 step 0.
+- 2026-11-15 UR6/E4 step 0 KILL (closed). WD9 step 0 deferred (needs new forecast-mode ASOS eval). Next: 1C UR8 (GPU, b31_ur8_control.py / scripts/gpu_ur8_control.sh), UR2 stage 3.
