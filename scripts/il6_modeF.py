@@ -58,6 +58,11 @@ ap.add_argument("--noise-t-dims", type=int, default=0, help="AV30 (Gemini idea 1
 ap.add_argument("--noise-t-nu", type=float, default=4.0)
 ap.add_argument("--sigma", action="store_true", help="SIGMA stage 2 (New_Plan 14.3): with --all-leads, fit on all leads with the target (truth - base) / s, base = climate + beta x forecast anomaly, beta and s tabled per lead day (tempest/forecast/sigma.py, from the fit rows); members = base + s x network. Off = as before")
 ap.add_argument("--rows-dir", default="data/modeF", help="F-V2: per-year rows (data/modeF_v2 or data/modeF_v2_denver from scripts/il6_build_v2.py); leads are grouped to 1 / 3 / 5 / 7 d by modeF.lead_bin, beyond 7.5 d dropped")
+ap.add_argument("--save-members", default="", help="UR1 / UR2 (New_Plan 17): also write this .npz with the test rows' members of 'network + PIT recal + range map + Schaake shuffle' (row median float32 + deviations float16), truth, lead bin, lead days and valid day, for the tail table (tempest/forecast/tailcal.py); empty = off (as before)")
+ap.add_argument("--save-cell-rows", action="store_true", help="UR15 (New_Plan 17): with --save-rows, also keep each test row's CRPS of the 16 variable x band cells (crps16) so a verdict can leave a band out; off = the rows file as before")
+ap.add_argument("--stem-suffix", default="", help="New_Plan 17: appended to the output stem (e.g. _mem), so a re-score never overwrites an earlier run's files; empty = as before")
+ap.add_argument("--test-file", default="", help="UR15 (New_Plan 17): score an EXISTING network on the rows of this .npz (same fields as a rows-dir year file) instead of --test-year; range map as for --test-year 2022 (fit on 2021); outputs get _tf<file stem>; empty = off")
+ap.add_argument("--sigma-ens-scale", action="store_true", help="UR2 stage 5 (New_Plan 17): with --sigma, scale s per row by the IFS-ensemble spread (rows need the `ens` field, e.g. data/modeF_ens): factor = ens sd / its fit-row median for that lead day, held to 0.8-1.5 (tempest/forecast/sigma.py); the ensemble never enters the network input; off = as before")
 ap.add_argument("--test-year", type=int, choices=(2021, 2022), default=2022, help="AV1 (New_Plan 13.1): 2021 = score on 2021 with the range map fit on 2022 (a year no network saw in fit or step choice); outputs get the suffix _t2021, so the 2022 tables stay. Default 2022 = as before")
 a = ap.parse_args()
 rng = np.random.default_rng(0)
@@ -71,8 +76,19 @@ for y, d_ in yrs.items():                                                    # F
 cat = lambda ys: {k: np.concatenate([yrs[y][k] for y in ys]) for k in yrs[2016]}
 assert 1 <= a.fit_years <= 4, "--fit-years 1-4"
 tr, cal, te = cat(range(2020 - a.fit_years, 2021)), cat([2021 if a.test_year == 2022 else 2022]), cat([a.test_year])
+if a.test_file:                                                              # UR15: external test rows (no training); default off = as before
+    assert a.test_year == 2022, "--test-file replaces --test-year (range map on 2021)"
+    _tf = dict(np.load(a.test_file))
+    _tf["lead_bin"] = F.lead_bin(_tf["lead_days"])
+    if a.all_leads:
+        _tf["lead_bin"] = np.where(_tf["lead_bin"] == 0, 9, _tf["lead_bin"])
+    te = {k: _tf[k][_tf["lead_bin"] > 0] for k in yrs[2016] if k in _tf}
+    _need = {"obs", "hres", "lead_days", "lead_bin", "year", "doy", "z_sfc", "lat", "lon", "valid", "valid_utc_hour"} | ({"ens"} if a.ens or a.sigma_ens_scale else set())
+    assert _need <= set(te), f"--test-file lacks fields {sorted(_need - set(te))}"
+    assert np.asarray(te["year"]).min() >= 2023 and np.asarray(te["year"]).max() <= 2025, "--test-file rows must be 2023-2025 (never 2026, never the fit years)"
 assert a.all_leads or not a.fit_beyond, "--fit-beyond needs --all-leads"
-assert not a.sigma or (a.all_leads and not a.fit_beyond and not a.fit_rows_dir), "--sigma needs --all-leads, without --fit-beyond / --fit-rows-dir"
+assert not a.sigma or (a.all_leads and not a.fit_beyond), "--sigma needs --all-leads, without --fit-beyond"
+assert not a.sigma_ens_scale or (a.sigma and not a.ens), "--sigma-ens-scale needs --sigma and no --ens (the ensemble scales s, it is not a network input)"
 LEADS = (1, 3, 5, 7, 9) if a.all_leads else (1, 3, 5, 7)
 def sub(d, n):
     """random subset of rows; ONE index for all arrays (drawing a new index per array once misaligned forecast and truth)"""
@@ -124,12 +140,13 @@ if a.ens_mask > 0:                                                             #
         e = np.where(absent[:, None], 0.0, d["ens"].astype(np.float32)[:, ENS_COLS]).astype(np.float32)
         return np.concatenate([F.cond_matrix(d, a.coarse), e, (~absent).astype(np.float32)[:, None]], 1)
 assert a.ens_mask > 0 or not a.ens_absent, "--ens-absent needs an --ens-mask network"
-STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "") + ("" if a.test_year == 2022 else f"_t{a.test_year}")
+STEM = a.out.rsplit(".", 1)[0] + ("_noens" if a.ens_absent else "") + a.stem_suffix + ("" if a.test_year == 2022 else f"_t{a.test_year}") + (f"_tf{os.path.splitext(os.path.basename(a.test_file))[0]}" if a.test_file else "")
 print(f"rows: train {len(tr['obs']):,}  range map {len(cal['obs']):,}  test {len(te['obs']):,}", flush=True)
 assert a.test_year == 2022 or (os.path.exists(a.out) and not a.retrain), "--test-year 2021 scores an existing network only (no training)"
+assert not a.test_file or (os.path.exists(a.out) and not a.retrain), "--test-file scores an existing network only (no training)"
 if a.sigma:                                                                    # SIGMA: tables from the fit rows; rebuilt the same way for a re-score
     from tempest.forecast import sigma as SG
-    _sg = SG.fit(tr)
+    _sg = SG.fit(tr, ens_scale=a.sigma_ens_scale)
     print(f"SIGMA: beta at lead day 1 / 5 / 10 (mean over columns) {_sg['beta'][[0, 4, 9]].mean(1).round(2).tolist()}", flush=True)
 assert not a.nest or a.sigma, "--nest needs --sigma"
 if a.retrain or not os.path.exists(a.out):
@@ -147,16 +164,30 @@ if a.retrain or not os.path.exists(a.out):
         anc["hres"], anc["lead_days"] = tr["obs"][_j].astype(anc["hres"].dtype), np.full(len(_i), 15.0, anc["lead_days"].dtype)
         fit = {k: np.concatenate([tr[k], anc[k]]) for k in tr}
         print(f"N5: fit on all leads + {len(_i):,} climate-anchor rows", flush=True)
+    _sgf = _sg if a.sigma else None
     if a.fit_rows_dir:
         _fy = [dict(np.load(f"{a.fit_rows_dir}/{y}.npz")) for y in range(2016, 2021)]
-        _fy = [{k: v[F.lead_bin(d_["lead_days"]) > 0] for k, v in d_.items()} for d_ in _fy]
-        fit = {k: np.concatenate([d_[k] for d_ in _fy]) for k in ("year", "lat", "lon", "z_sfc", "doy", "lead_days", "hres", "obs")}
+        _keep = (lambda d_: (d_["lead_days"] > 0) & (d_["lead_days"] <= 10)) if a.sigma else (lambda d_: F.lead_bin(d_["lead_days"]) > 0)   # UR2 stage 3: SIGMA keeps every lead to 10 d
+        _fy = [{k: v[_keep(d_)] for k, v in d_.items()} for d_ in _fy]
+        fit = {k: np.concatenate([d_[k] for d_ in _fy]) for k in ("year", "lat", "lon", "z_sfc", "doy", "lead_days", "hres", "obs") + (("valid", "valid_utc_hour") if a.sigma else ())}
         if a.place_clim:
             _clim_add(fit)
+        if a.sigma:                                                            # UR2 stage 3: the world network learns the world's SIGMA target; evaluation uses the box tables (_sg)
+            _sgf = SG.fit(fit)
+            if a.nest:
+                cfg["nest_widths"] = SG.nest_widths(_sgf, a.width)
+            print(f"UR2 stage 3: SIGMA tables from the {len(fit['obs']):,} world fit rows (beta at lead day 1 / 5 / 10: {_sgf['beta'][[0, 4, 9]].mean(1).round(2).tolist()}); box tables for evaluation", flush=True)
         print(f"N2: network fit on {a.fit_rows_dir}: {len(fit['obs']):,} rows", flush=True)
     if a.init:
         cfg["init"] = a.init
-    train(cmat(fit), SG.target(_sg, fit) if a.sigma else F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
+        if a.nest:                                                             # UR2: a fine-tune keeps the start network's nested widths (units stay with the leads they learned)
+            _ick = torch.load(a.init, map_location="cpu", weights_only=True)
+            _ick = _ick["members"][0] if "members" in _ick else _ick
+            _nw = _ick.get("model_kw", {}).get("nest", {}).get("widths")
+            if _nw:
+                cfg["nest_widths"] = [int(w) for w in _nw]
+                print(f"NEST widths from the start network: {cfg['nest_widths']}", flush=True)
+    train(cmat(fit), SG.target(_sgf, fit) if a.sigma else F.residual(fit), fit["year"], cfg, out=a.out, device=a.device, meta=dict(cond_names=F.COND_NAMES), members=a.members)
     if a.fit_only:
         raise SystemExit(0)
 net = Sampler(torch.load(a.out, map_location="cpu", weights_only=True), device=a.device)
@@ -214,6 +245,15 @@ res_draw = x_pool - hres[:, None]                                    # real erro
 ranks = np.argsort(np.argsort(res_draw, axis=1), axis=1)
 x_shuf = np.take_along_axis(np.sort(x_cal, axis=1), ranks, axis=1)
 x_pit_shuf = np.take_along_axis(np.sort(x_pit, axis=1), ranks, axis=1)
+if a.save_members:                                                             # UR1 / UR2: members of the final method for the tail table; nothing else changes
+    _med = np.empty((x_pit_shuf.shape[0], x_pit_shuf.shape[2]), np.float32)
+    _dev = np.empty(x_pit_shuf.shape, np.float16)
+    for _i in range(0, len(_med), 500):                                        # in chunks: no full-size temporary on top of the evaluation's peak
+        _med[_i:_i + 500] = np.median(x_pit_shuf[_i:_i + 500], 1)
+        _dev[_i:_i + 500] = x_pit_shuf[_i:_i + 500] - _med[_i:_i + 500, None]
+    np.savez(a.save_members, med=_med, dev=_dev, truth=truth.astype(np.float32), lead=te["lead_bin"], lead_days=te["lead_days"],
+             day=te["valid"].astype("datetime64[D]").astype(np.int64), method="network + PIT recal + range map + Schaake shuffle", stem=STEM)
+    print(f"members saved: {a.save_members} ({x_pit_shuf.shape[0]:,} rows x {x_pit_shuf.shape[1]} members x {x_pit_shuf.shape[2]} columns)", flush=True)
 clim = np.empty_like(x_pool)
 tro = tr["obs"].reshape(len(tr["obs"]), -1)
 for i in range(len(truth)):
@@ -234,6 +274,7 @@ for name, x in methods.items():
     crps = crps_ensemble(x, truth) @ masks
     if a.save_rows and name == "network + PIT recal + range map + Schaake shuffle":
         _x = dict(lead_days=te["lead_days"], crps_clim=(crps_ensemble(clim, truth) @ masks).mean(1)) if a.all_leads else {}   # N5: extra fields only with --all-leads
+        _x.update({"crps16": crps.astype(np.float32)} if a.save_cell_rows else {})            # UR15: per-cell scores, opt-in
         np.savez(STEM + "_rows.npz", lead=te["lead_bin"], day=te["valid"].astype("datetime64[D]").astype(np.int64), crps=crps.mean(1), **_x)
     mae = np.abs(np.median(x, 1) - truth) @ masks
     cov = (coverage90(x, truth, 0.99).astype(float) @ masks) if x.shape[1] > 2 else np.full((len(truth), len(bands)), np.nan)

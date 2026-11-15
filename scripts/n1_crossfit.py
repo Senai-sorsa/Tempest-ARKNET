@@ -36,7 +36,10 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--rows", type=int, default=60000)
     ap.add_argument("--m", type=int, default=199)
+    ap.add_argument("--same-fold", type=int, default=-1, choices=(-1, 0, 1, 2, 3), help="UR8 control (New_Plan 17.2): every member holds out the SAME fold's 4 years "
+                    "(no cross-fitting, same amount of data; fold 0 = 2008-09 + 2016-17 keeps 2021-23 in training), range map from that fold's rows; -1 = cross-fit as before")
     a = ap.parse_args()
+    fold_of = (lambda k: k) if a.same_fold < 0 else (lambda k: a.same_fold)
     d = load_npz(DATA)
     if not os.path.exists(a.out):
         with open("configs/generator_p2f.toml", "rb") as f:
@@ -56,8 +59,8 @@ def main():
                 continue
             while free_gb() < 10:                               # loading the rows takes a few GB; a Mode F evaluation may hold 14-17 GB
                 time.sleep(30)
-            print(f"fold {k}: held-out years {holdout_years(LAST, k)}", flush=True)
-            mem.append(train(d["cond"][keep], d["target"][keep], year, {**cfg, "seed": a.seed + k, "holdout_fold": k}, meta=meta, out=part))
+            print(f"fold {k}: held-out years {holdout_years(LAST, fold_of(k))}", flush=True)
+            mem.append(train(d["cond"][keep], d["target"][keep], year, {**cfg, "seed": a.seed + k, "holdout_fold": fold_of(k)}, meta=meta, out=part))
         torch.save(dict(members=mem), a.out + ".part")
         os.replace(a.out + ".part", a.out)
     sampler = Sampler(torch.load(a.out, map_location="cpu", weights_only=True))
@@ -65,7 +68,7 @@ def main():
     torch.manual_seed(0)
     for k in range(K):
         sampler.members = [allm[k]]
-        rows = np.sort(rng.choice(np.flatnonzero(np.isin(d["year"], holdout_years(LAST, k))), a.rows // K, replace=False))
+        rows = np.sort(rng.choice(np.flatnonzero(np.isin(d["year"], holdout_years(LAST, fold_of(k)))), a.rows // K, replace=False))
         truth = to_physical(np.asarray(d["target"][rows]))
         for i in range(0, len(rows), 1000):
             z, u = parts(sampler.profiles(np.repeat(d["cond"][rows[i:i + 1000]], a.m, 0)).reshape(-1, a.m, truth.shape[1]), truth[i:i + 1000], rng=rng)

@@ -12,6 +12,8 @@ KILL: event-coverage gap still worse beyond its tolerance (compare_shape event_c
 Otherwise MISS: record, no adoption.
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/b46_av19_studt_stack.py
 Result: docs/results/logs/kit_b46_av19_studt_stack.log
+Correction 2026-11-14 10:30 (input format only, rule unchanged): the first verdict run passed the scorer's _diag.csv to compare_shape, which needs
+scripts/diagnose.py output; shape inputs are now diagnose.py runs with the same full stack (diagnose.py gained --lapse-map), p2f seeds 0/1/2 and studt seed 0.
 """
 import os
 
@@ -26,6 +28,7 @@ NEW = "models/av19_s0" + STK
 DBASE = "models/av19_p2fden" + STK
 DNEW = "models/av19_studtden" + STK
 TOL = 0.0009
+SHAPE = "models/av19_shape_{}.csv"   # scripts/diagnose.py output with the full stack (scripts/gpu_av19_shape.sh)
 
 
 def judge(d_nmtx, shape_worse, d_den):
@@ -60,7 +63,7 @@ def main():
     lines = []
     d_nmtx = headline(BASE.format(0), NEW, "NM/TX seed 0 (studt stack vs p2f stack)", lines)
     worse = None
-    files = [BASE.format(0) + "_diag.csv", NEW + "_diag.csv"] + [BASE.format(s) + "_diag.csv" for s in (1, 2)]
+    files = [SHAPE.format("p2f_s0"), SHAPE.format("studt_s0"), SHAPE.format("p2f_s1"), SHAPE.format("p2f_s2")]
     if all(os.path.exists(f) for f in files):
         t = shape(files[0], files[1], files[2:])
         worse = list(t.metric[t.flag == "WORSE"])

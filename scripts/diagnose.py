@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--shear-tail")
     ap.add_argument("--seasonal")
     ap.add_argument("--shear-map")
+    ap.add_argument("--lapse-map", help="lapse-rate quantile map (tempest.calibrate.lapse_map), applied after the shuffle and the shear map as in tempest.scoring.score")
     ap.add_argument("--pooled-template", action="store_true", help="shuffle templates pooled over grid points (month x 2-hour bin), as shipped in the tool")
     ap.add_argument("--template-cell", type=int, default=0, help="shuffle templates per block of N x N grid points (4 = 1 degree, 8 = 2 degrees) instead of per point")
     ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
@@ -96,6 +97,9 @@ def main():
     if a.shear_map:
         from tempest.calibrate import shear_map as smap
         x = smap.apply(dict(np.load(a.shear_map)), x)
+    if a.lapse_map:
+        from tempest.calibrate import lapse_map
+        x = lapse_map.apply(dict(np.load(a.lapse_map)), x)
     if a.shift:
         from tempest.calibrate import shift as sh
         x = sh.apply(dict(np.load(a.shift)), x)

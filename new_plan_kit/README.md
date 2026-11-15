@@ -215,3 +215,8 @@ if __name__ == "__main__":
 Good examples to copy from: `b1_observe_loso.py` (station reports, paired verdict),
 `b2_c4_innovation_fit.py` (radar files, a made-up case that recovers known numbers),
 `b2_g16_observe_fit.py` (changing a core number in memory and putting it back).
+
+## New_Plan section 17 (UR1-UR15)
+
+Scripts `b24`-`b37` plus `ur_common.py` (shared helpers: member files, scoring as `il6_modeF.py`, pooled 2021 + 2022 rows). What each needs
+first, its runner and its cost are in the table of `New_Plan.md` 17.5; the rule of each is in its own header. Unit tests: `tests/test_ur_kit.py`.

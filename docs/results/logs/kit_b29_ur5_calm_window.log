@@ -1,0 +1,21 @@
+2026-11-14 21:34 UR5 calm-window fix, step 0: climate mode, 10 m wind; truth ERA5 2006-2020, fit 1991-2005
+  step 0 network + range map    (48 cells) tool minus ERA5: mean u +0.21, v +0.11, speed +0.67 m/s; sd u +0.52, sd v +0.87; P(speed < 5) -0.073
+  step 0 + PIT recal            (48 cells) tool minus ERA5: mean u +0.21, v +0.11, speed +0.67 m/s; sd u +0.52, sd v +0.87; P(speed < 5) -0.073
+  step 0 + seasonal             (48 cells) tool minus ERA5: mean u +0.21, v +0.11, speed +0.67 m/s; sd u +0.52, sd v +0.87; P(speed < 5) -0.073
+  step 0 + shuffle              (48 cells) tool minus ERA5: mean u +0.22, v +0.09, speed +0.65 m/s; sd u +0.51, sd v +0.87; P(speed < 5) -0.069
+  step 0 + shear map            (48 cells) tool minus ERA5: mean u +0.22, v +0.09, speed +0.65 m/s; sd u +0.51, sd v +0.87; P(speed < 5) -0.069
+  step 0 shipped                (48 cells) tool minus ERA5: mean u +0.22, v +0.09, speed +0.65 m/s; sd u +0.51, sd v +0.87; P(speed < 5) -0.069
+Step 0 is a measurement (no rule): the stage where the speed difference jumps is where to fix it.
+
+2026-11-14 22:24 UR5 calm-window fix, step 1: climate mode, 10 m wind; truth ERA5 2006-2020, fit 1991-2005
+  step 1 seed 0 L    5: 407 cells; per-hour gap 0.123 -> 0.034; 3-hour error shipped 0.237, map 0.103, map + regime link 0.036
+  step 1 seed 0 L    8: 332 cells; per-hour gap 0.192 -> 0.036; 3-hour error shipped 0.191, map 0.037, map + regime link 0.018
+  step 1 seed 0 L   10: 161 cells; per-hour gap 0.185 -> 0.028; 3-hour error shipped 0.154, map 0.020, map + regime link 0.014
+  step 1 seed 0: 10 m cov90 u 0.932 -> 0.871, v 0.968 -> 0.925; CRPS u 1.8274 -> 1.8118, v 1.5244 -> 1.4799
+  step 1 seed 1 L    5: 407 cells; per-hour gap 0.123 -> 0.034; 3-hour error shipped 0.236, map 0.103, map + regime link 0.035
+  step 1 seed 1 L    8: 332 cells; per-hour gap 0.195 -> 0.036; 3-hour error shipped 0.194, map 0.037, map + regime link 0.017
+  step 1 seed 1 L   10: 161 cells; per-hour gap 0.186 -> 0.028; 3-hour error shipped 0.156, map 0.020, map + regime link 0.013
+  step 1 seed 1: 10 m cov90 u 0.933 -> 0.883, v 0.961 -> 0.920; CRPS u 1.8182 -> 1.8050, v 1.5249 -> 1.4862
+Rule (pre-set, New_Plan 17.1) on the arm 'map + regime link': PASS = per-hour gap < 0.03, 3-hour error <= half of shipped, u / v cov90 within 0.003, u / v CRPS within +0.0009, both seeds; KILL = u or v cov90 moves > 0.01 or no limit better than shipped.
+Verdict: KILL (u or v coverage moves by more than 0.01)
+
