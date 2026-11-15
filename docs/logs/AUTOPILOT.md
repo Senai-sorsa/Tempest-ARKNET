@@ -1064,3 +1064,4 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 11:30 UR8 control launched (GPU, nohup scripts/gpu_ur8_control.sh; log data/l3.log [UR8]; verdict via new_plan_kit/b31_ur8_control.py when done).
 - 2026-11-15 12:05 tick: WD5 repair script b51 (SWiFT by campaign block) written and launched (CPU, data/b51.out). UR8 seed 1 scoring (GPU).
 - 2026-11-15 12:20 tick: UR8 PASS (cross-fit minus control +0.0041 / +0.0047 ERA5 skill15; control worse than p2f). WD5 b51 measured (past bias negative in all 3 blocks; ratio-rise-with-height not in every block). Recorded sec 9 (bak53). GPU free.
+- 2026-11-15 12:25 UR2 stage 3 launched (GPU, nohup scripts/gpu_ur2_stage3.sh, log data/l3.log [UR2S3], verdict new_plan_kit/b26_ur2_stack.py --stage 3).
