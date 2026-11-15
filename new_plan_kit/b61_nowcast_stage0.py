@@ -36,7 +36,7 @@ def ridge(X, Y, lam=1.0):
     return np.linalg.solve(A, X.T @ Y)
 
 
-def station_series(st, lon, years=None):
+def station_series(st, lon, years=None, fit_years=None):
     import ground_wind_bench as gw
     years = list(years or (list(FIT) + list(DEV)))
     obs = gw.load_asos(st, years)
@@ -50,7 +50,7 @@ def station_series(st, lon, years=None):
     year = np.array([t.year for t in times])
     mon = np.array([t.month for t in times]) - 1
     hr = np.array([t.hour for t in times])
-    fit = np.isin(year, list(FIT))
+    fit = np.isin(year, list(fit_years or FIT))         # climatology years (b63 uses 2018-2025)
     mu, sd = np.full((12, 24, 2), np.nan), np.full((12, 24, 2), np.nan)
     for m in range(12):
         for h in range(24):
