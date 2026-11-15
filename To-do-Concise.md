@@ -107,3 +107,4 @@ Processes to finish and check:
 - 2026-11-15 03:30 UR15F: ~32 archive objects skipped (5xx) by 03-25; spot probes show them available now (206), so the 503s look transient. When the runner finishes, rerun 'bash scripts/net_ur15_fetch.sh' (resumable, retries only the missing pieces) before the rows are used; check the missing counts.
 - AV19 launched 07:54 (gate bug fixed in wait_then_av19.sh); UR1 b25 verdict running, result due in New_Plan sec 9.
 - 2026-11-15 08:20 UR1 TAILCAL KILL (factor gap); AV19 PASS (ASK_LATER 38). Next: UR15 fetch finish + retry, then WD/UR 1B items (UR9, UR3 b27).
+- 2026-11-15 WD1 b40 running (CPU); verdict -> New_Plan sec 9, AUTOPILOT, To-do.
