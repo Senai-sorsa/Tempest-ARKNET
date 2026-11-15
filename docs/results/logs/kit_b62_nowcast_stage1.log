@@ -1,0 +1,12 @@
+2026-11-14 22:40 Nowcast stage 1: own history (ar6) vs + 3 nearest stations' last 3 h (ar6n), referee = the tool's observe(); fit 2015-2022, arm chosen on 2023, judged on 2024-2025
+  neighbours: TCS: ONM/LRU/ALM, ONM: TCS/ABQ/ALM, LRU: ELP/ALM/TCS, ELP: LRU/ALM/TCS, ALM: LRU/ELP/TCS, MAF: FST/PEQ/ALM, FST: PEQ/MAF/ELP, PEQ: FST/MAF/ELP, ABQ: ONM/TCS/ALM
+  2023 (dev) ar6  mean CRPS over leads 1.1886
+  2023 (dev) ar6n mean CRPS over leads 1.1441
+  proposed arm: ar6n
+  2024-25 +1 h (100274 cases): observe 0.971, ar6n 0.918 (+5.4%), cov90 0.908; per station TCS +7.9%, ONM +9.6%, LRU +5.2%, ELP +6.0%, ALM +11.2%, MAF -5.0%, FST +0.4%, PEQ +2.5%, ABQ +4.4%
+  2024-25 +2 h (99741 cases): observe 1.136, ar6n 1.076 (+5.3%), cov90 0.906; per station TCS +7.0%, ONM +8.4%, LRU +5.7%, ELP +6.0%, ALM +9.1%, MAF -1.9%, FST +3.7%, PEQ +3.3%, ABQ +3.4%
+  2024-25 +3 h (99308 cases): observe 1.233, ar6n 1.171 (+5.0%), cov90 0.904; per station TCS +5.8%, ONM +6.8%, LRU +5.7%, ELP +6.0%, ALM +7.0%, MAF +0.8%, FST +5.5%, PEQ +3.6%, ABQ +2.7%
+  2024-25 +6 h (98353 cases): observe 1.417, ar6n 1.353 (+4.5%), cov90 0.902; per station TCS +4.0%, ONM +3.6%, LRU +5.9%, ELP +6.2%, ALM +3.0%, MAF +5.4%, FST +7.2%, PEQ +3.8%, ABQ +1.7%
+Rule (pre-set): PASS = >= +2 % vs observe at +1 / 2 / 3 h, no station below -2 % at any lead, cov90 0.87-0.93; KILL = not better at any lead; else MISS.
+Nowcast stage 1 verdict: MISS (needs >= +2 % at 1-3 h, no station below -2 %, cov90 0.87-0.93: +1 h +5.4%, +2 h +5.3%, +3 h +5.0%, +6 h +4.5%; worst station -5.0%; cov90 0.908, 0.906, 0.904, 0.902)
+
