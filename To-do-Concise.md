@@ -115,3 +115,4 @@ Processes to finish and check:
 - 2026-11-15 10:50 WD4 b50 running (CPU): record verdict (measurement; follow-up only if q ratio > 1.15 at 4/6). Then WD9 step 0, UR6 step 0 + E4 step 0.
 - 2026-11-15 WD4 done (no follow-up; ABQ/FST outside tool box; optionally add ONM/LRU/PEQ). Next: WD9 step 0, UR6 step 0 + E4 step 0.
 - 2026-11-15 UR6/E4 step 0 KILL (closed). WD9 step 0 deferred (needs new forecast-mode ASOS eval). Next: 1C UR8 (GPU, b31_ur8_control.py / scripts/gpu_ur8_control.sh), UR2 stage 3.
+- 2026-11-15 UR8 PASS, WD5 measured (done). Next: UR2 stage 3 (GPU), CPU 1A leftovers (WD14, SIGMA/NEST/AV30 cov99, AV24/26 pooled).

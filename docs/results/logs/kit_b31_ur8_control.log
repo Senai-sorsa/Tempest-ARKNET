@@ -1,0 +1,6 @@
+2026-11-15 12:17 UR8: N1 cross-fit vs a same-fold control vs p2f, 2024-25; mean skill15_unknown (ERA5 / balloons), mean |cov99_unknown - 0.99| (ERA5)
+  seed_s0: p2f ERA5 0.0277 cov err 0.0034 balloons 0.0084; control ERA5 0.0256 cov err 0.0029 balloons 0.0086; cross-fit ERA5 0.0297 cov err 0.0030 balloons 0.0115; cross-fit minus control ERA5 +0.0041, control minus p2f -0.0021
+  seed_s1: p2f ERA5 0.0271 cov err 0.0031 balloons 0.0073; control ERA5 0.0250 cov err 0.0032 balloons 0.0080; cross-fit ERA5 0.0298 cov err 0.0033 balloons 0.0111; cross-fit minus control ERA5 +0.0047, control minus p2f -0.0021
+Rule (pre-set): PASS = cross-fit - control >= 0.0006 in both seeds, balloons not worse; KILL = < 0.0003 in both.
+Verdict: PASS (the gain is cross-fitting)
+

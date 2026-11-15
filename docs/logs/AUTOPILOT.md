@@ -1063,3 +1063,4 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 11:25 tick: UR6/E4 step 0 KILL (relative/fixed spread ratio 1.6-2.9, needs <0.70). Recorded sec 9 (bak51). WD9 step 0 blocked: no saved tool rows at ASOS 2024-25 (Mode F rows are balloon profiles, archive ends 2023-01) - needs a new forecast-mode eval; deferred.
 - 2026-11-15 11:30 UR8 control launched (GPU, nohup scripts/gpu_ur8_control.sh; log data/l3.log [UR8]; verdict via new_plan_kit/b31_ur8_control.py when done).
 - 2026-11-15 12:05 tick: WD5 repair script b51 (SWiFT by campaign block) written and launched (CPU, data/b51.out). UR8 seed 1 scoring (GPU).
+- 2026-11-15 12:20 tick: UR8 PASS (cross-fit minus control +0.0041 / +0.0047 ERA5 skill15; control worse than p2f). WD5 b51 measured (past bias negative in all 3 blocks; ratio-rise-with-height not in every block). Recorded sec 9 (bak53). GPU free.
