@@ -1,0 +1,8 @@
+2026-11-15 10:07 UR11: RH station line >= 5 km refitted on 4086 2016-22 00Z pairs (mean |change of a| 2.44 RH points); test 2024-25 00Z; 21-day blocks
+  RH 5-12 km : skill vs balloon clim15 +0.4518 -> +0.4178; cov99 0.974 -> 0.970; CRPS 6.429 -> 6.827 (+0.399 [+0.169, +0.606]); n 1306
+  RH 12-18 km: skill vs balloon clim15 +0.2692 -> +0.0078; cov99 0.948 -> 0.950; CRPS 3.704 -> 5.030 (+1.325 [+0.884, +1.772]); n 1306
+  RH 5-18 km CRPS change +17.02 %
+  + tails (information): factors lo 0.60 hi 2.98 (fit 2023, 528 soundings); RH 12-18 km cov99 0.950 -> 0.976, CRPS 5.030 -> 5.020
+Rule (pre-set, New_Plan 17.2): PASS = RH 5-12 km skill > 0 and RH 12-18 km cov99 +0.01 with RH 5-18 km CRPS <= +0.5 %; KILL = CRPS > +1.5 %.
+Verdict: KILL
+

@@ -111,3 +111,4 @@ Processes to finish and check:
 - 2026-11-15 09:14 WD1 MISS (gap 0.044 > 0.03 at L5/8; all else passes); possible rerun with map after respread. Next 1B: UR9 b32, UR3 b27.
 - 2026-11-15 09:40 UR9 PASS (IL-207b seed 2, 21-day blocks). Next UR3 b27.
 - 2026-11-15 10:06 UR3 PASS (a, b). UR11 b34 running.
+- 2026-11-15 10:32 UR11 KILL (RH 5-18 km CRPS +17 %). Next: WD4/WD9 step 0, UR6 step 0 + E4 step 0.

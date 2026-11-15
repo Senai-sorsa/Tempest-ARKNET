@@ -1056,3 +1056,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 09:40 tick: UR9 b32 verdict PASS (TCS -0.102 [-0.158, -0.051], MAF -0.038, cov 0.83 / 0.94). Recorded sec 9 (bak47). Next: UR3 b27.
 
 - 2026-11-15 10:06 tick: UR3 b27 verdict PASS (a: cov error 0.080 / 0.052 vs AV6 factor 0.120 / 0.121; b: PASS). Recorded sec 9 (bak48). Launched UR11 b34 (CPU, 20-40 min).
+
+- 2026-11-15 10:32 tick: UR11 b34 verdict KILL (RH 5-18 km CRPS +17.0 %). Recorded sec 9 (bak49).
