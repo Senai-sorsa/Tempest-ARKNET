@@ -191,7 +191,12 @@ def fetch(a):
     for d in dates:
         jobs = [(d, 0, s) for s in steps] + ([(d - pd.Timedelta(hours=36), 12, s + 36) for s in steps if s + 36 <= 240] if a.with_older else [])
         for dd, hh, s in jobs:
-            if piece(a.box, dd.normalize(), hh, s, a.prefer, root, bounds) is None:
+            try:
+                got = piece(a.box, dd.normalize(), hh, s, a.prefer, root, bounds)
+            except RuntimeError as e:        # a persistent 5xx on one archive object (seen: 2023-01-20 24 h): count it as not in the archive, keep going; a re-run retries it
+                print(f"  skipped {dd:%Y-%m-%d} {hh:02d}z +{s} h: {str(e)[:120]}", flush=True)
+                got = None
+            if got is None:
                 missing += 1
             else:
                 done += 1
