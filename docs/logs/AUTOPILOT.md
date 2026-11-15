@@ -1044,3 +1044,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 
 ## 2026-11-15 00:30 tick
 NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper, pending. UR15 fetch skip patch for 503 objects; fetch resumed. RAM 4.3 GB (UR1 running), disk 87 GB free.
+
+- 2026-11-15 07:54 tick: UR1 all 24 members done (07:21); b25 verdict running (CPU, 2.7 GB). Found scripts/wait_then_av19.sh never launching: its busy() matched its own powershell command line (contains "il6_modeF.py"). Fixed by filtering Name='python.exe'; AV19 launched 07:54:30 (diagnose.py seed runs, then b46).
