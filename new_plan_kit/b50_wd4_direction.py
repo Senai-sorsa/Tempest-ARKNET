@@ -1,5 +1,5 @@
 """New_Plan 19 WD4 (step 0): u / v anisotropy and direction of the tool's climate-mode 10 m wind against six ASOS stations. Measurement only, CPU, no training.
-Stations TCS MAF ELP ABQ ALM FST, 00-ish UTC hours 15 / 18 / 21 (STARTS of b14), every month, station years 2016-2020 (the RA gap fit years); tool members:
+Stations TCS MAF ELP ABQ ALM FST (ABQ and FST are outside the tool box: no cells), 00-ish UTC hours 15 / 18 / 21 (STARTS of b14), every month, station years 2016-2020 (the RA gap fit years); tool members:
 api.atmosphere_sequence(.., mode="ai", n=1024, offset 0), the same call as b40. Speeds under 2 m/s dropped on BOTH sides (station direction undefined when calm).
 Per station: pooled sd(u), sd(v) (within month x hour cell, variance averaged), ratio q = sd v / sd u for the tool and the station;
 direction: mean resultant length (concentration) of the tool and of the station, and the median |circular-mean difference| over cells (degrees).
