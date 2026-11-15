@@ -1,0 +1,14 @@
+2026-11-15 09:03 WD1 UR5 re-score with spread refit: climate mode, 10 m wind; truth ERA5 2006-2020, fit 1991-2005
+  seed 0: refit scale u 1.07, v 0.89 (fit on 1991-2005)
+  seed 0 L    5: 407 cells; per-hour gap 0.045; 3-hour error map + link + refit 0.030 (shipped 0.237)
+  seed 0 L    8: 332 cells; per-hour gap 0.044; 3-hour error map + link + refit 0.021 (shipped 0.191)
+  seed 0 L   10: 161 cells; per-hour gap 0.026; 3-hour error map + link + refit 0.014 (shipped 0.154)
+  seed 0: 10 m cov90 u 0.932 -> 0.898 (map alone 0.871), v 0.968 -> 0.886 (map alone 0.925); CRPS u 1.8206 -> 1.8026 (map alone 1.8053), v 1.5311 -> 1.4854 (map alone 1.4869)
+  seed 1: refit scale u 1.05, v 0.91 (fit on 1991-2005)
+  seed 1 L    5: 407 cells; per-hour gap 0.043; 3-hour error map + link + refit 0.031 (shipped 0.237)
+  seed 1 L    8: 332 cells; per-hour gap 0.044; 3-hour error map + link + refit 0.020 (shipped 0.191)
+  seed 1 L   10: 161 cells; per-hour gap 0.027; 3-hour error map + link + refit 0.014 (shipped 0.154)
+  seed 1: 10 m cov90 u 0.933 -> 0.901 (map alone 0.883), v 0.961 -> 0.888 (map alone 0.920); CRPS u 1.8226 -> 1.8099 (map alone 1.8116), v 1.5159 -> 1.4768 (map alone 1.4773)
+Rule (set 2026-11-15, New_Plan 19 WD1): PASS = gap < 0.03, 3-hour error <= half of shipped, u / v cov90 in 0.88-0.92 and no farther from 0.90 than shipped, CRPS within +0.0009 of the map alone; KILL = CRPS worse than shipped by > 0.0009 or cov90 outside 0.88-0.92; both seeds, all limits.
+Verdict: MISS (record, no adoption)
+

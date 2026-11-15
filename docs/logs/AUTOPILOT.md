@@ -1050,3 +1050,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 08:20 tick: UR1 b25 verdict KILL (all arms; tail-factor gap between fit years 0.38-0.995 > 0.15). AV19 b46 verdict PASS (-0.0004 / shape PASS / Denver +0.0189), ASK_LATER 38. Both in New_Plan sec 9 (backup bak45). UR15 fetch still on nmtx (2023-08-12, 65 missing).
 
 - 2026-11-15 09:0x tick: WD1 (UR5 re-score with spread refit) launched as new_plan_kit/b40_wd1_ur5_refit.py (CPU, ~1-2 h, data/b40.out, log docs/results/logs/kit_b40_wd1_ur5_refit.log). One u and one v scale per seed fit on 1991-2005 so mean cov90 ~0.90; rule = New_Plan 19 WD1 pass/kill text. Selfcheck passes.
+
+- 2026-11-15 09:14 tick: WD1 b40 verdict MISS (only clause missed: per-hour gap 0.044-0.045 at L 5 / 8 vs 0.030; cov90 0.886-0.901, 3 h error 0.014-0.031, CRPS better). Recorded in New_Plan sec 9 (backup bak46). Idea: respread first, map after. UR15 nmtx fetch at 2023-10-03.
