@@ -1052,3 +1052,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 09:0x tick: WD1 (UR5 re-score with spread refit) launched as new_plan_kit/b40_wd1_ur5_refit.py (CPU, ~1-2 h, data/b40.out, log docs/results/logs/kit_b40_wd1_ur5_refit.log). One u and one v scale per seed fit on 1991-2005 so mean cov90 ~0.90; rule = New_Plan 19 WD1 pass/kill text. Selfcheck passes.
 
 - 2026-11-15 09:14 tick: WD1 b40 verdict MISS (only clause missed: per-hour gap 0.044-0.045 at L 5 / 8 vs 0.030; cov90 0.886-0.901, 3 h error 0.014-0.031, CRPS better). Recorded in New_Plan sec 9 (backup bak46). Idea: respread first, map after. UR15 nmtx fetch at 2023-10-03.
+
+- 2026-11-15 09:40 tick: UR9 b32 verdict PASS (TCS -0.102 [-0.158, -0.051], MAF -0.038, cov 0.83 / 0.94). Recorded sec 9 (bak47). Next: UR3 b27.

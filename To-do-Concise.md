@@ -109,3 +109,4 @@ Processes to finish and check:
 - 2026-11-15 08:20 UR1 TAILCAL KILL (factor gap); AV19 PASS (ASK_LATER 38). Next: UR15 fetch finish + retry, then WD/UR 1B items (UR9, UR3 b27).
 - 2026-11-15 WD1 b40 running (CPU); verdict -> New_Plan sec 9, AUTOPILOT, To-do.
 - 2026-11-15 09:14 WD1 MISS (gap 0.044 > 0.03 at L5/8; all else passes); possible rerun with map after respread. Next 1B: UR9 b32, UR3 b27.
+- 2026-11-15 09:40 UR9 PASS (IL-207b seed 2, 21-day blocks). Next UR3 b27.
