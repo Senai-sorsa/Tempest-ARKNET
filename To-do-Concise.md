@@ -112,3 +112,4 @@ Processes to finish and check:
 - 2026-11-15 09:40 UR9 PASS (IL-207b seed 2, 21-day blocks). Next UR3 b27.
 - 2026-11-15 10:06 UR3 PASS (a, b). UR11 b34 running.
 - 2026-11-15 10:32 UR11 KILL (RH 5-18 km CRPS +17 %). Next: WD4/WD9 step 0, UR6 step 0 + E4 step 0.
+- 2026-11-15 10:50 WD4 b50 running (CPU): record verdict (measurement; follow-up only if q ratio > 1.15 at 4/6). Then WD9 step 0, UR6 step 0 + E4 step 0.

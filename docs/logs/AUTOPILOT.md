@@ -1058,3 +1058,4 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 10:06 tick: UR3 b27 verdict PASS (a: cov error 0.080 / 0.052 vs AV6 factor 0.120 / 0.121; b: PASS). Recorded sec 9 (bak48). Launched UR11 b34 (CPU, 20-40 min).
 
 - 2026-11-15 10:32 tick: UR11 b34 verdict KILL (RH 5-18 km CRPS +17.0 %). Recorded sec 9 (bak49).
+- 2026-11-15 10:50 tick: WD4 step 0 script b50 written and launched (CPU, data/b50.out, log kit_b50_wd4_direction.log).
