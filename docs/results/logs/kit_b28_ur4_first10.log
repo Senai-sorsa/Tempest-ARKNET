@@ -1,0 +1,11 @@
+2026-11-14 23:30 UR4 FIRST-10 (offset form): 707 stations with >= 100 balloon-ERA5 10 m pairs 2016-25; fit (2016, 2021), feed 2022, test (2023, 2025)
+  fold 0 fit (331 stations): mu -0.235, s_b 1.069, s_r 2.236, k 4.4 days (w at n = 10: 0.70); step 0 on the other fold: explained 0.69
+  fold 1 fit (358 stations): mu -0.332, s_b 1.085, s_r 1.980, k 3.3 days (w at n = 10: 0.75); step 0 on the other fold: explained 0.68
+  n =  3 days: plain minus none -0.0276 [-0.0347, -0.0204], better at 61% of 659 stations, worst +3.566, coverage 0.93; shrink minus none -0.1000 [-0.1033, -0.0967], better at 83% of 659 stations, worst +0.456, coverage 0.94; shrink+spread minus none -0.0876 [-0.0909, -0.0843], better at 77% of 659 stations, worst +0.439, coverage 0.95
+  n =  5 days: plain minus none -0.0638 [-0.0708, -0.0573], better at 66% of 658 stations, worst +1.922, coverage 0.94; shrink minus none -0.1103 [-0.1144, -0.1065], better at 84% of 658 stations, worst +0.653, coverage 0.95; shrink+spread minus none -0.1006 [-0.1045, -0.0967], better at 80% of 658 stations, worst +0.630, coverage 0.95
+  n = 10 days: plain minus none -0.1106 [-0.1161, -0.1048], better at 80% of 641 stations, worst +1.148, coverage 0.95; shrink minus none -0.1286 [-0.1327, -0.1242], better at 87% of 641 stations, worst +0.657, coverage 0.95; shrink+spread minus none -0.1221 [-0.1262, -0.1176], better at 85% of 641 stations, worst +0.642, coverage 0.96
+  n = 30 days: plain minus none -0.1391 [-0.1482, -0.1292], better at 92% of 193 stations, worst +3.676, coverage 0.95; shrink minus none -0.1416 [-0.1495, -0.1327], better at 93% of 193 stations, worst +3.036, coverage 0.95; shrink+spread minus none -0.1388 [-0.1468, -0.1300], better at 93% of 193 stations, worst +3.021, coverage 0.96
+  n = 3: shrink minus plain -0.0724 [-0.0771, -0.0678]
+Rule (pre-set, New_Plan 17.1): step 0 explained >= 0.40; PASS = shrink+spread at n = 10 better than none (interval < 0), >= 75 % of stations better, none worse by > 0.03, coverage 0.85-0.95, and shrink not worse than plain at n = 3; KILL = not better than none at n = 30.
+Verdict: MISS (record, no adoption)
+

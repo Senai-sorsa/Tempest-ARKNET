@@ -23,6 +23,7 @@ Written by the session that ran the loop from 2026-11-14 08:45 to 23:30 (transcr
 - GPU is idle (33 C, 0 % load at 23:13).
 
 ### 18.2 Next items, in order
+**Update 23:35: another session added New_Plan.md section 21 (reordered queue, stage 1 / stage 2, on the user's request; uncommitted at 23:35). Where it exists, section 21's order wins over the list below. UR4 is done (MISS 23:30, recorded).**
 1. UR4 verdict (18.1).
 2. **UR3** (`new_plan_kit/b27_ur3_gridpoint.py`; read its header for the rule and runner).
 3. UR1 whenever RAM allows (18.1), then its verdict b25.
