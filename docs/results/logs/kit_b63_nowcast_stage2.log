@@ -1,0 +1,12 @@
+2026-11-14 23:15 NOW2 nowcast stage 2: ar6n fitted per station (ridge, day / night), fit + climatology 2018-2025, judged on 2015-2017; referee = the tool's observe(); pooled ar6n (same years) for context only
+  2015-17 +1 h (162425 cases, 9 stations): observe 0.981, per-station 0.899 (+8.3%), pooled 0.926 (+5.6%), cov90 0.908
+      per station (per-station / pooled vs observe): TCS +8.3%/+7.1%, ONM +12.3%/+11.0%, LRU +7.7%/+5.6%, ELP +7.9%/+6.4%, ALM +13.9%/+11.6%, MAF +4.6%/-3.5%, FST +6.0%/+0.9%, PEQ +6.4%/+3.5%, ABQ +6.4%/+5.5%
+  2015-17 +2 h (161728 cases, 9 stations): observe 1.146, per-station 1.048 (+8.5%), pooled 1.082 (+5.6%), cov90 0.907
+      per station (per-station / pooled vs observe): TCS +8.2%/+6.3%, ONM +10.7%/+9.1%, LRU +8.3%/+6.2%, ELP +8.3%/+6.5%, ALM +12.5%/+9.7%, MAF +7.0%/-0.2%, FST +8.8%/+4.1%, PEQ +7.2%/+4.1%, ABQ +5.3%/+4.5%
+  2015-17 +3 h (161071 cases, 9 stations): observe 1.238, per-station 1.136 (+8.2%), pooled 1.172 (+5.3%), cov90 0.908
+      per station (per-station / pooled vs observe): TCS +7.6%/+5.3%, ONM +9.1%/+7.4%, LRU +8.3%/+6.1%, ELP +8.5%/+6.6%, ALM +10.1%/+7.3%, MAF +8.5%/+2.0%, FST +9.7%/+5.5%, PEQ +7.4%/+4.4%, ABQ +4.3%/+3.6%
+  2015-17 +6 h (159703 cases, 9 stations): observe 1.411, per-station 1.312 (+7.0%), pooled 1.346 (+4.6%), cov90 0.908
+      per station (per-station / pooled vs observe): TCS +6.0%/+3.6%, ONM +5.1%/+3.8%, LRU +8.3%/+6.0%, ELP +8.4%/+6.5%, ALM +5.0%/+2.8%, MAF +10.4%/+5.5%, FST +9.9%/+6.7%, PEQ +6.3%/+4.0%, ABQ +2.3%/+1.9%
+Rule (pre-set): PASS = >= +2 % vs observe at +1 / 2 / 3 h, no station below -2 % at any lead, cov90 0.87-0.93; KILL = not better at any lead; else MISS.
+NOW2 verdict: PASS (+1 h +8.3%, +2 h +8.5%, +3 h +8.2%, +6 h +7.0%; worst station +2.3%; cov90 0.908, 0.907, 0.908, 0.908)
+
