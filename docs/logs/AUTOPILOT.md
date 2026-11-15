@@ -1054,3 +1054,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-15 09:14 tick: WD1 b40 verdict MISS (only clause missed: per-hour gap 0.044-0.045 at L 5 / 8 vs 0.030; cov90 0.886-0.901, 3 h error 0.014-0.031, CRPS better). Recorded in New_Plan sec 9 (backup bak46). Idea: respread first, map after. UR15 nmtx fetch at 2023-10-03.
 
 - 2026-11-15 09:40 tick: UR9 b32 verdict PASS (TCS -0.102 [-0.158, -0.051], MAF -0.038, cov 0.83 / 0.94). Recorded sec 9 (bak47). Next: UR3 b27.
+
+- 2026-11-15 10:06 tick: UR3 b27 verdict PASS (a: cov error 0.080 / 0.052 vs AV6 factor 0.120 / 0.121; b: PASS). Recorded sec 9 (bak48). Launched UR11 b34 (CPU, 20-40 min).
