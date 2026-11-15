@@ -1059,3 +1059,4 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 - 2026-11-15 10:32 tick: UR11 b34 verdict KILL (RH 5-18 km CRPS +17.0 %). Recorded sec 9 (bak49).
 - 2026-11-15 10:50 tick: WD4 step 0 script b50 written and launched (CPU, data/b50.out, log kit_b50_wd4_direction.log).
+- 2026-11-15 11:00 WD4 b50 done: measured, no v-only follow-up (tool v/u ratio below station's at 4 stations; TCS direction 49 deg off; ABQ/FST no cells). Recorded sec 9 (bak50).

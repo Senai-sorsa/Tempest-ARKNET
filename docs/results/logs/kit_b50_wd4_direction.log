@@ -1,0 +1,10 @@
+2026-11-15 10:34 WD4 step 0: 10 m wind anisotropy and direction, tool (climate mode) vs ASOS 2016-2020, speeds >= 2 m/s on both sides
+  TCS: 36 cells; sd u tool 3.09 stn 2.99; sd v tool 3.36 stn 3.61; q = sd v / sd u: tool 1.09 stn 1.21 (ratio 0.90); direction concentration R tool 0.37 stn 0.45; median |mean-direction difference| 49 deg
+  MAF: 36 cells; sd u tool 4.08 stn 3.70; sd v tool 4.46 stn 4.46; q = sd v / sd u: tool 1.09 stn 1.20 (ratio 0.91); direction concentration R tool 0.41 stn 0.39; median |mean-direction difference| 12 deg
+  ELP: 36 cells; sd u tool 4.14 stn 3.88; sd v tool 2.99 stn 3.03; q = sd v / sd u: tool 0.72 stn 0.78 (ratio 0.92); direction concentration R tool 0.34 stn 0.30; median |mean-direction difference| 13 deg
+  ABQ: no usable cells
+  ALM: 36 cells; sd u tool 3.45 stn 2.29; sd v tool 3.18 stn 3.62; q = sd v / sd u: tool 0.92 stn 1.58 (ratio 0.58); direction concentration R tool 0.41 stn 0.47; median |mean-direction difference| 17 deg
+  FST: no usable cells
+Rule (set 2026-11-15, New_Plan 19 WD4): measurement; v-only spread follow-up only if q tool / q station > 1.15 at 4 of 6 stations.
+Result: no follow-up (0 of 4 stations above 1.15)
+
