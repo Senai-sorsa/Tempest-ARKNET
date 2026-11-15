@@ -1046,3 +1046,5 @@ Closed as done the same day: GW-E, GW-G, W10, M11.
 NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper, pending. UR15 fetch skip patch for 503 objects; fetch resumed. RAM 4.3 GB (UR1 running), disk 87 GB free.
 
 - 2026-11-15 07:54 tick: UR1 all 24 members done (07:21); b25 verdict running (CPU, 2.7 GB). Found scripts/wait_then_av19.sh never launching: its busy() matched its own powershell command line (contains "il6_modeF.py"). Fixed by filtering Name='python.exe'; AV19 launched 07:54:30 (diagnose.py seed runs, then b46).
+
+- 2026-11-15 08:20 tick: UR1 b25 verdict KILL (all arms; tail-factor gap between fit years 0.38-0.995 > 0.15). AV19 b46 verdict PASS (-0.0004 / shape PASS / Denver +0.0189), ASK_LATER 38. Both in New_Plan sec 9 (backup bak45). UR15 fetch still on nmtx (2023-08-12, 65 missing).

@@ -1,0 +1,18 @@
+2026-11-15 08:05 NM/TX seed 0 (studt stack vs p2f stack): mean skill15_unknown +0.0281 -> +0.0277 (-0.0004); mean |cov99-0.99| 0.0031 -> 0.0027; bands worse (report only): none
+  per band d skill15: u 0-1 km -0.0010; u 1-5 km +0.0006; u 5-12 km +0.0015; u 12-18 km +0.0032; v 0-1 km -0.0023; v 1-5 km -0.0003; v 5-12 km -0.0016; v 12-18 km -0.0013; T 0-1 km -0.0020; T 1-5 km -0.0021; T 5-12 km +0.0006; T 12-18 km -0.0014; RH 0-1 km -0.0004; RH 1-5 km -0.0003; RH 5-12 km -0.0001; RH 12-18 km +0.0019; t2m surface -0.0042; sp surface +0.0013; rh2m surface -0.0006
+Shape (tolerance = p2f stack seed spread, seeds 1/2):
+         metric   base    new   delta  tolerance   flag              worst_cell
+   cov_err_mean 0.0121 0.0120 -0.0000     0.0008          t2m/surface (+0.0020)
+  event_cov_gap 0.0779 0.0687 -0.0092     0.0134             T/1-5 km (+0.0476)
+      kurt_diff 0.3065 0.3432  0.0367     0.0448         rh2m/surface (+0.6225)
+         pit_tv 0.0372 0.0366 -0.0006     0.0019             T/0-1 km (+0.0022)
+   preclip_rate 0.0256 0.0254 -0.0002     0.0005          RH/12-18 km (+0.0010)
+       shear_ks 0.0090 0.0089 -0.0001     0.0018        shear/5-12 km (+0.0003)
+      skew_diff 0.1046 0.1034 -0.0012     0.0235         rh2m/surface (+0.0807)
+  tail_rate_err 2.9062 2.8209 -0.0854     0.0762 better      v/0-1 km (+0.0876)
+      vcorr_err 0.0372 0.0376  0.0004     0.0089            v/profile (+0.0015)
+Denver zero-shot seed 0 (studt stack vs p2f stack): mean skill15_unknown -0.1880 -> -0.1691 (+0.0189); mean |cov99-0.99| 0.0173 -> 0.0112; bands worse (report only): u 12-18 km, RH 5-12 km
+  per band d skill15: u 0-1 km +0.2335; u 1-5 km +0.0475; u 5-12 km +0.0056; u 12-18 km -0.0005; v 0-1 km +0.0063; v 1-5 km +0.0014; v 5-12 km -0.0013; v 12-18 km +0.0014; T 0-1 km -0.0107; T 1-5 km -0.0213; T 5-12 km +0.0090; T 12-18 km -0.0092; RH 0-1 km +0.0290; RH 1-5 km +0.0086; RH 5-12 km +0.0058; RH 12-18 km +0.0156; t2m surface -0.0608; sp surface -0.0193; rh2m surface +0.1185
+AV19 rule (pre-set): PASS = NM/TX within -0.0009, shape not FAIL, Denver gain >= 0.01; KILL = event_cov_gap WORSE; else MISS.
+AV19 verdict: PASS (NM/TX -0.0004, shape PASS, Denver +0.0189)
+
