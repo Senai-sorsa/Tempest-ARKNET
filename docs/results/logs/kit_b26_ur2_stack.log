@@ -28,3 +28,12 @@ Verdict: NOT KEPT (record; next stage on the last kept one)
   Denver s2 mixed rows vs nest on plain rows: 1d -0.40 % [-0.0110, -0.0015], 3d -0.42 % [-0.0159, -0.0016], 5d -0.48 % [-0.0275, +0.0020], 7d +0.01 % [-0.0266, +0.0229]; mean of leads -0.32 % [-0.58, -0.07]; UR1 clause: members missing
 Verdict: NOT KEPT (record; next stage on the last kept one)
 
+2026-11-16 06:23 UR2 stage 5 (base nest, mix 0): 2021 + 2022 pooled, 21-day blocks; change by lead (1, 3, 5, 7) and mean of leads
+  NM/TX  s0 ensemble scale vs none, same rows: 1d +0.03 % [-0.0028, +0.0040], 3d -0.24 % [-0.0082, -0.0017], 5d -0.18 % [-0.0106, +0.0007], 7d -0.28 % [-0.0164, -0.0049]; mean of leads -0.17 % [-0.26, -0.06]; UR1 clause: members missing
+  NM/TX  s1 ensemble scale vs none, same rows: 1d +0.06 % [-0.0022, +0.0046], 3d -0.21 % [-0.0076, -0.0015], 5d -0.15 % [-0.0099, +0.0011], 7d -0.25 % [-0.0154, -0.0045]; mean of leads -0.14 % [-0.23, -0.04]; UR1 clause: members missing
+  NM/TX  s2 ensemble scale vs none, same rows: 1d +0.08 % [-0.0017, +0.0044], 3d -0.20 % [-0.0075, -0.0013], 5d -0.17 % [-0.0107, +0.0008], 7d -0.25 % [-0.0152, -0.0045]; mean of leads -0.14 % [-0.23, -0.04]; UR1 clause: members missing
+  Denver s0 ensemble scale vs none, same rows: 1d -0.02 % [-0.0039, +0.0032], 3d -0.35 % [-0.0115, -0.0031], 5d -0.30 % [-0.0169, +0.0003], 7d -0.05 % [-0.0148, +0.0104]; mean of leads -0.18 % [-0.32, -0.02]; UR1 clause: members missing
+  Denver s1 ensemble scale vs none, same rows: 1d -0.13 % [-0.0058, +0.0007], 3d -0.31 % [-0.0105, -0.0026], 5d -0.30 % [-0.0166, -0.0001], 7d -0.19 % [-0.0197, +0.0049]; mean of leads -0.23 % [-0.37, -0.08]; UR1 clause: members missing
+  Denver s2 ensemble scale vs none, same rows: 1d -0.01 % [-0.0046, +0.0036], 3d -0.28 % [-0.0101, -0.0017], 5d -0.28 % [-0.0152, +0.0002], 7d -0.15 % [-0.0178, +0.0057]; mean of leads -0.18 % [-0.33, -0.03]; UR1 clause: members missing
+Verdict: NOT KEPT (record; next stage on the last kept one)
+
