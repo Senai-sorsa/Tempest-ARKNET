@@ -1119,3 +1119,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 17:20 DP tower replay
 - `b67_dp_tower_replay.py`: PASS at 30 min. 50-150 m layer wind CRPS 1.575 -> 0.805 (48.9 % [9.8, 70.9]); blocks 66 / 10 / 71 %; 60 min 35.6 %. Not built; ASK_LATER 39 (needs a drone log). Next: MF.
+
+## 2026-11-16 17:35 MF
+- MF (12.7): BLOCKED, no rocket flight sim / montecarlo helpers in this repo. Not run. Next: RA stage 2 / VS stage 2 design (GPU; N6 KILLed so N7 not needed).
