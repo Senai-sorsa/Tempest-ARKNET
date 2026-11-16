@@ -1,0 +1,8 @@
+2026-11-16 08:58 WD8 jet census: nights with a speed maximum below 200 m (>= 2 m/s above the top level), night = 06-11 UTC hours
+  brady: 88 usable nights, 0 with a nose below 200 m (0 %)
+  cleburne: 0 usable nights, 0 with a nose below 200 m (0 %)
+  colorado_city: 139 usable nights, 1 with a nose below 200 m (1 %)
+  jayton: 329 usable nights, 10 with a nose below 200 m (3 %)
+  ozona: 396 usable nights, 20 with a nose below 200 m (5 %)
+Rule (set 2026-11-16): census only; ERA5 comparison blocked (sodars outside the ERA5 box); no fix proposed.
+

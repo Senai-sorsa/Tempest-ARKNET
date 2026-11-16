@@ -1082,3 +1082,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 08:55 WD7 veer
 - UR6 was already a KILL (b30 step 0), so stage 1 is fully done. `b60_wd7_veer.py` (rule first): sodar 30->100 m veer vs ERA5 scaled differs by 0-5 deg, none above 10 -> measurement only, no fix. Next: WD8 jet census, WD11.
+
+## 2026-11-16 09:10 WD8 jet census
+- `b61_wd8_jet_census.py`: noses below 200 m in 0-5 % of sodar nights (Ozona 5 %, Jayton 3 %); bar is 15 %; ERA5 comparison blocked (sodars outside the ERA5 box). No fix. Next: WD11 turbulence ratios.
