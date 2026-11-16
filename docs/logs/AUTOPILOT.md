@@ -1104,3 +1104,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 11:40 UR12 beta signal
 - `b35_ur12_beta_signal.py`: MISS both arms (d36, c6); CRPS change 0.00-0.04 %, a/b at grid edge, no adoption. Next: UR14 (b36, ~3 h CPU) started.
+
+## 2026-11-16 12:10 UR14 observation stack
+- `b36_ur14_obs_stack.py`: MISS. Map + merged beats merged at TCS (-0.035 to -0.039, intervals below 0, coverage 0.81-0.82) but is worse at ELP (+0.019 to +0.024). No adoption. Stage 2 item 1 follow-ups done; WD3 and E3 deferred, E1 / WD13 blocked. Next: read New_Plan section 21 stage 3.

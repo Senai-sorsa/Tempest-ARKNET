@@ -1,0 +1,8 @@
+2026-11-16 11:52 UR14 observation stack: map first (120 prior hours per cell, 2015-22), then the merged two-neighbour report; 2023-25, 08-20 local, 600 hours per target
+  seed 4 TCS from LRU + ONM: 477 hours (0 skipped), r +0.39; map 08-11/cool 0.942, 08-11/warm 1.010, 12-15/cool 0.986, 12-15/warm 1.112, 16-20/cool 0.962, 16-20/warm 1.196; merged CRPS 1.375 cov 0.78 | map + merged CRPS 1.336 cov 0.81 | difference -0.039 [-0.061, -0.017]
+  seed 4 ELP from LRU + ALM: 426 hours (0 skipped), r +0.43; map 08-11/cool 0.897, 08-11/warm 0.994, 12-15/cool 0.848, 12-15/warm 0.993, 16-20/cool 0.871, 16-20/warm 1.033; merged CRPS 1.302 cov 0.85 | map + merged CRPS 1.326 cov 0.84 | difference +0.024 [+0.009, +0.040]
+  seed 5 TCS from LRU + ONM: 447 hours (0 skipped), r +0.39; map 08-11/cool 0.946, 08-11/warm 1.008, 12-15/cool 0.977, 12-15/warm 1.089, 16-20/cool 0.939, 16-20/warm 1.209; merged CRPS 1.371 cov 0.78 | map + merged CRPS 1.335 cov 0.82 | difference -0.035 [-0.058, -0.015]
+  seed 5 ELP from LRU + ALM: 401 hours (0 skipped), r +0.43; map 08-11/cool 0.889, 08-11/warm 0.979, 12-15/cool 0.821, 12-15/warm 0.985, 16-20/cool 0.885, 16-20/warm 1.094; merged CRPS 1.219 cov 0.87 | map + merged CRPS 1.238 cov 0.85 | difference +0.019 [+0.001, +0.037]
+Rule (pre-set, New_Plan 17.2): PASS = map + merged better than merged (21-day interval < 0) at TCS and ELP, coverage >= 0.80, both seeds; KILL = coverage < 0.80.
+Verdict: MISS (record, no adoption)
+
