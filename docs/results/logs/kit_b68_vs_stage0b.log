@@ -1,0 +1,7 @@
+2026-11-16 17:47 VS stage 0b: 393 cases (EPZ / MAF 00Z 12Z 2024-25), 50 members; variance of each scale increment, member / balloon (u, v, T)
+  s1 7->13 heights     u 0.71  v 0.74  T 1.18
+  s2 13->25            u 0.59  v 0.58  T 1.24
+  s3 25->44 (finest)   u 0.47  v 0.46  T 1.49
+Rule (pre-set): hand-over = finest scale with member >= 80 % of balloon variance in u, v and T; KILL (close VS) if that holds at the finest scale; else PROCEED.
+Verdict: PROCEED; no scale holds 80 % in all three
+
