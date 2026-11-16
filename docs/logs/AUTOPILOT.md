@@ -1076,3 +1076,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 07:55 WD2 LOSO test
 - `b58_wd2_calm_loso.py` (rule set in header first): MISS. P(<3 m/s) error base -> arm ELP 0.129 -> 0.112, MAF 0.042 -> 0.042, TCS 0.234 -> 0.219; MAE -2.8 / -0.5 / -0.4 %. Station-pooled calm map is too weak. WD2 closed, not adopted. Next: WD6 (needs A8 time-zone fix + ERA5 point pull), then stage 2.
+
+## 2026-11-16 08:40 WD6 step 0
+- ERA5 point pull for the 5 sodar sites done (`scripts/wd6_era5_points.py`, data/kit). `b59_wd6_step0.py`: sodar clock = UTC (+1 h shift all 5; audit A8 resolved). Ratio rises with height at 3 of 5 sites with 2+ kept heights; rule needs 4 of 5 -> STOP, WD6 closed. Next: stage 2 (HRRR with pre-set rule), WD9 step 0 deferred.

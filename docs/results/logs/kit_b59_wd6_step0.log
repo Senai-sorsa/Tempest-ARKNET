@@ -1,0 +1,41 @@
+2026-11-16 08:14 WD6 step 0: sodar time zone (best clock shift in h, corr; second best) and ERA5-vs-sodar speed ratio by height
+  brady: best shift +1 h (corr 0.80), next +2 h (0.79); NOT clear
+      ratio sodar / ERA5: 30 m 0.91, 50 m 0.97  (valid hours at 200 m: 0.00)
+  cleburne: best shift +1 h (corr 0.84), next +0 h (0.84); NOT clear
+      ratio sodar / ERA5: 50 m 1.14, 70 m 1.17  (valid hours at 200 m: 0.28)
+  colorado_city: best shift +1 h (corr 0.79), next +2 h (0.78); NOT clear
+      ratio sodar / ERA5: 30 m 0.84, 50 m 0.91  (valid hours at 200 m: 0.01)
+  jayton: best shift +1 h (corr 0.78), next +0 h (0.77); NOT clear
+      ratio sodar / ERA5: 30 m 0.76, 50 m 0.92, 70 m 0.97, 100 m 1.04  (valid hours at 200 m: 0.23)
+  ozona: only 0 usable sodar hours at 50-100 m, skipped
+Rule (set 2026-11-16): stop if the highest-kept-height ratio is not above the 30-50 m ratio by >= 0.03 at 4 of 5 sodars.
+Result: STOP, WD6 closed
+
+2026-11-16 08:15 WD6 step 0: sodar time zone (best clock shift in h, corr; second best) and ERA5-vs-sodar speed ratio by height
+  brady: best shift +1 h (corr 0.81), next +2 h (0.79); NOT clear
+      ratio sodar / ERA5: 30 m 0.91  (valid hours at 200 m: 0.00)
+  cleburne: best shift +1 h (corr 0.85), next +0 h (0.84); NOT clear
+      ratio sodar / ERA5: 60 m 1.15  (valid hours at 200 m: 0.28)
+  colorado_city: best shift +1 h (corr 0.80), next +2 h (0.79); NOT clear
+      ratio sodar / ERA5: 30 m 0.84, 60 m 0.93  (valid hours at 200 m: 0.01)
+  jayton: best shift +1 h (corr 0.78), next +0 h (0.77); NOT clear
+      ratio sodar / ERA5: 30 m 0.76, 60 m 0.95, 100 m 1.04  (valid hours at 200 m: 0.23)
+  ozona: best shift +1 h (corr 0.73), next +0 h (0.72); NOT clear
+      ratio sodar / ERA5: 30 m 0.70, 60 m 0.70, 100 m 0.73  (valid hours at 200 m: 0.43)
+Rule (set 2026-11-16): stop if the highest-kept-height ratio is not above the 30-50 m ratio by >= 0.03 at 4 of 5 sodars.
+Result: STOP, WD6 closed
+
+2026-11-16 08:15 WD6 step 0: sodar time zone (best clock shift in h, corr; second best) and ERA5-vs-sodar speed ratio by height
+  brady: best shift +1 h (corr 0.81), next +2 h (0.79); NOT clear
+      ratio sodar / ERA5: 30 m 0.91  (valid hours at 200 m: 0.00)
+  cleburne: best shift +1 h (corr 0.85), next +0 h (0.84); NOT clear
+      ratio sodar / ERA5: 60 m 1.15  (valid hours at 200 m: 0.28)
+  colorado_city: best shift +1 h (corr 0.80), next +2 h (0.79); NOT clear
+      ratio sodar / ERA5: 30 m 0.84, 60 m 0.93  (valid hours at 200 m: 0.01)
+  jayton: best shift +1 h (corr 0.78), next +0 h (0.77); NOT clear
+      ratio sodar / ERA5: 30 m 0.76, 60 m 0.95, 100 m 1.04  (valid hours at 200 m: 0.23)
+  ozona: best shift +1 h (corr 0.73), next +0 h (0.72); NOT clear
+      ratio sodar / ERA5: 30 m 0.70, 60 m 0.70, 100 m 0.73  (valid hours at 200 m: 0.43)
+Rule (set 2026-11-16): stop if the highest-kept-height ratio is not above the lowest-kept-height (30 m) ratio by >= 0.03 at 4 of 5 sodars.
+Result: STOP, WD6 closed
+
