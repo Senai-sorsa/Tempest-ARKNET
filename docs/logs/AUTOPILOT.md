@@ -1113,3 +1113,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 13:00 VS library bar
 - `b65_vs_library_bar.py`: MISS (3 of 4 limits). T-rise 0.54 -> 0.42 (balloons 0.33), CRPS unchanged, Ri and p99 still short. No adoption. Next: IT step 0, DP tower replay, MF.
+
+## 2026-11-16 17:00 IT step 0
+- `b66_it_step0.py`: PASS. 110 lasting sonde switches 2016-2019H1 (history ends 2020), 64 measurable; gap sd change +0.224 m/s [+0.010, +0.522] vs controls, halves agree. Lower bound barely off 0, surface only. Measurement only. Next: DP tower replay, MF.
