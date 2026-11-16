@@ -1122,3 +1122,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 17:35 MF
 - MF (12.7): BLOCKED, no rocket flight sim / montecarlo helpers in this repo. Not run. Next: RA stage 2 / VS stage 2 design (GPU; N6 KILLed so N7 not needed).
+
+## 2026-11-16 17:50 RA / VS stage 2 triage
+- RA stage 2 needs stage 1b (HRES at 986 points for every 00/12 UTC, 5 leads, ~3.5 GB Colab pull); only the 426-valid-time rows exist, so a stage 2 verdict would be underpowered. Blocked on the pull. VS stage 2 (GPU net on 1991-2020 balloons, must meet every stage-1 limit the bar missed) is the next real item: needs a new training script; stage 0b status to check first.
