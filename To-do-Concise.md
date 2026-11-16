@@ -117,3 +117,4 @@ Processes to finish and check:
 - 2026-11-15 UR6/E4 step 0 KILL (closed). WD9 step 0 deferred (needs new forecast-mode ASOS eval). Next: 1C UR8 (GPU, b31_ur8_control.py / scripts/gpu_ur8_control.sh), UR2 stage 3.
 - 2026-11-15 UR8 PASS, WD5 measured (done). Next: UR2 stage 3 (GPU), CPU 1A leftovers (WD14, SIGMA/NEST/AV30 cov99, AV24/26 pooled).
 - 2026-11-15 23:58 UR2 stage 3 NOT KEPT (recorded). Running: UR2 stages 4-5 on BASE=nest (GPU, [UR2S45]); verdicts via b26 --stage 4 --base nest then --stage 5. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
+- 2026-11-16 04:25 UR2 stage 4 NOT KEPT (recorded). Running: UR2 stage 5 (GPU, [UR2S45] s5_nest_m0_*); then b26 --stage 5 --base nest --mix 0. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
