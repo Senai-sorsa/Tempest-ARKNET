@@ -7,7 +7,7 @@ Leave-station-out: every station is predicted from a ridge / tau2 / w2 fitted on
 Gain = CRPS(none) - CRPS(arm), averaged over stations; intervals by a 1000-draw bootstrap over stations.
 Rule (New_Plan 12.4 stage 1, set before any run): PASS = k = 0 gain > 0 with the interval excluding 0, AND k = 10 gain >= half of the full gain, AND coverage 0.85-0.95 at k = 0, 10, 30.
 KILL = k = 30 gain under 30 % of the full gain (site terms stay by hand). Otherwise MISS.
-Stations: those with >= 40 pairs in 2016-2021 and >= 40 in 2022 (at most 400, random seed 7).
+Stations: those with >= 30 pairs in 2016-2021 and >= 15 in 2022 (at most 400, random seed 7). First run with 40 / 40 kept only 8 stations (ERA5 monthly files hold one hour per day, so matched pairs are few): MISS, underpowered; cut lowered, rule unchanged.
     PYTHONPATH=".;new_plan_kit" .venv/Scripts/python -W ignore new_plan_kit/b64_sv_stage1.py
 Result: docs/results/logs/kit_b64_sv_stage1.log
 """
@@ -114,7 +114,7 @@ def terrain(meta, ids):
 
 def main():
     acc, meta = pairs()
-    ids = [s for s, v in acc.items() if (v[:, 0] <= 2021).sum() >= 40 and (v[:, 0] == 2022).sum() >= 40]
+    ids = [s for s, v in acc.items() if (v[:, 0] <= 2021).sum() >= 30 and (v[:, 0] == 2022).sum() >= 15]
     X = terrain(meta, ids)
     fitp = {s: acc[s][acc[s][:, 0] <= 2021] for s in ids}
     testp = {s: acc[s][acc[s][:, 0] == 2022] for s in ids}
@@ -158,7 +158,7 @@ def main():
         bs = d[idx].mean(1)
         return float(d.mean()), float(np.percentile(bs, 2.5)), float(np.percentile(bs, 97.5))
     g = {a: gain(a) for a in arms if a != "none"}
-    lines = [f"SV stage 1: {len(ids)} stations (>= 40 pairs 2016-21 and 2022), leave-station-out, test 2022, 10 m speed; terrain features: elevation - cell height, sdor, slor, lsm, |lat|",
+    lines = [f"SV stage 1: {len(ids)} stations (>= 30 pairs 2016-21, >= 15 in 2022), leave-station-out, test 2022, 10 m speed; terrain features: elevation - cell height, sdor, slor, lsm, |lat|",
              f"  Gaussian CRPS (m/s), mean over stations: none {cr['none'].mean():.4f}, k0 {cr['k0'].mean():.4f}, k10 {cr['k10'].mean():.4f}, k30 {cr['k30'].mean():.4f}, full fit {cr['full'].mean():.4f}"]
     for a in ("k0", "k10", "k30", "full"):
         lines.append(f"  gain vs none, {a}: {g[a][0]:.4f} [{g[a][1]:.4f}, {g[a][2]:.4f}] ({100 * g[a][0] / g['full'][0]:.0f} % of the full-fit gain); 90 % interval coverage {cv[a]:.3f}")
