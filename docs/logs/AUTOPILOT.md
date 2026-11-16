@@ -1085,3 +1085,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 09:10 WD8 jet census
 - `b61_wd8_jet_census.py`: noses below 200 m in 0-5 % of sodar nights (Ozona 5 %, Jayton 3 %); bar is 15 %; ERA5 comparison blocked (sodars outside the ERA5 box). No fix. Next: WD11 turbulence ratios.
+
+## 2026-11-16 09:40 WD11 turbulence ratios
+- `b62_wd11_turbulence.py`: TI_u falls with height; stable vs unstable differ a lot (200 m: 0.015 vs 0.10) in Nov 2013 and Sep 2014, but May 2014 has no stable hours so the all-three-campaigns rule is not met. Engine constants not in this repo. Measurement only, no change. Next: stage 2 item 3 small downloads.
