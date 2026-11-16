@@ -1,0 +1,6 @@
+2026-11-16 16:53 DP tower replay: SWiFT 200 m tower, 130 hours in 3 campaign blocks, 200 members; 50-150 m layer-mean wind (u, v CRPS mean), tower sigma 0.5 m/s
+  lead 30 min: n 130; CRPS A (10 m only) 1.575, B (profile) 0.805, persistence abs error 0.945; gain 48.9 % [9.8, 70.9]; by block 66 10 71
+  lead 60 min: n 128; CRPS A (10 m only) 1.657, B (profile) 1.066, persistence abs error 1.214; gain 35.6 % [-2.3, 56.3]; by block 50 -2 60
+Rule (pre-set): at lead 30 min PASS = gain >= 40 %; KILL = gain < 15 %; else MISS.
+Verdict: PASS
+

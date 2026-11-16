@@ -1116,3 +1116,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 17:00 IT step 0
 - `b66_it_step0.py`: PASS. 110 lasting sonde switches 2016-2019H1 (history ends 2020), 64 measurable; gap sd change +0.224 m/s [+0.010, +0.522] vs controls, halves agree. Lower bound barely off 0, surface only. Measurement only. Next: DP tower replay, MF.
+
+## 2026-11-16 17:20 DP tower replay
+- `b67_dp_tower_replay.py`: PASS at 30 min. 50-150 m layer wind CRPS 1.575 -> 0.805 (48.9 % [9.8, 70.9]); blocks 66 / 10 / 71 %; 60 min 35.6 %. Not built; ASK_LATER 39 (needs a drone log). Next: MF.
