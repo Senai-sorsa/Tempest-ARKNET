@@ -1091,3 +1091,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 09:55 stage 2 item 3 probes
 - E1 atlas: the Global Wind Atlas API at globalwindatlas.info answers 400 to every guessed point query (no documented public bulk download), so the 71-station step 0 is blocked; needs a user-supplied atlas file or a known endpoint. WD13 Jornada: EDI metadata read fails with "not authorized" (login needed), and WD2 is already closed (MISS); blocked. Next: E3 / AV38 check, then item 1 follow-ups (UR14, UR10, UR12, WD3, WD10).
+
+## 2026-11-16 10:30 AV38 Denver confirmation
+- `b63_av38_denver_blhgate.py` (ERA5 blh pulled for the Denver cell, small): DEN gated gain +2.01 % [-1.99, +5.46], APA +3.49 % [+0.32, +6.67] -> MISS (DEN interval includes 0). Same sign at all four sites, no adoption. Next: item 1 follow-ups (WD3, WD10, UR14, UR10, UR12).

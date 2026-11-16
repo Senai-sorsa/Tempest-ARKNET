@@ -1,0 +1,7 @@
+2026-11-16 10:14 DEN ASOS + USM00072469 balloons: 4007 matched launches 2016-23 with blh, gated 679; test 2021-23 gated 173, outside 786; median blh gated 1647 m
+  MAE ws10 2.156 -> ws10 + gust excess 2.112 m/s; gain +2.01 % (95 % interval -1.99 to +5.46); coefficients b [0.237 0.792 0.4  ]
+APA ASOS + USM00072469 balloons: 4039 matched launches 2016-23 with blh, gated 722; test 2021-23 gated 172, outside 753; median blh gated 1644 m
+  MAE ws10 2.370 -> ws10 + gust excess 2.287 m/s; gain +3.49 % (95 % interval +0.32 to +6.67); coefficients b [0.409 0.901 0.392]
+AV38 rule (pre-set): PASS = DEN gated gain >= 2 % with interval > 0 AND APA gated gain > 0; KILL = DEN gated gain < 1 %; else MISS.
+AV38 verdict: MISS (DEN gated gain +2.01 % [-1.99, +5.46] (needs >= 2 % and interval > 0), APA +3.49 % (needs > 0))
+
