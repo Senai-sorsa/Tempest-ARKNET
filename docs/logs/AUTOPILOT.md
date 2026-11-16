@@ -1088,3 +1088,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 09:40 WD11 turbulence ratios
 - `b62_wd11_turbulence.py`: TI_u falls with height; stable vs unstable differ a lot (200 m: 0.015 vs 0.10) in Nov 2013 and Sep 2014, but May 2014 has no stable hours so the all-three-campaigns rule is not met. Engine constants not in this repo. Measurement only, no change. Next: stage 2 item 3 small downloads.
+
+## 2026-11-16 09:55 stage 2 item 3 probes
+- E1 atlas: the Global Wind Atlas API at globalwindatlas.info answers 400 to every guessed point query (no documented public bulk download), so the 71-station step 0 is blocked; needs a user-supplied atlas file or a known endpoint. WD13 Jornada: EDI metadata read fails with "not authorized" (login needed), and WD2 is already closed (MISS); blocked. Next: E3 / AV38 check, then item 1 follow-ups (UR14, UR10, UR12, WD3, WD10).
