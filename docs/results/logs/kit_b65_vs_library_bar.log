@@ -1,0 +1,11 @@
+2026-11-16 12:39 VS stage 1 library bar: 400 cases (EPZ / MAF 00Z 12Z 2024-25), 100 members, 0 skipped; coarse heights 13 of 44
+  Ri<1 share per band (0-1, 1-5, 5-12, 12-18 km), T-rise count < 3 km, shear p99 (m/s per km) per band, CRPS u / v / T:
+  balloons   Ri 0.735, 0.357, 0.205, 0.151 | rise 0.325 | p99 96.5, 23.0, 27.0, 32.2 | CRPS -
+  shipped    Ri 0.656, 0.296, 0.174, 0.062 | rise 0.541 | p99 66.7, 20.6, 19.9, 24.9 | u 4.3799 v 4.4858 T 1.9726
+  + shuffle  Ri 0.668, 0.310, 0.198, 0.074 | rise 0.548 | p99 73.8, 22.6, 23.0, 26.2 | u 4.3799 v 4.4878 T 1.9719
+  bar        Ri 0.650, 0.285, 0.202, 0.091 | rise 0.423 | p99 65.5, 19.8, 21.7, 26.7 | u 4.3804 v 4.4853 T 1.9692
+  bar minus balloons: Ri -0.085, -0.071, -0.003, -0.061 | rise +0.098 | p99 ratio 0.68, 0.86, 0.80, 0.83
+  bar minus shipped CRPS: u +0.0005 v -0.0004 T -0.0034 (tolerance 0.0009)
+Rule (pre-set): PASS = Ri<1 within 0.03 in every band, T-rise within 0.05, shear p99 ratio 0.90-1.10 in every band, CRPS u v T not worse than shipped by more than 0.0009; else MISS.
+Verdict: MISS (failed: Ri<1 share, T-rise count, shear p99)
+

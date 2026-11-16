@@ -1110,3 +1110,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 12:50 SV stage 1
 - `b64_sv_stage1.py`: MISS (280 stations after the first 8-station run was fixed by a lower pair cut). k0 gain ~0, k10 34 % of the full-fit gain (needed 50 %), k30 63 %, coverage 0.96. No adoption. Next: VS library bar, IT step 0.
+
+## 2026-11-16 13:00 VS library bar
+- `b65_vs_library_bar.py`: MISS (3 of 4 limits). T-rise 0.54 -> 0.42 (balloons 0.33), CRPS unchanged, Ri and p99 still short. No adoption. Next: IT step 0, DP tower replay, MF.
