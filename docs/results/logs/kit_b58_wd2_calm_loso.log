@@ -1,0 +1,7 @@
+2026-11-16 07:43 WD2 LOSO real-calm map: P(speed < 3 m/s) error and mean abs speed error vs the left-out station, 2021-23
+  ELP: n 19825; P(<3) obs 0.447 base 0.576 arm 0.559; err base 0.129 arm 0.112; MAE base 1.448 arm 1.408 (-2.79 %)
+  MAF: n 23107; P(<3) obs 0.210 base 0.252 arm 0.252; err base 0.042 arm 0.042; MAE base 1.223 arm 1.217 (-0.49 %)
+  TCS: n 21905; P(<3) obs 0.395 base 0.629 arm 0.614; err base 0.234 arm 0.219; MAE base 1.552 arm 1.545 (-0.41 %)
+Rule (set 2026-11-16): PASS if arm error <= half of base at 2 of 3 stations and MAE not worse by > 0.5 % anywhere; KILL if error not reduced at 2 of 3.
+Result: MISS
+

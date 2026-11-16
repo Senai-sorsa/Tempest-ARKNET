@@ -1073,3 +1073,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 07:50 WD2 step 0
 - `new_plan_kit/b57_wd2_calm_step0.py` ran (CPU). Only ELP / MAF / TCS have one-minute data (ALM, LRU, PEQ files are header-only). Gap ASOS - ERA5 at 3 m/s: -0.147 / -0.045 / -0.219 -> continue. Tool P(<3 m/s) is nearer ASOS than ERA5 at ELP and TCS. Next: LOSO test on 3 stations with the rule set first.
+
+## 2026-11-16 07:55 WD2 LOSO test
+- `b58_wd2_calm_loso.py` (rule set in header first): MISS. P(<3 m/s) error base -> arm ELP 0.129 -> 0.112, MAF 0.042 -> 0.042, TCS 0.234 -> 0.219; MAE -2.8 / -0.5 / -0.4 %. Station-pooled calm map is too weak. WD2 closed, not adopted. Next: WD6 (needs A8 time-zone fix + ERA5 point pull), then stage 2.
