@@ -1079,3 +1079,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 08:40 WD6 step 0
 - ERA5 point pull for the 5 sodar sites done (`scripts/wd6_era5_points.py`, data/kit). `b59_wd6_step0.py`: sodar clock = UTC (+1 h shift all 5; audit A8 resolved). Ratio rises with height at 3 of 5 sites with 2+ kept heights; rule needs 4 of 5 -> STOP, WD6 closed. Next: stage 2 (HRRR with pre-set rule), WD9 step 0 deferred.
+
+## 2026-11-16 08:55 WD7 veer
+- UR6 was already a KILL (b30 step 0), so stage 1 is fully done. `b60_wd7_veer.py` (rule first): sodar 30->100 m veer vs ERA5 scaled differs by 0-5 deg, none above 10 -> measurement only, no fix. Next: WD8 jet census, WD11.

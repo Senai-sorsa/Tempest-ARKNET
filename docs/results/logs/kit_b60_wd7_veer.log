@@ -1,0 +1,12 @@
+2026-11-16 08:36 WD7 veer: median dir(100 m) - dir(30 m), sodar vs ERA5 10->100 m veer x 0.523, by class, speeds >= 3 m/s at 10 / 30 / 100 m; difference = sodar - ERA5 (deg)
+  brady night: n 1287; median veer sodar +4.3, ERA5 scaled +1.2; diff +3.1
+  brady day: n 781; median veer sodar +1.0, ERA5 scaled +0.5; diff +0.5
+  colorado_city night: n 1649; median veer sodar +5.7, ERA5 scaled +0.9; diff +4.7
+  colorado_city day: n 1644; median veer sodar +1.3, ERA5 scaled +0.3; diff +1.0
+  jayton night: n 2004; median veer sodar +0.7, ERA5 scaled +0.9; diff -0.2
+  jayton day: n 2703; median veer sodar +0.1, ERA5 scaled +0.4; diff -0.3
+  ozona night: n 2186; median veer sodar -0.8, ERA5 scaled +0.6; diff -1.4
+  ozona day: n 3297; median veer sodar -0.2, ERA5 scaled +0.2; diff -0.3
+Rule (set 2026-11-16): fix proposed only if |median sodar - ERA5 veer| > 10 deg in both classes at 4 of 5 sodars.
+Result: measurement only, no fix (0 of 5 sodars above 10 deg in both classes)
+
