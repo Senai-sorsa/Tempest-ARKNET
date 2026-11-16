@@ -119,3 +119,4 @@ Processes to finish and check:
 - 2026-11-15 23:58 UR2 stage 3 NOT KEPT (recorded). Running: UR2 stages 4-5 on BASE=nest (GPU, [UR2S45]); verdicts via b26 --stage 4 --base nest then --stage 5. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
 - 2026-11-16 04:25 UR2 stage 4 NOT KEPT (recorded). Running: UR2 stage 5 (GPU, [UR2S45] s5_nest_m0_*); then b26 --stage 5 --base nest --mix 0. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
 - 2026-11-16 06:30 UR2 stage 5 NOT KEPT (recorded); UR2 stack closed (stages 3-5 all NOT KEPT). GPU free. Next: 1A leftovers (WD14, cov99 re-score, AV24/26 pooled), 1D WD2/WD6, stage 2. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
+- 2026-11-16 06:45 WD14 template done (new_plan_kit/wd14_shear_score.py). Next: SIGMA/NEST/AV30 cov99 re-score, AV24/26 pooled report (CPU), then 1D WD2, WD6, stage 2.
