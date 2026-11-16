@@ -1,0 +1,8 @@
+2026-11-16 10:42 UR10 radar t-update: EPZ radar + Santa Teresa 00Z balloons, years [2023], 183 cases; scored at 2500-5000 m above the station (u and v)
+  all                n  183: CRPS shipped 2.491 t 2.498; cov90 shipped 0.94 t 0.95
+  top 10 % surprise  n   19: CRPS shipped 3.571 t 3.577; cov90 shipped 0.81 t 0.92
+  other 90 %         n  164: CRPS shipped 2.365 t 2.373; cov90 shipped 0.95 t 0.95
+  other 90 %: CRPS change t - shipped +0.0077 [+0.0034, +0.0125] (21-day blocks); D^2 threshold 18.1
+Rule (G2-2's, pre-set): PASS = top-10 % coverage error falls and the other 90 % CRPS interval contains 0 or lies below; KILL = the other 90 % worse beyond noise.
+Verdict: KILL (the other 90 % worse beyond noise)
+

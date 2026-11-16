@@ -1098,3 +1098,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 ## 2026-11-16 10:55 WD10 / WD3 triage
 - WD10 (gust factor fitted on 1-min ASOS gusts): already done in substance by `gust_1min.log` (physical-gust law on 1-min station gusts, validated 2021-23 and 2024-25: CRPS 0.61 vs 1.73 shipped on measured wind); only the tower hold-out and stability-proxy variant are new, not worth a run now. Marked covered.
 - WD3 (calm-window gains at 6 h / 12 h): needs a longer-chain regime link and about 4x the b40 run (roughly 6 h CPU) on an arm (UR5 / WD1) that is MISS and not adopted. Deferred until the arm is adopted. Next: UR14, UR10, UR12 triage.
+
+## 2026-11-16 11:10 UR10 radar t-update
+- `b33_ur10_radar_t.py`: KILL. Surprising 10 % cov90 0.81 -> 0.92, but the other 90 % CRPS +0.0077 [+0.0034, +0.0125]. Flag stays off. Idea (untested): switch on only above the D^2 threshold. Next: UR12 (needs ur2_mix_rows nmtx / denver rows), UR14.
