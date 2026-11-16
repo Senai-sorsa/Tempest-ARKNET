@@ -1,0 +1,10 @@
+2026-11-16 07:21 WD2 step 0: P(10 m speed < 1 / 2 / 3 / 5 m/s), UTC hours 0 / 6 / 12 / 18, 2016-2022; order ASOS | ERA5 | tool | ASOS - ERA5
+  ALM: n 0; <1: nan | nan | 0.000 | +nan; <2: nan | nan | 0.000 | +nan; <3: nan | nan | 0.000 | +nan; <5: nan | nan | 0.000 | +nan
+  ELP: n 8642; <1: 0.036 | 0.073 | 0.050 | -0.037; <2: 0.210 | 0.304 | 0.187 | -0.093; <3: 0.420 | 0.567 | 0.367 | -0.147; <5: 0.728 | 0.835 | 0.695 | -0.107
+  LRU: n 0; <1: nan | nan | 0.000 | +nan; <2: nan | nan | 0.000 | +nan; <3: nan | nan | 0.000 | +nan; <5: nan | nan | 0.000 | +nan
+  MAF: n 9301; <1: 0.011 | 0.012 | 0.025 | -0.001; <2: 0.077 | 0.082 | 0.105 | -0.006; <3: 0.207 | 0.253 | 0.234 | -0.045; <5: 0.547 | 0.621 | 0.544 | -0.074
+  PEQ: n 0; <1: nan | nan | 0.000 | +nan; <2: nan | nan | 0.000 | +nan; <3: nan | nan | 0.000 | +nan; <5: nan | nan | 0.000 | +nan
+  TCS: n 9036; <1: 0.026 | 0.095 | 0.064 | -0.069; <2: 0.172 | 0.390 | 0.234 | -0.218; <3: 0.406 | 0.625 | 0.447 | -0.219; <5: 0.765 | 0.854 | 0.771 | -0.089
+Rule (set 2026-11-16, WD2): stop if |ASOS - ERA5| at 3 m/s is under 0.03 at every station.
+Result: continue to the leave-one-station-out test (3 of 6 stations with gap >= 0.03)
+

@@ -1070,3 +1070,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-16 06:30 UR2 stage 5 NOT KEPT (mean of leads, scale vs none: NM -0.17/-0.14/-0.14 %, Denver -0.18/-0.23/-0.18 %; need <= -0.5 % in every run; not a KILL). Recorded sec 9 (bak56). UR2 stack closed: stages 3, 4, 5 all NOT KEPT. GPU free; next: CPU 1A leftovers (WD14, cov99 re-score, AV24/26 pooled), 1D WD2/WD6.
 - 2026-11-16 06:45 WD14 shear-aware score template written: new_plan_kit/wd14_shear_score.py (CRPS u/v/speed, cov90 gap, 200-10 m shear CRPS, variogram p=0.5; selfcheck passes). Header rule: wind change must not worsen shear CRPS or variogram by more than 0.5 %. Use in every wind verdict from now.
 - 2026-11-16 07:10 1A leftovers: R1 re-score (b56) SIGMA/NEST/AV30 still MISS under R1 (cov99 0.976-0.984, limit 0.005 of 0.99; CRPS clause ok). AV24/AV26 pooled recorded as PASS (pooled, report only). Recorded sec 9 (bak57). Next: 1D WD2 (real calm), WD6, stage 2.
+
+## 2026-11-16 07:50 WD2 step 0
+- `new_plan_kit/b57_wd2_calm_step0.py` ran (CPU). Only ELP / MAF / TCS have one-minute data (ALM, LRU, PEQ files are header-only). Gap ASOS - ERA5 at 3 m/s: -0.147 / -0.045 / -0.219 -> continue. Tool P(<3 m/s) is nearer ASOS than ERA5 at ELP and TCS. Next: LOSO test on 3 stations with the rule set first.
