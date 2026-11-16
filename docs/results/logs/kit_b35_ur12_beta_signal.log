@@ -1,0 +1,8 @@
+2026-11-16 11:33 UR12 beta x h(signal) vs B0tab: fit 2016-2020, judged (2021, 2022); Gaussian CRPS, 16-cell mean, 21-day blocks
+  NM/TX d36: (a, b) per cell 0 (1.10, 0.05), 1 (1.20, 0.05), 2 (1.00, 0.00), 6 (1.00, 0.00); CRPS change vs B0tab 1d +0.01 % [-0.0001, +0.0004], 3d +0.00 % [-0.0001, +0.0003], 5d -0.01 % [-0.0004, -0.0001], 7d -0.00 % [-0.0003, +0.0001]; PIT distance change -0.0000 [-0.0000, -0.0000]; rows with the signal 42%
+  NM/TX c6: (a, b) per cell 0 (1.10, 0.05), 1 (1.20, 0.05), 2 (1.20, 0.05), 6 (1.00, 0.00); CRPS change vs B0tab 1d +0.03 % [+0.0001, +0.0008], 3d +0.01 % [-0.0000, +0.0005], 5d -0.00 % [-0.0006, +0.0002], 7d -0.01 % [-0.0005, -0.0000]; PIT distance change -0.0000 [-0.0000, +0.0000]; rows with the signal 65%
+  Denver d36: (a, b) per cell 0 (1.10, 0.05), 1 (1.10, 0.05), 2 (1.10, 0.05), 6 (1.15, 0.05); CRPS change vs B0tab 1d +0.04 % [+0.0002, +0.0011], 3d +0.01 % [-0.0001, +0.0008], 5d -0.01 % [-0.0009, +0.0003], 7d -0.00 % [-0.0008, +0.0006]; PIT distance change -0.0001 [-0.0002, -0.0000]; rows with the signal 42%
+  Denver c6: (a, b) per cell 0 (1.05, 0.05), 1 (1.00, 0.00), 2 (1.20, 0.05), 6 (1.15, 0.05); CRPS change vs B0tab 1d +0.01 % [+0.0001, +0.0005], 3d +0.00 % [-0.0001, +0.0002], 5d -0.00 % [-0.0003, +0.0000], 7d -0.00 % [-0.0002, +0.0001]; PIT distance change -0.0000 [-0.0001, -0.0000]; rows with the signal 65%
+Rule (pre-set, New_Plan 17.2): PASS = interval < 0 at 3, 5, 7 d and PIT change interval includes 0 or below, both boxes; KILL = no lead better in either box.
+Verdict: d36 MISS (record, no adoption); c6 MISS (record, no adoption) (forking paths: 2 arms)
+

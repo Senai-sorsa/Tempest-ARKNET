@@ -1101,3 +1101,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 11:10 UR10 radar t-update
 - `b33_ur10_radar_t.py`: KILL. Surprising 10 % cov90 0.81 -> 0.92, but the other 90 % CRPS +0.0077 [+0.0034, +0.0125]. Flag stays off. Idea (untested): switch on only above the D^2 threshold. Next: UR12 (needs ur2_mix_rows nmtx / denver rows), UR14.
+
+## 2026-11-16 11:40 UR12 beta signal
+- `b35_ur12_beta_signal.py`: MISS both arms (d36, c6); CRPS change 0.00-0.04 %, a/b at grid edge, no adoption. Next: UR14 (b36, ~3 h CPU) started.

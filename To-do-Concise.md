@@ -121,4 +121,4 @@ Processes to finish and check:
 - 2026-11-16 06:30 UR2 stage 5 NOT KEPT (recorded); UR2 stack closed (stages 3-5 all NOT KEPT). GPU free. Next: 1A leftovers (WD14, cov99 re-score, AV24/26 pooled), 1D WD2/WD6, stage 2. UR15F denver fetch still running; rerun net_ur15_fetch.sh when [UR15F] done.
 - 2026-11-16 06:45 WD14 template done (new_plan_kit/wd14_shear_score.py). Next: SIGMA/NEST/AV30 cov99 re-score, AV24/26 pooled report (CPU), then 1D WD2, WD6, stage 2.
 - 2026-11-16 07:10 R1 re-score done (all 3 arms still MISS); AV24/26 pooled reported as PASS (pooled). 1A done. Next: 1D WD2, WD6, stage 2. UR15F denver fetch still running.
-- WD2 b58, WD6 b59, WD7 b60, WD8 b61, WD11 b62 done (no fixes). E1 atlas + WD13 Jornada blocked; AV38 b63 MISS; E3 deferred (needs radar pull). WD10 covered by gust_1min, WD3 deferred (heavy, arm not adopted). UR10 b33 KILL. Next UR12, UR14.
+- WD2 b58, WD6 b59, WD7 b60, WD8 b61, WD11 b62 done (no fixes). E1 atlas + WD13 Jornada blocked; AV38 b63 MISS; E3 deferred (needs radar pull). WD10 covered by gust_1min, WD3 deferred (heavy, arm not adopted). UR10 b33 KILL, UR12 b35 MISS. UR14 b36 running (from 11:40).
