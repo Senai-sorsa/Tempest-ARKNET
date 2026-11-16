@@ -1107,3 +1107,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 12:10 UR14 observation stack
 - `b36_ur14_obs_stack.py`: MISS. Map + merged beats merged at TCS (-0.035 to -0.039, intervals below 0, coverage 0.81-0.82) but is worse at ELP (+0.019 to +0.024). No adoption. Stage 2 item 1 follow-ups done; WD3 and E3 deferred, E1 / WD13 blocked. Next: read New_Plan section 21 stage 3.
+
+## 2026-11-16 12:40 SV stage 1
+- `b64_sv_stage1.py`: MISS (underpowered, 8 stations). k10 reaches 94 % of the full-fit gain, coverage 0.87-0.88, but no gain interval excludes 0. No adoption. Next: VS library bar, IT step 0.
