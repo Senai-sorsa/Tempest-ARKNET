@@ -1146,3 +1146,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 03:25 22.V5 seed 1
 - Seed-1 replicate: V5a 0.058, V5b 0.048, shipped 0.063, gaussfull 0.035; CRPS u +0.9 %, T +0.45 %. Both seeds needed, seed 1 fails error, gaussfull and CRPS limits. Final: MISS. Gain is within noise. V2/V4 skipped (no stable gain). Section 22 closed, tool unchanged.
+
+## 2026-11-17 05:15 23.T1 step 0 (NCEI 1-s radiosonde BUFR): PASS (decode works)
+- Archive members are WBAN-named (EPZ 03020, MAF 23023; 94 stations in June 2024). B-BUFR (embedded tables) cannot be decoded by eccodes; C-BUFR can: one EPZ flight gives 5777 rows at 1 s (pressure, T, wind speed and direction, geopotential height 1.25-34 km, lat/lon displacement), sonde type 154, about 0.47 MB per flight. June 2024: 60 EPZ flights, 27 MAF flights (MAF looks partial; not yet explained). One month extracts in about 1-8 min. Next: parse to 50 m profiles per flight, pull 2024-25 (C-BUFR only), delete raw after parse, compare shear/Ri<1 with IGRA.
