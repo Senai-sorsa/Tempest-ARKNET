@@ -1,0 +1,14 @@
+day 164 {'EPZ': 2, 'MAF': 1}
+day 165 {'EPZ': 3, 'MAF': 5}
+day 166 {'EPZ': 6, 'MAF': 6}
+day 167 {'EPZ': 6, 'MAF': 7}
+day 168 {'EPZ': 6, 'MAF': 8}
+day 169 {'EPZ': 7, 'MAF': 8}
+day 170 {'EPZ': 8, 'MAF': 9}
+day 171 {'EPZ': 9, 'MAF': 9}
+day 172 {'EPZ': 10, 'MAF': 10}
+day 173 {'EPZ': 11, 'MAF': 11}
+day 174 {'EPZ': 12, 'MAF': 11}
+day 175 {'EPZ': 13, 'MAF': 11}
+EPZ 13 matched occultations; 8.0-10.0 km: -1.07 K sd 2.73 (n 13); 10.0-12.0 km: +0.07 K sd 1.13 (n 13); 12.0-14.0 km: +0.23 K sd 0.69 (n 13); 14.0-16.0 km: -0.01 K sd 0.80 (n 13); 16.0-18.0 km: -0.39 K sd 1.17 (n 13)
+MAF 11 matched occultations; 8.0-10.0 km: -1.91 K sd 3.21 (n 11); 10.0-12.0 km: +0.01 K sd 2.50 (n 11); 12.0-14.0 km: +1.13 K sd 2.02 (n 11); 14.0-16.0 km: +1.87 K sd 3.24 (n 11); 16.0-18.0 km: +1.32 K sd 3.70 (n 11)
