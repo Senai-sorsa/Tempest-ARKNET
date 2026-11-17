@@ -1140,3 +1140,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 02:55 22.V1
 - `b71_v1_balloon_templates.py` (5 min CPU): MISS. Error shipped 0.055, V1a 0.061, V1b (maps off) 0.047, gaussfull 0.041; no interval excludes 0; CRPS T +0.4 % vs 0.3 % limit. V1b brings 12-18 km shear p99 (0.78 -> 0.92) and Ri<1 closer to balloons. V2 not run. Next: V5 copula (plan: run if V1 misses), then T1 step 0 / WD3 etc. UR15F Denver at 2023-03.
+
+## 2026-11-17 03:15 22.V5
+- b71 --copula (5 min CPU): MISS by one limit. Error shipped 0.055, V5a 0.044, V5b 0.045, gaussfull 0.041; T CRPS +0.35 % vs 0.3 % limit; 12-18 km shear p99 and Ri<1 not worse. Interval vs shipped [-0.022, +0.003] includes 0. Seed-1 replicate running (data/v5s1.log). Pass needs both seeds.

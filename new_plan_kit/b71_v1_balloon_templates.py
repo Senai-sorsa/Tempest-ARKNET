@@ -15,6 +15,7 @@ PRE-SET RULE (before the run; from New_Plan 22.2 V1 'Pass' and 'Kill'):
 Result: docs/results/logs/kit_b71_v1_balloon_templates.log
 """
 import argparse
+import os
 
 import numpy as np
 import pandas as pd
@@ -79,7 +80,8 @@ def main():
     a = ap.parse_args()
     from tempest_weather import api
     A = api._assets()
-    rng = np.random.default_rng(0)
+    seed = int(os.environ.get("KIT_SEED", 0))                      # replicate seed (cases, templates, member pick); default 0 = the first run
+    rng = np.random.default_rng(seed)
     todo = B9.cases(a.per_group, rng)
     srcs = list(ARMS) + ["gaussfull"]
     pick = {s: {q: [] for q in VARS} for s in srcs + ["balloons"]}
@@ -87,14 +89,14 @@ def main():
     shear = {s: [] for s in srcs + ["balloons"]}
     ri = {s: np.zeros((4, 2)) for s in srcs + ["balloons"]}
     days, skipped, repeats = [], 0, set()
-    trng = np.random.default_rng(5)
+    trng = np.random.default_rng(5 + seed)
     for cid, sid, t, b in todo:
         lat, lon, elev = K.station_pos(sid)
         mu, _ = B9.clim_stats(sid, t.month, t.hour)
-        seed = 1000 * t.year + int(t.dayofyear)
+        cseed = 1000 * t.year + int(t.dayofyear)
         try:
             ranks, nok, rep = balloon_ranks(sid, t.month, t.hour, trng)
-            runs = {arm: run_arm(api, A, arm, t.month - 1, ranks, lat, lon, t, elev, seed) for arm in ARMS}
+            runs = {arm: run_arm(api, A, arm, t.month - 1, ranks, lat, lon, t, elev, cseed) for arm in ARMS}
         except ValueError:
             skipped += 1
             continue
@@ -122,7 +124,7 @@ def main():
     pick = {s: {q: np.array(v) for q, v in d.items()} for s, d in pick.items()}
     err = lambda s, i: B9.vert_err({q: pick[s][q][i] for q in VARS}, {q: pick["balloons"][q][i] for q in VARS})
     every = np.arange(n)
-    L = [f"22.{TAG} {'copula' if COP else 'balloon'} templates: {n} cases ({skipped} skipped), {NM} members, template sets with repeats (fewer than {NT} complete balloons): {len(repeats)} of the station / month / hour groups used",
+    L = [f"22.{TAG} {'copula' if COP else 'balloon'} templates (seed {seed}): {n} cases ({skipped} skipped), {NM} members, template sets with repeats (fewer than {NT} complete balloons): {len(repeats)} of the station / month / hour groups used",
          "source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band"]
     sb = np.concatenate(shear["balloons"])
     r99 = {}
