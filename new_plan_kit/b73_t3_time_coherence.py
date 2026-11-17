@@ -8,6 +8,7 @@ PRE-SET RULE (before the run): PASS if |tool - obs| <= 0.10 at each of k = 1, 3,
 """
 import glob, os
 import numpy as np, pandas as pd
+KFRAC = os.environ.get("T3_KFRAC")      # nugget experiment (in memory only): kappa_u,v -> 1 - (1 - kappa) * KFRAC for the wind columns; unset = shipped
 MONTH = os.environ.get("T3_MONTH", "2024-06")      # e.g. 2024-01; the pulled hours are enough (13-23 UTC)
 import kit_common as K
 from p3_vad_vs_balloon import parse
@@ -46,6 +47,12 @@ def observed(elev):
 
 def tool(lat, lon, elev):
     from tempest_weather import api
+    A = api._assets()
+    kap0 = A.get("coherence_kappa")
+    if KFRAC is not None:
+        k = np.array(kap0, float)
+        k[:88] = 1 - (1 - k[:88]) * float(KFRAC)
+        A["coherence_kappa"] = k
     nh = int(np.sum(K.H <= 3500))
     offs = (0,) + LAGS
     res = {k: [] for k in LAGS}
@@ -72,7 +79,7 @@ def main():
     ok = have and all(abs(tl[k] - ob[k][0]) <= 0.10 for k in (1, 3, 6))
     L.append("VERDICT (pre-set rule, |diff| <= 0.10 at lags 1, 3, 6): " + ("NO DATA (too few observed pairs)" if not have else "PASS" if ok else "MISS"))
     L.append("Notes: lag 6 absent from LAGS-based obs if too few pairs. Observed pairs share days, so the effective sample is smaller than the pair count. One month, one radar, first VAD volume of each hour (clear-air hours hold no wind).")
-    K.report("b73_t3_time_coherence" + ("" if MONTH == "2024-06" else "_" + MONTH), L)
+    K.report("b73_t3_time_coherence" + ("" if MONTH == "2024-06" else "_" + MONTH) + ("" if KFRAC is None else "_kfrac" + KFRAC), L)
 
 
 if __name__ == "__main__":

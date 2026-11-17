@@ -1,0 +1,10 @@
+2026-11-17 12:42 23.T3 time coherence, MAF 2024-06: lag correlation of 0-3.5 km wind (mean over u, v, heights); observed = KMAF VAD, tool = atmosphere_sequence climate-lag table
+lag h   observed (n pairs)   tool    tool - obs
+  1     0.963 (70)        0.886   -0.078
+  2     0.906 (72)        0.831   -0.074
+  3     0.847 (70)        0.778   -0.069
+  4     0.794 (70)        0.737   -0.057
+  6     0.735 (68)        0.661   -0.074
+VERDICT (pre-set rule, |diff| <= 0.10 at lags 1, 3, 6): PASS
+Notes: lag 6 absent from LAGS-based obs if too few pairs. Observed pairs share days, so the effective sample is smaller than the pair count. One month, one radar, first VAD volume of each hour (clear-air hours hold no wind).
+
