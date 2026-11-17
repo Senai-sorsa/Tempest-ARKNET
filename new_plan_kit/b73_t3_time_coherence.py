@@ -68,8 +68,9 @@ def main():
          "lag h   observed (n pairs)   tool    tool - obs"]
     for k in LAGS:
         L.append(f"  {k}     {ob[k][0]:.3f} ({ob[k][1]})        {tl[k]:.3f}   {tl[k] - ob[k][0]:+.3f}")
-    ok = all(abs(tl[k] - ob[k][0]) <= 0.10 for k in (1, 3, 6) if k in ob and np.isfinite(ob[k][0]))
-    L.append("VERDICT (pre-set rule, |diff| <= 0.10 at lags 1, 3, 6): " + ("PASS" if ok else "MISS"))
+    have = all(np.isfinite(ob[k][0]) for k in (1, 3, 6))
+    ok = have and all(abs(tl[k] - ob[k][0]) <= 0.10 for k in (1, 3, 6))
+    L.append("VERDICT (pre-set rule, |diff| <= 0.10 at lags 1, 3, 6): " + ("NO DATA (too few observed pairs)" if not have else "PASS" if ok else "MISS"))
     L.append("Notes: lag 6 absent from LAGS-based obs if too few pairs. Observed pairs share days, so the effective sample is smaller than the pair count. One month, one radar, first VAD volume of each hour (clear-air hours hold no wind).")
     K.report("b73_t3_time_coherence" + ("" if MONTH == "2024-06" else "_" + MONTH), L)
 
