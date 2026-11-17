@@ -33,6 +33,7 @@ descriptive, and a difference under the noise named in the notes is not a result
 
     PYTHONPATH=".;new_plan_kit" .venv/Scripts/python -W ignore new_plan_kit/b9_gram_compare.py --standin                    # 200 cases per group, about 25 min
     KIT_SMOKE=1 PYTHONPATH=".;new_plan_kit" .venv/Scripts/python -W ignore new_plan_kit/b9_gram_compare.py --standin --per-group 4 --m 40   # smoke test
+    22.V6 (2026-11-17, measurement, no kill): add --gramlike. Reading rule: gramlike vertical-corr error above the tool's 0.061 (interval of gramlike - tool above 0) = our 'loss' on this score is to an idealised stand-in, not to a GRAM-style structure; below = the loss stands. Real Earth-GRAM via --extra stays the judge.
     ... --extra gram=data/kit/earthgram.npz          ... --cases-out data/kit/gram_cases.csv          ... --from-csv IN.csv OUT.npz
 Result: docs/results/logs/kit_b9_gram_compare.log
 """
@@ -149,6 +150,43 @@ def build_standin(todo, m, rng):
     path = os.path.join(K.OUT, "gram_gaussfull.npz")
     os.makedirs(K.OUT, exist_ok=True)
     mem = [gauss_members(sid, t.month, t.hour, m, rng) for _, sid, t, _ in todo]
+    np.savez_compressed(path, case=np.array([c[0] for c in todo]), **{k: np.stack([x[k] for x in mem]).astype(np.float32) for k in ("u", "v", "T", "p")})
+    return path
+
+
+def gramlike_members(sid, month, hour, m, rng):
+    """22.V6: GRAM-like stand-in. Station mean and sd per height as gaussfull; vertical correlation exp(-|dz| / L), L fitted per variable and per height band
+    (below 5 km, 5-12 km, above) to the station's balloons; u, v, T independent of each other; p hydrostatic. NOT Earth-GRAM (guide 2.12-2.13 not read)."""
+    c = clim(sid, month, hour)
+    mu, sd = clim_stats(sid, month, hour)
+    z = K.H
+    dz = np.abs(z[:, None] - z[None, :])
+    edges = (5000.0, 12000.0)
+    zb = np.digitize(0.5 * (z[:, None] + z[None, :]), edges)
+    grid = np.array([100.0, 200, 400, 800, 1600, 3200, 6400, 12800, 25600])
+    out = {}
+    for q in VARS:
+        emp = pd.DataFrame(c[q]).corr(min_periods=20).values
+        R = np.eye(K.NH)
+        for b in range(3):
+            sel = (zb == b) & (dz > 0) & np.isfinite(emp)
+            if sel.sum() == 0:
+                continue
+            err = [np.mean((np.exp(-dz[sel] / L) - emp[sel]) ** 2) for L in grid]
+            R = np.where(zb == b, np.exp(-dz / grid[int(np.argmin(err))]), R)
+        np.fill_diagonal(R, 1.0)
+        val, vec = np.linalg.eigh(0.5 * (R + R.T))
+        out[q] = mu[q] + sd[q] * ((rng.standard_normal((m, K.NH)) * np.sqrt(np.clip(val, 0.0, None))) @ vec.T)
+    lnp0 = mu["lnp"][0] + sd["lnp"][0] * rng.standard_normal(m)
+    tbar = 0.5 * (out["T"][:, 1:] + out["T"][:, :-1])
+    lnp = lnp0[:, None] + np.hstack([np.zeros((m, 1)), np.cumsum(-G * np.diff(K.H) / (RD * tbar), 1)])
+    return {**out, "p": np.exp(lnp)}
+
+
+def build_gramlike(todo, m, rng):
+    path = os.path.join(K.OUT, "gram_gramlike.npz")
+    os.makedirs(K.OUT, exist_ok=True)
+    mem = [gramlike_members(sid, t.month, t.hour, m, rng) for _, sid, t, _ in todo]
     np.savez_compressed(path, case=np.array([c[0] for c in todo]), **{k: np.stack([x[k] for x in mem]).astype(np.float32) for k in ("u", "v", "T", "p")})
     return path
 
@@ -271,6 +309,7 @@ def main():
     ap.add_argument("--per-group", type=int, default=200, help="balloons per station x hour (4 groups)")
     ap.add_argument("--m", type=int, default=100, help="members made per case for the tool and the stand-in")
     ap.add_argument("--standin", action="store_true", help="add the full-covariance bell curve (written to data/kit, read back as an external source)")
+    ap.add_argument("--gramlike", action="store_true", help="22.V6: GRAM-like stand-in (exponential vertical correlation, fitted scale per band)")
     ap.add_argument("--bank", action="store_true", help="E5: add the measured-profile bank (written to data/kit, read back as an external source)")
     ap.add_argument("--extra", action="append", default=[], metavar="NAME=FILE.npz")
     ap.add_argument("--cases-out", metavar="FILE.csv", help="write the case list for Earth-GRAM runs and stop")
@@ -289,6 +328,8 @@ def main():
     extras = [x.split("=", 1) for x in a.extra]
     if a.standin:
         extras.insert(0, ["gaussfull", build_standin(todo, a.m, np.random.default_rng(1))])
+    if a.gramlike:
+        extras.insert(0, ["gramlike", build_gramlike(todo, a.m, np.random.default_rng(3))])
     if a.bank:
         extras.insert(1 if a.standin else 0, ["bank", build_bank(todo, a.m, np.random.default_rng(2))])
     ext = {name: load_external(path) for name, path in extras}

@@ -63,3 +63,58 @@ POOLED bank minus tool (day-bootstrap 95 % interval, same reading):
   co-extreme distance to balloons  -0.0206 [-0.0300, +0.0325]  tie
 Notes: balloons 2024-25 are the development window; the tool is balloon-corrected at these two stations and gaussfull is fitted on their 1991-2020 balloons, so neither is a blind test. gaussfull is NOT Earth-GRAM. Depth-dev noise is about 0.03 at 600 cases. Co-extremes rest on about 5 % of the cases, so the balloon value itself is uncertain (its bracket). The 0-1 km balloon shear tail of 2024-25 is inflated by the 2023 sonde change (IL-194).
 
+2026-11-17 01:14 Earth-GRAM comparison kit: 800 cases scored (0 skipped: hour not covered, 0 not in every external file), 100 members per case, sources: tool, gramlike, bank, gaussfull
+ACCURACY (paired, mean over cases)      CRPS u    v     T      cov90 u  v     T      cov99 u  v     T
+  tool                                4.400 4.373 1.962    0.878 0.871 0.891    0.974 0.970 0.976 
+  gramlike                            4.530 4.369 2.127    0.878 0.883 0.874    0.972 0.970 0.969 
+  bank                                4.530 4.368 2.082    0.867 0.875 0.862    0.972 0.969 0.964 
+  gaussfull                           4.533 4.392 2.120    0.875 0.877 0.872    0.971 0.966 0.969 
+COUPLING                                VS u     v      T       VSx      vertical-corr error   cross-variable corr error
+  tool                                1.330  1.134  0.209   0.1857   0.056                 0.199
+  gramlike                            1.395  1.205  0.216   0.1873   0.149                 0.225
+  bank                                1.373  1.135  0.215   0.1850   0.048                 0.207
+  gaussfull                           1.379  1.142  0.215   0.1857   0.037                 0.236
+SHAPE                                   shear p50 ratio per band      shear p99 ratio per band      Ri<1 share per band           co-extremes            depth-dev u v T      hydrostatic gap %
+  balloons                            1.00 1.00 1.00 1.00           1.00 1.00 1.00 1.00           0.738 0.351 0.199 0.149       0.05 [0.00, 0.13]        -     -     -      0.026
+  tool                                1.00 0.87 0.86 0.69           0.70 0.91 0.75 0.77           0.649 0.301 0.190 0.068       0.03 [0.02, 0.03]     0.041 0.031 0.029    0.064
+  gramlike                            1.23 1.47 1.86 0.70           0.68 1.33 1.64 0.71           0.639 0.500 0.551 0.120       0.04 [0.03, 0.05]     0.020 0.031 0.068    0.062
+  bank                                0.81 0.89 0.92 0.78           0.68 0.92 0.88 0.85           0.642 0.283 0.209 0.090       0.05 [0.05, 0.06]     0.058 0.038 0.031    0.067
+  gaussfull                           0.91 0.99 1.07 0.84           0.65 0.84 0.82 0.74           0.599 0.296 0.257 0.090       0.03 [0.02, 0.03]     0.035 0.022 0.025    0.063
+PAIRED gramlike minus tool (day-block 95 % interval; below 0 = gramlike better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1298 [+0.0641, +0.1943]  (+3.0 % of the tool's score)  tool better
+  crps_v   -0.0038 [-0.0493, +0.0402]  (-0.1 % of the tool's score)  tie
+  crps_T   +0.1658 [+0.1260, +0.2052]  (+8.5 % of the tool's score)  tool better
+  vs_u     +0.0648 [+0.0437, +0.0856]  (+4.9 % of the tool's score)  tool better
+  vs_v     +0.0702 [+0.0536, +0.0866]  (+6.2 % of the tool's score)  tool better
+  vs_T     +0.0076 [+0.0029, +0.0125]  (+3.6 % of the tool's score)  tool better
+  vsx      +0.0015 [+0.0001, +0.0028]  (+0.8 % of the tool's score)  tool better
+POOLED gramlike minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              +0.0934 [+0.0699, +0.1042]  tool better
+  cross-variable corr error        +0.0266 [+0.0086, +0.0489]  tool better
+  co-extreme distance to balloons  -0.0122 [-0.0212, +0.0176]  tie
+PAIRED bank minus tool (day-block 95 % interval; below 0 = bank better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1304 [+0.0630, +0.1982]  (+3.0 % of the tool's score)  tool better
+  crps_v   -0.0044 [-0.0449, +0.0384]  (-0.1 % of the tool's score)  tie
+  crps_T   +0.1199 [+0.0827, +0.1550]  (+6.1 % of the tool's score)  tool better
+  vs_u     +0.0434 [+0.0205, +0.0649]  (+3.3 % of the tool's score)  tool better
+  vs_v     +0.0010 [-0.0087, +0.0115]  (+0.1 % of the tool's score)  tie
+  vs_T     +0.0064 [+0.0016, +0.0113]  (+3.1 % of the tool's score)  tool better
+  vsx      -0.0007 [-0.0029, +0.0015]  (-0.4 % of the tool's score)  tie
+POOLED bank minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              -0.0085 [-0.0203, +0.0078]  tie
+  cross-variable corr error        +0.0086 [-0.0111, +0.0276]  tie
+  co-extreme distance to balloons  -0.0186 [-0.0330, +0.0342]  tie
+PAIRED gaussfull minus tool (day-block 95 % interval; below 0 = gaussfull better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1335 [+0.0747, +0.1946]  (+3.0 % of the tool's score)  tool better
+  crps_v   +0.0192 [-0.0250, +0.0645]  (+0.4 % of the tool's score)  tie
+  crps_T   +0.1583 [+0.1175, +0.1982]  (+8.1 % of the tool's score)  tool better
+  vs_u     +0.0494 [+0.0279, +0.0711]  (+3.7 % of the tool's score)  tool better
+  vs_v     +0.0072 [-0.0046, +0.0195]  (+0.6 % of the tool's score)  tie
+  vs_T     +0.0065 [+0.0017, +0.0115]  (+3.1 % of the tool's score)  tool better
+  vsx      -0.0000 [-0.0016, +0.0016]  (-0.0 % of the tool's score)  tie
+POOLED gaussfull minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              -0.0191 [-0.0272, -0.0035]  gaussfull better
+  cross-variable corr error        +0.0370 [+0.0160, +0.0630]  tool better
+  co-extreme distance to balloons  +0.0015 [-0.0061, +0.0072]  tie
+Notes: balloons 2024-25 are the development window; the tool is balloon-corrected at these two stations and gaussfull is fitted on their 1991-2020 balloons, so neither is a blind test. gaussfull is NOT Earth-GRAM. Depth-dev noise is about 0.03 at 600 cases. Co-extremes rest on about 5 % of the cases, so the balloon value itself is uncertain (its bracket). The 0-1 km balloon shear tail of 2024-25 is inflated by the 2023 sonde change (IL-194).
+

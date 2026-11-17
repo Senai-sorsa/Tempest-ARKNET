@@ -1131,3 +1131,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 18:40 VS stage 2
 - `b69_vs_stage2.py` (CPU, kNN stand-in): KILL. VS - bar +0.0013 and +0.0004 (intervals include 0) in 2 seeds; VS misses Ri, shear p99, CRPS limits. Bar ships as the opt-in, VS closed. Next: UR15F follow-ups when done; RA stage 2 blocked.
+
+## 2026-11-17 01:40 22.V6
+- `b9_gram_compare.py --gramlike` (6 min CPU): MEASURED. Vertical-corr error tool 0.056, gramlike (exponential, fitted scale, my own reading; guide not read) 0.149, gaussfull 0.037, bank 0.048. GRAM-style structure is worse than the tool on every score; only the idealised gaussfull beats us. Next: 22.V0 (error split). UR15F Denver fetch had died (no process); restarted resume via `scripts/net_ur15_denver_resume.sh`.
