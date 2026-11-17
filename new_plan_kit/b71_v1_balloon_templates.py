@@ -11,6 +11,7 @@ PRE-SET RULE (before the run; from New_Plan 22.2 V1 'Pass' and 'Kill'):
   KILL: all arms above 0.050 vertical-corr error.   Otherwise MISS (report which limit failed).
   Error noise: single errors carry sampling noise (about 0.03 at 600 cases); shipped and arms share the cases, so differences are read from the paired day-bootstrap of (arm - shipped), also printed.
     PYTHONPATH=".;new_plan_kit" .venv/Scripts/python -W ignore new_plan_kit/b71_v1_balloon_templates.py      # KIT_SMOKE=1 ... --per-group 4 for a test
+22.V5 (--copula, same rule plus: KILL also if the 12-18 km shear p99 ratio or Ri<1 share is worse than shipped; plan 22.2 V5): ranks come from 199 draws of a Gaussian copula with the station / month / hour balloons' normal-score correlation (u, v, T, 132 columns).
 Result: docs/results/logs/kit_b71_v1_balloon_templates.log
 """
 import argparse
@@ -25,7 +26,10 @@ from b1_shape_scores import ri_counts
 VARS = ("u", "v", "T")
 NM = 50
 NT = 199
-ARMS = ("shipped", "V1a maps on", "V1b maps off")
+import sys
+COP = "--copula" in sys.argv      # 22.V5: ranks from a Gaussian copula with the balloons' normal-score correlation instead of the balloons themselves
+TAG = "V5" if COP else "V1"
+ARMS = ("shipped", TAG + "a maps on", TAG + "b maps off")
 _TPL = {}
 
 
@@ -39,6 +43,13 @@ def balloon_ranks(sid, month, hour, rng):
         assert len(ok) >= 30, f"{key}: only {len(ok)} complete balloons"
         rep = len(ok) < NT
         sel = rng.choice(ok, NT, replace=rep)
+        if COP:
+            from scipy.stats import norm
+            zs = norm.ppf((np.argsort(np.argsort(x[ok], axis=0), axis=0) + 0.5) / len(ok))
+            w, vv = np.linalg.eigh(np.corrcoef(zs, rowvar=False))
+            draw = rng.standard_normal((NT, x.shape[1])) @ (vv * np.sqrt(np.maximum(w, 1e-8))).T
+            x = draw
+            sel = np.arange(NT)
         r = np.argsort(np.argsort(x[sel], axis=0, kind="stable"), axis=0, kind="stable").astype(np.uint8)
         _TPL[key] = (r, len(ok), rep)
     return _TPL[key]
@@ -48,7 +59,7 @@ def run_arm(api, A, arm, month, ranks, lat, lon, t, elev, seed):
     full = A["post"]
     if arm == "shipped":
         return K.tool(lat, lon, t, seed=seed, n=NM, elevation=elev)
-    post = {k: v for k, v in full.items() if k != "rank_extra" and not (arm == "V1b maps off" and k in ("smap", "lmap"))}
+    post = {k: v for k, v in full.items() if k != "rank_extra" and not (arm.endswith("b maps off") and k in ("smap", "lmap"))}
     sl = slice(month * 12, month * 12 + 12)
     saved = full["rank"][:, sl, :, :3 * K.NH].copy()
     full["rank"][:, sl, :, :3 * K.NH] = ranks[None, None]
@@ -62,6 +73,7 @@ def run_arm(api, A, arm, month, ranks, lat, lon, t, elev, seed):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--copula", action="store_true", help="22.V5")
     ap.add_argument("--per-group", type=int, default=200)
     ap.add_argument("--boot", type=int, default=200)
     a = ap.parse_args()
@@ -110,7 +122,7 @@ def main():
     pick = {s: {q: np.array(v) for q, v in d.items()} for s, d in pick.items()}
     err = lambda s, i: B9.vert_err({q: pick[s][q][i] for q in VARS}, {q: pick["balloons"][q][i] for q in VARS})
     every = np.arange(n)
-    L = [f"22.V1 balloon templates: {n} cases ({skipped} skipped), {NM} members, template sets with repeats (fewer than {NT} complete balloons): {len(repeats)} of the station / month / hour groups used",
+    L = [f"22.{TAG} {'copula' if COP else 'balloon'} templates: {n} cases ({skipped} skipped), {NM} members, template sets with repeats (fewer than {NT} complete balloons): {len(repeats)} of the station / month / hour groups used",
          "source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band"]
     sb = np.concatenate(shear["balloons"])
     r99 = {}
@@ -142,7 +154,7 @@ def main():
     L.append(f"VERDICT (pre-set rule): {word}")
     L.append("Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. "
              "Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).")
-    K.report("b71_v1_balloon_templates", L)
+    K.report("b71_v5_copula" if COP else "b71_v1_balloon_templates", L)
 
 
 if __name__ == "__main__":
