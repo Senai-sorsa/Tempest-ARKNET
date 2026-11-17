@@ -1137,3 +1137,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 02:10 22.V0
 - `b70_v0_split.py` (7 min CPU): error 0.101 (range map only) -> 0.053 (+ shuffle) -> 0.068 (+ shear map) -> 0.067 shipped; ERA5 bank 0.100. Error is over-correlation at mid/far separation; near pairs fine. Shear map costs +0.014. MEAN arm uninformative (my rule flaw). V1 not yet run. Next: decide V1 gate / shear-map check on whole-profile rank; UR15F Denver at 2023-02.
+
+## 2026-11-17 02:55 22.V1
+- `b71_v1_balloon_templates.py` (5 min CPU): MISS. Error shipped 0.055, V1a 0.061, V1b (maps off) 0.047, gaussfull 0.041; no interval excludes 0; CRPS T +0.4 % vs 0.3 % limit. V1b brings 12-18 km shear p99 (0.78 -> 0.92) and Ri<1 closer to balloons. V2 not run. Next: V5 copula (plan: run if V1 misses), then T1 step 0 / WD3 etc. UR15F Denver at 2023-03.
