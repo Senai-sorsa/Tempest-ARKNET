@@ -1134,3 +1134,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 01:40 22.V6
 - `b9_gram_compare.py --gramlike` (6 min CPU): MEASURED. Vertical-corr error tool 0.056, gramlike (exponential, fitted scale, my own reading; guide not read) 0.149, gaussfull 0.037, bank 0.048. GRAM-style structure is worse than the tool on every score; only the idealised gaussfull beats us. Next: 22.V0 (error split). UR15F Denver fetch had died (no process); restarted resume via `scripts/net_ur15_denver_resume.sh`.
+
+## 2026-11-17 02:10 22.V0
+- `b70_v0_split.py` (7 min CPU): error 0.101 (range map only) -> 0.053 (+ shuffle) -> 0.068 (+ shear map) -> 0.067 shipped; ERA5 bank 0.100. Error is over-correlation at mid/far separation; near pairs fine. Shear map costs +0.014. MEAN arm uninformative (my rule flaw). V1 not yet run. Next: decide V1 gate / shear-map check on whole-profile rank; UR15F Denver at 2023-02.

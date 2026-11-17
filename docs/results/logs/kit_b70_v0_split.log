@@ -1,0 +1,13 @@
+2026-11-17 01:44 22.V0 vertical-correlation error split: 800 cases (0 skipped), one member per case (20 members for the ensemble-mean row), source vs balloons, mean |corr diff| (signed mean in brackets, + = source too correlated)
+source                        all                near<1km           mid1-5km           far>5km         
+  range map only              0.101 [+0.077]     0.030 [+0.004]     0.095 [+0.075]     0.114 [+0.088]  
+  + shuffle                   0.053 [+0.036]     0.026 [-0.001]     0.048 [+0.033]     0.061 [+0.043]  
+  + shear map                 0.068 [+0.058]     0.029 [+0.005]     0.056 [+0.046]     0.080 [+0.072]  
+  + lapse map (shipped)       0.067 [+0.056]     0.025 [+0.008]     0.059 [+0.053]     0.078 [+0.064]  
+  era5 bank                   0.100 [+0.076]     0.071 [+0.071]     0.113 [+0.105]     0.096 [+0.061]  
+  tool ensemble mean          0.114 [+0.082]     0.038 [+0.016]     0.109 [+0.103]     0.127 [+0.080]  
+by variable (all pairs): range map only: u 0.111 v 0.081 T 0.110; + shuffle: u 0.080 v 0.034 T 0.047; + shear map: u 0.085 v 0.066 T 0.053; + lapse map (shipped): u 0.078 v 0.070 T 0.054; era5 bank: u 0.116 v 0.104 T 0.079; tool ensemble mean: u 0.130 v 0.057 T 0.154
+stage steps (error change): range map -> + shuffle -0.047; + shuffle -> + shear map +0.014; + shear map -> + lapse map -0.001
+RULE: SHUFFLE HOLDS; MAPS HOLDS; NEAR no; MEAN HOLDS
+Notes: single values carry sampling noise (about 0.03 at 600 cases); read differences between stages, which share the cases. 'range map only' = shuffle, shear and lapse maps off, the earliest stage the kit can reach (no raw-net row). ERA5 bank = ERA5 profiles at the nearest store point, same month and UTC hour, 1991-2020. The ensemble-mean row has 20 members, so its spread part is only partly removed.
+
