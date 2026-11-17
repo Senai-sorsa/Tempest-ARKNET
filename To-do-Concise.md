@@ -126,3 +126,4 @@ Processes to finish and check:
 - T3 HDX done (mixed with MAF, see AUTOPILOT 592). Next: T3 ABX/AMA only if cheap; 16-day forecast scoping (see NEW above); V6/V0/T2 per plan.
 - 16-day extension: step 0 STOP (see AUTOPILOT 594). Open: T-only blend 7.5-9 d (small), 11-16 d needs another HRES source; ask user if wanted.
 - T3 done: only MAF and HDX lie in the tool's box (ABX/AMA/FDX outside). Next: UR8, WD9 step 0, E3.
+- E3 step 0 GO (AUTOPILOT 597). Next: E3 step 1.

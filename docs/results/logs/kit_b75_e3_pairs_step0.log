@@ -1,0 +1,9 @@
+2026-11-17 16:12 E3 step 0: usable radar wind pairs (u and v finite at >= 4 of the 44 heights, 0.5-5 km), first volume of each UTC hour, KNVW VAD files on disk
+radar  volumes  usable   lag 1 h   lag 2 h   lag 3 h   lag 6 h
+MAF       1750    1532      1430      1349      1275      1077
+HDX        718     713       707       704       704       701
+ABX        606     603       594       589       585       576
+total                        2731      2642      2564      2354
+VERDICT (pre-set rule, under 500 pairs per lag = KILL): GO to step 1
+Notes: pairs share days, so independent pairs are fewer than counted. Step 0 only counts; a bigger pull (all hours, a year, the 4 radars of the plan) could lift the count past 500, this is what is on disk now.
+
