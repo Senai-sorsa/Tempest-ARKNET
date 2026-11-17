@@ -1167,3 +1167,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-17 15:10 Tick 594: 16-day step 0 (b74) STOP by rule: raw HRES skill vs climate mean 8 d +0.21/+0.10/+0.01 (T850/u500/v500), 9 d +0.12/+0.02/-0.06, 10 d +0.04/-0.05/-0.15. Wind has no skill past 8 d, T to about 9 d. Beyond 10 d not testable with this data; probable answer: extend only as a shrink-to-climate blend for T, wind stays climate.
 - 2026-11-17 15:50 Tick 596: T3 ABX blocked (35.15 N is outside the tool's trained box 31-34 N; AMA and FDX also outside), so T3 stops at MAF + HDX. 606 ABX files pulled in data/raw/nexrad_nvw_t3 (not in git). Next: UR8 / WD9 step 0 / E3 per section 21.
 - 2026-11-17 16:25 Tick 597: E3 step 0 (b75) GO: usable radar pairs 2,731 / 2,642 / 2,564 / 2,354 at lags 1/2/3/6 h (rule min 500). Step 1 (pair ensemble CRPS vs tool + observe_radar) next; needs a design of observe_radar comparison.
+
+AUTOPILOT 600 (17:45): E3 step 1 part A (b76): pair ensemble CRPS -69/-56/-46/-26 % vs radar climatology at 1/2/3/6 h; coverage 0.849-0.866 -> MISS by 0.001 on coverage (pre-set rule). Part B (vs tool + observe_radar) still open. UR15F still fetching.

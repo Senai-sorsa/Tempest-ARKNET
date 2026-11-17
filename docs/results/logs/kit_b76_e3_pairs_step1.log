@@ -1,0 +1,9 @@
+2026-11-17 17:31 E3 step 1 part A: radar pair ensemble vs radar hourly climatology (odd days fit, even days test), MAF + HDX, 0.5-5 km, u and v
+lag h  cells   CRPS clim   CRPS pair   change    90% coverage
+  1      586      3.378      1.050    -68.9 %   0.849
+  2      572      3.310      1.463    -55.8 %   0.848
+  3      560      3.250      1.766    -45.7 %   0.851
+  6      526      3.030      2.239    -26.1 %   0.866
+VERDICT (pre-set rule: >= 10 % CRPS gain at lags 1, 2, 3 and coverage 0.85-0.95): MISS part A
+Part A only: baseline is radar climatology, not tool + observe_radar. Pairs share days (not independent).
+
