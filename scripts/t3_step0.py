@@ -13,12 +13,13 @@ import p3_vad_vs_balloon as P   # noqa: E402
 
 OUT = os.path.join(REPO, "data", "raw", "nexrad_nvw_t3")
 os.makedirs(OUT, exist_ok=True)
-SITE = "MAF"
-ELEV = 872.0                    # KMAF antenna site, m ASL (approx; only shifts heights by a few metres)
-days = pd.date_range("2024-06-01", "2024-06-30")
+SITE = os.environ.get("T3_SITE", "MAF")
+ELEV = float(os.environ.get("T3_ELEV", 872.0))                    # KMAF antenna site, m ASL (approx; only shifts heights by a few metres)
+days = pd.date_range(os.environ.get("T3_START", "2024-06-01"), os.environ.get("T3_END", "2024-06-30"))
+HOURS = range(int(os.environ.get("T3_H0", 0)), 24)   # T3_H0=12 pulls only 12-23 UTC (the hours the coherence kit uses)
 rows = []
 for d in days:
-    for h in range(24):
+    for h in HOURS:
         pre = f"{SITE}_NVW_{d:%Y_%m_%d}_{h:02d}"
         try:
             with urllib.request.urlopen(P.BUCKET + f"?list-type=2&prefix={pre}", timeout=60) as r:
@@ -44,4 +45,5 @@ print(f"T3 step 0 MAF 2024-06: hours {len(df)}, hours with a file {int((df.n_key
 runs = (df.usable.values == 0).astype(int)
 gaps = np.diff(np.flatnonzero(np.r_[1, np.diff(runs) != 0, 1]))
 print("longest run of unusable hours:", int(gaps.max()) if len(gaps) else 0)
-df.to_csv(os.path.join(REPO, "data", "t3_step0.csv"), index=False)
+if "T3_START" not in os.environ:   # extra pulls do not overwrite the June step-0 csv
+    df.to_csv(os.path.join(REPO, "data", "t3_step0.csv"), index=False)

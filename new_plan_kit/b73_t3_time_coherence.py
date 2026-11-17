@@ -8,6 +8,7 @@ PRE-SET RULE (before the run): PASS if |tool - obs| <= 0.10 at each of k = 1, 3,
 """
 import glob, os
 import numpy as np, pandas as pd
+MONTH = os.environ.get("T3_MONTH", "2024-06")      # e.g. 2024-01; the pulled hours are enough (13-23 UTC)
 import kit_common as K
 from p3_vad_vs_balloon import parse
 
@@ -15,7 +16,7 @@ LAGS = (1, 2, 3, 4, 6)
 
 
 def observed(elev):
-    fs = sorted(glob.glob("data/raw/nexrad_nvw_t3/MAF_NVW_2024_06_*"))
+    fs = sorted(glob.glob("data/raw/nexrad_nvw_t3/MAF_NVW_" + MONTH.replace("-", "_") + "_*"))
     first = {}
     for f in fs:
         t = pd.to_datetime(os.path.basename(f)[8:], format="%Y_%m_%d_%H_%M_%S").floor("h")
@@ -49,7 +50,7 @@ def tool(lat, lon, elev):
     offs = (0,) + LAGS
     res = {k: [] for k in LAGS}
     for d in range(2, 30, 2):
-        when = f"2024-06-{d:02d}T15:00:00+00:00"
+        when = f"{MONTH}-{d:02d}T15:00:00+00:00"
         atms, _ = api.atmosphere_sequence(lat, lon, when, offsets=offs, n=200, seed=d, mode="ai", elevation=elev)
         for k in LAGS:
             a, b = atms[0], atms[offs.index(k)]
@@ -63,14 +64,14 @@ def tool(lat, lon, elev):
 def main():
     lat, lon, elev = K.station_pos(K.MAF)
     ob, tl = observed(elev), tool(lat, lon, elev)
-    L = ["23.T3 time coherence, MAF June 2024: lag correlation of 0-3.5 km wind (mean over u, v, heights); observed = KMAF VAD, tool = atmosphere_sequence climate-lag table",
+    L = [f"23.T3 time coherence, MAF {MONTH}: lag correlation of 0-3.5 km wind (mean over u, v, heights); observed = KMAF VAD, tool = atmosphere_sequence climate-lag table",
          "lag h   observed (n pairs)   tool    tool - obs"]
     for k in LAGS:
         L.append(f"  {k}     {ob[k][0]:.3f} ({ob[k][1]})        {tl[k]:.3f}   {tl[k] - ob[k][0]:+.3f}")
     ok = all(abs(tl[k] - ob[k][0]) <= 0.10 for k in (1, 3, 6) if k in ob and np.isfinite(ob[k][0]))
     L.append("VERDICT (pre-set rule, |diff| <= 0.10 at lags 1, 3, 6): " + ("PASS" if ok else "MISS"))
     L.append("Notes: lag 6 absent from LAGS-based obs if too few pairs. Observed pairs share days, so the effective sample is smaller than the pair count. One month, one radar, first VAD volume of each hour (clear-air hours hold no wind).")
-    K.report("b73_t3_time_coherence", L)
+    K.report("b73_t3_time_coherence" + ("" if MONTH == "2024-06" else "_" + MONTH), L)
 
 
 if __name__ == "__main__":
