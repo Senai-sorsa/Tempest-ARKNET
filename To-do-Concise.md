@@ -125,3 +125,4 @@ Processes to finish and check:
 - NEW (user 2026-11-17): extend forecast mode F from 7.5 d to 16 d (Open-Meteo IFS, same API call, leads 9/11/13/15). Step 1: pull past IFS runs at those leads for EPZ/MAF 2022-25, score IFS-as-is vs climate mode vs blend (pre-set rule first). Step 2: only if it beats climate, add FORECAST_LEAD upper bound 16 + shrink-to-climate weight by lead in api.py (opt-in, flagged). Also check: recent-obs bias (bias.py) already feeds forecast mode; past-mode assimilation for future dates is not wired.
 - T3 HDX done (mixed with MAF, see AUTOPILOT 592). Next: T3 ABX/AMA only if cheap; 16-day forecast scoping (see NEW above); V6/V0/T2 per plan.
 - 16-day extension: step 0 STOP (see AUTOPILOT 594). Open: T-only blend 7.5-9 d (small), 11-16 d needs another HRES source; ask user if wanted.
+- T3 done: only MAF and HDX lie in the tool's box (ABX/AMA/FDX outside). Next: UR8, WD9 step 0, E3.
