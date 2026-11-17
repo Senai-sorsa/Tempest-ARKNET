@@ -10,3 +10,15 @@ V5b maps off: error 0.045; vs shipped -0.0098 [-0.0213, +0.0047]; vs gaussfull +
 VERDICT (pre-set rule): MISS
 Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
 
+2026-11-17 03:13 22.V5 copula templates (seed 2025192): 800 cases (0 skipped), 50 members, template sets with repeats (fewer than 199 complete balloons): 0 of the station / month / hour groups used
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.063                  4.662  4.584  1.866   0.70 0.92 0.80 0.79      0.664 0.297 0.165 0.059
+  V5a maps on          0.058                  4.706  4.587  1.875   0.69 0.92 0.85 0.80      0.665 0.333 0.237 0.095
+  V5b maps off         0.048                  4.707  4.590  1.874   0.76 1.02 0.99 0.84      0.679 0.349 0.268 0.112
+  gaussfull            0.035                  4.828  4.627  2.008   0.66 0.85 0.87 0.75      0.602 0.296 0.247 0.083
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.743 0.348 0.193 0.146
+V5a maps on: error 0.058; vs shipped -0.0055 [-0.0215, +0.0086]; vs gaussfull +0.0231 [+0.0001, +0.0348]; CRPS vs shipped u +0.94 % v +0.06 % T +0.45 %; limits: error <= 0.045 FAIL; vs gaussfull includes 0 or below FAIL; CRPS not worse than shipped by over 0.3 % FAIL; p99 12-18 km not worse ok; Ri<1 12-18 km not worse ok
+V5b maps off: error 0.048; vs shipped -0.0150 [-0.0270, +0.0035]; vs gaussfull +0.0136 [-0.0021, +0.0214]; CRPS vs shipped u +0.95 % v +0.11 % T +0.41 %; limits: error <= 0.045 FAIL; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % FAIL; p99 12-18 km not worse ok; Ri<1 12-18 km not worse ok
+VERDICT (pre-set rule): MISS
+Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
+

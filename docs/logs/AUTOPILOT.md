@@ -1143,3 +1143,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 03:15 22.V5
 - b71 --copula (5 min CPU): MISS by one limit. Error shipped 0.055, V5a 0.044, V5b 0.045, gaussfull 0.041; T CRPS +0.35 % vs 0.3 % limit; 12-18 km shear p99 and Ri<1 not worse. Interval vs shipped [-0.022, +0.003] includes 0. Seed-1 replicate running (data/v5s1.log). Pass needs both seeds.
+
+## 2026-11-17 03:25 22.V5 seed 1
+- Seed-1 replicate: V5a 0.058, V5b 0.048, shipped 0.063, gaussfull 0.035; CRPS u +0.9 %, T +0.45 %. Both seeds needed, seed 1 fails error, gaussfull and CRPS limits. Final: MISS. Gain is within noise. V2/V4 skipped (no stable gain). Section 22 closed, tool unchanged.
