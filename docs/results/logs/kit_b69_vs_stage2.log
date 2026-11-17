@@ -1,0 +1,19 @@
+2026-11-16 18:23 VS stage 2 (kNN stand-in): train 89850 balloons from 789 stations (1991-2020); 3 test stations (never in the VS training set); coarse heights 13 of 44
+  K chosen on 2021 (72 cases): K=20 vario 0.9542, K=100 vario 0.9538, K=400 vario 0.9546 -> K = 100
+  seed 0: 240 cases at 3 held-out stations (2022), 100 members, 0 skipped
+    balloons  Ri 0.663, 0.338, 0.148, 0.104 | rise 0.292 | p99 74.1, 22.2, 24.6, 30.3 | CRPS -
+    shipped   Ri 0.620, 0.310, 0.165, 0.051 | rise 0.441 | p99 62.0, 20.1, 20.7, 23.9 | u 4.2546 v 3.9991 T 2.2923
+    bar       Ri 0.616, 0.306, 0.188, 0.075 | rise 0.333 | p99 60.6, 19.6, 22.1, 25.8 | u 4.2535 v 4.0010 T 2.2883
+    vs        Ri 0.589, 0.284, 0.147, 0.059 | rise 0.296 | p99 63.8, 19.6, 20.3, 25.2 | u 4.2568 v 3.9973 T 2.2931
+    variogram score mean over u, v, T: bar 0.9044, VS 0.9057; VS - bar +0.0013 [-0.0004, +0.0028]
+    VS vs b65 limits: MISS (failed: Ri<1 share, shear p99, CRPS)
+  seed 1: 240 cases at 3 held-out stations (2022), 100 members, 0 skipped
+    balloons  Ri 0.649, 0.297, 0.150, 0.099 | rise 0.267 | p99 72.4, 22.1, 25.0, 29.8 | CRPS -
+    shipped   Ri 0.608, 0.304, 0.167, 0.052 | rise 0.460 | p99 63.2, 20.0, 20.7, 24.3 | u 4.2206 v 4.1586 T 2.2598
+    bar       Ri 0.604, 0.298, 0.188, 0.076 | rise 0.363 | p99 61.3, 19.6, 22.2, 25.9 | u 4.2222 v 4.1593 T 2.2539
+    vs        Ri 0.581, 0.278, 0.149, 0.059 | rise 0.320 | p99 65.1, 19.6, 20.5, 25.1 | u 4.2198 v 4.1596 T 2.2547
+    variogram score mean over u, v, T: bar 0.9092, VS 0.9096; VS - bar +0.0004 [-0.0012, +0.0021]
+    VS vs b65 limits: MISS (failed: Ri<1 share, T-rise count, shear p99, CRPS)
+Rule (pre-set): PASS = in both seeds VS - bar interval below 0 AND VS meets all four b65 limits; KILL = VS not better than the bar in either seed; else MISS.
+Verdict: KILL (VS is not better than the bar in either seed: the bar ships as the opt-in, VS closed)
+

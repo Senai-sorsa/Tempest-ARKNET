@@ -1128,3 +1128,6 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-16 18:05 VS stage 0b
 - `b68_vs_stage0b.py`: PROCEED. Members hold 0.46-0.47 of balloon fine-scale wind variance, but 1.2-1.5x the T variance at every scale. VS stage 2 stays open (must add wind detail, remove T detail). Next: VS stage 2 script design (GPU).
+
+## 2026-11-16 18:40 VS stage 2
+- `b69_vs_stage2.py` (CPU, kNN stand-in): KILL. VS - bar +0.0013 and +0.0004 (intervals include 0) in 2 seeds; VS misses Ri, shear p99, CRPS limits. Bar ships as the opt-in, VS closed. Next: UR15F follow-ups when done; RA stage 2 blocked.
