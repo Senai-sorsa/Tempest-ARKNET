@@ -1,0 +1,20 @@
+2026-11-17 14:58 16-day extension step 0: raw HRES vs same-month ERA5 mean, mean absolute error over 7,483 world points, 2016-22, months Jan / Apr / Jul / Oct (skill = 1 - MAE_HRES / MAE_clim)
+lead   T 850                    u 500                    v 500                 
+  5 d  70.08 vs  2.27 skill -29.81 (n 71)    9.28 vs  9.21 skill -0.01 (n 71)    6.50 vs  8.61 skill +0.24 (n 71)
+  7 d  70.07 vs  2.27 skill -29.80 (n 71)   10.04 vs  9.21 skill -0.09 (n 71)    7.52 vs  8.61 skill +0.13 (n 71)
+  8 d  70.06 vs  2.27 skill -29.80 (n 71)   10.50 vs  9.21 skill -0.14 (n 71)    8.16 vs  8.61 skill +0.05 (n 71)
+  9 d  70.05 vs  2.27 skill -29.79 (n 71)   10.87 vs  9.21 skill -0.18 (n 71)    8.56 vs  8.61 skill +0.01 (n 71)
+ 10 d  70.04 vs  2.27 skill -29.79 (n 71)   11.21 vs  9.21 skill -0.22 (n 71)    9.02 vs  8.61 skill -0.05 (n 71)
+VERDICT (pre-set rule): STOP (8 d skill < 0.10)
+Notes: raw deterministic HRES against a climate-mean point forecast, not the tool's probabilistic score; ERA5 is one hour per day, HRES starts 00 / 12 UTC so matched times only. 11-16 d is not testable here (HRES file ends at 10 d).
+
+2026-11-17 14:58 16-day extension step 0: raw HRES vs same-month ERA5 mean, mean absolute error over 7,483 world points, 2016-22, months Jan / Apr / Jul / Oct (skill = 1 - MAE_HRES / MAE_clim)
+lead   T 850                    u 500                    v 500                 
+  5 d   1.31 vs  2.62 skill +0.50 (n 71)    3.68 vs  6.23 skill +0.41 (n 71)    3.69 vs  5.69 skill +0.35 (n 71)
+  7 d   1.79 vs  2.62 skill +0.32 (n 71)    4.94 vs  6.23 skill +0.21 (n 71)    4.94 vs  5.69 skill +0.13 (n 71)
+  8 d   2.08 vs  2.62 skill +0.21 (n 71)    5.60 vs  6.23 skill +0.10 (n 71)    5.62 vs  5.69 skill +0.01 (n 71)
+  9 d   2.32 vs  2.62 skill +0.12 (n 71)    6.12 vs  6.23 skill +0.02 (n 71)    6.06 vs  5.69 skill -0.06 (n 71)
+ 10 d   2.52 vs  2.62 skill +0.04 (n 71)    6.55 vs  6.23 skill -0.05 (n 71)    6.55 vs  5.69 skill -0.15 (n 71)
+VERDICT (pre-set rule): STOP (8 d skill < 0.10)
+Notes: raw deterministic HRES against a climate-mean point forecast, not the tool's probabilistic score; ERA5 is one hour per day, HRES starts 00 / 12 UTC so matched times only. 11-16 d is not testable here (HRES file ends at 10 d).
+
