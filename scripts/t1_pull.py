@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 
 import numpy as np
@@ -47,7 +48,16 @@ def parse(path):
 
 def month(ym):
     y, m = ym.split("-")
-    idx = urllib.request.urlopen(BASE, timeout=120).read().decode()
+    if all(os.path.exists(f"{OUT}/{n}_{y}{m}.npz") for n in ST.values()):
+        return f"{ym}: already parsed"
+    for k in range(6):                                  # the server sometimes refuses; wait and retry
+        try:
+            idx = urllib.request.urlopen(BASE, timeout=120).read().decode()
+            break
+        except Exception:
+            time.sleep(60)
+    else:
+        return f"{ym}: listing unreachable"
     mt = re.findall(rf'(us-radiosonde_CBUFR_d{y}{m}_c\d+\.tar\.gz)', idx)
     if not mt:
         return f"{ym}: no C-BUFR archive"
