@@ -1,0 +1,12 @@
+2026-11-17 06:52 23.T1 first read: 1-second radiosonde profiles (NCEI C-BUFR, data/t1) vs the IGRA balloons the kit uses; EPZ and MAF, 2024-25, 00 and 12 UTC. Per band: shear p99 [m/s per km] / share of layers with Ri < 1
+source                          0-1 km            1-5 km            5-12 km           12-18 km        
+EPZ: 1267 T1 flights, 1453 IGRA balloons, 1267 T1 flights with an IGRA balloon of the same hour
+  EPZ T1 at 44 heights     50.9 / 0.717    22.1 / 0.374    26.2 / 0.195    31.3 / 0.184   (1257 flights)
+  EPZ IGRA balloons        96.6 / 0.707    21.3 / 0.351    25.8 / 0.189    31.8 / 0.149   (1442 balloons)
+  EPZ T1 at 250 m layers   28.5 / 0.689    25.2 / 0.469    31.5 / 0.338    39.9 / 0.338 
+MAF: 1181 T1 flights, 1314 IGRA balloons, 1180 T1 flights with an IGRA balloon of the same hour
+  MAF T1 at 44 heights     40.7 / 0.660    24.4 / 0.350    25.6 / 0.203    32.1 / 0.169   (1178 flights)
+  MAF IGRA balloons        97.5 / 0.768    24.1 / 0.338    25.3 / 0.202    31.8 / 0.157   (1310 balloons)
+  MAF T1 at 250 m layers   41.9 / 0.690    27.6 / 0.465    31.1 / 0.347    40.5 / 0.333 
+Notes: no rule. (a) vs (b) tests whether the balloons the kit scores against see the same shear tail and Ri<1 share as the 1-second data at the same 44 heights; if a is well above b the IGRA truth under-reads fine structure, and the shortfalls of the tool at 12-18 km (shear p99 0.78 of the balloons, Ri<1 0.062 vs 0.149) would be partly the truth's own sampling. (c) is a finer-layer view only. Source and file counts: docs/results/logs/t1_provenance.log.
+

@@ -1149,3 +1149,7 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 
 ## 2026-11-17 05:15 23.T1 step 0 (NCEI 1-s radiosonde BUFR): PASS (decode works)
 - Archive members are WBAN-named (EPZ 03020, MAF 23023; 94 stations in June 2024). B-BUFR (embedded tables) cannot be decoded by eccodes; C-BUFR can: one EPZ flight gives 5777 rows at 1 s (pressure, T, wind speed and direction, geopotential height 1.25-34 km, lat/lon displacement), sonde type 154, about 0.47 MB per flight. June 2024: 60 EPZ flights, 27 MAF flights (MAF looks partial; not yet explained). One month extracts in about 1-8 min. Next: parse to 50 m profiles per flight, pull 2024-25 (C-BUFR only), delete raw after parse, compare shear/Ri<1 with IGRA.
+
+## 2026-11-17 07:00 23.T1 first read (b72, report only, EPZ+MAF 2024-25 so far; pull still finishing the last months)
+- T1 (1-s sondes) at the 44 model heights vs IGRA balloons, shear p99 [m/s/km] / Ri<1 share. 12-18 km: EPZ 31.3 / 0.184 vs IGRA 31.8 / 0.149; MAF 32.3 / 0.170 vs 31.8 / 0.157. So IGRA reads the 12-18 km shear tail right but under-reads Ri<1 by 0.01-0.035; the tool's 0.062 is far below both. 0-1 km: IGRA shear p99 about 97 vs T1 41-51 (IGRA near-ground values look inflated, likely surface-level winds); not used for scoring above 1 km. At 250 m layers Ri<1 is 0.34 at 5-18 km (thinner layers, not comparable).
+- Provenance: docs/results/logs/t1_provenance.log; log docs/results/logs/kit_b72_t1_fine.log.
