@@ -378,7 +378,10 @@ class TokenGenerator(nn.Module):
 
 
 def make_generator(arch, *args, **kw):
-    """arch "mlp" (default, the adopted model) or "tokens" (IL-8)."""
+    """arch "mlp" (default, the adopted model) or "tokens" (IL-8); any other arch is a New_Plan 25 model (s25_models.build)."""
+    if arch not in ("mlp", "tokens"):
+        from tempest.generator import s25_models
+        return s25_models.build(arch, *args, **kw)
     return (TokenGenerator if arch == "tokens" else Generator)(*args, **kw)
 
 

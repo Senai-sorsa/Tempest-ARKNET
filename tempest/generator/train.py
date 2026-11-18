@@ -28,6 +28,7 @@ import numpy as np
 import torch
 
 from tempest.generator.model import ANOM_COLS, Generator, afcrps, energy_score, fit_anom_table, make_generator
+from tempest.generator.s25_losses import energy_distance, energy_score_beta
 from tempest.generator.sample import standard_pressure
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -65,7 +66,17 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 conv_c=0, conv_layers=3, conv_k=5,
                 anom_clim=False,            # AV21: learn standardised anomalies from a per-point harmonic climatology (model anom); False = off
                 anom_mean_only=False,       # AV40: with anom_clim, use the climatology mean only (anomaly spread = training sd); False = AV21 mean + spread
-                nest_widths=None)           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
+                nest_widths=None,
+                # New_Plan section 25 keys, all off by default (tempest/generator/s25_losses.py, s25_models.py):
+                es_beta=1.0,                # GF1b: energy-score exponent; 1 = the shipped energy_score
+                vario_weight=0.0, vario_p=0.5,   # GF1c: vertical variogram score, pair weight 1 / separation
+                shear_vec_es_weight=0.0,    # GF1d / IL-62: energy score on each layer's (du, dv) shear vector
+                twes_weight=0.0, twes_q=0.9, twes_top_m=18000.0, twes_tau=0.1,   # GX2: threshold-weighted ES on the 0-18 km (u, v) profile
+                sig_weight=0.0, sig_stride=1,     # GX1: energy score on depth-2 height-path signatures
+                model_kw_extra=None,        # GT2 / s25 archs: extra keyword arguments for the network (e.g. {d = 96} for the token model)
+                s25=None,                   # s25 arch options (flow / rml / har / moe / eof / prior / analog / refine), see s25_models.prepare
+                distill_teacher=None, distill_m=8, distill_data_weight=0.0)   # MF1: energy distance to this teacher checkpoint's samples
+           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -214,6 +225,14 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         li = names.index("lead_days")
         model_kw["nest"] = dict(col=li, mu=float(cm[li]), sd=float(cs[li]), widths=[int(w) for w in cfg["nest_widths"]])
 
+    s25_tables = None
+    if cfg["arch"] not in ("mlp", "tokens"):          # New_Plan 25 archs: data-fitted options (EOF basis, prior, analog table) from training rows only
+        from tempest.generator import s25_models
+        kw25, s25_tables = s25_models.prepare(cfg, dict(cond=cond, ref=ref, tref=tref, tr_idx=tr_idx, targets=targets, cm=cm, cs=cs, tm=tm, ts=ts,
+                                                         names=names, n_prof=n_prof, year=year), log)
+        model_kw.update(kw25)
+    if cfg["model_kw_extra"]:
+        model_kw.update(cfg["model_kw_extra"])
     anom_tab = None
     if cfg["anom_clim"]:                              # AV21: climatology fitted on the training-row sample `ref` only (no validation / test years)
         ac = [names.index(k) for k in ANOM_COLS]
@@ -247,6 +266,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         thr = np.quantile(shear_ref, cfg["shear_tail_q"], axis=0)
         shear_thr = torch.tensor(thr, dtype=torch.float32, device=device)
         shear_scale = torch.tensor(safe(np.maximum(shear_ref - thr, 0).std(0)), dtype=torch.float32, device=device)
+    s25_terms = None
+    if n_prof and any(cfg[k] for k in ("vario_weight", "shear_vec_es_weight", "twes_weight", "sig_weight")):   # New_Plan 25 GF1 / GX2 / GX1
+        from tempest.generator import s25_losses
+        s25_terms = s25_losses.make_terms(cfg, tref, norm, device)
     del ph, tref
     tm_d, ts_d = norm["tm"].to(device), norm["ts"].to(device)
     phys_std = lambda x: (physical(x * ts_d + tm_d) - pm) / ps  # normalised diffs -> standardised profiles
@@ -316,7 +339,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         s, y = phys_std(samples), phys_std(t)
         if top is not None:
             s = torch.where(mk[:, None], y[:, None], s)
-        loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
+        loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * (energy_score(s, y) if cfg["es_beta"] == 1.0 else energy_score_beta(s, y, cfg["es_beta"])) / math.sqrt(y.shape[-1])
         if cfg["low_weight"] != 1.0 and n_prof:
             loss = loss + (cfg["low_weight"] - 1.0) * afcrps(s[..., low_cols], y[..., low_cols], cfg["crps_alpha"])
         if cfg["wind_vec_weight"] and n_prof:
@@ -335,6 +358,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             loss = loss + cfg["superadiabatic_weight"] * superadiabatic(samples)
         if cfg["shear_tail_weight"] and n_prof:
             loss = loss + cfg["shear_tail_weight"] * shear_tail_loss(samples, t)
+        if s25_terms is not None:
+            loss = loss + s25_terms(samples, t, s, y)
         return loss
 
     groups = ([(v, slice(i * len(HEIGHTS), (i + 1) * len(HEIGHTS))) for i, v in enumerate(PROFILE)]
@@ -377,6 +402,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                                **({"product_pairs": pp} if pp else {}), **model_kw).to(device)
         if anom_tab is not None:
             model.set_anom(*anom_tab)
+        if s25_tables:
+            model.set_tables(**s25_tables)
         if init_ck:
             model.load_state_dict(init_ck[k % len(init_ck)]["state"])
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
@@ -386,6 +413,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                         best_state=None, bad=0, history=[], done=False,
                         ema=copy.deepcopy(model).eval() if cfg["ema_decay"] else None))
 
+    teacher = None
+    if cfg["distill_teacher"]:                       # MF1: the student matches the teacher's samples; both must share one normalisation
+        from tempest.generator import s25_models
+        teacher = s25_models.load_teacher(cfg["distill_teacher"], norm, device)
     t0 = time.time()
     for step in range(1, cfg["steps"] + 1):
         for k, M in enumerate(mem):
@@ -395,9 +426,21 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             model.train()
             idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
             c, t = Xc[idx].float(), Xt[idx].float()
-            with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
-                s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
-            loss = score(s.float(), t, None if Xf is None else Xf[idx])
+            if getattr(model, "own_loss", False):    # New_Plan 25 archs with their own training objective (flow matching, RML chain, EOF split)
+                loss = model.train_loss(c, t, dict(score=score, phys_std=phys_std, cfg=cfg, top=None if Xf is None else Xf[idx], gpu=gpu))
+            else:
+                with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
+                    s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
+                if teacher is not None:
+                    with torch.no_grad():
+                        ts_ = teacher(c, cfg["distill_m"]).float()
+                    loss = energy_distance(phys_std(s.float()), phys_std(ts_)) / math.sqrt(s.shape[-1])
+                    if cfg["distill_data_weight"]:
+                        loss = loss + cfg["distill_data_weight"] * score(s.float(), t, None if Xf is None else Xf[idx])
+                else:
+                    loss = score(s.float(), t, None if Xf is None else Xf[idx])
+            if getattr(model, "aux_loss", None) is not None:   # H3: the gate's load-balancing penalty (already weighted by the model)
+                loss = loss + model.aux_loss
             M["opt"].zero_grad(set_to_none=True)
             loss.backward()
             gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), float("inf"))  # measure only, no clipping
