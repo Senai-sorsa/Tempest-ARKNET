@@ -1191,3 +1191,5 @@ AUTOPILOT 614 (23:25): W1 built (b81_w1_shear_stretch.py: per-band stretch of th
 AUTOPILOT 615 (23:50): W1 (b81) MISS both seeds (p99 1-5 km overshoot 1.14-1.20; other bands and Ri<1 12-18 km good, CRPS +0.1-0.2 %). W5 = W1 with f never below 1 (W1_NOSHRINK) launched via scripts/cpu_w5.sh, seeds 0 then 1.
 
 AUTOPILOT 616 (00:10): W5 (b81, f >= 1) MISS both seeds (had finished 23:38): 1-5 km p99 still 1.18 / 1.11 from spill of neighbouring band factors; Ri<1 12-18 km fixed, CRPS +0.1-0.2 %. Section 25 code prompt given to user. Next: edge-tapered factor (W6) or section 25 if code exists.
+
+AUTOPILOT 617 (01:25): W6 (b81 + edge taper, f >= 1) MISS on seed 0: 1-5 km p99 1.12, vertical-corr error +0.0052. W1/W5/W6 family closed. Duplicate W6 runs from my relaunches overlapped; kill was denied by permissions, they end on their own.
