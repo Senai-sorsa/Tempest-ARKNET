@@ -128,3 +128,4 @@ Processes to finish and check:
 - T3 done: only MAF and HDX lie in the tool's box (ABX/AMA/FDX outside). Next: UR8, WD9 step 0, E3.
 - E3 step 0 GO (AUTOPILOT 597). Next: E3 step 1.
 - E3 step 1 part A MISS by 0.001 (coverage); part B vs tool open
+- E3 part B MISS (pair -29/-14/-9 %, coverage too narrow); next: spread-factor variation

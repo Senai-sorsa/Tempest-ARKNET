@@ -1169,3 +1169,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 - 2026-11-17 16:25 Tick 597: E3 step 0 (b75) GO: usable radar pairs 2,731 / 2,642 / 2,564 / 2,354 at lags 1/2/3/6 h (rule min 500). Step 1 (pair ensemble CRPS vs tool + observe_radar) next; needs a design of observe_radar comparison.
 
 AUTOPILOT 600 (17:45): E3 step 1 part A (b76): pair ensemble CRPS -69/-56/-46/-26 % vs radar climatology at 1/2/3/6 h; coverage 0.849-0.866 -> MISS by 0.001 on coverage (pre-set rule). Part B (vs tool + observe_radar) still open. UR15F still fetching.
+
+AUTOPILOT 606 (20:00): E3 step 1 part B (b77): pair vs tool+observe_radar CRPS -28.8/-13.6/-9.0 % at 1/2/3 h, pair coverage 0.81-0.84 -> MISS (pre-set). Variation next: widen pair spread by a factor fit on fit days.
