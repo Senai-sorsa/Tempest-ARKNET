@@ -139,3 +139,4 @@ Processes to finish and check:
 - 2026-11-17 23:50 W1 shear stretch **MISS** both seeds (1-5 km overshoot only); W5 (f >= 1) running.
 - 2026-11-18 00:10 W5 shear stretch (f>=1) **MISS** both seeds (band-edge spill overshoots 1-5 km); next W6 edge taper or section 25.
 - 2026-11-18 01:25 W6 edge-tapered stretch **MISS** (seed 0); shear-tail stretch family closed. Next: section 25 (needs code) / E1 atlas step 0 / AV38.
+- 2026-11-18 04:05 S25 GF2 optimizer sweep **KILL** (all inside seed noise or worse); next base arm -> GF4 -> GF1 chain.

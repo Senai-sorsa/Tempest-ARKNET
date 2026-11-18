@@ -1,0 +1,13 @@
+2026-11-18 03:44 S25 GF2 (GF2 PRE-SET RULE)
+  gf2_l1e-3_w1e-5: val CRPS 1.71987  vs shipped -0.00106
+  gf2_l1e-3_w1e-3: val CRPS 1.72017  vs shipped -0.00076
+  gf2_l3e-4_w1e-4: val CRPS 1.72086  vs shipped -0.00006
+  gf2_l3e-4_w1e-3: val CRPS 1.72092  vs shipped -0.00001
+  gf2_l1e-3_w1e-4: val CRPS 1.72092  vs shipped +0.00000
+  gf2_l3e-4_w1e-5: val CRPS 1.72129  vs shipped +0.00036
+  gf2_l3e-3_w1e-4: val CRPS 1.72415  vs shipped +0.00323
+  gf2_l3e-3_w1e-5: val CRPS 1.72432  vs shipped +0.00340
+  gf2_l3e-3_w1e-3: val CRPS 1.72478  vs shipped +0.00386
+  seed noise 0.00428; best gf2_l1e-3_w1e-5
+VERDICT (pre-set rule): KILL
+

@@ -1193,3 +1193,5 @@ AUTOPILOT 615 (23:50): W1 (b81) MISS both seeds (p99 1-5 km overshoot 1.14-1.20;
 AUTOPILOT 616 (00:10): W5 (b81, f >= 1) MISS both seeds (had finished 23:38): 1-5 km p99 still 1.18 / 1.11 from spill of neighbouring band factors; Ri<1 12-18 km fixed, CRPS +0.1-0.2 %. Section 25 code prompt given to user. Next: edge-tapered factor (W6) or section 25 if code exists.
 
 AUTOPILOT 617 (01:25): W6 (b81 + edge taper, f >= 1) MISS on seed 0: 1-5 km p99 1.12, vertical-corr error +0.0052. W1/W5/W6 family closed. Duplicate W6 runs from my relaunches overlapped; kill was denied by permissions, they end on their own.
+
+AUTOPILOT 618 (04:05): S25 GF2 KILL (best cell -0.0011 vs noise 0.0043; lr 3e-3 +0.003..0.004 worse). Next: base arm (6000 steps, seeds 0/100 as the paired baseline), then GF4 (CPU), then GF1, via scripts/s25_chain_a.sh.
