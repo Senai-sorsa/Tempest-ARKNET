@@ -1171,3 +1171,5 @@ NOW2 opt-in nowcast written and tested (3 tests); audits killed by memory reaper
 AUTOPILOT 600 (17:45): E3 step 1 part A (b76): pair ensemble CRPS -69/-56/-46/-26 % vs radar climatology at 1/2/3/6 h; coverage 0.849-0.866 -> MISS by 0.001 on coverage (pre-set rule). Part B (vs tool + observe_radar) still open. UR15F still fetching.
 
 AUTOPILOT 606 (20:00): E3 step 1 part B (b77): pair vs tool+observe_radar CRPS -28.8/-13.6/-9.0 % at 1/2/3 h, pair coverage 0.81-0.84 -> MISS (pre-set). Variation next: widen pair spread by a factor fit on fit days.
+
+AUTOPILOT 607 (20:20): WD10 step 0: gust column only at ELP/MAF/TCS; ratio flat by speed 1.17-1.33; rule (5 of 6) blocked -> ASK_LATER 41. WD3 skipped (gated on WD1 PASS, WD1 MISS). Remaining stage 2: WD13 step 0 (EDI), E1, RA stage 2.
