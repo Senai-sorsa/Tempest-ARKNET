@@ -130,3 +130,4 @@ Processes to finish and check:
 - E3 step 1 part A MISS by 0.001 (coverage); part B vs tool open
 - E3 part B MISS (pair -29/-14/-9 %, coverage too narrow); next: spread-factor variation
 - WD10 step 0 blocked (3 of 6 stations have gusts) -> ASK_LATER 41
+- WD13 step 0 blocked: EDI search needs login (user list)
