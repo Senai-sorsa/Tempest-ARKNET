@@ -1187,3 +1187,5 @@ AUTOPILOT 612 (21:50): W2 seed 1 stopped (verdict MISS already fixed by seed 0).
 AUTOPILOT 613 (23:15): W3 (b80) KILL on both seeds: error 0.054/0.059 (shipped 0.050), 6 km CRPS u +1.0 %. W2 seed 1 had finished too (MISS). Next W1 (shear-tail stretch).
 
 AUTOPILOT 614 (23:25): W1 built (b81_w1_shear_stretch.py: per-band stretch of the rough part of u,v, fit on odd cases, test on even; rule in docstring; smoke ok) and launched via scripts/cpu_w1.sh, seeds 0 then 1.
+
+AUTOPILOT 615 (23:50): W1 (b81) MISS both seeds (p99 1-5 km overshoot 1.14-1.20; other bands and Ri<1 12-18 km good, CRPS +0.1-0.2 %). W5 = W1 with f never below 1 (W1_NOSHRINK) launched via scripts/cpu_w5.sh, seeds 0 then 1.
