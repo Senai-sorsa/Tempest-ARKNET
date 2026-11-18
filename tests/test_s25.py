@@ -238,3 +238,12 @@ def test_gt2_pool_mlp_plus_tokens_samples_through_sampler(tmp_path):
     assert [m["cfg"].get("arch", "mlp") for m in ck["members"]] == ["mlp", "tokens"]
     out = Sampler(ck, device="cpu")(np.zeros((6, a["n_cond"]), np.float32))
     assert out.shape == (6, a["n_out"]) and np.isfinite(out).all()
+
+
+@pytest.mark.parametrize("mod", ["s25_sampler_cost", "s25_gate_month", "s25_compose_refine"])
+def test_s25_script_selfchecks(mod):
+    """GF3 sampler cost (numpy = torch), H3 gate-by-month table and collapse flag, H5 draft + refine compose (norm refusal)."""
+    import importlib
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    importlib.import_module(mod)._selfcheck()

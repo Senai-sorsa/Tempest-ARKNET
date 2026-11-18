@@ -20,7 +20,7 @@ if [ "$NOSHUF" = "1" ]; then SH="" TAG=noshuf; else SH="--shuffle --template-cel
 SM=$D/${T}_smap_$TAG.npz LM=$D/${T}_lmap_$TAG.npz
 mkdir -p $D configs/s25/gen
 SHAPE_ARGS=${SHAPE_ARGS---blocks 7}   # HAR-block metrics for every arm and the base (GT1 compares them)
-log() { echo "$(date '+%F %T') [S25 $T] $*" >> $L/s25.log; }
+log() { [ "$DRY" = "1" ] && return; echo "$(date '+%F %T') [S25 $T] $*" >> $L/s25.log; }
 busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | ? { \$_.CommandLine -match 'generator.train|calibrate|scoring|il6_modeF|pytest|diagnose|s25_' }).Count" | tr -d '\r'; }
 ram_gb() { powershell -NoProfile -c "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB)" | tr -d '\r'; }
 gpu_c() { nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null | head -1 | tr -d '\r '; }
