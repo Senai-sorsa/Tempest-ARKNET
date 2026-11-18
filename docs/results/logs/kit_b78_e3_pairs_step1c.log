@@ -1,0 +1,8 @@
+2026-11-17 20:00 E3 step 1 part B: radar pair ensemble vs tool + observe_radar (MAF Jan/Apr/Jun/Sep 2024, HDX Jun 2024; even days at 15 UTC; 0.5-5 km; u and v)
+lag h  cases   CRPS tool+radar   CRPS pair   change    cov90 tool   cov90 pair
+  1      52        1.292         0.934    -27.7 %   0.970        0.916
+  2      52        1.442         1.293    -10.3 %   0.921        0.937
+  3      52        1.605         1.537     -4.2 %   0.861        0.954
+VERDICT (pre-set rule: pair CRPS <= 0.90 x tool + observe_radar at lags 1, 2, 3 and pair coverage 0.85-0.95): MISS
+Cases share days/months; one-off 15 UTC start only. Not independent.
+

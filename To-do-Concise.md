@@ -131,3 +131,4 @@ Processes to finish and check:
 - E3 part B MISS (pair -29/-14/-9 %, coverage too narrow); next: spread-factor variation
 - WD10 step 0 blocked (3 of 6 stations have gusts) -> ASK_LATER 41
 - WD13 step 0 blocked: EDI search needs login (user list)
+- E3 closed: B2 MISS at 3 h, works 1-2 h (ASK_LATER 42). Next: weakness review vs Earth-GRAM

@@ -1175,3 +1175,5 @@ AUTOPILOT 606 (20:00): E3 step 1 part B (b77): pair vs tool+observe_radar CRPS -
 AUTOPILOT 607 (20:20): WD10 step 0: gust column only at ELP/MAF/TCS; ratio flat by speed 1.17-1.33; rule (5 of 6) blocked -> ASK_LATER 41. WD3 skipped (gated on WD1 PASS, WD1 MISS). Remaining stage 2: WD13 step 0 (EDI), E1, RA stage 2.
 
 AUTOPILOT 608 (20:30): WD13 step 0 BLOCKED: EDI (pasta.lternet.edu) public access refuses search and package listing (not authorized for searchDataPackages / listDataPackageIdentifiers); needs an EDI login or a package id from the user. Goes into the single 'needs the user' list with T6-T11, E2.
+
+AUTOPILOT 609 (20:50): E3 part B2 (b78): pair -27.7/-10.3/-4.2 % vs tool+radar at 1/2/3 h, coverage 0.92-0.95 -> MISS at 3 h; passes 1-2 h. ASK_LATER 42.
