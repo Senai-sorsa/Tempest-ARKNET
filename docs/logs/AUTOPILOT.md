@@ -1177,3 +1177,5 @@ AUTOPILOT 607 (20:20): WD10 step 0: gust column only at ELP/MAF/TCS; ratio flat 
 AUTOPILOT 608 (20:30): WD13 step 0 BLOCKED: EDI (pasta.lternet.edu) public access refuses search and package listing (not authorized for searchDataPackages / listDataPackageIdentifiers); needs an EDI login or a package id from the user. Goes into the single 'needs the user' list with T6-T11, E2.
 
 AUTOPILOT 609 (20:50): E3 part B2 (b78): pair -27.7/-10.3/-4.2 % vs tool+radar at 1/2/3 h, coverage 0.92-0.95 -> MISS at 3 h; passes 1-2 h. ASK_LATER 42.
+
+AUTOPILOT 610 (21:15): user asked for weakness-driven experiments at dead ends. New_Plan section 24 written (W1-W4 from the GRAM compare + V0/V1/V5/E3 logs). W2 (V5 copula on u,v only, b79, seeds 0 and 1) running on CPU. Memory weakness-driven-experiments saved.
