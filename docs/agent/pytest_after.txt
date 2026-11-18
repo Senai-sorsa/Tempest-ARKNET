@@ -1,0 +1,39 @@
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 41%]
+........................................................................ [ 55%]
+........................................................................ [ 69%]
+........................................................................ [ 83%]
+........................................................................ [ 97%]
+..............                                                           [100%]
+============================== warnings summary ===============================
+tests/test_build_wdata_times.py::test_row_times_round_trip
+  C:\Users\Senai\Tempest-ARKNET\tests\test_build_wdata_times.py:15: Pandas4Warning: DatetimeIndex.dayofyear is deprecated and will be removed in a future version. Use DatetimeIndex.day_of_year instead.
+    cond = features(lats, lons, np.zeros(len(times)), np.zeros(len(times)), times.dayofyear.to_numpy(), sh, times.year.to_numpy(),
+
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_era5_local_multi.py::test_day_and_night_stores_join_to_all_hours
+tests/test_region_pack.py::test_fitters_on_a_9x9_box_with_missing_heights[c1_fit_lagcorr.py-args0]
+tests/test_region_pack.py::test_fitters_on_a_9x9_box_with_missing_heights[c2_fit_distcorr.py-args1]
+  C:\Users\Senai\Tempest-ARKNET\.venv\Lib\site-packages\zarr\api\asynchronous.py:260: ZarrUserWarning: Consolidated metadata is currently not part in the Zarr format 3 specification. It may not be supported by other zarr implementations and may change in the future.
+    warnings.warn(
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:181: RuntimeWarning: invalid value encountered in divide
+    put(f"skill_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim"])
+
+tests/test_gemini_fixes.py::test_il143_headline_valid_mask_drops_filled_columns_and_default_is_identical
+  C:\Users\Senai\Tempest-ARKNET\tempest\scoring\diag.py:183: RuntimeWarning: invalid value encountered in divide
+    put(f"skill15_{k}", 1 - mean[f"crps_{k}"] / mean["crps_clim15"])
+
+tests/test_s25.py::test_moe_gate_logged
+  C:\Users\Senai\Tempest-ARKNET\tests\test_s25.py:136: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+  Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+    assert m.aux_loss is not None and math.isfinite(float(m.aux_loss))
+
+tests/test_s25.py::test_s25_script_selfchecks[s25_gate_month]
+  C:\Users\Senai\Tempest-ARKNET\tests\..\scripts\s25_gate_month.py:82: Pandas4Warning: Starting with pandas version 4.0 all arguments of sum will be keyword-only.
+    assert list(t.month) == list(range(1, 13)) + ["all"] and np.allclose(t[["w0", "w1", "w2"]].sum(1), 1, atol=1e-5)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+518 passed, 9 warnings in 1812.35s (0:30:12)
