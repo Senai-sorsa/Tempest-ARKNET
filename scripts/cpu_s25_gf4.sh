@@ -9,7 +9,7 @@ cd /c/Users/Senai/Tempest-ARKNET || exit 1
 PY=.venv/Scripts/python D=models/s25 L=docs/results/logs/s25_gf4.log DA=data/train/pilot80_l21_day_dpd.npz T=base_s0
 M=$D/$T.pt C=$D/$T.calib2021.npz SM=$D/${T}_smap_cell8.npz LM=$D/${T}_lmap_cell8.npz
 for f in $M $C $SM $LM; do [ -f $f ] || { echo "$(date '+%F %T') missing $f (run the base arm first)" >> $L; exit 2; }; done
-STACK="--shuffle --template-cell 8 --shear-map $SM --lapse-map $LM --device cpu --m 99 --rows 4000"
+STACK="--shuffle --template-cell 8 --shear-map $SM --lapse-map $LM --device cpu --m 199 --rows 4000"
 ram_gb() { powershell -NoProfile -c "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB)" | tr -d '\r'; }
 [ "$DRY" = "1" ] || while [ "$(ram_gb)" -lt 4 ]; do sleep 60; done
 run() { [ -e "$1" ] && return 0; shift; if [ "$DRY" = "1" ]; then echo "$*"; return 0; fi; "$@" >> $L 2>&1 || { echo "FAILED $*" >> $L; exit 2; }; }
