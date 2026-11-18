@@ -21,10 +21,12 @@ SM=$D/${T}_smap_$TAG.npz LM=$D/${T}_lmap_$TAG.npz
 mkdir -p $D configs/s25/gen
 SHAPE_ARGS=${SHAPE_ARGS---blocks 7}   # HAR-block metrics for every arm and the base (GT1 compares them)
 log() { [ "$DRY" = "1" ] && return; echo "$(date '+%F %T') [S25 $T] $*" >> $L/s25.log; }
-busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | ? { \$_.CommandLine -match 'generator.train|calibrate|scoring|il6_modeF|pytest|diagnose|s25_' }).Count" | tr -d '\r'; }
+# S25_PARALLEL=1: do not wait for a Mode F evaluation (UR15), only for other s25 jobs; RAM gate 4 GB instead of 6
+if [ "$S25_PARALLEL" = "1" ]; then BUSYRE='generator.train|calibrate|scoring|pytest|diagnose|s25_'; RAMMIN=4; else BUSYRE='generator.train|calibrate|scoring|il6_modeF|pytest|diagnose|s25_'; RAMMIN=6; fi
+busy() { powershell -NoProfile -c "@(Get-CimInstance Win32_Process -Filter \"name='python.exe'\" | ? { \$_.CommandLine -match '$BUSYRE' }).Count" | tr -d '\r'; }
 ram_gb() { powershell -NoProfile -c "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB)" | tr -d '\r'; }
 gpu_c() { nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null | head -1 | tr -d '\r '; }
-wait_free() { [ "$DRY" = "1" ] && return; while [ "$(busy)" != "0" ] || [ "$(ram_gb)" -lt 6 ] || [ "${GPU_GATE:-0}" = "1" -a "$(gpu_c)" -ge 85 ]; do sleep 60; done; }
+wait_free() { [ "$DRY" = "1" ] && return; while [ "$(busy)" != "0" ] || [ "$(ram_gb)" -lt "$RAMMIN" ] || [ "${GPU_GATE:-0}" = "1" -a "$(gpu_c)" -ge 85 ]; do sleep 60; done; }
 run() {  # run OUT LOGNAME cmd...  (skip when OUT exists)
   local out=$1 lg=$2; shift 2
   [ -e "$out" ] && return 0
