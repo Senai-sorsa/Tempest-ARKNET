@@ -1185,3 +1185,5 @@ AUTOPILOT 611 (21:30): W2 (b79, seed 0) MISS: error 0.042/0.045 (shipped 0.050),
 AUTOPILOT 612 (21:50): W2 seed 1 stopped (verdict MISS already fixed by seed 0). W3 built (b80_w3_shear_fade.py: shear map high-pass 3 km / 6 km Gaussian, rule in its docstring, smoke ok) and launched via scripts/cpu_w3.sh, seeds 0 then 1 (~1 h each).
 
 AUTOPILOT 613 (23:15): W3 (b80) KILL on both seeds: error 0.054/0.059 (shipped 0.050), 6 km CRPS u +1.0 %. W2 seed 1 had finished too (MISS). Next W1 (shear-tail stretch).
+
+AUTOPILOT 614 (23:25): W1 built (b81_w1_shear_stretch.py: per-band stretch of the rough part of u,v, fit on odd cases, test on even; rule in docstring; smoke ok) and launched via scripts/cpu_w1.sh, seeds 0 then 1.

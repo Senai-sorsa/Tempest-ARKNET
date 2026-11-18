@@ -135,3 +135,4 @@ Processes to finish and check:
 - 2026-11-17 21:30 W2 copula u,v **MISS** (seed 0: Ri<1 12-18 km 0.187 vs 0.117 shipped); seed 1 confirming; next W3 then W1.
 - 2026-11-17 21:50 W2 closed (MISS). W3 (b80) running seed 0 then 1; then W1.
 - 2026-11-17 23:15 W3 shear fade **KILL** (both seeds: error worse than shipped); W2 seed 1 MISS too. Next W1.
+- 2026-11-17 23:25 W1 (b81) running seed 0 then 1; after it: next idea from logs (E1 atlas step 0 or new W5).
