@@ -158,3 +158,83 @@ def test_engine_numpy_flow_and_rml_match_torch():
         want = r.net(inp, 1, eps=e)[:, 0].numpy()
     assert np.allclose(rin.forward(inp.numpy(), e.numpy()), want, atol=2e-4)
     assert E.rml_sample(rin, c.numpy(), 3, np.random.default_rng(0)).shape == (5, n_out)
+
+
+# ---- New_Plan 25 arm deltas (configs/s25/*.toml) through scripts/s25_cfg.py: every delta merges, its keys exist, and it trains (tiny CPU run)
+import glob  # noqa: E402
+import sys  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+import s25_cfg  # noqa: E402
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DELTAS = sorted(glob.glob(os.path.join(REPO, "configs", "s25", "*.toml")))
+FIXED = {"members", "seed", "steps", "eval_every", "patience", "val_years", "val_rows", "batch", "lr", "width", "depth", "noise_dim"}
+
+
+def test_cfg_default_keys_match_train_defaults():
+    from tempest.generator.train import DEFAULTS
+    assert s25_cfg.default_keys() == set(DEFAULTS)
+
+
+def test_cfg_rejects_typos_and_merges_tables(tmp_path):
+    cwd = os.getcwd()
+    os.chdir(REPO)
+    try:
+        cfg = s25_cfg.build("configs/s25/gf3_f2.toml", ["seed=100", 'init="models/x.pt"', "s25.train_steps=2"])
+        assert cfg["seed"] == 100 and cfg["s25"] == dict(steps=8, train="crps", train_steps=2) and cfg["init"] == "models/x.pt"
+        assert cfg["members"] == 4 and cfg["shear_tail_weight"] == 1.0                     # the shipped c4w line underneath
+        import tomllib
+        assert tomllib.loads(s25_cfg.dumps(cfg)) == cfg
+        with pytest.raises(SystemExit):
+            s25_cfg.build("configs/s25/base.toml", ["lrr=1"])
+    finally:
+        os.chdir(cwd)
+
+
+def tiny_train(extra):
+    """run() of test_flags_off at 1/5 the rows and 4 steps on 2 threads: a does-it-train check for every delta, not a golden."""
+    from tempest.generator.build_dataset import target_names
+    from tempest.generator.features import FEATURES
+    from tempest.generator.train import train
+    rng = np.random.default_rng(7)
+    n = 1200
+    cond = rng.normal(size=(n, len(FEATURES))).astype(np.float32)
+    cond[:, FEATURES.index("year")] = np.repeat(np.arange(2000, 2012), n // 12)
+    base = rng.normal(size=(n, 4 * 44 + 3)).astype(np.float32) * 0.3
+    base[:, 2 * 44] += 280
+    year = cond[:, FEATURES.index("year")].astype(np.int16)
+    cfg = dict(width=16, depth=2, noise_dim=4, batch=64, steps=4, eval_every=2, val_years=2, lr=2e-3, val_rows=200, **extra)
+    threads = torch.get_num_threads()
+    torch.set_num_threads(2)
+    try:
+        torch.manual_seed(0)
+        return train(cond, base, year, cfg, device="cpu", log=lambda *_: None, members=1,
+                     meta=dict(cond_names=list(FEATURES), target_names=target_names()))
+    finally:
+        torch.set_num_threads(threads)
+
+
+@pytest.mark.parametrize("path", DELTAS, ids=[os.path.basename(p)[:-5] for p in DELTAS])
+def test_every_arm_delta_trains(path):
+    cwd = os.getcwd()
+    os.chdir(REPO)
+    try:
+        cfg = {k: v for k, v in s25_cfg.build(path).items() if k not in FIXED and k != "init"}
+    finally:
+        os.chdir(cwd)
+    ck = tiny_train(cfg)                                             # members=1: one bare checkpoint
+    assert np.isfinite([h[2] for h in ck["history"]]).all()
+
+
+def test_gt2_pool_mlp_plus_tokens_samples_through_sampler(tmp_path):
+    from tempest.generator.sample import Sampler
+    import s25_pool
+    a, b = tiny_train({}), tiny_train(dict(arch="tokens"))
+    pa, pb = os.path.join(tmp_path, "a.pt"), os.path.join(tmp_path, "b.pt")
+    torch.save(a, pa)
+    torch.save(b, pb)
+    ck = s25_pool.pool([pa, pb])
+    assert [m["cfg"].get("arch", "mlp") for m in ck["members"]] == ["mlp", "tokens"]
+    out = Sampler(ck, device="cpu")(np.zeros((6, a["n_cond"]), np.float32))
+    assert out.shape == (6, a["n_out"]) and np.isfinite(out).all()

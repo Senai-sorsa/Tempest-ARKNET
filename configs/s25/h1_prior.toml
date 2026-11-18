@@ -1,0 +1,3 @@
+# H1 gramlike prior sample (month x site mean/sd, AR(1) in height) as input, output = prior + correction
+arch = "prior"
+s25 = {mode = "gram"}

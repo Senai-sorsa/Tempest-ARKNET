@@ -1,0 +1,4 @@
+# GT2 IL-8b: token model, d 96, 3000 steps (configs/generator_il8.toml otherwise)
+base = "configs/generator_il8.toml"
+steps = 3000
+model_kw_extra = {d = 96}

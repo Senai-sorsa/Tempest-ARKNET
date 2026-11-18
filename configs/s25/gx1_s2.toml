@@ -1,0 +1,3 @@
+# GX1 on every 2nd height (the plan fallback if slow)
+sig_weight = 0.05
+sig_stride = 2

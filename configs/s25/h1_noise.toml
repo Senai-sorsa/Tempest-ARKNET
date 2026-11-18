@@ -1,0 +1,3 @@
+# H1 control: the prior input replaced by N(0,1) noise of the same size
+arch = "prior"
+s25 = {mode = "noise"}

@@ -1,0 +1,3 @@
+# H2 analog (k = 8, own year excluded) + learned warp; table capped at 200 MB
+arch = "analog"
+s25 = {k = 8, max_mb = 200}

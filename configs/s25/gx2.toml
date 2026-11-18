@@ -1,0 +1,4 @@
+# GX2 threshold-weighted ES on the 0-18 km (u, v) profile, weight on max-shear above the training q90 (weight 0.1 = es_weight, not set by the plan)
+twes_weight = 0.1
+twes_q = 0.9
+twes_top_m = 18000.0

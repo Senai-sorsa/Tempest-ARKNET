@@ -1,0 +1,3 @@
+# H3 three soft-gated expert heads, load-balance penalty 0.01
+arch = "moe"
+s25 = {E = 3, balance = 0.01}
