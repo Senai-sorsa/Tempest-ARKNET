@@ -1,4 +1,5 @@
-"""24.W5 = W1 with W1_NOSHRINK=1 (f = max(f, 1); added 2026-11-17 after W1 MISS on both seeds: p99 1-5 km overshot to 1.20 / 1.14 while 0-1 km and 12-18 km improved; same pre-set rule, both seeds; log kit_b81_w1_shear_stretch_w5.log).
+"""24.W6 = W5 plus W1_TAPER=1 (factor interpolated along height between band centres, no hard band edges; same pre-set rule, both seeds; added 2026-11-18 after W5 MISS from band-edge spill; log kit_b81_w1_shear_stretch_w5_w6.log).
+24.W5 = W1 with W1_NOSHRINK=1 (f = max(f, 1); added 2026-11-17 after W1 MISS on both seeds: p99 1-5 km overshot to 1.20 / 1.14 while 0-1 km and 12-18 km improved; same pre-set rule, both seeds; log kit_b81_w1_shear_stretch_w5.log).
 24.W1 (2026-11-17): shear-tail stretch. Shipped tool members; each member's u, v profile is split into a smooth part (9-height uniform window along height) and the rough rest; the rough part is scaled by a factor f per height band (0-1, 1-5, 5-12, 12-18 km), x' = smooth + f * (x - smooth), height-0 value kept.
 f is fit on the ODD cases of the case list (index parity, cases are random draws so parity splits days) so that the pooled shear p99 of the members matches the balloons' (4 fixed-point steps f *= balloon p99 / member p99, f in 0.5-3), then tested on the EVEN cases only, against shipped on the same even cases.
 Cases, tool run, balloons as b9 / b80 (EPZ / MAF, 00Z / 12Z, 2024-25, 200 per group, 50 members). KIT_SEED picks the case list (0, 1); PASS needs both seeds.
@@ -27,6 +28,9 @@ def stretch(x, f):
     """x: dict with u, v (NM, 44); f: 4 factors. Returns a copy."""
     y = dict(x)
     fl = np.asarray(f)[LVL_BAND]
+    if os.environ.get("W1_TAPER"):                          # W6: factor interpolated along height between band centres (no hard edges)
+        cen = [np.mean(np.where(LVL_BAND == b)[0]) for b in range(4)]
+        fl = np.interp(np.arange(len(LVL_BAND)), cen, np.asarray(f))
     for q in ("u", "v"):
         sm = uniform_filter1d(x[q], 9, axis=-1, mode="nearest")
         z = sm + fl * (x[q] - sm)
@@ -108,7 +112,7 @@ def main():
     L.append(f"W1: error vs shipped {d[0]:+.4f} [{d[1]:+.4f}, {d[2]:+.4f}]; CRPS vs shipped " + " ".join(f"{q} {v:+.2f} %" for q, v in cr.items()) + "; limits: " + "; ".join(f"{k} {'ok' if v else 'FAIL'}" for k, v in ok.items()))
     L.append("VERDICT (pre-set rule, this seed): " + ("PASS" if all(ok.values()) else "MISS"))
     L.append("Notes: development window (2024-25), EPZ / MAF; tool is balloon-corrected here; not a blind test. Both seeds must pass.")
-    K.report("b81_w1_shear_stretch" + ("_w5" if os.environ.get("W1_NOSHRINK") else ""), L)
+    K.report("b81_w1_shear_stretch" + ("_w5" if os.environ.get("W1_NOSHRINK") else "") + ("_w6" if os.environ.get("W1_TAPER") else ""), L)
 
 
 if __name__ == "__main__":
