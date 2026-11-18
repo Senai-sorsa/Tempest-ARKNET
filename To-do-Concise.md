@@ -133,3 +133,4 @@ Processes to finish and check:
 - WD13 step 0 blocked: EDI search needs login (user list)
 - E3 closed: B2 MISS at 3 h, works 1-2 h (ASK_LATER 42). Next: weakness review vs Earth-GRAM
 - 2026-11-17 21:30 W2 copula u,v **MISS** (seed 0: Ri<1 12-18 km 0.187 vs 0.117 shipped); seed 1 confirming; next W3 then W1.
+- 2026-11-17 21:50 W2 closed (MISS). W3 (b80) running seed 0 then 1; then W1.

@@ -1181,3 +1181,5 @@ AUTOPILOT 609 (20:50): E3 part B2 (b78): pair -27.7/-10.3/-4.2 % vs tool+radar a
 AUTOPILOT 610 (21:15): user asked for weakness-driven experiments at dead ends. New_Plan section 24 written (W1-W4 from the GRAM compare + V0/V1/V5/E3 logs). W2 (V5 copula on u,v only, b79, seeds 0 and 1) running on CPU. Memory weakness-driven-experiments saved.
 
 AUTOPILOT 611 (21:30): W2 (b79, seed 0) MISS: error 0.042/0.045 (shipped 0.050), CRPS within 0.13 %, but Ri<1 share 12-18 km 0.187/0.209 vs shipped 0.117 FAIL. PASS needs both seeds so MISS stands; seed 1 still running. Next W3.
+
+AUTOPILOT 612 (21:50): W2 seed 1 stopped (verdict MISS already fixed by seed 0). W3 built (b80_w3_shear_fade.py: shear map high-pass 3 km / 6 km Gaussian, rule in its docstring, smoke ok) and launched via scripts/cpu_w3.sh, seeds 0 then 1 (~1 h each).
