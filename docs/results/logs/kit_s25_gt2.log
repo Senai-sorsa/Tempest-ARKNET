@@ -1,0 +1,5 @@
+2026-11-19 08:35 S25 GT2 (GT2 PRE-SET RULE)
+  gt2_pool s0: d_skill15(b) -0.0321; shape FAIL event_cov_gap,pit_tv,shear_ks,skew_diff,vcorr_err; Denver -0.1833 (report)
+  gt2_pool s100: d_skill15(b) -0.0286; shape FAIL event_cov_gap,shear_ks,skew_diff,tail_rate_err,vcorr_err; Denver -0.1900 (report)
+VERDICT (pre-set rule): KILL
+
