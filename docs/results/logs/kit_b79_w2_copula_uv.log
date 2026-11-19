@@ -34,3 +34,15 @@ W2b maps off: error 0.044; vs shipped -0.0116 [-0.0246, +0.0058]; vs gaussfull +
 VERDICT (pre-set rule): MISS
 Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
 
+2026-11-19 16:55 22.W2 copula templates (seed 0): 1800 cases (0 skipped), 50 members, template sets with repeats (fewer than 199 complete balloons): 0 of the station / month / hour groups used
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.048                  4.762  4.669  1.905   0.69 0.89 0.87 0.91      0.659 0.296 0.193 0.117
+  W2a maps on          0.035                  4.774  4.665  1.905   0.69 0.89 0.93 0.92      0.663 0.334 0.266 0.185
+  W2b maps off         0.036                  4.776  4.668  1.905   0.76 0.99 1.08 0.96      0.677 0.351 0.302 0.208
+  gaussfull            0.039                  4.944  4.712  2.051   0.64 0.81 0.83 0.74      0.598 0.295 0.252 0.085
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.730 0.348 0.198 0.152
+W2a maps on: error 0.035; vs shipped -0.0129 [-0.0200, -0.0013]; vs gaussfull -0.0039 [-0.0108, +0.0075]; CRPS vs shipped u +0.24 % v -0.10 % T +0.00 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % ok; p99 12-18 km not worse ok; Ri<1 12-18 km not worse ok
+W2b maps off: error 0.036; vs shipped -0.0126 [-0.0206, -0.0033]; vs gaussfull -0.0036 [-0.0101, +0.0064]; CRPS vs shipped u +0.29 % v -0.02 % T -0.03 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % ok; p99 12-18 km not worse ok; Ri<1 12-18 km not worse FAIL
+VERDICT (pre-set rule): PASS W2a maps on
+Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
+

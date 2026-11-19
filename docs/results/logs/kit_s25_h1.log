@@ -1,0 +1,7 @@
+2026-11-19 16:56 S25 H1 (H1 PRE-SET RULE)
+  s0 prior - control: skill15 -0.0052 (noise 0.0012), target gain +0.0197 (noise 0.0057)
+  s100 prior - control: skill15 -0.0053 (noise 0.0012), target gain +0.0200 (noise 0.0057)
+  h1_prior s0: target 0.9919 vs base 1.0000 (noise 0.0057) beats; d_skill15(b) -0.0033 FAIL; shape FAIL event_cov_gap,kurt_diff; preclip -0.00243 ok; cov99 ok; Denver skill15 -0.2048 (report)
+  h1_prior s100: target 0.9918 vs base 1.0057 (noise 0.0057) beats; d_skill15(b) -0.0040 FAIL; shape FAIL event_cov_gap; preclip -0.00229 ok; cov99 ok; Denver skill15 -0.1930 (report)
+VERDICT (pre-set rule): KILL
+
