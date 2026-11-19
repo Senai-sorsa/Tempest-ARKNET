@@ -143,3 +143,4 @@ Processes to finish and check:
 - 2026-11-18 22:30 Added New_Plan section 26 (do later): 26.1 enlarge case set (T2/T1) to cut vertical-corr noise and re-measure old verdicts; 26.2 combined copula + damped 12-18 km shear/Ri<1 salvage. Not started.
 - 2026-11-19 00:50 UR15 verdict: gate PASS, UR13/AV24 MISS, AV29 MISS, SIGMA holds (ASK_LATER 43), NEST not passed. GF1: svec01 done scoring, gx2 next, then gf1_screen.
 - 01:30 Added section 27 (scrap-together stage from UR15: SIGMA + coverage-fixed NEST + world start 500), do later with other combined ideas (backup bak99).
+- 2026-11-19 02:10 S25 GF1 screen **KILL** (no arm beat noise 0.0087; best vario01 gain 0.0066); GX1 not started. GT2 now running (token model + pool), then GF3, MF2.

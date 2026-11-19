@@ -1197,3 +1197,5 @@ AUTOPILOT 617 (01:25): W6 (b81 + edge taper, f >= 1) MISS on seed 0: 1-5 km p99 
 AUTOPILOT 618 (04:05): S25 GF2 KILL (best cell -0.0011 vs noise 0.0043; lr 3e-3 +0.003..0.004 worse). Next: base arm (6000 steps, seeds 0/100 as the paired baseline), then GF4 (CPU), then GF1, via scripts/s25_chain_a.sh.
 
 AUTOPILOT 619 (00:50): UR15 third-period verdict (b37, after re-running the two evals that died on a numpy MemoryError): gate PASS; UR13/AV24 MISS (Denver -1.4..-2.6 %, NM/TX interval crosses 0), AV29 MISS (record), SIGMA holds incl. 9 d, NEST not passed (cov99 fails), UR2 stage 3 better than NEST in all 6 runs. GF1 screen: 10 of 11 arms done, gx2 next. ASK_LATER 43 added (SIGMA).
+
+AUTOPILOT 620 (02:10): S25 GF1 screen KILL (11 arms at 3000 steps seed 0; best vario01 0.9934 vs base3k 1.0000, noise 0.0087; none eligible; d_skill15(b) -0.0003..+0.0005). No 6000-step runs; GX1 gated on a GF1 pick, so not started. GF4 was KILL earlier (16:27 Nov 18). Next: GT2 (gpu_s25_gt2.sh started 02:10; ~3 h per token-model seed), then GF3, MF2, GT1, MF1, H1.. per section 25 order.

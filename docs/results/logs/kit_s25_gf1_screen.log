@@ -1,0 +1,14 @@
+2026-11-19 01:45 S25 GF1_SCREEN (GF1 screen PRE-SET RULE)
+  gf1_es0_3k: target 0.9978 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0003  
+  gf1_es03_3k: target 0.9991 vs base3k 1.0000 (noise 0.0087); d_skill15(b) -0.0003  
+  gf1_es1_3k: target 0.9995 vs base3k 1.0000 (noise 0.0087); d_skill15(b) -0.0002  
+  gf1_b05_3k: target 1.0004 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0004  
+  gf1_b15_3k: target 1.0029 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0004  
+  gf1_vario002_3k: target 0.9958 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0001  
+  gf1_vario005_3k: target 0.9969 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0005  
+  gf1_vario01_3k: target 0.9934 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0003  
+  gf1_svec005_3k: target 0.9960 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0005  
+  gf1_svec01_3k: target 1.0048 vs base3k 1.0000 (noise 0.0087); d_skill15(b) +0.0005  
+  gx2_3k: target 1.0022 vs base3k 1.0000 (noise 0.0087); d_skill15(b) -0.0001  
+VERDICT (pre-set rule): KILL
+
