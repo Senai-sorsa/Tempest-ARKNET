@@ -140,3 +140,5 @@ Processes to finish and check:
 - 2026-11-18 00:10 W5 shear stretch (f>=1) **MISS** both seeds (band-edge spill overshoots 1-5 km); next W6 edge taper or section 25.
 - 2026-11-18 01:25 W6 edge-tapered stretch **MISS** (seed 0); shear-tail stretch family closed. Next: section 25 (needs code) / E1 atlas step 0 / AV38.
 - 2026-11-18 04:05 S25 GF2 optimizer sweep **KILL** (all inside seed noise or worse); next base arm -> GF4 -> GF1 chain.
+- 2026-11-18 22:30 Added New_Plan section 26 (do later): 26.1 enlarge case set (T2/T1) to cut vertical-corr noise and re-measure old verdicts; 26.2 combined copula + damped 12-18 km shear/Ri<1 salvage. Not started.
+- 2026-11-19 00:50 UR15 verdict: gate PASS, UR13/AV24 MISS, AV29 MISS, SIGMA holds (ASK_LATER 43), NEST not passed. GF1: svec01 done scoring, gx2 next, then gf1_screen.

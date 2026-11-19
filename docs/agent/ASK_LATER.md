@@ -199,3 +199,5 @@ Question: add a per-site factor table (default off), apply it only when the user
 41. WD10 gust factor: only 3 of 6 ASOS 1-min stations (ELP, MAF, TCS) have gust data (ALM, LRU, PEQ are header-only). Pass rule needs 5 of 6. Gust / mean speed is flat by speed bin (1.17-1.33). Decision: relax the rule to 3 of 3 stations with a per-station constant factor, or re-pull ALM / LRU / PEQ gusts, or drop WD10.
 
 42. E3 radar pair ensemble: after the spread factor it beats tool + observe_radar by -27.7 % (1 h) and -10.3 % (2 h) with 90 % coverage 0.92-0.94, but only -4.2 % at 3 h (missed the 1-3 h rule). Decision: accept a 1-2 h rule (then wire as an opt-in nowcast step), or ask for a bigger radar pull to fit 3 h.
+
+43. UR15 third period (2023-24 open data): SIGMA clause holds. SIGMA vs binned is within +0.5 % at leads 1-7 (-0.0 to -3.3 %) and 6.9-8.2 % better at 9 d with the interval below 0, in both boxes. UR13/AV24 and AV29 stay MISS (record), NEST fails cov99. Decision: adopt SIGMA as the opt-in forecast-mode spread (default off), or keep it as a record only. Log docs/results/logs/kit_b37_ur15_third_period.log.

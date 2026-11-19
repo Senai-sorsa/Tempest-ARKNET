@@ -1195,3 +1195,5 @@ AUTOPILOT 616 (00:10): W5 (b81, f >= 1) MISS both seeds (had finished 23:38): 1-
 AUTOPILOT 617 (01:25): W6 (b81 + edge taper, f >= 1) MISS on seed 0: 1-5 km p99 1.12, vertical-corr error +0.0052. W1/W5/W6 family closed. Duplicate W6 runs from my relaunches overlapped; kill was denied by permissions, they end on their own.
 
 AUTOPILOT 618 (04:05): S25 GF2 KILL (best cell -0.0011 vs noise 0.0043; lr 3e-3 +0.003..0.004 worse). Next: base arm (6000 steps, seeds 0/100 as the paired baseline), then GF4 (CPU), then GF1, via scripts/s25_chain_a.sh.
+
+AUTOPILOT 619 (00:50): UR15 third-period verdict (b37, after re-running the two evals that died on a numpy MemoryError): gate PASS; UR13/AV24 MISS (Denver -1.4..-2.6 %, NM/TX interval crosses 0), AV29 MISS (record), SIGMA holds incl. 9 d, NEST not passed (cov99 fails), UR2 stage 3 better than NEST in all 6 runs. GF1 screen: 10 of 11 arms done, gx2 next. ASK_LATER 43 added (SIGMA).
