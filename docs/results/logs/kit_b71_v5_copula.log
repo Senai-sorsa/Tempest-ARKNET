@@ -22,3 +22,27 @@ V5b maps off: error 0.048; vs shipped -0.0150 [-0.0270, +0.0035]; vs gaussfull +
 VERDICT (pre-set rule): MISS
 Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
 
+2026-11-19 17:26 22.V5 copula templates (seed 0): 1800 cases (0 skipped), 50 members, template sets with repeats (fewer than 199 complete balloons): 0 of the station / month / hour groups used
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.048                  4.762  4.669  1.905   0.69 0.89 0.87 0.91      0.659 0.296 0.193 0.117
+  V5a maps on          0.035                  4.774  4.665  1.912   0.69 0.89 0.93 0.92      0.661 0.335 0.274 0.185
+  V5b maps off         0.037                  4.776  4.668  1.911   0.76 0.99 1.08 0.96      0.674 0.351 0.309 0.208
+  gaussfull            0.039                  4.944  4.712  2.051   0.64 0.81 0.83 0.74      0.598 0.295 0.252 0.085
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.730 0.348 0.198 0.152
+V5a maps on: error 0.035; vs shipped -0.0131 [-0.0196, -0.0013]; vs gaussfull -0.0041 [-0.0100, +0.0055]; CRPS vs shipped u +0.24 % v -0.10 % T +0.32 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % FAIL; p99 12-18 km not worse ok; Ri<1 12-18 km not worse ok
+V5b maps off: error 0.037; vs shipped -0.0113 [-0.0185, -0.0024]; vs gaussfull -0.0023 [-0.0091, +0.0084]; CRPS vs shipped u +0.29 % v -0.02 % T +0.30 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % ok; p99 12-18 km not worse ok; Ri<1 12-18 km not worse FAIL
+VERDICT (pre-set rule): MISS
+Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
+
+2026-11-19 17:36 22.V5 copula templates (seed 1): 1800 cases (0 skipped), 50 members, template sets with repeats (fewer than 199 complete balloons): 0 of the station / month / hour groups used
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.041                  4.727  4.604  1.907   0.69 0.91 0.89 0.93      0.661 0.295 0.191 0.116
+  V5a maps on          0.038                  4.746  4.605  1.913   0.69 0.90 0.94 0.93      0.662 0.333 0.270 0.181
+  V5b maps off         0.040                  4.748  4.608  1.912   0.76 1.00 1.08 0.98      0.676 0.349 0.305 0.204
+  gaussfull            0.038                  4.929  4.626  2.047   0.65 0.83 0.84 0.75      0.599 0.295 0.249 0.084
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.735 0.347 0.194 0.151
+V5a maps on: error 0.038; vs shipped -0.0022 [-0.0104, +0.0061]; vs gaussfull +0.0003 [-0.0096, +0.0095]; CRPS vs shipped u +0.41 % v +0.03 % T +0.31 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % FAIL; p99 12-18 km not worse ok; Ri<1 12-18 km not worse ok
+V5b maps off: error 0.040; vs shipped -0.0001 [-0.0103, +0.0101]; vs gaussfull +0.0024 [-0.0073, +0.0101]; CRPS vs shipped u +0.44 % v +0.10 % T +0.27 %; limits: error <= 0.045 ok; vs gaussfull includes 0 or below ok; CRPS not worse than shipped by over 0.3 % FAIL; p99 12-18 km not worse ok; Ri<1 12-18 km not worse FAIL
+VERDICT (pre-set rule): MISS
+Notes: development window (2024-25), EPZ / MAF; the tool is balloon-corrected here and the templates come from the same station's 1991-2020 balloons, so this is not a blind test. Sites without balloons (k-nearest stations) and the 2026 window are not run here. The 90 % interval reads the day-bootstrap 2.5-97.5 band of B9.boot (a little wider).
+
