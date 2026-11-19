@@ -148,3 +148,4 @@ Processes to finish and check:
 - 2026-11-19 12:55 FINAL PATH (New_Plan sec 28, 24-48 h): GF3 + H1 running; H4 only if H1 PASS; then best config, final model, final test (needs user go), global prep (G0 pieces, bundle, launch scripts, README). Everything else in sec 25-27 dropped for now.
 - 2026-11-19 13:00 Sections 26 and 27 stay in the final path (28.2 stage H, CPU beside GPU stages); MF2/GT1/MF1/H2/H3/H5 still dropped.
 - 2026-11-19 13:25 26.1 step 0 (T2) done: T2 sites outside the tool boxes (not run); EPZ+MAF+Denver 1800 cases pooled error 0.049, interval width 0.021. Step 1 next.
+[x] 26.1 step 1a W1/W5/W6 rerun at 600 cases/site: W1/W5 MISS both seeds; W6 seed 0 PASS, seed 1 not informative (width 0.0126) -> MISS; 900/site rerun running. Next: V5a and W2 rerun scripts, then 26.2.
