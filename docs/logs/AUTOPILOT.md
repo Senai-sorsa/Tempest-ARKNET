@@ -1205,3 +1205,5 @@ AUTOPILOT 621 (08:45): S25 GT2 KILL (pool of IL-8b token members + base MLPs, bo
 AUTOPILOT 622 (12:55): user set the final path (New_Plan section 28, bak102): only GF3 and H1 (H4 if H1 PASS), then best configuration, final model, final test (user go needed), global prep. H1 queue started 12:50 (data/h1_run.log), takes turns with GF3 steps. MF2/GT1/MF1/H2/H3/H5/26/27 dropped for now.
 
 AUTOPILOT 623 (13:00): user kept sections 26 and 27 in full inside section 28 (stage H, CPU, bak103). Dropped only MF2/GT1/MF1/H2/H3/H5.
+
+AUTOPILOT 624 (13:25): 26.1 step 0 (T2) run, report only (new_plan_kit/b82_t2_heldout.py, log kit_b82_t2_heldout.log). The shipped tool refuses every T2 site except Denver (ABQ/AMA/FGZ/TUS/DRT outside the trained boxes), so a blind kit there needs new assets and was not run. Instead EPZ + MAF + Denver 2016-21, 600 cases each: vertical-corr error 0.055 / 0.057 / 0.077, pooled 0.049 [0.043, 0.064] width 0.021 (about 1800 cases). Step 1 (re-measure old verdicts) next; its rule needs the vs-shipped interval < 0.01.

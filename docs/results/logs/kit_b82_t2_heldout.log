@@ -1,0 +1,9 @@
+2026-11-19 13:05 26.1 step 0 / T2 held-out IGRA sites (seed 0): shipped tool, 50 members, balloon-corrected at EPZ / MAF, not at DNR; vertical-corr error (u v T) and CRPS, 95 % interval by whole days
+site   cases   vertical-corr error [95 %]          CRPS u   v      T
+EPZ      600   0.055 [0.055, 0.078] width 0.024   4.777  4.517  1.875 
+MAF      600   0.057 [0.051, 0.087] width 0.037   4.729  4.813  2.007 
+DNR      600   0.077 [0.071, 0.097] width 0.026   4.646  5.161  2.485 
+ALL     1800   0.049 [0.043, 0.064] width 0.021   4.717  4.830  2.122 
+Reference: EPZ / MAF kit noise was about 0.03 (T2 row, section 23, 600 cases). 26.1 asks for a vs-shipped interval narrower than 0.01 (step 1).
+Notes: report only; Denver = 2016-2021 (before 2022); EPZ / MAF 2024-25 (development window, never 2026). T2 sites outside the trained boxes are not run (tool refuses).
+
