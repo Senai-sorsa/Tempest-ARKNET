@@ -1,0 +1,15 @@
+2026-11-19 16:12 S25 GF3 (GF3 PRE-SET RULE)
+  gf3_f1 s0: target 1.3615 vs base 1.0000 (noise 0.0222) inside noise; d_skill15(b) -0.0018 FAIL; shape FAIL cov_err_mean,pit_tv,shear_ks,vcorr_err; preclip -0.00634 ok; cov99 ok; Denver skill15 -0.0909 (report)
+  gf3_f1 s100: target 1.3479 vs base 0.9778 (noise 0.0222) inside noise; d_skill15(b) -0.0029 FAIL; shape FAIL cov_err_mean,pit_tv,shear_ks,vcorr_err; preclip -0.00599 ok; cov99 ok; Denver skill15 -0.0864 (report)
+  gf3_f2 s0: target 1.0270 vs base 1.0000 (noise 0.0222) inside noise; d_skill15(b) -0.0072 FAIL; shape FAIL pit_tv,shear_ks,skew_diff,vcorr_err; preclip -0.01020 ok; cov99 FAIL; Denver skill15 -0.1038 (report)
+  gf3_f2 s100: target 1.0672 vs base 0.9778 (noise 0.0222) inside noise; d_skill15(b) -0.0107 FAIL; shape FAIL event_cov_gap,pit_tv,shear_ks,skew_diff,vcorr_err; preclip -0.00979 ok; cov99 FAIL; Denver skill15 -0.1039 (report)
+  F3 (shuffle off) s0: vcorr_err 0.0524 vs F1 0.0485; skill15 0.0278 (report)
+  F3 (shuffle off) s100: vcorr_err 0.0491 vs F1 0.0488; skill15 0.0278 (report)
+  cost: model models/s25/gf3_f1_s0.pt, 2000 rows from 2024
+  cost: numpy vs torch (8 steps, 64 rows): max |diff| 1.43e-06 ok
+  cost: base one-step MLP: 1 forward pass, 162.7 ms / 1000 samples
+  cost: flow  4 Euler steps: 4 forward passes, 670.8 ms / 1000 samples, 4.1 x base; RMS gap to 32 steps 0.1319 (normalised)
+  cost: flow  8 Euler steps: 8 forward passes, 1286.1 ms / 1000 samples, 7.9 x base; RMS gap to 32 steps 0.0620 (normalised)
+  cost: flow 16 Euler steps: 16 forward passes, 2669.3 ms / 1000 samples, 16.4 x base; RMS gap to 32 steps 0.0234 (normalised)
+VERDICT (pre-set rule): KILL
+

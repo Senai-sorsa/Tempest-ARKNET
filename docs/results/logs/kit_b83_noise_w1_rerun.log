@@ -28,3 +28,33 @@ W6: f 1.85 1.00 1.13 1.14; err vs shipped -0.0043 [-0.0087, +0.0039] width 0.012
 VERDICT W6 (pre-set rule, this seed): MISS
 Notes: development window (2024-25), tool balloon-corrected, not a blind test. Both seeds must pass; PASS -> ASK_LATER only.
 
+2026-11-19 16:19 26.1 step 1a W1/W5/W6 rerun (seed 0): 1800 cases (EPZ + MAF), fit 900, test 900, 50 members
+source    vertical-corr err   CRPS u v T            shear p99 ratio per band   Ri<1 per band
+  shipped  0.056    4.786  4.684  1.911   0.68 0.90 0.84 0.93   0.669 0.298 0.188 0.115
+  W1       0.052    4.794  4.697  1.911   1.00 1.17 0.95 1.03   0.780 0.289 0.225 0.153
+  W5       0.050    4.794  4.697  1.911   1.00 1.16 0.95 1.03   0.780 0.316 0.226 0.153
+  W6       0.049    4.793  4.695  1.911   1.00 1.09 0.95 1.03   0.767 0.332 0.223 0.154
+  balloons ri 0.736 0.339 0.200 0.153
+W1: f 1.82 0.86 1.15 1.12; err vs shipped -0.0040 [-0.0061, +0.0026] width 0.0087; CRPS u +0.15 % v +0.27 % T +0.00 %; informative (width < 0.01) ok; p99 0.90-1.10 FAIL; CRPS <= +0.3 % ok; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W1 (pre-set rule, this seed): MISS
+W5: f 1.82 1.00 1.15 1.12; err vs shipped -0.0060 [-0.0083, +0.0014] width 0.0097; CRPS u +0.17 % v +0.28 % T +0.00 %; informative (width < 0.01) ok; p99 0.90-1.10 FAIL; CRPS <= +0.3 % ok; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W5 (pre-set rule, this seed): MISS
+W6: f 1.82 1.00 1.16 1.12; err vs shipped -0.0073 [-0.0095, +0.0006] width 0.0101; CRPS u +0.13 % v +0.24 % T +0.00 %; informative (width < 0.01) FAIL; p99 0.90-1.10 ok; CRPS <= +0.3 % ok; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W6 (pre-set rule, this seed): MISS
+Notes: development window (2024-25), tool balloon-corrected, not a blind test. Both seeds must pass; PASS -> ASK_LATER only.
+
+2026-11-19 16:27 26.1 step 1a W1/W5/W6 rerun (seed 1): 1800 cases (EPZ + MAF), fit 900, test 900, 50 members
+source    vertical-corr err   CRPS u v T            shear p99 ratio per band   Ri<1 per band
+  shipped  0.048    4.690  4.622  1.941   0.67 0.87 0.87 0.94   0.668 0.302 0.192 0.117
+  W1       0.048    4.700  4.636  1.941   1.00 1.18 0.99 1.07   0.784 0.278 0.230 0.162
+  W5       0.046    4.700  4.636  1.941   1.00 1.15 0.99 1.07   0.784 0.320 0.231 0.162
+  W6       0.044    4.699  4.635  1.941   1.01 1.08 0.99 1.07   0.770 0.338 0.228 0.163
+  balloons ri 0.733 0.340 0.190 0.150
+W1: f 1.86 0.78 1.15 1.15; err vs shipped -0.0003 [-0.0037, +0.0072] width 0.0108; CRPS u +0.21 % v +0.30 % T +0.00 %; informative (width < 0.01) FAIL; p99 0.90-1.10 FAIL; CRPS <= +0.3 % FAIL; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W1 (pre-set rule, this seed): MISS
+W5: f 1.86 1.00 1.15 1.15; err vs shipped -0.0026 [-0.0065, +0.0055] width 0.0120; CRPS u +0.22 % v +0.30 % T +0.00 %; informative (width < 0.01) FAIL; p99 0.90-1.10 FAIL; CRPS <= +0.3 % FAIL; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W5 (pre-set rule, this seed): MISS
+W6: f 1.87 1.00 1.16 1.15; err vs shipped -0.0039 [-0.0078, +0.0043] width 0.0121; CRPS u +0.19 % v +0.27 % T +0.00 %; informative (width < 0.01) FAIL; p99 0.90-1.10 ok; CRPS <= +0.3 % ok; vcorr not worse by > 0.003 ok; Ri<1 12-18 km ok
+VERDICT W6 (pre-set rule, this seed): MISS
+Notes: development window (2024-25), tool balloon-corrected, not a blind test. Both seeds must pass; PASS -> ASK_LATER only.
+

@@ -1,0 +1,6 @@
+model models/s25/gf3_f1_s0.pt, 2000 rows from 2024
+numpy vs torch (8 steps, 64 rows): max |diff| 1.43e-06 ok
+base one-step MLP: 1 forward pass, 162.7 ms / 1000 samples
+flow  4 Euler steps: 4 forward passes, 670.8 ms / 1000 samples, 4.1 x base; RMS gap to 32 steps 0.1319 (normalised)
+flow  8 Euler steps: 8 forward passes, 1286.1 ms / 1000 samples, 7.9 x base; RMS gap to 32 steps 0.0620 (normalised)
+flow 16 Euler steps: 16 forward passes, 2669.3 ms / 1000 samples, 16.4 x base; RMS gap to 32 steps 0.0234 (normalised)

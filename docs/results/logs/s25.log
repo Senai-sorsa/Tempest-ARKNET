@@ -8,3 +8,365 @@
 2026-11-18 03:25:59 [S25 gf2_l3e-3_w1e-4_s0] trained
 2026-11-18 03:35:08 [S25 gf2_l3e-3_w1e-3_s0] trained
 2026-11-18 03:44:16 [S25 gf2_l1e-3_w1e-4_s100] trained
+2026-11-18 04:17:13 [S25 base_s0] trained
+2026-11-18 04:20:14 [S25 base_s0] spread ok
+2026-11-18 04:22:11 [S25 base_s0] smap ok
+2026-11-18 04:23:56 [S25 base_s0] lmap ok
+2026-11-18 04:33:41 [S25 base_s0] score_a ok
+2026-11-18 04:43:21 [S25 base_s0] score_b ok
+2026-11-18 04:45:05 [S25 base_s0] diag_a ok
+2026-11-18 04:47:36 [S25 base_s0] diag_b ok
+2026-11-18 04:48:51 [S25 base_s0] shape_a ok
+2026-11-18 04:50:48 [S25 base_s0] shape_b ok
+2026-11-18 04:57:54 [S25 base_s0] denver ok
+2026-11-18 04:57:54 [S25 base_s0] done
+2026-11-18 05:15:58 [S25 base_s100] trained
+2026-11-18 05:18:59 [S25 base_s100] spread ok
+2026-11-18 05:20:53 [S25 base_s100] smap ok
+2026-11-18 05:22:37 [S25 base_s100] lmap ok
+2026-11-18 05:32:12 [S25 base_s100] score_a ok
+2026-11-18 05:41:51 [S25 base_s100] score_b ok
+2026-11-18 05:43:35 [S25 base_s100] diag_a ok
+2026-11-18 05:46:06 [S25 base_s100] diag_b ok
+2026-11-18 05:47:21 [S25 base_s100] shape_a ok
+2026-11-18 05:49:20 [S25 base_s100] shape_b ok
+2026-11-18 05:56:20 [S25 base_s100] denver ok
+2026-11-18 05:56:20 [S25 base_s100] done
+2026-11-18 06:06:11 [S25 base3k_s0] trained
+2026-11-18 06:09:14 [S25 base3k_s0] spread ok
+2026-11-18 06:11:10 [S25 base3k_s0] smap ok
+2026-11-18 06:12:55 [S25 base3k_s0] lmap ok
+2026-11-18 06:22:28 [S25 base3k_s0] score_a ok
+2026-11-18 06:32:04 [S25 base3k_s0] score_b ok
+2026-11-18 06:33:48 [S25 base3k_s0] diag_a ok
+2026-11-18 06:36:19 [S25 base3k_s0] diag_b ok
+2026-11-18 06:37:34 [S25 base3k_s0] shape_a ok
+2026-11-18 06:39:29 [S25 base3k_s0] shape_b ok
+2026-11-18 06:46:32 [S25 base3k_s0] denver ok
+2026-11-18 06:46:32 [S25 base3k_s0] done
+2026-11-18 06:55:55 [S25 base3k_s100] trained
+2026-11-18 06:58:57 [S25 base3k_s100] spread ok
+2026-11-18 07:00:49 [S25 base3k_s100] smap ok
+2026-11-18 07:02:34 [S25 base3k_s100] lmap ok
+2026-11-18 07:12:10 [S25 base3k_s100] score_a ok
+2026-11-18 07:21:46 [S25 base3k_s100] score_b ok
+2026-11-18 07:23:31 [S25 base3k_s100] diag_a ok
+2026-11-18 07:26:02 [S25 base3k_s100] diag_b ok
+2026-11-18 07:27:29 [S25 base3k_s100] shape_a ok
+2026-11-18 07:29:26 [S25 base3k_s100] shape_b ok
+2026-11-18 07:36:24 [S25 base3k_s100] denver ok
+2026-11-18 07:36:24 [S25 base3k_s100] done
+2026-11-18 07:45:50 [S25 gf1_es0_3k_s0] trained
+2026-11-18 07:48:50 [S25 gf1_es0_3k_s0] spread ok
+2026-11-18 07:50:45 [S25 gf1_es0_3k_s0] smap ok
+2026-11-18 07:52:30 [S25 gf1_es0_3k_s0] lmap ok
+2026-11-18 08:02:06 [S25 gf1_es0_3k_s0] score_a ok
+2026-11-18 08:11:45 [S25 gf1_es0_3k_s0] score_b ok
+2026-11-18 08:13:29 [S25 gf1_es0_3k_s0] diag_a ok
+2026-11-18 08:15:58 [S25 gf1_es0_3k_s0] diag_b ok
+2026-11-18 08:17:14 [S25 gf1_es0_3k_s0] shape_a ok
+2026-11-18 08:19:11 [S25 gf1_es0_3k_s0] shape_b ok
+2026-11-18 08:26:10 [S25 gf1_es0_3k_s0] denver ok
+2026-11-18 08:26:10 [S25 gf1_es0_3k_s0] done
+2026-11-18 08:35:31 [S25 gf1_es03_3k_s0] trained
+2026-11-18 08:38:34 [S25 gf1_es03_3k_s0] spread ok
+2026-11-18 08:40:28 [S25 gf1_es03_3k_s0] smap ok
+2026-11-18 08:42:13 [S25 gf1_es03_3k_s0] lmap ok
+2026-11-18 08:52:20 [S25 gf1_es03_3k_s0] score_a ok
+2026-11-18 09:03:20 [S25 gf1_es03_3k_s0] score_b ok
+2026-11-18 09:05:26 [S25 gf1_es03_3k_s0] diag_a ok
+2026-11-18 09:08:08 [S25 gf1_es03_3k_s0] diag_b ok
+2026-11-18 09:09:30 [S25 gf1_es03_3k_s0] shape_a ok
+2026-11-18 09:11:31 [S25 gf1_es03_3k_s0] shape_b ok
+2026-11-18 09:18:52 [S25 gf1_es03_3k_s0] denver ok
+2026-11-18 09:18:52 [S25 gf1_es03_3k_s0] done
+2026-11-18 09:28:30 [S25 gf1_es1_3k_s0] trained
+2026-11-18 09:31:33 [S25 gf1_es1_3k_s0] spread ok
+2026-11-18 09:33:33 [S25 gf1_es1_3k_s0] smap ok
+2026-11-18 09:35:31 [S25 gf1_es1_3k_s0] lmap ok
+2026-11-18 09:46:41 [S25 gf1_es1_3k_s0] score_a ok
+2026-11-18 09:57:21 [S25 gf1_es1_3k_s0] score_b ok
+2026-11-18 09:59:40 [S25 gf1_es1_3k_s0] diag_a ok
+2026-11-18 15:59:23 [S25 base3k_s0] done
+2026-11-18 15:59:25 [S25 base3k_s100] done
+2026-11-18 15:59:26 [S25 gf1_es0_3k_s0] done
+2026-11-18 15:59:28 [S25 gf1_es03_3k_s0] done
+2026-11-18 16:00:04 [S25 base3k_s0] done
+2026-11-18 16:00:05 [S25 base3k_s100] done
+2026-11-18 16:00:06 [S25 gf1_es0_3k_s0] done
+2026-11-18 16:00:07 [S25 gf1_es03_3k_s0] done
+2026-11-18 16:03:59 [S25 gf1_es1_3k_s0] diag_b ok
+2026-11-18 16:05:22 [S25 gf1_es1_3k_s0] shape_a ok
+2026-11-18 16:07:24 [S25 gf1_es1_3k_s0] shape_b ok
+2026-11-18 16:15:36 [S25 gf1_es1_3k_s0] denver ok
+2026-11-18 16:15:36 [S25 gf1_es1_3k_s0] done
+2026-11-18 16:19:18 [S25 gf1_b05_3k_s0] FAILED train
+2026-11-18 16:22:25 [S25 base3k_s0] done
+2026-11-18 16:22:26 [S25 base3k_s100] done
+2026-11-18 16:22:27 [S25 gf1_es0_3k_s0] done
+2026-11-18 16:22:29 [S25 gf1_es03_3k_s0] done
+2026-11-18 16:22:30 [S25 gf1_es1_3k_s0] done
+2026-11-18 16:38:34 [S25 gf1_b05_3k_s0] trained
+2026-11-18 16:42:15 [S25 gf1_b05_3k_s0] spread ok
+2026-11-18 16:44:58 [S25 gf1_b05_3k_s0] smap ok
+2026-11-18 16:46:53 [S25 gf1_b05_3k_s0] lmap ok
+2026-11-18 16:58:39 [S25 gf1_b05_3k_s0] score_a ok
+2026-11-18 17:11:59 [S25 gf1_b05_3k_s0] score_b ok
+2026-11-18 17:13:53 [S25 gf1_b05_3k_s0] diag_a ok
+2026-11-18 17:16:46 [S25 gf1_b05_3k_s0] diag_b ok
+2026-11-18 17:19:38 [S25 gf1_b05_3k_s0] shape_a ok
+2026-11-18 17:22:11 [S25 gf1_b05_3k_s0] shape_b ok
+2026-11-18 17:30:10 [S25 gf1_b05_3k_s0] denver ok
+2026-11-18 17:30:10 [S25 gf1_b05_3k_s0] done
+2026-11-18 17:40:14 [S25 gf1_b15_3k_s0] trained
+2026-11-18 17:43:21 [S25 gf1_b15_3k_s0] spread ok
+2026-11-18 17:45:50 [S25 gf1_b15_3k_s0] smap ok
+2026-11-18 17:47:41 [S25 gf1_b15_3k_s0] lmap ok
+2026-11-18 17:58:04 [S25 gf1_b15_3k_s0] score_a ok
+2026-11-18 18:09:50 [S25 gf1_b15_3k_s0] score_b ok
+2026-11-18 18:11:44 [S25 gf1_b15_3k_s0] diag_a ok
+2026-11-18 18:14:44 [S25 gf1_b15_3k_s0] diag_b ok
+2026-11-18 18:16:14 [S25 gf1_b15_3k_s0] shape_a ok
+2026-11-18 18:19:12 [S25 gf1_b15_3k_s0] shape_b ok
+2026-11-18 18:26:36 [S25 gf1_b15_3k_s0] denver ok
+2026-11-18 18:26:36 [S25 gf1_b15_3k_s0] done
+2026-11-18 18:50:37 [S25 gf1_vario002_3k_s0] trained
+2026-11-18 18:53:55 [S25 gf1_vario002_3k_s0] spread ok
+2026-11-18 18:56:15 [S25 gf1_vario002_3k_s0] smap ok
+2026-11-18 18:58:01 [S25 gf1_vario002_3k_s0] lmap ok
+2026-11-18 19:10:12 [S25 gf1_vario002_3k_s0] score_a ok
+2026-11-18 19:22:43 [S25 gf1_vario002_3k_s0] score_b ok
+2026-11-18 19:24:33 [S25 gf1_vario002_3k_s0] diag_a ok
+2026-11-18 19:29:09 [S25 gf1_vario002_3k_s0] diag_b ok
+2026-11-18 19:30:38 [S25 gf1_vario002_3k_s0] shape_a ok
+2026-11-18 19:33:41 [S25 gf1_vario002_3k_s0] shape_b ok
+2026-11-18 19:41:33 [S25 gf1_vario002_3k_s0] denver ok
+2026-11-18 19:41:33 [S25 gf1_vario002_3k_s0] done
+2026-11-18 20:03:21 [S25 gf1_vario005_3k_s0] FAILED train
+2026-11-18 20:03:21 [S25 retry] gf1 runner exited, attempt 1; pause 300 s
+2026-11-18 20:08:23 [S25 base3k_s0] done
+2026-11-18 20:08:24 [S25 base3k_s100] done
+2026-11-18 20:08:26 [S25 gf1_es0_3k_s0] done
+2026-11-18 20:08:27 [S25 gf1_es03_3k_s0] done
+2026-11-18 20:08:28 [S25 gf1_es1_3k_s0] done
+2026-11-18 20:08:30 [S25 gf1_b05_3k_s0] done
+2026-11-18 20:08:31 [S25 gf1_b15_3k_s0] done
+2026-11-18 20:08:32 [S25 gf1_vario002_3k_s0] done
+2026-11-18 20:32:58 [S25 gf1_vario005_3k_s0] trained
+2026-11-18 20:36:04 [S25 gf1_vario005_3k_s0] spread ok
+2026-11-18 20:38:22 [S25 gf1_vario005_3k_s0] smap ok
+2026-11-18 20:40:06 [S25 gf1_vario005_3k_s0] lmap ok
+2026-11-18 20:45:35 [S25 gf1_vario005_3k_s0] FAILED score_a
+2026-11-18 20:45:35 [S25 retry] gf1 runner exited, attempt 2; pause 300 s
+2026-11-18 20:50:37 [S25 base3k_s0] done
+2026-11-18 20:50:38 [S25 base3k_s100] done
+2026-11-18 20:50:39 [S25 gf1_es0_3k_s0] done
+2026-11-18 20:50:41 [S25 gf1_es03_3k_s0] done
+2026-11-18 20:50:42 [S25 gf1_es1_3k_s0] done
+2026-11-18 20:50:43 [S25 gf1_b05_3k_s0] done
+2026-11-18 20:50:44 [S25 gf1_b15_3k_s0] done
+2026-11-18 20:50:45 [S25 gf1_vario002_3k_s0] done
+2026-11-18 21:03:02 [S25 gf1_vario005_3k_s0] score_a ok
+2026-11-18 21:16:04 [S25 gf1_vario005_3k_s0] score_b ok
+2026-11-18 21:18:04 [S25 gf1_vario005_3k_s0] diag_a ok
+2026-11-18 21:20:59 [S25 gf1_vario005_3k_s0] diag_b ok
+2026-11-18 21:22:19 [S25 gf1_vario005_3k_s0] shape_a ok
+2026-11-18 21:24:42 [S25 gf1_vario005_3k_s0] shape_b ok
+2026-11-18 21:32:39 [S25 gf1_vario005_3k_s0] denver ok
+2026-11-18 21:32:39 [S25 gf1_vario005_3k_s0] done
+2026-11-18 21:57:02 [S25 gf1_vario01_3k_s0] trained
+2026-11-18 22:00:07 [S25 gf1_vario01_3k_s0] spread ok
+2026-11-18 22:02:55 [S25 gf1_vario01_3k_s0] smap ok
+2026-11-18 22:04:45 [S25 gf1_vario01_3k_s0] lmap ok
+2026-11-18 22:15:49 [S25 gf1_vario01_3k_s0] score_a ok
+2026-11-18 22:28:07 [S25 gf1_vario01_3k_s0] score_b ok
+2026-11-18 22:29:58 [S25 gf1_vario01_3k_s0] diag_a ok
+2026-11-18 22:32:36 [S25 gf1_vario01_3k_s0] diag_b ok
+2026-11-18 22:33:54 [S25 gf1_vario01_3k_s0] shape_a ok
+2026-11-18 22:38:18 [S25 gf1_vario01_3k_s0] shape_b ok
+2026-11-18 22:46:01 [S25 gf1_vario01_3k_s0] denver ok
+2026-11-18 22:46:01 [S25 gf1_vario01_3k_s0] done
+2026-11-18 22:56:20 [S25 gf1_svec005_3k_s0] trained
+2026-11-18 23:00:13 [S25 gf1_svec005_3k_s0] spread ok
+2026-11-18 23:04:11 [S25 gf1_svec005_3k_s0] smap ok
+2026-11-18 23:07:32 [S25 gf1_svec005_3k_s0] lmap ok
+2026-11-18 23:20:10 [S25 gf1_svec005_3k_s0] score_a ok
+2026-11-18 23:34:30 [S25 gf1_svec005_3k_s0] score_b ok
+2026-11-18 23:36:25 [S25 gf1_svec005_3k_s0] diag_a ok
+2026-11-18 23:39:15 [S25 gf1_svec005_3k_s0] diag_b ok
+2026-11-18 23:40:34 [S25 gf1_svec005_3k_s0] shape_a ok
+2026-11-18 23:42:36 [S25 gf1_svec005_3k_s0] shape_b ok
+2026-11-18 23:50:04 [S25 gf1_svec005_3k_s0] denver ok
+2026-11-18 23:50:04 [S25 gf1_svec005_3k_s0] done
+2026-11-19 00:00:20 [S25 gf1_svec01_3k_s0] trained
+2026-11-19 00:04:02 [S25 gf1_svec01_3k_s0] spread ok
+2026-11-19 00:06:52 [S25 gf1_svec01_3k_s0] smap ok
+2026-11-19 00:10:58 [S25 gf1_svec01_3k_s0] lmap ok
+2026-11-19 00:24:38 [S25 gf1_svec01_3k_s0] score_a ok
+2026-11-19 00:37:12 [S25 gf1_svec01_3k_s0] score_b ok
+2026-11-19 00:39:01 [S25 gf1_svec01_3k_s0] diag_a ok
+2026-11-19 00:41:34 [S25 gf1_svec01_3k_s0] diag_b ok
+2026-11-19 00:42:54 [S25 gf1_svec01_3k_s0] shape_a ok
+2026-11-19 00:44:59 [S25 gf1_svec01_3k_s0] shape_b ok
+2026-11-19 00:52:22 [S25 gf1_svec01_3k_s0] denver ok
+2026-11-19 00:52:22 [S25 gf1_svec01_3k_s0] done
+2026-11-19 01:03:03 [S25 gx2_3k_s0] trained
+2026-11-19 01:06:15 [S25 gx2_3k_s0] spread ok
+2026-11-19 01:08:17 [S25 gx2_3k_s0] smap ok
+2026-11-19 01:10:10 [S25 gx2_3k_s0] lmap ok
+2026-11-19 01:19:18 [S25 gx2_3k_s0] score_a ok
+2026-11-19 01:29:15 [S25 gx2_3k_s0] score_b ok
+2026-11-19 01:31:12 [S25 gx2_3k_s0] diag_a ok
+2026-11-19 01:33:55 [S25 gx2_3k_s0] diag_b ok
+2026-11-19 01:35:27 [S25 gx2_3k_s0] shape_a ok
+2026-11-19 01:37:39 [S25 gx2_3k_s0] shape_b ok
+2026-11-19 01:45:56 [S25 gx2_3k_s0] denver ok
+2026-11-19 01:45:56 [S25 gx2_3k_s0] done
+2026-11-19 02:05:15 [S25 base_s0] done
+2026-11-19 02:05:16 [S25 base_s100] done
+2026-11-19 04:21:09 [S25 gt2_il8b_s0] trained
+wrote models/s25/gt2_pool_s0.pt: 8 members, archs ['mlp', 'mlp', 'mlp', 'mlp', 'tokens', 'tokens', 'tokens', 'tokens']
+2026-11-19 04:25:42 [S25 gt2_pool_s0] spread ok
+2026-11-19 04:27:45 [S25 gt2_pool_s0] smap ok
+2026-11-19 04:29:40 [S25 gt2_pool_s0] lmap ok
+2026-11-19 04:34:50 [S25 gt2_pool_s0] FAILED score_a
+2026-11-19 04:53:24 [S25 base_s0] done
+2026-11-19 04:53:25 [S25 base_s100] done
+2026-11-19 04:57:47 [S25 gt2_pool_s0] FAILED score_a
+2026-11-19 04:58:41 [S25 base_s0] done
+2026-11-19 04:58:43 [S25 base_s100] done
+2026-11-19 05:09:15 [S25 gt2_pool_s0] score_a ok
+2026-11-19 05:19:39 [S25 gt2_pool_s0] score_b ok
+2026-11-19 05:21:35 [S25 gt2_pool_s0] diag_a ok
+2026-11-19 05:24:11 [S25 gt2_pool_s0] diag_b ok
+2026-11-19 05:25:36 [S25 gt2_pool_s0] shape_a ok
+2026-11-19 05:27:46 [S25 gt2_pool_s0] shape_b ok
+2026-11-19 05:35:27 [S25 gt2_pool_s0] denver ok
+2026-11-19 05:35:27 [S25 gt2_pool_s0] done
+2026-11-19 07:50:58 [S25 gt2_il8b_s100] trained
+wrote models/s25/gt2_pool_s100.pt: 8 members, archs ['mlp', 'mlp', 'mlp', 'mlp', 'tokens', 'tokens', 'tokens', 'tokens']
+2026-11-19 07:55:41 [S25 gt2_pool_s100] spread ok
+2026-11-19 07:57:51 [S25 gt2_pool_s100] smap ok
+2026-11-19 07:59:46 [S25 gt2_pool_s100] lmap ok
+2026-11-19 08:09:52 [S25 gt2_pool_s100] score_a ok
+2026-11-19 08:20:08 [S25 gt2_pool_s100] score_b ok
+2026-11-19 08:22:02 [S25 gt2_pool_s100] diag_a ok
+2026-11-19 08:24:44 [S25 gt2_pool_s100] diag_b ok
+2026-11-19 08:26:09 [S25 gt2_pool_s100] shape_a ok
+2026-11-19 08:28:18 [S25 gt2_pool_s100] shape_b ok
+2026-11-19 08:35:44 [S25 gt2_pool_s100] denver ok
+2026-11-19 08:35:44 [S25 gt2_pool_s100] done
+2026-11-19 08:43:24 [S25 base_s0] done
+2026-11-19 08:43:25 [S25 base_s100] done
+2026-11-19 08:51:14 [S25 gf3_f1_s0] trained
+2026-11-19 08:56:12 [S25 gf3_f1_s0] spread ok
+2026-11-19 08:58:18 [S25 gf3_f1_s0] smap ok
+2026-11-19 09:00:15 [S25 gf3_f1_s0] lmap ok
+2026-11-19 09:09:40 [S25 gf3_f1_s0] score_a ok
+2026-11-19 09:20:04 [S25 gf3_f1_s0] score_b ok
+2026-11-19 09:22:05 [S25 gf3_f1_s0] diag_a ok
+2026-11-19 09:25:02 [S25 gf3_f1_s0] diag_b ok
+2026-11-19 09:26:36 [S25 gf3_f1_s0] shape_a ok
+2026-11-19 09:28:52 [S25 gf3_f1_s0] shape_b ok
+2026-11-19 09:37:18 [S25 gf3_f1_s0] denver ok
+2026-11-19 09:37:18 [S25 gf3_f1_s0] done
+2026-11-19 09:47:43 [S25 gf3_f2_s0] trained
+2026-11-19 09:52:57 [S25 gf3_f2_s0] spread ok
+2026-11-19 09:55:09 [S25 gf3_f2_s0] smap ok
+2026-11-19 09:57:11 [S25 gf3_f2_s0] lmap ok
+2026-11-19 10:08:11 [S25 gf3_f2_s0] score_a ok
+2026-11-19 10:18:51 [S25 gf3_f2_s0] score_b ok
+2026-11-19 10:20:53 [S25 gf3_f2_s0] diag_a ok
+2026-11-19 10:23:39 [S25 gf3_f2_s0] diag_b ok
+2026-11-19 10:25:16 [S25 gf3_f2_s0] shape_a ok
+2026-11-19 10:27:38 [S25 gf3_f2_s0] shape_b ok
+2026-11-19 10:35:46 [S25 gf3_f2_s0] denver ok
+2026-11-19 10:35:46 [S25 gf3_f2_s0] done
+2026-11-19 10:37:20 [S25 gf3_f1_s0] smap ok
+2026-11-19 10:38:42 [S25 gf3_f1_s0] lmap ok
+2026-11-19 10:48:35 [S25 gf3_f1_s0] score_b ok
+2026-11-19 10:50:47 [S25 gf3_f1_s0] diag_b ok
+2026-11-19 10:52:30 [S25 gf3_f1_s0] shape_b ok
+2026-11-19 10:52:30 [S25 gf3_f1_s0] done
+2026-11-19 11:01:59 [S25 gf3_f1_s100] trained
+2026-11-19 11:07:08 [S25 gf3_f1_s100] spread ok
+2026-11-19 11:09:17 [S25 gf3_f1_s100] smap ok
+2026-11-19 11:11:19 [S25 gf3_f1_s100] lmap ok
+2026-11-19 11:21:33 [S25 gf3_f1_s100] score_a ok
+2026-11-19 11:32:26 [S25 gf3_f1_s100] score_b ok
+2026-11-19 11:34:28 [S25 gf3_f1_s100] diag_a ok
+2026-11-19 11:37:15 [S25 gf3_f1_s100] diag_b ok
+2026-11-19 11:38:44 [S25 gf3_f1_s100] shape_a ok
+2026-11-19 11:40:58 [S25 gf3_f1_s100] shape_b ok
+2026-11-19 11:48:46 [S25 gf3_f1_s100] denver ok
+2026-11-19 11:48:46 [S25 gf3_f1_s100] done
+2026-11-19 11:58:59 [S25 gf3_f2_s100] trained
+2026-11-19 12:04:00 [S25 gf3_f2_s100] spread ok
+2026-11-19 12:06:20 [S25 gf3_f2_s100] smap ok
+2026-11-19 12:08:22 [S25 gf3_f2_s100] lmap ok
+2026-11-19 12:18:57 [S25 gf3_f2_s100] score_a ok
+2026-11-19 12:21:22 [S25 base_s0] done
+2026-11-19 12:21:23 [S25 base_s100] done
+2026-11-19 12:29:04 [S25 gf3_f2_s100] score_b ok
+2026-11-19 12:31:03 [S25 gf3_f2_s100] diag_a ok
+2026-11-19 12:33:53 [S25 gf3_f2_s100] diag_b ok
+2026-11-19 12:35:25 [S25 gf3_f2_s100] shape_a ok
+2026-11-19 12:37:40 [S25 gf3_f2_s100] shape_b ok
+2026-11-19 12:47:41 [S25 gf3_f2_s100] denver ok
+2026-11-19 12:47:41 [S25 gf3_f2_s100] done
+2026-11-19 13:01:10 [S25 h1_prior_s0] trained
+2026-11-19 13:04:58 [S25 h1_prior_s0] spread ok
+2026-11-19 13:06:54 [S25 h1_prior_s0] smap ok
+2026-11-19 13:08:40 [S25 h1_prior_s0] lmap ok
+2026-11-19 13:17:47 [S25 h1_prior_s0] score_a ok
+2026-11-19 13:27:21 [S25 h1_prior_s0] score_b ok
+2026-11-19 13:29:06 [S25 h1_prior_s0] diag_a ok
+2026-11-19 13:31:37 [S25 h1_prior_s0] diag_b ok
+2026-11-19 13:32:54 [S25 h1_prior_s0] shape_a ok
+2026-11-19 13:34:51 [S25 h1_prior_s0] shape_b ok
+2026-11-19 13:41:49 [S25 h1_prior_s0] denver ok
+2026-11-19 13:41:49 [S25 h1_prior_s0] done
+2026-11-19 14:00:36 [S25 h1_noise_s0] trained
+2026-11-19 14:03:48 [S25 h1_noise_s0] spread ok
+2026-11-19 14:05:44 [S25 h1_noise_s0] smap ok
+2026-11-19 14:07:29 [S25 h1_noise_s0] lmap ok
+2026-11-19 14:16:23 [S25 h1_noise_s0] score_a ok
+2026-11-19 14:25:56 [S25 h1_noise_s0] score_b ok
+2026-11-19 14:27:40 [S25 h1_noise_s0] diag_a ok
+2026-11-19 14:30:10 [S25 h1_noise_s0] diag_b ok
+2026-11-19 14:31:23 [S25 h1_noise_s0] shape_a ok
+2026-11-19 14:33:18 [S25 h1_noise_s0] shape_b ok
+2026-11-19 14:40:16 [S25 h1_noise_s0] denver ok
+2026-11-19 14:40:16 [S25 h1_noise_s0] done
+2026-11-19 15:01:51 [S25 h1_prior_s100] trained
+2026-11-19 15:04:57 [S25 h1_prior_s100] spread ok
+2026-11-19 15:06:51 [S25 h1_prior_s100] smap ok
+2026-11-19 15:08:37 [S25 h1_prior_s100] lmap ok
+2026-11-19 15:17:59 [S25 h1_prior_s100] score_a ok
+2026-11-19 15:28:12 [S25 h1_prior_s100] score_b ok
+2026-11-19 15:30:07 [S25 h1_prior_s100] diag_a ok
+2026-11-19 15:32:44 [S25 h1_prior_s100] diag_b ok
+2026-11-19 15:34:00 [S25 h1_prior_s100] shape_a ok
+2026-11-19 15:35:38 [S25 base_s0] done
+2026-11-19 15:35:39 [S25 base_s100] done
+2026-11-19 15:35:40 [S25 gf3_f1_s0] done
+2026-11-19 15:35:42 [S25 gf3_f2_s0] done
+2026-11-19 15:35:43 [S25 gf3_f1_s0] done
+2026-11-19 15:35:44 [S25 gf3_f1_s100] done
+2026-11-19 15:35:45 [S25 gf3_f2_s100] done
+2026-11-19 15:35:57 [S25 h1_prior_s100] shape_b ok
+2026-11-19 15:43:35 [S25 h1_prior_s100] denver ok
+2026-11-19 15:43:35 [S25 h1_prior_s100] done
+2026-11-19 15:45:30 [S25 gf3_f1_s100] smap ok
+2026-11-19 15:48:21 [S25 gf3_f1_s100] lmap ok
+2026-11-19 15:56:36 [S25 h1_noise_s100] trained
+2026-11-19 16:01:10 [S25 h1_noise_s100] spread ok
+2026-11-19 16:05:01 [S25 h1_noise_s100] smap ok
+2026-11-19 16:06:26 [S25 gf3_f1_s100] score_b ok
+2026-11-19 16:07:14 [S25 h1_noise_s100] lmap ok
+2026-11-19 16:08:39 [S25 gf3_f1_s100] diag_b ok
+2026-11-19 16:11:16 [S25 gf3_f1_s100] shape_b ok
+2026-11-19 16:11:16 [S25 gf3_f1_s100] done
+2026-11-19 16:19:04 [S25 h1_noise_s100] score_a ok
+2026-11-19 16:31:27 [S25 h1_noise_s100] score_b ok
+2026-11-19 16:33:34 [S25 h1_noise_s100] diag_a ok

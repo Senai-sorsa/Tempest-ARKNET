@@ -149,3 +149,4 @@ Processes to finish and check:
 - 2026-11-19 13:00 Sections 26 and 27 stay in the final path (28.2 stage H, CPU beside GPU stages); MF2/GT1/MF1/H2/H3/H5 still dropped.
 - 2026-11-19 13:25 26.1 step 0 (T2) done: T2 sites outside the tool boxes (not run); EPZ+MAF+Denver 1800 cases pooled error 0.049, interval width 0.021. Step 1 next.
 [x] 26.1 step 1a W1/W5/W6 rerun at 600 cases/site: W1/W5 MISS both seeds; W6 seed 0 PASS, seed 1 not informative (width 0.0126) -> MISS; 900/site rerun running. Next: V5a and W2 rerun scripts, then 26.2.
+[x] GF3 **KILL** 2026-11-19 (skill15 below floor in both seeds, shape FAIL). 26.1 step 1a final: W6 not informative at 900/site (width 0.010-0.012); case count alone cannot reach 0.01. Next: H1 judge, then V5a/W2 reruns or 26.2.
