@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator, make_generator
+from tempest.generator.model import Generator, TokenGenerator, make_generator
 from tempest.profiles.diff import from_diff
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -163,7 +163,12 @@ class Sampler:
             eps = sobol_normal(len(c) // self.qmc_m, self.qmc_m, m0.noise_dim).to(self.device)
         for i, (model, n) in enumerate(self.members):
             kw = {"eps": eps[i::len(self.members)]} if eps is not None else {}
-            out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1, **kw)[:, 0] * n["ts"] + n["tm"]
+            x = (c[i::len(self.members)] - n["cm"]) / n["cs"]
+            if isinstance(model, TokenGenerator):   # one (rows, 44 tokens, d) pass runs out of GPU memory at a million rows: chunk (the mlp path is unchanged, so its random stream is too)
+                y = torch.cat([model(x[j:j + 16384], 1)[:, 0] for j in range(0, len(x), 16384)])
+            else:
+                y = model(x, 1, **kw)[:, 0]
+            out[i::len(self.members)] = y * n["ts"] + n["tm"]
         out = out.cpu().numpy()
         if self.sp_offset is not None:
             j, e = self.sp_offset
