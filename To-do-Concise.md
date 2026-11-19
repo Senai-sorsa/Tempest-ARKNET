@@ -146,3 +146,4 @@ Processes to finish and check:
 - 2026-11-19 02:10 S25 GF1 screen **KILL** (no arm beat noise 0.0087; best vario01 gain 0.0066); GX1 not started. GT2 now running (token model + pool), then GF3, MF2.
 - 2026-11-19 08:45 S25 GT2 token-model pool **KILL** (d_skill15(b) -0.032 / -0.029, shape FAIL both seeds). Next GF3.
 - 2026-11-19 12:55 FINAL PATH (New_Plan sec 28, 24-48 h): GF3 + H1 running; H4 only if H1 PASS; then best config, final model, final test (needs user go), global prep (G0 pieces, bundle, launch scripts, README). Everything else in sec 25-27 dropped for now.
+- 2026-11-19 13:00 Sections 26 and 27 stay in the final path (28.2 stage H, CPU beside GPU stages); MF2/GT1/MF1/H2/H3/H5 still dropped.

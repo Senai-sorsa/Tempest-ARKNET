@@ -1203,3 +1203,5 @@ AUTOPILOT 620 (02:10): S25 GF1 screen KILL (11 arms at 3000 steps seed 0; best v
 AUTOPILOT 621 (08:45): S25 GT2 KILL (pool of IL-8b token members + base MLPs, both seeds): d_skill15(b) -0.0321 / -0.0286 vs floor -0.0009, shape FAIL both seeds, Denver -0.18 / -0.19. No ASK_LATER. Next: GF3 (gpu_s25_gf3.sh), then MF2, GT1, MF1, H1.. per section 25 order.
 
 AUTOPILOT 622 (12:55): user set the final path (New_Plan section 28, bak102): only GF3 and H1 (H4 if H1 PASS), then best configuration, final model, final test (user go needed), global prep. H1 queue started 12:50 (data/h1_run.log), takes turns with GF3 steps. MF2/GT1/MF1/H2/H3/H5/26/27 dropped for now.
+
+AUTOPILOT 623 (13:00): user kept sections 26 and 27 in full inside section 28 (stage H, CPU, bak103). Dropped only MF2/GT1/MF1/H2/H3/H5.
