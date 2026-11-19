@@ -145,3 +145,4 @@ Processes to finish and check:
 - 01:30 Added section 27 (scrap-together stage from UR15: SIGMA + coverage-fixed NEST + world start 500), do later with other combined ideas (backup bak99).
 - 2026-11-19 02:10 S25 GF1 screen **KILL** (no arm beat noise 0.0087; best vario01 gain 0.0066); GX1 not started. GT2 now running (token model + pool), then GF3, MF2.
 - 2026-11-19 08:45 S25 GT2 token-model pool **KILL** (d_skill15(b) -0.032 / -0.029, shape FAIL both seeds). Next GF3.
+- 2026-11-19 12:55 FINAL PATH (New_Plan sec 28, 24-48 h): GF3 + H1 running; H4 only if H1 PASS; then best config, final model, final test (needs user go), global prep (G0 pieces, bundle, launch scripts, README). Everything else in sec 25-27 dropped for now.
