@@ -2736,3 +2736,41 @@ Hybrids looked at and not added:
 **28.6 Global stage preparation (before the supercomputer starts; CPU, small pieces).** G0 check and fill: `configs/global_holdout.toml` (exists), loader guard (refuses locked places and dates >= 2026-07-01 unless `TEMPEST_FINAL_GLOBAL=1`), statics (`tempest/geo/statics.py`), spherical-harmonic encoder check, harmonic climatology fitter, below-ground masks, int16 tail check on the global store, tests for each. Then: data bundle list with sizes, one launch script per G job with resume / skip-if-done, README with exact commands and holdout rules, results-return format. Do NOT start G1-G6 training and never G6. Transfer and queue submission are the user's.
 
 **28.7 Rules that stay.** One GPU job at a time, 16 CPU threads max, RAM > 2 GB, no GPU job at >= 85 C or on battery, never two Mode F evals, no push, no final-test run without the user's go. Verdicts keep the usual backups and logs.
+
+## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
+
+**29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
+
+**29.2 Added to the "use anyway" list** (`Useful results.md` 1A rows 16-25): AV34 trust layer, AV35 shear map, AV19 Student-t stack, UR8 (N1 gain is the cross-fitting), UR9 (IL-207b confirmed), UR3 measured gap table, AV13 / AV36 gusts, NOW2 + E3 short-range, DP tower, T3 nugget (MAF only), UR15 (SIGMA on a third period). These are the 28.3 greedy candidates, together with rows 1-15.
+
+**29.3 Biggest flaws, ranked** (tool vs balloons, EPZ / MAF 2024-25, and Mode F):
+1. Shear tails too weak: p99 0.69-0.77 of balloons in every band. AV35 fixes 5-12 and 12-18 km; 0-1 km stays 0.71 with every method tried.
+2. Low-Ri layers wrong: too few at 12-18 km in the shipped tool (0.117 vs 0.154), too many once the copula is on (0.186-0.268 vs 0.154-0.196). Likely cause: members carry 1.18-1.49x the balloons' fine-scale T variance (VS 0b) and only 0.46-0.47x the fine-scale wind variance.
+3. Vertical correlation too high at mid / far separation (+0.059 / +0.078); the shear map adds +0.014.
+4. Mode F far tails: cov99 0.93-0.96 beyond 7.5 d for binned; NEST 0.917-0.936 at 1 d in UR15 (may be the PIT column, see Useful results 11-14 update).
+5. Ground wind at the pad: centre fixes work but leave the spread too narrow (AV9, UR14 TCS 0.81 coverage).
+6. Transfer box (Denver) weak without anomaly or Student-t heads.
+
+**29.4 Remaining near misses: part that worked / part that failed.**
+| Idea | Worked | Failed |
+|---|---|---|
+| W2 u,v copula | correlation error 0.035 (-0.0129 vs shipped), shear p99 5-12 km 0.96 | u CRPS +0.2-0.4 %, low-Ri too common |
+| 26.2 copula + stretch | as W2, 12-18 km p99 1.04 | Ri 12-18 km 0.244, interval, p99 0-1 km |
+| AV40 / AV41 anomaly mean | Denver -0.192 -> -0.015 / -0.018 both seeds | RH preclip_rate / tail_rate_err only |
+| UR2 stages 3-5 | world start -0.2 to -0.8 %, mixed rows -0.2 to -0.4 %, spread s -0.14 to -0.23 %, all intervals < 0 | each under its own bar |
+| UR1 TAILCAL | cov99 0.987-0.993 | per-year factors unstable; pooled factor never tried |
+| UR14 map + merged neighbours | TCS -0.039 / -0.035 | ELP +0.024 / +0.019 |
+| AV9 analog shift | centre right, CRPS -0.018 / -0.027 | spread too narrow |
+| AV18 shear-tail loss | +0.0012 | bar +0.0013, one seed |
+
+**29.5 Combined experiments (each pairs a part that worked with a part that cancels its flaw).** Pre-set rules here; each needs both seeds; a PASS goes to ASK_LATER, never shipped by the loop.
+
+- **X1. Marginal-locked copula + T-roughness damping** (CPU, about 1.5 h per seed). W2 u,v copula ranks, then the maps, then re-impose the shipped post-map marginal values per height (CRPS equal to shipped by construction, removes the u blocker). Damp fine-scale T variance toward the balloon ratio (fit on even cases, test on odd) to raise N² and cut the low-Ri excess. No stretch. Rule: correlation error at or below shipped - 0.005 on both seeds; CRPS u / v / T within +0.1 %; shear p99 5-12 km >= 0.90; Ri<1 at 5-12 and 12-18 km within 0.03 of balloons. The "interval below 0" clause is replaced by "point estimate on both seeds" because 26.1 showed the interval width does not shrink with cases; the pooled-seed reading is noted for the user.
+- **X2. cov99 fix = 27.3 sharpened.** Step 0 (minutes, read only): confirm whether the UR15 NEST 0.917-0.936 is the PIT column; if the no-PIT column is within 0.005 of 0.99 at every lead, X2 ends there and goes to ASK_LATER as a pipeline choice. Otherwise arm: no-PIT pipeline + one pooled 2021+2022 tail factor per lead, shrunk toward 1. Rule: cov99 within 0.005 of 0.99 at every lead and box; CRPS no worse than +0.3 %; factor change between years <= 0.15.
+- **X3. Mode F lead-split stack = 27.4 extended.** Coverage-fixed NEST at 1-3 d, SIGMA at 5-10 d (4 d by 2021-23 fit), world start + 500 under both, spread scale s; Denver may use mixed rows. Leads assigned fixed from 2021-23, no router (AV1). The UR2 small gains together should reach -1 to -2 %. Rule = 27.5 with the 27.6 guard.
+- **X4. Anomaly mean on T / u / v / p, plain head on RH** (GPU, about 1 h per seed). Keeps AV40 / AV41's Denver gain, removes its only failure (RH shape). AV19 Student-t may be stacked as a second arm. Rule = AV40's rule.
+- **X5. Ground wind "move then respread"** (CPU, about 1 h). Centre: IL-207b + AV31 map + AV7 merge. Spread: UR3 measured gap table, then G2-2 Student-t widening. Map applied only where its own fit years improve (site gate fitted on 2023, so ELP keeps no map if it hurts there). Rule = UR14's rule plus coverage >= 0.85 at TCS and ELP.
+
+**29.6 Order.** 26.2 seed 1 finishes and is recorded (MISS already fixed by seed 0). Then X2 step 0, then 27 as written with X2 / X3 replacing 27.3 / 27.4, X1 on CPU beside GPU work, X4 on the GPU when free, X5 on CPU. All of them are 28.4 candidates; 28.3 greedy uses 1A rows 1-25 plus any X that passes.
+
+**29.7 Not run / dropped.** Open, no plan yet: 0-1 km shear p99 (0.71), time coherence (tool 1-h lag correlation 0.82 vs radar 0.96; MAF vs HDX sign conflict). Dropped: more stretch variants, loss-mix variants (GF1 inside noise), routers, trackers (O3 closed), run disagreement used for calibration.
