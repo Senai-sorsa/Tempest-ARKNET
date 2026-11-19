@@ -151,3 +151,4 @@ Processes to finish and check:
 [x] 26.1 step 1a W1/W5/W6 rerun at 600 cases/site: W1/W5 MISS both seeds; W6 seed 0 PASS, seed 1 not informative (width 0.0126) -> MISS; 900/site rerun running. Next: V5a and W2 rerun scripts, then 26.2.
 [x] GF3 **KILL** 2026-11-19 (skill15 below floor in both seeds, shape FAIL). 26.1 step 1a final: W6 not informative at 900/site (width 0.010-0.012); case count alone cannot reach 0.01. Next: H1 judge, then V5a/W2 reruns or 26.2.
 [x] H1 **KILL** 2026-11-19 (prior costs skill15 vs control and base, shape FAIL); H4 skipped. GPU lane done. Next: W2 seed 1 (1800 cases), V5a rerun, 26.2, then 28.3.
+[x] 26.1 W2 rerun (1800 cases): seed 0 PASS, seed 1 MISS (u CRPS +0.41 %) -> MISS stands. V5a rerun running. Next: 26.2.
