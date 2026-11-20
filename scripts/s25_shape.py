@@ -33,7 +33,7 @@ BANDS = [("0-1 km", 0, 1000), ("1-5 km", 1000, 5000), ("5-12 km", 5000, 12000), 
 SEP = [("0-1 km", 0, 1000), ("1-3 km", 1000, 3000), ("3-6 km", 3000, 6000), ("6+ km", 6000, 1e9)]
 
 
-def sample_stack(model, calib, d, idx, m, rng, first_year, shuffle=False, cell=0, shear_map=None, lapse_map=None, device=None, chunk=400):
+def sample_stack(model, calib, d, idx, m, rng, first_year, shuffle=False, cell=0, shear_map=None, lapse_map=None, device=None, chunk=400, trust=None):
     """Calibrated samples (len(idx), m, 179) of the stack, as scripts/diagnose.py builds them (unknown drivers)."""
     sampler = Sampler(torch.load(model, map_location="cpu", weights_only=True), device=device)
     cal = spread.load(calib, model)
@@ -50,6 +50,9 @@ def sample_stack(model, calib, d, idx, m, rng, first_year, shuffle=False, cell=0
         rep = np.repeat(cond[idx[sl]], m, axis=0)
         rep[:, dc] = cond[draws[sl].ravel()][:, dc]
         x[sl] = clip_ranges(spread.apply(cal, sampler.profiles(rep).reshape(len(cond[idx[sl]]), m, -1), clip=False))
+    if trust:  # before the shuffle, as tempest.scoring.score --trust
+        from tempest.calibrate import trust as trust_mod
+        x = trust_mod.apply_for(trust, model, calib, x, keys, year, d["target"], idx, first_year, m)
     if shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, m, rng, first_year, cell=cell, n_lon=shuf_mod.grid_n_lon(d["cond"])))
@@ -147,6 +150,7 @@ def main():
     ap.add_argument("--template-cell", type=int, default=0)
     ap.add_argument("--shear-map")
     ap.add_argument("--lapse-map")
+    ap.add_argument("--trust")
     ap.add_argument("--blocks", type=int, default=0)
     ap.add_argument("--dump")
     a = ap.parse_args()
@@ -160,7 +164,7 @@ def main():
     y = to_physical(np.asarray(d["target"][idx]))
     cal_idx = np.flatnonzero((year >= 2021) & (year <= 2023))
     clim_sd = np.maximum(to_physical(np.asarray(d["target"][np.sort(rng.choice(cal_idx, min(20000, len(cal_idx)), replace=False))])).std(0), 1e-6)
-    x = sample_stack(a.model, a.calib, d, idx, a.m, rng, a.first_year, a.shuffle, a.template_cell, a.shear_map, a.lapse_map, a.device)
+    x = sample_stack(a.model, a.calib, d, idx, a.m, rng, a.first_year, a.shuffle, a.template_cell, a.shear_map, a.lapse_map, a.device, trust=a.trust)
     if a.dump:
         c = np.asarray(d["cond"])[idx]
         doy = np.arctan2(c[:, FEATURES.index("doy_sin")], c[:, FEATURES.index("doy_cos")]) % (2 * np.pi) / (2 * np.pi) * 365.25

@@ -45,6 +45,7 @@ def main():
     ap.add_argument("--template-cell", type=int, default=0, help="shuffle templates per block of N x N grid points (4 = 1 degree, 8 = 2 degrees) instead of per point")
     ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py)")
+    ap.add_argument("--trust", help="trust-layer file (tempest.calibrate.trust), applied before the shuffle as in tempest.scoring.score")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle with real training-year profiles of the same group as the dependence template")
     ap.add_argument("--drivers", choices=["unknown", "known"], default="unknown", help="unknown (default, what a query for a future date gets): ONI/WWV/QBO copied together from a random "
                     "earlier-year row of the same grid point x month x hour bin; known: the observed target-month values (an upper bound, review 2.1)")
@@ -88,6 +89,9 @@ def main():
     if a.pit_recal:
         from tempest.calibrate import pit_recal
         x = pit_recal.apply(dict(np.load(a.pit_recal)), x, a.pit_damp)
+    if a.trust:
+        from tempest.calibrate import trust
+        x = trust.apply_for(a.trust, a.model, a.calib, x, keys, year, d["target"], idx, a.first_year, a.m)
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         x = shuf_mod.apply(x, shuf_mod.group_template(d["target"], keys, year, idx, a.m, rng, a.first_year, pooled=a.pooled_template, cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(d["cond"])))

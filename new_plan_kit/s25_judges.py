@@ -1,7 +1,7 @@
 """New_Plan section 25 judges, one function per item, each with its PRE-SET RULE in its docstring (written before any run).
 
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py ITEM      ITEM: gf2 gf2_follow gf4 gf1_screen gf1
-                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w
+                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w av34s25
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py --selfcheck
 Result: docs/results/logs/kit_s25_<item>.log (a VERDICT line); picks for a phase-2 run go to docs/results/logs/s25_<item>_pick.txt.
 
@@ -462,8 +462,16 @@ def n1c4w(L, name="n1c4w"):
     return "PASS" if all(g["preclip_ok"] and g["cov_ok"] for g in gs.values()) else "MISS"
 
 
+def av34s25(L):
+    """AV34S25 PRE-SET RULE (New_Plan 28.8 step 2, written 2026-11-19 23:30 before the run): the AV34 trust layer (min-gain 0.001, AV34 skips)
+    refit on the paired base (N1 dropped at step 1, so the stack is unchanged), stack (b) with --trust vs base, seeds 0 and 100. Same rule as
+    step 1: KILL if the skill15 (b) gain is inside base seed noise in either seed or any shape FAIL; PASS if preclip and cov99 also hold in both
+    seeds; else MISS. A PASS keeps the trust layer in the 28.3 stack; step 3 (AV19) then runs on it."""
+    return n1c4w(L, "av34s25")
+
+
 ITEMS = dict(gf2=gf2, gf2_follow=gf2_follow, gf4=gf4, gf1_screen=gf1_screen, gf1=gf1, gx2=gx2, gt2=gt2, gf3=gf3, mf2=mf2, gx1=gx1,
-             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w)
+             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w, av34s25=av34s25)
 
 
 def judge(item):
