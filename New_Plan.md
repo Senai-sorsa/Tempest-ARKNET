@@ -2820,6 +2820,13 @@ Hybrids looked at and not added:
    - **Reporting:** `--fair-baseline` becomes the default for every headline number.
    - **Port rule:** a kit-only part goes in only if the tool port reproduces its kit result on the same rows; a port that does not reproduce by the freeze stays OUT and is listed, it does not delay the freeze. The 2026 final test scores the climate generator; the other parts get the step 6 further tests.
 
+9. **Technicality fails taken in anyway (decided 2026-11-20 ~13:15 on the user's "any FAILS that only failed due to odd rules?").** Test: the miss is a bar crossed by less than its own noise, or a clause the part can meet by a setting already shown to pass, and no other clause shows harm. Each goes through the item 8 port rule.
+   - **IN: AV12 gust daytime gate** (folded into the AV13 gust output): MAF +1.99 % against a 2 % bar (0.01 points short), ELP +4.21 %, no station worse.
+   - **IN: WD1 UR5 spread refit at L = 10**: every clause passes at L = 10 (per-hour gap 0.026 / 0.027 <= 0.030); the MISS was only at L = 5 / 8. Gain kept: 3-hour error 0.24 -> 0.03, cov90 0.90 (shipped 0.93 / 0.97), CRPS u / v better in both seeds.
+   - **IN: O3 launch-week factor, k = 7, on top of IL-207b**: every difference in AV10 / AV32 / AV33 is negative (better), coverage equal; it missed only because the intervals reach 0 (too few launch weeks, sample size not harm).
+   - **Already IN, no change:** AV38 (DEN gust confirm, +2.01 %) is the confirm of AV36, which is IN.
+   - **Stays OUT (real reason, not a technicality):** AV17 (its family, AV34, KILLed on this exact stack); W6 shear stretch (same target as AV35, which is IN; noise limit cannot be met by more cases); AV5 / CHORUS / AV18 (need retraining or Mode F world start: G stage); UR4 first-10 (worst station +0.642, a real harm); V5 copula, AV8 / AV9 (coverage), UR10 (CRPS worse on the other 90 %), UR1 (superseded by SIGMA without PIT), X5 combination (coverage).
+
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
 **29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
