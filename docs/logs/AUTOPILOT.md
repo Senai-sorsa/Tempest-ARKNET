@@ -1219,3 +1219,5 @@ AUTOPILOT 628 (17:20): 26.1 step 1 W2 (u,v copula) rerun on 1800 cases per seed 
 AUTOPILOT 629 (17:50): 26.1 step 1 closed (bak106). V5a rerun 1800 cases: MISS both seeds (CRPS T +0.32 / +0.31 %, u +0.24 / +0.41 % over 0.3 %). With W2 (seed 0 PASS, seed 1 MISS) and W1/W5/W6 (MISS / not informative) all old verdicts stand; row in section 9. Next 26.2.
 
 AUTOPILOT 630 (18:15): 26.2 combined copula + damped stretch 12-18 km: MISS both seeds (bak109; kit_b84_combined_copula_stretch.log). Seed 0 err 0.040 (interval crosses 0), p99 0-1 km 0.71, Ri<1 12-18 km 0.244; seed 1 err 0.050 > 0.047, u CRPS +0.43 %, Ri<1 0.218. Row in section 9, no ASK_LATER. Next: X2 arm (no-PIT + pooled tail factor), then 27, X1.
+
+AUTOPILOT 631 (20:10): 27.3 / X2 pooled tail table on ftnest (b85, kit_b85_x2_pooled_tail.log): KILL (factor gap between fit years 0.26-0.77 > 0.15; cov99 not near 0.99). 27.5 on 2023-24 tables: MISS (NM/TX 5-9 d +0.6 to +1.3 % vs SIGMA; 1 d cov99 ~0.03 under binned); Denver ftnest best at every lead. bak112, row in section 9, New_Plan 29.9. Section 27 closed. No ASK_LATER. Next 28.3 greedy, X1 (b86).
