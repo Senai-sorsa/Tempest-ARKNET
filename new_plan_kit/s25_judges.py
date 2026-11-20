@@ -1,7 +1,7 @@
 """New_Plan section 25 judges, one function per item, each with its PRE-SET RULE in its docstring (written before any run).
 
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py ITEM      ITEM: gf2 gf2_follow gf4 gf1_screen gf1
-                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w av34s25 av19s25
+                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w av34s25 av19s25 x4s25
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py --selfcheck
 Result: docs/results/logs/kit_s25_<item>.log (a VERDICT line); picks for a phase-2 run go to docs/results/logs/s25_<item>_pick.txt.
 
@@ -470,7 +470,7 @@ def av34s25(L):
     return n1c4w(L, "av34s25")
 
 
-def av19s25(L, name="av19s25"):
+def av19s25(L, name="av19s25", ref="base"):
     """AV19S25 PRE-SET RULE (New_Plan 28.8 step 3, written 2026-11-20 00:35 before the run): Student-t noise (8 dims, nu 4, head 4) on the c4w
     paired-base recipe (configs/s25/av19.toml), seeds 0 and 100, vs base (steps 1 and 2 dropped, so the stack is the base). AV19's own target is
     Denver: Denver skill15 (unknown, range map only) gain > noise |base_s0 - base_s100| of it in both seeds, else KILL; any shape FAIL -> KILL;
@@ -480,14 +480,14 @@ def av19s25(L, name="av19s25"):
         need(p)
         return float(pd.read_csv(p).skill15_unknown.mean())
     nz = abs(den("base", SEEDS[0]) - den("base", SEEDS[1]))
-    gs = {s: gates(name, s, "base") for s in SEEDS}
+    gs = {s: gates(name, s, ref) for s in SEEDS}
     beats, nmtx = {}, {}
     for s in SEEDS:
-        a, b, g = den(name, s), den("base", s), gs[s]
+        a, b, g = den(name, s), den(ref, s), gs[s]
         beats[s] = a - b > nz
-        nmtx[s] = skill15(name, s) - skill15("base", s) >= -0.0009
-        L.append(f"  {name} s{s}: Denver skill15 {a:.4f} vs base {b:.4f} ({a - b:+.4f}, noise {nz:.4f}) {'beats' if beats[s] else 'inside noise'}; "
-                 f"NM/TX skill15(b) {skill15(name, s) - skill15('base', s):+.4f} {'ok' if nmtx[s] else 'FAIL'}; "
+        nmtx[s] = skill15(name, s) - skill15(ref, s) >= -0.0009
+        L.append(f"  {name} s{s}: Denver skill15 {a:.4f} vs {ref} {b:.4f} ({a - b:+.4f}, noise {nz:.4f}) {'beats' if beats[s] else 'inside noise'}; "
+                 f"NM/TX skill15(b) {skill15(name, s) - skill15(ref, s):+.4f} {'ok' if nmtx[s] else 'FAIL'}; "
                  f"shape {'FAIL ' + g['shape_worse'] if g['shape_fail'] else 'ok'}; preclip {g['preclip']:+.5f} {'ok' if g['preclip_ok'] else 'FAIL'}; "
                  f"cov99 {'ok' if g['cov_ok'] else 'FAIL'}")
     if any(g["shape_fail"] for g in gs.values()) or not all(beats.values()):
@@ -495,8 +495,18 @@ def av19s25(L, name="av19s25"):
     return "PASS" if all(nmtx.values()) and all(g["preclip_ok"] and g["cov_ok"] for g in gs.values()) else "MISS"
 
 
+
+def x4s25(L):
+    """X4S25 PRE-SET RULE (New_Plan 28.9, 28.4 MISS-idea arm, written 2026-11-20 01:35 before the run): AV40 climatology-mean anomaly output with
+    RH kept plain (configs/s25/x4.toml), seeds 0 and 100, Denver scored with the table refit on Denver rows <= 2020 (s25_arm.sh ANOM_DEN=1).
+    Compared against the 28.3 stack S25_STACK (base, or av19s25 if AV19 passed; the runner sets it and stacks AV19's keys). Same rule as av19s25:
+    Denver skill15 gain over the stack > base Denver seed noise in both seeds and no shape FAIL, else KILL; PASS if also NM/TX skill15 (b) loss
+    <= 0.0009 and preclip / cov99 ok in both seeds; else MISS. Overfit guard: 2024-25 is the only period here, so a PASS is "development period only"."""
+    return av19s25(L, "x4s25", os.environ.get("S25_STACK", "base"))
+
+
 ITEMS = dict(gf2=gf2, gf2_follow=gf2_follow, gf4=gf4, gf1_screen=gf1_screen, gf1=gf1, gx2=gx2, gt2=gt2, gf3=gf3, mf2=mf2, gx1=gx1,
-             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w, av34s25=av34s25, av19s25=av19s25)
+             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w, av34s25=av34s25, av19s25=av19s25, x4s25=x4s25)
 
 
 def judge(item):

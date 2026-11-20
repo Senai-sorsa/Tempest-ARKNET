@@ -397,3 +397,7 @@ wrote models/s25/gt2_pool_s100.pt: 8 members, archs ['mlp', 'mlp', 'mlp', 'mlp',
 2026-11-19 23:50:17 [S25 n1c4w_s100] denver ok
 2026-11-19 23:50:17 [S25 n1c4w_s100] done
 2026-11-20 00:58:03 [S25 av19s25_s0] trained
+2026-11-20 01:01:24 [S25 av19s25_s0] spread ok
+2026-11-20 01:03:34 [S25 av19s25_s0] smap ok
+2026-11-20 01:05:30 [S25 av19s25_s0] lmap ok
+2026-11-20 01:15:39 [S25 av19s25_s0] score_a ok

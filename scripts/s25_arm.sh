@@ -68,7 +68,14 @@ run $D/${T}_s25shape_b_$TAG.csv shape_b env PYTHONPATH=. $PY -W ignore scripts/s
 
 # 9. Denver fill-top: a report, not a gate (score writes next to the model name, so score a copy; the calib hash is content based)
 if [ ! -f $D/${T}_den_cal2021_headline.csv ]; then
-  [ "$DRY" = "1" ] || cp $M $D/${T}_den.pt
-  run $D/${T}_den_cal2021_headline.csv denver $PY -W ignore -u -m tempest.scoring.score --model $D/${T}_den.pt --data $DEN --m 199 --first-test-year 2024 --last-test-year 2025 --seed 0 --calib $C --extras
+  DC=$C
+  if [ "$ANOM_DEN" = "1" ]; then   # anom_clim model (AV40 / X4): climatology table refit on Denver rows <= 2020, calib re-tagged to the new hash (as gpu_av40.sh)
+    DC=$D/${T}_den.calib2021.npz
+    [ "$DRY" = "1" ] || [ -f $D/${T}_den.pt ] || PYTHONPATH=. $PY -W ignore scripts/av21_table.py $M $DEN $D/${T}_den.pt > $L/s25_${T}_den_table.log 2>&1 || { log "FAILED denver table"; exit 2; }
+    [ "$DRY" = "1" ] || [ -f $DC ] || PYTHONPATH=. $PY -c "import sys, numpy as np; from tempest.calibrate.spread import model_hash; c = dict(np.load(sys.argv[1])); c['model_sha'] = np.array(model_hash(sys.argv[2])); np.savez(sys.argv[3], **c)" $C $D/${T}_den.pt $DC || { log "FAILED denver calib tag"; exit 2; }
+  else
+    [ "$DRY" = "1" ] || cp $M $D/${T}_den.pt
+  fi
+  run $D/${T}_den_cal2021_headline.csv denver $PY -W ignore -u -m tempest.scoring.score --model $D/${T}_den.pt --data $DEN --m 199 --first-test-year 2024 --last-test-year 2025 --seed 0 --calib $DC --extras
 fi
 log done

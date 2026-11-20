@@ -2760,6 +2760,18 @@ Hybrids looked at and not added:
 - Step 1 cost: `scripts/n1_crossfit.py` gets `--config` / `--data` (defaults unchanged, so the p2f run is reproducible), 4 folds x 2 seeds at 6000 steps (~2 h GPU), range map from held-out years as N1, then shear and lapse maps refit in order, score (a) and (b) as s25_arm.sh.
 - Progress: step 1 N1C4W **KILL** 2026-11-19 23:58 (shape FAIL both seeds; seed 100 gain inside noise; section 9). Step 2 AV34 trust on the unchanged base: scripts/gpu_av34s25.sh, judge s25_judges.py av34s25 (rule pre-set in its docstring, same as step 1), started 23:50. Step 2 **KILL** 2026-11-20 00:37 (shape FAIL both seeds, gain not above noise; section 9). Step 3 AV19 Student-t noise (configs/s25/av19.toml) on the unchanged base: scripts/gpu_av19s25.sh, judge s25_judges.py av19s25 (Denver target, rule pre-set in its docstring), started 00:38.
 
+**28.9 28.4 plan: which MISS ideas enter the final model (2026-11-20 01:40, user: "move onto 28.4 ... make sure it's comprehensively the best"; written before any 28.4 run).**
+- 28.3 status: steps 1 (N1) and 2 (AV34) KILL; step 3 AV19 runs to its verdict (already half done). Step 4 AV35 is not a generator part: its PASS (2026-11-14) was measured on the installed tool, which is the shipped c4w stack, so it carries over unchanged while the stack stays the base. It is re-checked (CPU, its own balloon rule) only if AV19 or X4 changes the stack.
+- Candidates weighed (28.4 test: won one target in a paired test, lost a different one):
+  - **X4 = AV40 / AV41 anomaly mean with RH plain: RUN.** Biggest measured win in the log on a known flaw (29.3 flaw 6, Denver): -0.19 -> -0.015 / -0.018 in both seeds, NM/TX held; the only loss was RH shape (preclip_rate, rh2m tail), a different target. RH stays plain (`anom_skip`, new opt-in key, default off; mask self-check passed). One setting, no tuning. Arm on top of the 28.3 stack (AV19 keys stacked if AV19 passes). Runner `scripts/gpu_x4s25.sh`, judge `s25_judges.py x4s25` (pre-set rule in its docstring: as av19s25). Denver uses the anomaly table refit on Denver rows <= 2020 (`s25_arm.sh ANOM_DEN=1`, as gpu_av40.sh).
+  - W5 / W6 shear stretch: NOT RUN. Same target as AV35 (shear p99 aloft), which already passes it; 0-1 km stays 0.71 with every method (29.3), and 29.7 dropped further stretch variants.
+  - 26.2 copula + stretch, W2, X1: NOT RUN. Copula line closed (29.10: X1 MISS both seeds).
+  - NEST short-lead tails (lead split, X3): NOT RUN. Its win (1 d CRPS) and loss (1 d cov99 0.03-0.05 short) are at the same leads, and the tail fix (X2) was KILL, so the arm would fail the cov99 clause by construction. Mode F candidate stays SIGMA (PASS, ASK_LATER 43); ftnest stays a MISS (27.5).
+  - GF3, AV18: NOT RUN. GF3 is KILL (no MISS); AV18 lost on no second target, it only missed its bar.
+  - UR14 map + neighbours, AV9, UR1 TAILCAL: NOT RUN. Covered by X5 (KILL) and X2 (KILL).
+- Deferred to later (with the global stage or new data, not this path): AV35 re-fit on a changed stack if needed, X5 follow-ups, 0-1 km shear, time coherence.
+- Final model candidate = shipped c4w stack + AV19 if PASS + X4 if PASS + AV35 tool-level shear map aloft (PASS). Mode F: SIGMA. Opt-in items (28.8 "not greedy-stacked" list) stay opt-in. Adoption of any change still needs the user (section 8); 28.5 freezes and records the result.
+
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
 **29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.

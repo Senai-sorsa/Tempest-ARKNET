@@ -124,6 +124,8 @@ class Generator(nn.Module):
             self.register_buffer("anom_keys", torch.zeros(P, 2))
             self.register_buffer("anom_cmu", torch.zeros(P, N_ANOM_BASIS, n_out))
             self.register_buffer("anom_clv", torch.zeros(P, N_ANOM_BASIS, n_out))
+            if "mask" in self.anom:                                     # X4: 0 = this output stays plain (no climatology)
+                self.register_buffer("anom_mask", torch.tensor(self.anom["mask"], dtype=torch.float32))
         drop = set(self.linear_cols) | set(self.geo["cols"] if self.geo else []) | set(self.context_cols)
         self.keep_cols = [i for i in range(n_cond) if i not in drop]
         self.noise_dim = noise_dim
@@ -264,10 +266,12 @@ class Generator(nn.Module):
             X = anom_basis(raw[:, 2], raw[:, 3], raw[:, 4], raw[:, 5], torch)
             mu = torch.einsum("bk,bkd->bd", X, self.anom_cmu[p])
             if self.anom.get("mean_only"):                              # AV40: climatology mean only, the spread stays the training sd ts
-                return (mu.unsqueeze(1) - self.anom_tm) / self.anom_ts + z.float()
+                off = (mu.unsqueeze(1) - self.anom_tm) / self.anom_ts
+                return (off * self.anom_mask if "mask" in self.anom else off) + z.float()
             sd = torch.exp(0.5 * torch.einsum("bk,bkd->bd", X, self.anom_clv[p]).clamp(-60, 60))
             sd = torch.minimum(torch.maximum(sd, 0.05 * self.anom_ts), 10 * self.anom_ts)
-            return ((mu.unsqueeze(1) + sd.unsqueeze(1) * z.float()) - self.anom_tm) / self.anom_ts
+            out = ((mu.unsqueeze(1) + sd.unsqueeze(1) * z.float()) - self.anom_tm) / self.anom_ts
+            return self.anom_mask * out + (1 - self.anom_mask) * z.float() if "mask" in self.anom else out
 
     def _nest_mask(self, full):
         lead = full[:, int(self.nest["col"])] * float(self.nest["sd"]) + float(self.nest["mu"])
