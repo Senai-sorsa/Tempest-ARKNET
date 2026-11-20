@@ -377,3 +377,11 @@ wrote models/s25/gt2_pool_s100.pt: 8 members, archs ['mlp', 'mlp', 'mlp', 'mlp',
 2026-11-19 16:49:52 [S25 h1_noise_s100] done
 2026-11-19 21:38:45 [S25 n1c4w_s0] smap ok
 2026-11-19 21:40:31 [S25 n1c4w_s0] lmap ok
+2026-11-19 21:50:19 [S25 n1c4w_s0] score_a ok
+2026-11-19 22:00:06 [S25 n1c4w_s0] score_b ok
+2026-11-19 22:01:51 [S25 n1c4w_s0] diag_a ok
+2026-11-19 22:04:24 [S25 n1c4w_s0] diag_b ok
+2026-11-19 22:05:41 [S25 n1c4w_s0] shape_a ok
+2026-11-19 22:07:40 [S25 n1c4w_s0] shape_b ok
+2026-11-19 22:15:22 [S25 n1c4w_s0] denver ok
+2026-11-19 22:15:22 [S25 n1c4w_s0] done
