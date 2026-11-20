@@ -2810,6 +2810,7 @@ Hybrids looked at and not added:
 4. Freeze (28.5 bundle, hashes, dry-run).
 5. **Final 2026 test: user gave the go (2026-11-20), valid only after step 4**, run once.
 6. Further tests on the frozen model (no tuning on 2026), then set up the G stage (28.6 / GLOBAL_PLAN G0 prep; no G1-G6 training).
+7. **User ruling 2026-11-20 ~12:40: X4-R goes into the final model** (MISS on the s0 preclip by 3e-6 accepted; Denver +0.159 / +0.164). Step 3 only picks the version: variant e (k 3, clean PASS if its Denver gain holds) or d (k 2, larger gain); greedy rule on actual skill when x4ers25 is judged (~13:40). Final candidate = shipped c4w stack + X4-R (attached to the shipped checkpoints, no retrain, on by default) + AV35 shear map aloft (re-checked on the X4-R stack, its own balloon rule, CPU). Mode F: SIGMA. Then steps 4-6 without further asks. G0 prep item: X4-R table looks up the nearest of its 458 points, so outside the NM/TX / Denver boxes it needs a distance cutoff (offset 0 beyond it) before any global use.
 
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
