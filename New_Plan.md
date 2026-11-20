@@ -2772,6 +2772,18 @@ Hybrids looked at and not added:
 - Deferred to later (with the global stage or new data, not this path): AV35 re-fit on a changed stack if needed, X5 follow-ups, 0-1 km shear, time coherence.
 - Final model candidate = shipped c4w stack + AV19 if PASS + X4 if PASS + AV35 tool-level shear map aloft (PASS). Mode F: SIGMA. Opt-in items (28.8 "not greedy-stacked" list) stay opt-in. Adoption of any change still needs the user (section 8); 28.5 freezes and records the result.
 
+### 28.10 X4 line: tune until it works (user ruling 2026-11-20 ~01:50)
+- User: keep going on X4 even if the first arm misses or fails; tune the idea until it clearly works. So X4 is a **line**, not a single arm: the first verdict (x4s25) decides which variant comes next, not whether the idea stops.
+- **Overfit guard (my assumption, stated to the user):** variants are chosen on development years (2023 rows / Denver 2021-23 skill), and the 2024-25 verdict years only confirm the final pick once; the 2026 final test stays the untouched holdout. Each variant still gets the pre-set x4s25 rule on 2024-25 before it enters the stack.
+- **Variant ladder (picked by the failure mode of the previous verdict):**
+  1. x4s25 as queued (anomaly mean, RH plain).
+  2. If shape FAIL on RH again: drop RH and the moisture targets from the anomaly mask entirely (anom_skip = ["RH_", "q_"] or the dpd name); if shape FAIL on vcorr: shrink the anomaly mean toward zero (blend factor 0.5, then 0.25) so the per-level offsets cannot tear the profile.
+  3. If Denver gain inside noise: full anomaly mean on all targets but height-limited (above 1 km only), since the Denver offset is mostly a surface / boundary-layer climatology shift.
+  4. If NM/TX loss > 0.0009: keep the anomaly table but feed it as an extra input (conditioning) instead of an output offset, so the network can choose how much to trust it.
+  5. Stack the best variant on AV19 if AV19 PASSes.
+- **Global stage link:** X4 is a generator (network) change, so it must be settled before G1-G4 training on the supercomputer; post-network parts (range calib, shear / lapse maps, AV35, trust, SIGMA steps, site factors) can still change after the global run on CPU, network changes need retraining or at least a fine-tune from the global checkpoint.
+- Code needed for steps 2-4: an anom_blend factor and an anom_min_height option in train.py / model.py (default off, same pattern as anom_skip); input-conditioning (step 4) only if reached.
+
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
 **29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
