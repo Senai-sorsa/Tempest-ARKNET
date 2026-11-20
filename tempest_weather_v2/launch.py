@@ -119,7 +119,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal=None, past_era5_anchor=True, _pool=None, _obs=None, _hrrr=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal="auto", past_era5_anchor=True, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -134,7 +134,7 @@ class Launch:
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
         self.past_era5_anchor = bool(past_era5_anchor)         # M5c: PAST mode only: centre the near-ground wind ensemble on the ERA5 10 m wind (speed CRPS -5 % / -11 % at TCS / MAF; with past_wind_spread=1.2 -8 % / -13 %). ON by default since 2026-11-09: GW-F confirmed it at a third, non-airport site (USCRN basin, 2019-22: CRPS 0.764 -> 0.744 by day, 0.891 -> 0.845 at other hours); False = the plain past ensemble
-        self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off
+        self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off; "auto" (default) = the IL-207b factor when the pad is within OWN_STATION_KM of the TCS station, else off
         self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
         if not 0.5 <= self.past_wind_spread <= 3.0:
             raise ValueError("past_wind_spread must be between 0.5 and 3 (1.0 = off, 1.2 = the value fitted against station winds)")
@@ -269,20 +269,64 @@ class Launch:
         at the lowest model height, fading to none by 300 m (the record says nothing about the air above); direction is kept. The gust law is evaluated again."""
         return self.with_(site_cal=cal)
 
-    def _apply_site_cal(self, pool):
+    def _effective_site_cal(self, pool):
+        """IL-207b on by default (ASK_LATER 24, user 2026-11-17): site_cal="auto" gives the TCS factor to a pad within OWN_STATION_KM of the TCS station and nothing elsewhere (the offset is that
+        airport's, not the 30 km away pad's). Any explicit calibration, or None, is used as given."""
+        if not (isinstance(self._site_cal, str) and self._site_cal == "auto"):
+            return self._site_cal
+        from tempest_weather_v2 import obs as O, sitecal
+        lat_s, lon_s, _ = O.STATIONS["TCS"]
+        if O.haversine_km(self.lat, self.lon, lat_s, lon_s) >= O.OWN_STATION_KM:
+            return None
+        t0 = np.asarray(pool["launch_times"]).astype("datetime64[s]")[0].astype(datetime).replace(tzinfo=timezone.utc)
+        return sitecal.tcs_speed_factor(t0)
+
+    LAUNCH_WEEK_DAYS, LAUNCH_WEEK_ALPHA = 7, 1.0 / 30.0
+
+    def launch_week(self, readings):
+        """O3 (b38 / AV10, New_Plan 28.11 item 12): a NEW Launch whose ground wind is scaled by the pad anemometer's last week. `readings` = {datetime: measured 10 m speed m/s}
+        (naive = UTC), best at 09 / 13 / 17 local. Per local day before the launch day (the LAUNCH_WEEK_DAYS calendar days before it): r = mean measured / mean tool speed at the same hours
+        (no site factor, n 200); the factor starts at this pad's IL-207b "auto" factor for the launch hour (1.0 away from TCS) and moves f <- f + alpha (r - f), oldest day first.
+        b38 (k 7, 2023-25): CRPS 1.464 -> 1.437 at MAF, -0.023 at TCS."""
+        from zoneinfo import ZoneInfo
+        r = self.resolved_window()
+        if not r.single:
+            raise ValueError("launch_week needs a single launch time, not a window")
+        z = ZoneInfo(self.tz_name)
+        t0 = r.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+        auto = self.with_(site_cal="auto")._effective_site_cal({"launch_times": r.cells_utc[:1]})
+        f = float(auto["hourly"][t0.hour]) if auto is not None else 1.0
+        days = {}
+        for t, y in readings.items():
+            t = (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+            back = (t0.astimezone(z).date() - t.astimezone(z).date()).days
+            if 1 <= back <= self.LAUNCH_WEEK_DAYS:
+                days.setdefault(back, []).append((t, float(y)))
+        for d in sorted(days, reverse=True):
+            m, tool = [], []
+            for t, y in days[d]:
+                L = self.with_(when=t.strftime("%Y-%m-%d %H:%M"), tz="UTC", n=200, seed=int(t.timestamp()) % 100000, site_cal=None, _obs={}, _hrrr=None)
+                s = L._ensure_pool()["samples"]
+                m.append(y)
+                tool.append(float(np.hypot(np.asarray(s["u"])[:, 0], np.asarray(s["v"])[:, 0]).mean()))
+            if np.mean(tool) > 0.1:
+                f += self.LAUNCH_WEEK_ALPHA * (float(np.mean(m) / np.mean(tool)) - f)
+        return self.with_(site_cal={"method": "ratio", "ratio": f})
+
+    def _apply_site_cal(self, pool, cal):
         from tempest_weather_v2 import sitecal
         s = dict(pool["samples"])
         u, v = np.asarray(s["u"], float), np.asarray(s["v"], float)
         sp = np.hypot(u[:, 0], v[:, 0])
         hrs = np.asarray(pool["launch_times"]).astype("datetime64[h]").astype(np.int64) % 24
-        new = sitecal.apply_site(self._site_cal, sp, hrs)
+        new = sitecal.apply_site(cal, sp, hrs)
         ratio = np.where(sp > 1e-6, new / np.maximum(sp, 1e-6), 1.0)
         z = np.asarray(_core.HEIGHTS, float)
         taper = np.clip(1.0 - (z - z[0]) / (300.0 - z[0]), 0.0, 1.0)
         f = 1.0 + (ratio[:, None] - 1.0) * taper[None, :]
         s["u"], s["v"] = (u * f).astype(np.float32), (v * f).astype(np.float32)
         s = self._regust(s, pool["launch_times"])
-        return dict(pool, samples=s, flags=list(pool["flags"]) + ["ground-wind-site-calibrated-" + self._site_cal["method"]])
+        return dict(pool, samples=s, flags=list(pool["flags"]) + ["ground-wind-site-calibrated-" + cal["method"]])
 
     def _apply_hrrr(self, pool):
         """C3: move the near-ground u, v of every sample so the median is HRRR's 10 m wind (weight 1.0) and the spread about it is x0.8, both fading out by 300 m (fitted in scripts/hrrr_vs_asos.py)."""
@@ -359,8 +403,9 @@ class Launch:
             flags.append("window-hours-independent")
         self._pool = dict(samples=samples, launch_times=times, infos=infos, modes={k: v / n for k, v in mode_count.items()}, elevation_source=esrc, flags=flags,
                           day_share=r.day_share, window=r.description)
-        if self._site_cal is not None:
-            self._pool = self._apply_site_cal(self._pool)
+        cal = self._effective_site_cal(self._pool)
+        if cal is not None:
+            self._pool = self._apply_site_cal(self._pool, cal)
         return self._pool
 
     def _measurements(self):
@@ -486,6 +531,39 @@ class Launch:
             raise ValueError("give at least one measurement")
         self._check_observation(obs)
         return self.with_(_obs=obs)
+
+    def observe_nowcast(self, station, t_utc, history):
+        """(opt-in) A NEW Launch conditioned on the NOW2 nowcast (tempest_weather_v2.nowcast): the next 1 / 2 / 3 / 6 h of 10 m wind at `station` (one of obs.STATIONS) from its own last 6 hourly (u, v) reports and
+        the 3 nearest stations' last 3 (`history` = {station: [(u, v), ...] newest last, the last row valid at `t_utc`, m/s, u east, v north). The launch time must be exactly 1, 2, 3 or 6 h after `t_utc`.
+        Evidence (2015-17, all 9 stations better): CRPS +8.3 / +8.5 / +8.2 / +7.0 % vs one-reading observe(), cov90 0.908. A station within 5 km of the pad: the nowcast enters as a soft reading with
+        the gain 1 - (its predictive sd / climatological sd)^2 (the reading is back-solved so the update moves the median as the nowcast does; the pad prior's own mean and sd stand in for the station's);
+        a station farther away: its predicted wind is treated like a report from there (weighted by distance and height, as observe_latest)."""
+        from tempest_weather_v2 import nowcast as NC, obs as O
+        r = self.resolved_window()
+        if not r.single:
+            raise ValueError("observe_nowcast needs a single launch time, not a window")
+        if station not in O.STATIONS:
+            raise ValueError(f"{station!r} is not one of the nowcast stations {sorted(O.STATIONS)}")
+        t0 = r.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+        t_utc = t_utc.replace(tzinfo=timezone.utc) if t_utc.tzinfo is None else t_utc.astimezone(timezone.utc)
+        lead = (t0 - t_utc).total_seconds() / 3600.0
+        if lead not in NC.LEADS:
+            raise ValueError(f"launch time minus t_utc is {lead:g} h; the nowcast covers {NC.LEADS} h ahead")
+        p = NC.predict(station, t_utc, history, int(lead))
+        lat_s, lon_s, el_s = O.STATIONS[station]
+        dist = O.haversine_km(self.lat, self.lon, lat_s, lon_s)
+        elev = float(self._ensure_pool()["samples"]["elevation_m"]) if self._pool is not None else (self.elevation_info()[0] or 0.0)
+        if dist < O.OWN_STATION_KM:
+            g = p["gain"]
+            u, v = (p["clim"][i] + p["clim_sd"][i] * p["anomaly"][i] / g for i in (0, 1))
+            age = -O.TAU_H * math.log(g)
+        else:
+            u, v, age = p["u"][0], p["v"][0], 0.0
+        spd = math.hypot(u, v)
+        if spd >= self.OBS_LIMITS["wind_10m"][1]:
+            raise ValueError(f"the nowcast wind ({spd:.0f} m/s) is outside the range an observation may take")
+        return self.observe(wind_10m=f"{spd:.3f} m/s", wind_from_deg=math.degrees(math.atan2(-u, -v)) % 360.0, age_hours=age, distance_km=dist, elevation_diff_m=el_s - elev,
+                            source=f"nowcast {station} +{int(lead)}h")
 
     def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None, t_update=False):
         """P3 (opt-in): a NEW Launch conditioned on the NEXRAD VAD wind profile of the nearest radar (or `site`), the newest volume at most max_age_min before the launch time, at the model

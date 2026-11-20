@@ -53,3 +53,17 @@ def test_tcs_speed_factor_maps_local_blocks_to_utc_hours():
     assert f[5] == 1.0 and f[3] == 1.0                                # night (untested) untouched
     assert tcs_speed_factor(datetime(2023, 1, 10))["hourly"][23] == TCS_SPEED_FACTOR["16-20/cool"]    # MST 16 local
     assert apply_site(cal, [2.0], [23])[0] == 2.0 * TCS_SPEED_FACTOR["16-20/warm"]
+
+
+def test_site_cal_auto_is_tcs_only():            # IL-207b default (2026-11-17): the factor goes to a pad at the TCS station, not 30 km away, and None / explicit stay as given
+    from datetime import datetime, timezone
+
+    from tempest_weather_v2 import obs as O
+    from tempest_weather_v2.launch import Launch
+    pool = dict(launch_times=np.array(["2024-07-01T22:00:00"], dtype="datetime64[s]"))
+    lat, lon, _ = O.STATIONS["TCS"]
+    at = Launch(lat, lon, datetime(2024, 7, 1, 22, tzinfo=timezone.utc), offline=True, n=8)
+    assert at._effective_site_cal(pool)["method"] == "hourly"
+    away = Launch("spaceport_america", datetime(2024, 7, 1, 22, tzinfo=timezone.utc), offline=True, n=8)
+    assert away._effective_site_cal(pool) is None
+    assert at.calibrate_site(None)._effective_site_cal(pool) is None
