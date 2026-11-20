@@ -1,0 +1,5 @@
+2026-11-20 07:13 S25 X4BS25 (X4BS25 PRE-SET RULE (New_Plan 28.10 step 2, written 2026-11-20 04)
+  x4bs25 s0: Denver skill15 -0.0944 vs base -0.2054 (+0.1110, noise 0.0093) beats; NM/TX skill15(b) +0.0008 ok; shape FAIL event_cov_gap,skew_diff; preclip -0.00017 ok; cov99 ok
+  x4bs25 s100: Denver skill15 -0.1060 vs base -0.2146 (+0.1086, noise 0.0093) beats; NM/TX skill15(b) -0.0001 ok; shape FAIL shear_ks,skew_diff; preclip -0.00013 ok; cov99 ok
+VERDICT (pre-set rule): KILL
+
