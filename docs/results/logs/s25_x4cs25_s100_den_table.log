@@ -1,0 +1,1 @@
+models/s25/x4cs25_s100_den.pt: table refitted on 1000000 rows <= 2020 of data/train/denver_full_fill_dpd.npz, 81 points
