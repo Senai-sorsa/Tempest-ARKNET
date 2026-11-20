@@ -1,0 +1,7 @@
+# New_Plan 28.10 step 2 (X4 line, variant c), runs only if x4bs25 is KILL. Picked from the x4bs25 s0 shape (interim): vcorr / shear fixed by
+# offset x0.5, still WORSE event_cov_gap (T 0-1 km) and skew_diff (rh2m), both about half of x4s25. So rh2m plain too and the offset x0.25.
+# Denver at x0.5 was +0.111 over base (12x noise), so x0.25 should keep a gain well outside noise.
+anom_clim = true
+anom_mean_only = true
+anom_skip = ["RH_", "v_", "rh2m"]
+anom_blend = 0.25
