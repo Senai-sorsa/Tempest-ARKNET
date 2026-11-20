@@ -1,0 +1,5 @@
+2026-11-20 02:47 S25 AV19S25 (AV19S25 PRE-SET RULE (New_Plan 28.8 step 3, written 2026-11-20 00)
+  av19s25 s0: Denver skill15 -0.2157 vs base -0.2054 (-0.0103, noise 0.0093) inside noise; NM/TX skill15(b) -0.0004 ok; shape FAIL kurt_diff,preclip_rate; preclip +0.00096 FAIL; cov99 ok
+  av19s25 s100: Denver skill15 -0.2186 vs base -0.2146 (-0.0039, noise 0.0093) inside noise; NM/TX skill15(b) -0.0015 FAIL; shape FAIL event_cov_gap,kurt_diff,preclip_rate; preclip +0.00105 FAIL; cov99 ok
+VERDICT (pre-set rule): KILL
+
