@@ -24,20 +24,39 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+X4R_CUTOFF = 1.0   # degrees (cos-lat distance) to the nearest X4-R table point; farther rows get no offset (G-stage areas outside the fit)
+
+
 def pack(ckpt, prefix, arrays):
     members = ckpt["members"] if "members" in ckpt else [ckpt]
     m0 = members[0]
     c = m0["cfg"]
     # the numpy engine (tempest_weather/engine.py) runs only the plain MLP + linear slope; anything else would export silently wrong
-    extra = [k for k, bad in (("model_kw", bool(m0.get("model_kw"))), ("arch", c.get("arch", "mlp") not in (None, "mlp")),
+    kw = m0.get("model_kw") or {}
+    x4r = set(kw) == {"anom"} and kw["anom"].get("mean_only") and "mask" not in kw["anom"]     # New_Plan 28.11: X4-R offset table (scripts/x4r_build.py) is ported
+    extra = [k for k, bad in (("model_kw", bool(kw) and not x4r), ("arch", c.get("arch", "mlp") not in (None, "mlp")),
                               ("interactions", bool(c.get("interactions"))), ("product_pairs", bool(m0.get("product_pairs")))) if bad]
     if extra:
         raise SystemExit(f"{prefix or 'model'}: checkpoint uses {extra}, which the numpy engine does not implement; port them to tempest_weather/engine.py first")
     meta = dict(members=len(members), n_cond=m0["n_cond"], n_out=m0["n_out"], linear_cols=list(m0["linear_cols"]), noise_dim=c["noise_dim"], width=c["width"],
                 depth=c["depth"], sp_offset=m0.get("sp_offset"), cond_names=list(m0.get("cond_names", [])), rh_target=m0.get("rh_target", "rh"))
+    if x4r:
+        # the raw-target offset is X @ (cmu - tm); every member must carry the same table (x4r_build attaches one offset to all)
+        dcs = []
+        for m in members:
+            dc = m["state"]["anom_cmu"].double().numpy().copy()
+            dc[:, 0, :] -= m["state"]["anom_tm"].double().numpy()
+            dcs.append(dc)
+        assert all(np.allclose(d, dcs[0], atol=1e-4 * (np.abs(dcs[0]).max() + 1e-12)) for d in dcs), "X4-R tables differ between members"
+        assert [m0["cond_names"][i] for i in kw["anom"]["cols"]] == ["lat", "lon", "doy_sin", "doy_cos", "hour_sin", "hour_cos"]
+        arrays[prefix + "x4r/keys"] = m0["state"]["anom_keys"].numpy().astype(np.float32)
+        arrays[prefix + "x4r/dc"] = dcs[0].astype(np.float32)
+        meta.update(x4r=True, x4r_cutoff=X4R_CUTOFF)
     arrays[prefix + "meta"] = np.array(json.dumps(meta))
     for k, m in enumerate(members):
         for n, v in m["state"].items():
+            if n.startswith("anom_"):
+                continue
             arrays[f"{prefix}m{k}/{n}"] = v.numpy().astype(np.float32)
         for n, v in m["norm"].items():
             arrays[f"{prefix}norm{k}/{n}"] = v.numpy().astype(np.float32)
@@ -64,6 +83,7 @@ def main():
     ap.add_argument("--post-cell", type=int, default=0, help="with --post-templates: one template set per block of N x N grid points (8 = 2 degrees; stored as uint8 ranks) instead of one for the whole box")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
     ap.add_argument("--post-lmap", help="L21b / IL-162: lapse-rate quantile map npz (tempest.calibrate.lapse_map output, fitted on THIS model's stack) applied after the shear map; opt-in")
+    ap.add_argument("--post-amap", help="AV35 (adopted 2026-11-17): balloon shear map for 5-18 km (models/av35_shearmap_aloft.npz: grid, gain); applied after the lapse map, heights below 5 km are left as they are")
     ap.add_argument("--post-pit", help="PIT recalibration table npz (scripts/il86_fit.py output); loop 2 H1, opt-in, off by default")
     ap.add_argument("--post-pit-damp", type=float, default=0.5, help="strength of --post-pit (0.5 = the tested half-way map)")
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
@@ -98,7 +118,7 @@ def main():
             arrays[f"calib/{k}"] = cal[k]
     if a.head:
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
-    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit or a.post_lmap)
+    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit or a.post_lmap or a.post_amap)
     if a.post_templates:
         from tempest.calibrate.shuffle import cell_keys
         from tempest.generator.sample import to_physical
@@ -156,6 +176,9 @@ def main():
     if a.post_lmap:
         lm = np.load(a.post_lmap)
         arrays["post/lmap_xk"], arrays["post/lmap_yk"] = lm["xk"], lm["yk"]
+    if a.post_amap:
+        am = np.load(a.post_amap)
+        arrays["post/amap_grid"], arrays["post/amap_gain"] = am["grid"], am["gain"]
     if a.post_pit:
         pt = np.load(a.post_pit)
         arrays["post/pit_ginv"], arrays["post/pit_groups"], arrays["post/pit_damp"] = pt["ginv"], pt["groups"], np.array(a.post_pit_damp)
@@ -255,7 +278,7 @@ def main():
     calibration_fit = (f"up to {int(cal['fit_year'])}, m = {int(cal['m'])}" if "fit_year" in cal.files and "m" in cal.files else "unknown (not recorded in the calibration)")
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
                     trained_years=trained_years, calibration_fit=calibration_fit, model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), head_source=(os.path.basename(a.head) if a.head else None), modef_source=(os.path.basename(a.modef) if a.modef else None), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), modef_ens_included=bool(a.modef and a.modef_ens), modef_ens_source=(os.path.basename(a.modef_ens) if a.modef and a.modef_ens else None), gust_included=bool(a.gust), gust_phys_included=bool(a.gust_phys), features=meta["cond_names"],
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), head_source=(os.path.basename(a.head) if a.head else None), modef_source=(os.path.basename(a.modef) if a.modef else None), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modep_source=(os.path.basename(a.modep) if a.modep else None), modef_included=bool(a.modef), modef_ens_included=bool(a.modef and a.modef_ens), modef_ens_source=(os.path.basename(a.modef_ens) if a.modef and a.modef_ens else None), gust_included=bool(a.gust), gust_phys_included=bool(a.gust_phys), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], solar_hours=solar_hours, files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

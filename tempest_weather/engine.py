@@ -26,6 +26,9 @@ def _silu(x):
     return x / (1 + np.exp(-x))
 
 
+X4R_COLS = ["lat", "lon", "doy_sin", "doy_cos", "hour_sin", "hour_cos"]   # = tempest.generator.model.ANOM_COLS (the tool does not import torch code)
+
+
 class Member:
     def __init__(self, w, norm, meta):
         self.w, self.norm = w, norm
@@ -67,7 +70,24 @@ class Net:
             w = {n.split("/", 1)[1]: z[n] for n in z.files if n.startswith(f"{prefix}m{k}/")}
             norm = {n: z[f"{prefix}norm{k}/{n}"].astype(np.float32) for n in ("cm", "cs", "tm", "ts")}
             members.append(Member({a: b.astype(np.float32) for a, b in w.items()}, norm, meta))
-        return cls(members, meta)
+        net = cls(members, meta)
+        if meta.get("x4r"):                                             # New_Plan 28.11: X4-R climatology offset table (keys (P, 2), dc (P, 11, n_out))
+            net.x4r = dict(keys=z[prefix + "x4r/keys"].astype(np.float64), dc=z[prefix + "x4r/dc"].astype(np.float64))
+        return net
+
+    def x4r_offset(self, cond):
+        """X4-R: raw-target offset per row (N, n_out): harmonic fit at the nearest table point (cos-lat distance, as the torch model),
+        0 for rows farther than meta x4r_cutoff degrees from every table point (outside the fitted area the offset is unknown)."""
+        t, cols = self.x4r, [self.names.index(c) for c in X4R_COLS]
+        c = np.asarray(cond, np.float64)[:, cols]
+        k = t["keys"]
+        d = (c[:, :1] - k[:, 0]) ** 2 + ((c[:, 1:2] - k[:, 1]) * np.cos(np.deg2rad(c[:, :1]))) ** 2
+        p = d.argmin(1)
+        a, b = np.arctan2(c[:, 2], c[:, 3]), np.arctan2(c[:, 4], c[:, 5])
+        X = np.stack([np.ones_like(a)] + [f(j * a) for j in (1, 2, 3) for f in (np.sin, np.cos)] + [f(j * b) for j in (1, 2) for f in (np.sin, np.cos)], -1)
+        off = np.einsum("bk,bkd->bd", X, t["dc"][p])
+        off[np.sqrt(d[np.arange(len(p)), p]) > self.meta["x4r_cutoff"]] = 0.0
+        return off.astype(np.float32)
 
     def sample(self, cond, rng=None, eps=None):
         """cond (N, F) raw features, one row per sample -> (N, n_out) raw targets. Row i goes to member i % K, as in tempest.generator.sample.Sampler."""
@@ -79,6 +99,8 @@ class Net:
             c = cond[i::K]
             e = rng.standard_normal((len(c), self.meta["noise_dim"])).astype(np.float32) if eps is None else eps[i::K]
             out[i::K] = m.forward((c - m.norm["cm"]) / m.norm["cs"], e) * m.norm["ts"] + m.norm["tm"]
+        if getattr(self, "x4r", None) is not None:
+            out += self.x4r_offset(cond)
         so = self.meta.get("sp_offset")
         if so is not None:
             out[:, so[0]] += _core.standard_pressure(cond[:, so[1]]).astype(np.float32)

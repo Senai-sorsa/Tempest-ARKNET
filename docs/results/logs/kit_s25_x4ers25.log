@@ -1,0 +1,5 @@
+2026-11-20 13:41 S25 X4ERS25 (X4ERS25 PRE-SET RULE (New_Plan 28.10 variant e, X4-R at k = 3, written 2026-11-20 ~10)
+  x4ers25 s0: Denver skill15 -0.0631 vs base -0.2054 (+0.1423, noise 0.0093) beats; NM/TX skill15(b) -0.0000 ok; shape ok; preclip +0.00006 ok; cov99 ok
+  x4ers25 s100: Denver skill15 -0.0683 vs base -0.2146 (+0.1464, noise 0.0093) beats; NM/TX skill15(b) -0.0000 ok; shape ok; preclip +0.00004 ok; cov99 ok
+VERDICT (pre-set rule): PASS
+

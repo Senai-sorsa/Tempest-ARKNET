@@ -529,3 +529,32 @@ wrote models/s25/gt2_pool_s100.pt: 8 members, archs ['mlp', 'mlp', 'mlp', 'mlp',
 2026-11-20 12:52:27 [S25 x4ers25_s100] smap ok
 2026-11-20 12:54:12 [S25 x4ers25_s100] lmap ok
 2026-11-20 13:04:54 [S25 x4ers25_s100] score_a ok
+2026-11-20 13:18:22 [S25 x4ers25_s100] score_b ok
+2026-11-20 13:24:35 [S25 x4ers25_s100] diag_a ok
+2026-11-20 13:27:21 [S25 x4ers25_s100] diag_b ok
+2026-11-20 13:28:40 [S25 x4ers25_s100] shape_a ok
+2026-11-20 13:32:49 [S25 x4ers25_s100] shape_b ok
+2026-11-20 13:41:34 [S25 x4ers25_s100] denver ok
+2026-11-20 13:41:34 [S25 x4ers25_s100] done
+2026-11-20 13:46:38 [S25 c4wx4r_s0] spread ok
+2026-11-20 13:48:39 [S25 c4wx4r_s0] smap ok
+2026-11-20 13:50:24 [S25 c4wx4r_s0] lmap ok
+2026-11-20 14:01:19 [S25 c4wx4r_s0] score_a ok
+2026-11-20 14:11:38 [S25 c4wx4r_s0] score_b ok
+2026-11-20 14:14:28 [S25 c4wx4r_s0] diag_a ok
+2026-11-20 14:17:04 [S25 c4wx4r_s0] diag_b ok
+2026-11-20 14:18:23 [S25 c4wx4r_s0] shape_a ok
+2026-11-20 14:20:25 [S25 c4wx4r_s0] shape_b ok
+2026-11-20 14:27:41 [S25 c4wx4r_s0] denver ok
+2026-11-20 14:27:41 [S25 c4wx4r_s0] done
+2026-11-20 14:30:49 [S25 c4wref_s0] spread ok
+2026-11-20 14:33:01 [S25 c4wref_s0] smap ok
+2026-11-20 14:34:50 [S25 c4wref_s0] lmap ok
+2026-11-20 14:45:40 [S25 c4wref_s0] score_a ok
+2026-11-20 14:55:19 [S25 c4wref_s0] score_b ok
+2026-11-20 14:57:04 [S25 c4wref_s0] diag_a ok
+2026-11-20 14:59:37 [S25 c4wref_s0] diag_b ok
+2026-11-20 15:00:54 [S25 c4wref_s0] shape_a ok
+2026-11-20 15:02:50 [S25 c4wref_s0] shape_b ok
+2026-11-20 15:10:00 [S25 c4wref_s0] denver ok
+2026-11-20 15:10:00 [S25 c4wref_s0] done
