@@ -1,0 +1,9 @@
+X1 marginal-locked copula + T-roughness damping (seed 1): 1800 cases (0 skipped), fit 900, test 900, 50 members; T damping g per band 0.83 0.96 0.96 0.97
+source      vertical-corr err   CRPS u v T            shear p99 ratio per band   Ri<1 per band
+  shipped    0.051    4.832  4.686  1.939   0.71 0.90 0.88 0.93   0.659 0.294 0.192 0.116
+  locked     0.047    4.832  4.686  1.939   0.85 1.11 1.23 1.08   0.694 0.371 0.317 0.203
+  locked+T   0.047    4.832  4.686  1.938   0.85 1.11 1.23 1.08   0.701 0.359 0.313 0.201
+  balloons ri 0.734 0.361 0.196 0.154
+locked+T: err vs shipped -0.0039 (locked alone -0.0030); CRPS u +0.00 % v +0.00 % T -0.03 %; err <= shipped - 0.005 FAIL; CRPS u v T <= +0.1 % ok; p99 5-12 km >= 0.90 ok; Ri<1 5-12 and 12-18 km within 0.03 FAIL
+VERDICT (pre-set rule, this seed): MISS
+Notes: development window (2024-25), tool balloon-corrected, templates from the same station's balloons: not a blind test. Both seeds must pass; PASS -> ASK_LATER only.
