@@ -1,0 +1,8 @@
+# New_Plan 28.10 step 2 (X4 line, variant b), picked from the x4s25 KILL (AUTOPILOT 644): x4s25 beat base at Denver by +0.15 / +0.17 but failed
+# shape (event_cov_gap on v 0-1 / 1-5 km, skew_diff on rh2m / RH 0-1 km, vcorr_err u / T) and NM/TX (-0.0012 s100, mostly T bands).
+# Changes vs x4.toml: v kept plain too (v was the one Denver loser, -0.16 / -0.07, and the event_cov_gap cell), and the climatology offset
+# halved (anom_blend 0.5) so the per-level offsets tear the profile half as much. RH stays plain.
+anom_clim = true
+anom_mean_only = true
+anom_skip = ["RH_", "v_"]
+anom_blend = 0.5

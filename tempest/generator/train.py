@@ -67,6 +67,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 anom_clim=False,            # AV21: learn standardised anomalies from a per-point harmonic climatology (model anom); False = off
                 anom_mean_only=False,       # AV40: with anom_clim, use the climatology mean only (anomaly spread = training sd); False = AV21 mean + spread
                 anom_skip=[],               # X4: target-name prefixes kept as plain outputs (no climatology), e.g. ["RH_"]; [] = all anomaly
+                anom_blend=1.0,             # X4 line (28.10): scale on the climatology offset of the non-skipped outputs; 1.0 = unchanged
                 nest_widths=None,
                 # New_Plan section 25 keys, all off by default (tempest/generator/s25_losses.py, s25_models.py):
                 es_beta=1.0,                # GF1b: energy-score exponent; 1 = the shipped energy_score
@@ -243,9 +244,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                                 tm=[float(x) for x in tm], ts=[float(x) for x in ts])
         if cfg["anom_mean_only"]:
             model_kw["anom"]["mean_only"] = True
-        if cfg["anom_skip"]:
-            model_kw["anom"]["mask"] = [0.0 if any(t.startswith(p) for p in cfg["anom_skip"]) else 1.0 for t in tnames]
-            assert len(model_kw["anom"]["mask"]) == len(tm) and 0 < sum(model_kw["anom"]["mask"]) < len(tm), "anom_skip must match some, not all, targets"
+        if cfg["anom_skip"] or cfg["anom_blend"] != 1.0:                # the mask scales the offset (mean_only) / mixes anomaly and plain (full)
+            assert 0 < cfg["anom_blend"] <= 1, "anom_blend must be in (0, 1]"
+            model_kw["anom"]["mask"] = [0.0 if any(t.startswith(p) for p in cfg["anom_skip"]) else float(cfg["anom_blend"]) for t in tnames]
+            assert len(model_kw["anom"]["mask"]) == len(tm) and 0 < sum(model_kw["anom"]["mask"]) < len(tm), "anom_skip / anom_blend must leave some, not all, targets at full anomaly"
         log(f"anom_clim: harmonic climatology at {len(anom_tab[0])} points from {len(ref)} training rows")
 
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch

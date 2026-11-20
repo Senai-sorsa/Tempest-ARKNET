@@ -1,7 +1,7 @@
 """New_Plan section 25 judges, one function per item, each with its PRE-SET RULE in its docstring (written before any run).
 
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py ITEM      ITEM: gf2 gf2_follow gf4 gf1_screen gf1
-                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w av34s25 av19s25 x4s25
+                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w av34s25 av19s25 x4s25 x4bs25
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py --selfcheck
 Result: docs/results/logs/kit_s25_<item>.log (a VERDICT line); picks for a phase-2 run go to docs/results/logs/s25_<item>_pick.txt.
 
@@ -505,8 +505,17 @@ def x4s25(L):
     return av19s25(L, "x4s25", os.environ.get("S25_STACK", "base"))
 
 
+def x4bs25(L):
+    """X4BS25 PRE-SET RULE (New_Plan 28.10 step 2, written 2026-11-20 04:58 before the run): X4 variant b (configs/s25/x4b.toml: climatology-mean
+    anomaly, RH and v plain, offset x0.5), seeds 0 and 100, Denver with the table refit on Denver rows <= 2020, vs the base (AV19 KILL).
+    Same rule as x4s25 / av19s25: Denver skill15 gain > base Denver seed noise in both seeds and no shape FAIL, else KILL; PASS if also NM/TX
+    skill15 (b) loss <= 0.0009 and preclip / cov99 ok in both seeds; else MISS. The variant was picked from the x4s25 failure mode (not tuned on
+    2024-25 scores), and the 2026 final test stays the untouched holdout."""
+    return av19s25(L, "x4bs25", "base")
+
+
 ITEMS = dict(gf2=gf2, gf2_follow=gf2_follow, gf4=gf4, gf1_screen=gf1_screen, gf1=gf1, gx2=gx2, gt2=gt2, gf3=gf3, mf2=mf2, gx1=gx1,
-             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w, av34s25=av34s25, av19s25=av19s25, x4s25=x4s25)
+             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w, av34s25=av34s25, av19s25=av19s25, x4s25=x4s25, x4bs25=x4bs25)
 
 
 def judge(item):
