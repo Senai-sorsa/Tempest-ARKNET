@@ -3,7 +3,8 @@
 # scripts/ur15_opendata.py, so a tail table fit on the 2021 + 2022 members (data/kit/ur_members/ftnest*_y2022*.npz) can be judged there.
 # Same flags as cpu_ur15_eval.sh's ftnest runs, plus --save-members and --stem-suffix _mem (new names: <stem>_mem_tf2324_*; nothing overwritten).
 # One evaluation at a time; peak ~19 GB (ftnest_s0 2026-11-19 hit 18.4 GB and paged to 0 GB free from a 15 GB start),
-# so the start gate is the 2 GB floor + ~20 GB peak = 22 GB free, and it waits for no other il6_modeF.py job. A rerun keeps finished files.
+# so the start gate is 19 GB free: idle MemFree on this 32 GB PC is only ~19.5 GB (22 never opens), and ~8 GB of
+# Windows standby cache (not in MemFree) is reclaimed first. Waits for no other il6_modeF.py job. A rerun keeps finished files.
 # Launch: nohup bash scripts/cpu_x2_ftnest_members.sh &   Log: data/l3.log [X2]; per run data/x2_<name>.log.
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
 . scripts/cap_cpu.sh
@@ -23,7 +24,7 @@ for b in nmtx denver; do
     name=ftnest${tag}_s$S; net=models/ur2_ftnest${tag}_s$S.pt; out=data/kit/ur_members/${name}_tf2324.npz
     [ -f $net ] || { log "no $net, skipped"; continue; }
     [ -f $out ] && { log "$name exists, kept"; continue; }
-    until [ "$(busy)" -eq 0 ] && [ "$(free_gb)" -ge 22 ]; do sleep 60; done
+    until [ "$(busy)" -eq 0 ] && [ "$(free_gb)" -ge 19 ]; do sleep 60; done
     $PY -W ignore -u scripts/il6_modeF.py --rows-dir data/modeF_v2$dn $NEST --no-place --seed $S --out $net --test-file $TF \
       --save-cell-rows --stem-suffix _mem --save-members $out > data/x2_$name.log 2>&1 && log "$name done" || log "FAILED $name"
   done
