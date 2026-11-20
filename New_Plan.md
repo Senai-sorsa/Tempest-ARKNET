@@ -2784,6 +2784,14 @@ Hybrids looked at and not added:
 - **Global stage link:** X4 is a generator (network) change, so it must be settled before G1-G4 training on the supercomputer; post-network parts (range calib, shear / lapse maps, AV35, trust, SIGMA steps, site factors) can still change after the global run on CPU, network changes need retraining or at least a fine-tune from the global checkpoint.
 - Code needed for steps 2-4: an anom_blend factor and an anom_min_height option in train.py / model.py (default off, same pattern as anom_skip); input-conditioning (step 4) only if reached.
 
+### 28.11 Road to the final model (user ruling 2026-11-20 ~01:45, no permission asks from here)
+1. Finish AV19 (28.3 step 3) and the first X4 arm (28.10 step 1).
+2. **If X4 does not PASS:** X4 diagnosis task: read the x4s25 shape / diag / Denver logs, line them up against the other runs that touched the same targets (AV21 full anomaly, AV40/AV41 anomaly mean, AV19, AV34, b8x shape fixes), look up published fixes for climatology-anomaly outputs breaking moisture / vertical structure, then quick tests (short trains or post-hoc checks on development years) to pick the next 28.10 variant; repeat until a variant passes on development years, confirm once on 2024-25.
+3. **Final model = the most optimal combination, decided by me:** all PASS parts plus the best MISS parts (29 scrap list, 28.9), chosen by the greedy rule on development years with a 2024-25 confirmation. **Almost no opt-ins:** every chosen part is ON by default in the tool and bundle; a flag stays only where a part is site- or mode-specific by nature (e.g. Mode F inputs). Record each choice here and in AUTOPILOT, report, never ask.
+4. Freeze (28.5 bundle, hashes, dry-run).
+5. **Final 2026 test: user gave the go (2026-11-20), valid only after step 4**, run once.
+6. Further tests on the frozen model (no tuning on 2026), then set up the G stage (28.6 / GLOBAL_PLAN G0 prep; no G1-G6 training).
+
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
 **29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
