@@ -1,0 +1,5 @@
+2026-11-20 00:37 S25 AV34S25 (AV34S25 PRE-SET RULE (New_Plan 28.8 step 2, written 2026-11-19 23)
+  av34s25 s0: skill15(b) 0.0311 vs base 0.0299 (+0.0012, noise 0.0012) beats; shape FAIL event_cov_gap,shear_ks; preclip +0.00000 ok; cov99 ok; Denver skill15 n/a vs base -0.2054 (report)
+  av34s25 s100: skill15(b) 0.0321 vs base 0.0311 (+0.0010, noise 0.0012) inside noise; shape FAIL event_cov_gap,shear_ks; preclip +0.00000 ok; cov99 ok; Denver skill15 n/a vs base -0.2146 (report)
+VERDICT (pre-set rule): KILL
+
