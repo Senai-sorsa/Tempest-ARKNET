@@ -59,7 +59,7 @@ def main():
             if os.path.exists(part):
                 mem.append(torch.load(part, map_location="cpu", weights_only=True))
                 continue
-            while free_gb() < 10:                               # loading the rows takes a few GB; a Mode F evaluation may hold 14-17 GB
+            while free_gb() < 6:                                # 2 GB floor + ~4 GB fold peak (rows already loaded); was 10, stalled s100 at 6.7 GB free 2026-11-19
                 time.sleep(30)
             print(f"fold {k}: held-out years {holdout_years(LAST, fold_of(k))}", flush=True)
             mem.append(train(d["cond"][keep], d["target"][keep], year, {**cfg, "seed": a.seed + k, "holdout_fold": fold_of(k)}, meta=meta, out=part))
