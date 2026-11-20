@@ -1,0 +1,18 @@
+       metric  var     band   value  goal    ratio
+tail_rate_err   RH 12-18 km 20.0366  0.20 100.1829
+tail_rate_err   RH  5-12 km 18.2490  0.20  91.2449
+tail_rate_err   RH   1-5 km  7.5479  0.20  37.7397
+tail_rate_err rh2m  surface  2.0224  0.20  10.1121
+tail_rate_err   RH   0-1 km  1.1051  0.20   5.5253
+tail_rate_err    u  5-12 km  0.9085  0.20   4.5426
+event_cov_gap   RH  5-12 km  0.2235  0.05   4.4696
+tail_rate_err    T  5-12 km  0.8368  0.20   4.1841
+       pit_tv    T  5-12 km  0.0643  0.02   3.2143
+event_cov_gap   RH 12-18 km  0.1520  0.05   3.0398
+pit_tv           mean over cells 0.0356  goal 0.02
+cov_err_mean     mean over cells 0.0114  goal 0.008
+skew_diff        mean over cells 0.0628  goal 0.15
+kurt_diff        mean over cells 0.2739  goal 0.4
+tail_rate_err    mean over cells 2.9094  goal 0.2
+event_cov_gap    mean over cells 0.0023  goal 0.05
+wrote models/s25/x4rs25_s100_diag_b_cell8.csv
