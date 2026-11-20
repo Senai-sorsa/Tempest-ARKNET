@@ -1,0 +1,5 @@
+2026-11-19 23:57 S25 N1C4W (N1C4W PRE-SET RULE (New_Plan 28.8 step 1, written before the run))
+  n1c4w s0: skill15(b) 0.0316 vs base 0.0299 (+0.0017, noise 0.0012) beats; shape FAIL cov_err_mean,pit_tv; preclip -0.00678 ok; cov99 ok; Denver skill15 -0.2281 vs base -0.2054 (report)
+  n1c4w s100: skill15(b) 0.0313 vs base 0.0311 (+0.0002, noise 0.0012) inside noise; shape FAIL cov_err_mean,event_cov_gap,pit_tv,vcorr_err; preclip -0.00611 ok; cov99 ok; Denver skill15 -0.2043 vs base -0.2146 (report)
+VERDICT (pre-set rule): KILL
+
