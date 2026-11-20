@@ -1,0 +1,4 @@
+NMTX: 377 points from 400000 rows
+DEN: 81 points from 400000 rows
+k 3.0: coefficients kept NM/TX 0.003, Denver 0.132
+models/s25/x4ers25_s0.pt.part: X4-R table at 458 points (k 3.0), zero-table check ok
