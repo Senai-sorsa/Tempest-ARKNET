@@ -35,16 +35,18 @@ def main():
     ap.add_argument("--seed", type=int, default=0, help="member k trains with seed + k (p2f: 0, p2f_s1: 100)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--rows", type=int, default=60000)
+    ap.add_argument("--config", default="configs/generator_p2f.toml", help="generator recipe (28.8: configs/s25/gen/base_s0.toml = the c4w paired base)")
+    ap.add_argument("--data", default=DATA, help="training rows (28.8: data/train/pilot80_l21_all24_dpd.npz, as scripts/s25_arm.sh)")
     ap.add_argument("--m", type=int, default=199)
     ap.add_argument("--same-fold", type=int, default=-1, choices=(-1, 0, 1, 2, 3), help="UR8 control (New_Plan 17.2): every member holds out the SAME fold's 4 years "
                     "(no cross-fitting, same amount of data; fold 0 = 2008-09 + 2016-17 keeps 2021-23 in training), range map from that fold's rows; -1 = cross-fit as before")
     a = ap.parse_args()
     fold_of = (lambda k: k) if a.same_fold < 0 else (lambda k: a.same_fold)
-    d = load_npz(DATA)
+    d = load_npz(a.data)
     if not os.path.exists(a.out):
-        with open("configs/generator_p2f.toml", "rb") as f:
+        with open(a.config, "rb") as f:
             cfg = tomllib.load(f)
-        cfg.pop("members")
+        cfg.pop("members", None)
         year = np.asarray(d["year"])
         ok = (year >= 1991) & (year <= LAST)
         keep = slice(np.flatnonzero(ok)[0], np.flatnonzero(ok)[-1] + 1)   # a memory-mapped slice (the kept years are not contiguous: a row copy would hold 4.4 GB RAM)

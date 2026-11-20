@@ -1,7 +1,7 @@
 """New_Plan section 25 judges, one function per item, each with its PRE-SET RULE in its docstring (written before any run).
 
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py ITEM      ITEM: gf2 gf2_follow gf4 gf1_screen gf1
-                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5
+                                                                                                      gx2 gt2 gf3 mf2 gx1 gt1 mf1 h1 h3 h4 h2 h5 n1c4w
     PYTHONPATH=".;new_plan_kit;scripts" .venv/Scripts/python -W ignore new_plan_kit/s25_judges.py --selfcheck
 Result: docs/results/logs/kit_s25_<item>.log (a VERDICT line); picks for a phase-2 run go to docs/results/logs/s25_<item>_pick.txt.
 
@@ -443,8 +443,27 @@ def h5(L):
     return "PASS" if "PASS" in vs else "KILL"
 
 
+def n1c4w(L, name="n1c4w"):
+    """N1C4W PRE-SET RULE (New_Plan 28.8 step 1, written before the run): N1 cross-fitted members on the c4w recipe vs the paired base, seeds
+    0 and 100. Target = mean skill15 (unknown drivers) on stack (b), higher is better; noise = |base_s0 - base_s100| of it. KILL if the gain
+    is inside noise in either seed or any shape FAIL; PASS if preclip and cov99 gates also hold in both seeds (the -0.0009 skill gate is
+    implied by the target); else MISS. A PASS keeps N1 in the 28.3 stack; the AV34 trust refit (step 2) then runs on it."""
+    nz = abs(skill15("base", SEEDS[0]) - skill15("base", SEEDS[1]))
+    gs = {s: gates(name, s, "base") for s in SEEDS}
+    beats = {}
+    for s in SEEDS:
+        a, b, g = skill15(name, s), skill15("base", s), gs[s]
+        beats[s] = a - b > nz
+        L.append(f"  {name} s{s}: skill15(b) {a:.4f} vs base {b:.4f} ({a - b:+.4f}, noise {nz:.4f}) {'beats' if beats[s] else 'inside noise'}; "
+                 f"shape {'FAIL ' + g['shape_worse'] if g['shape_fail'] else 'ok'}; preclip {g['preclip']:+.5f} {'ok' if g['preclip_ok'] else 'FAIL'}; "
+                 f"cov99 {'ok' if g['cov_ok'] else 'FAIL'}; Denver skill15 {denver(name, s)} vs base {denver('base', s)} (report)")
+    if any(g["shape_fail"] for g in gs.values()) or not all(beats.values()):
+        return "KILL"
+    return "PASS" if all(g["preclip_ok"] and g["cov_ok"] for g in gs.values()) else "MISS"
+
+
 ITEMS = dict(gf2=gf2, gf2_follow=gf2_follow, gf4=gf4, gf1_screen=gf1_screen, gf1=gf1, gx2=gx2, gt2=gt2, gf3=gf3, mf2=mf2, gx1=gx1,
-             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5)
+             gt1=gt1, mf1=mf1, h1=h1, h3=h3, h4=h4, h2=h2, h5=h5, n1c4w=n1c4w)
 
 
 def judge(item):
@@ -491,6 +510,9 @@ def _selfcheck():
         assert paired_rule("tie", "base", t_vcorr_vario, L) == "KILL"
         assert paired_rule("lossy", "base", t_vcorr_vario, L) == "MISS"
         assert paired_rule("bad_shape", "base", t_vcorr_vario, L) == "KILL"
+        for s, sk in ((0, 0.31), (100, 0.31)):
+            _fake("n1up", s, sk, 0.100 if s == 0 else 0.101)
+        assert n1c4w(L, "n1up") == "PASS" and n1c4w(L, "tie") == "KILL" and n1c4w(L, "bad_shape") == "KILL"
         assert p99_up("good", "base", L) and not p99_up("tie", "base", L)
         import torch
         for k in [f"gf2_l{a}_w{b}" for a in GF2_LR for b in GF2_WD]:

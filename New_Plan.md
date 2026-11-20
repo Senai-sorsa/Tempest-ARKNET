@@ -2749,6 +2749,13 @@ Hybrids looked at and not added:
 
 **28.7 Rules that stay.** One GPU job at a time, 16 CPU threads max, RAM > 2 GB, no GPU job at >= 85 C or on battery, never two Mode F evals, no push, no final-test run without the user's go. Verdicts keep the usual backups and logs.
 
+**28.8 28.3 build plan (2026-11-19 21:30, written before any combined run; decided by the loop under the 2026-11-19 autonomy ruling).**
+- Inputs: no section 25 part passed (GF3, H1 KILL; H4 not run), no 26 / 27 / 29 arm passed (26.2 MISS, X2 KILL, 27.5 MISS, X1 MISS). So per 28.3 the final model is the shipped base `l3_c4w` plus the earlier PASS ideas the greedy rule keeps.
+- Greedy candidates = 1A rows that act on the generator stack and share its target (stack (b) NM/TX skill15 / shape / cov99), ordered by measured gain: (1) N1 cross-fitted members (+0.0020 / +0.0026 skill15, measured on p2f, so it is rebuilt on the c4w recipe first); (2) AV34 trust layer, min-gain 0.001 (+0.0012), refit on the stack from step 1; (3) AV19 Student-t output stack (Denver +0.0189, NM/TX -0.0004); (4) AV35 shear map aloft (tool level, its own balloon shear-p99 rule, applied last).
+- Paired base: `models/s25/base_s0` / `base_s100` (c4w recipe, 6000 steps, A21 data 1991-2023, verdict 2024-25, `scripts/s25_arm.sh` stack (b)). Each step: keep the part only if the stack with it beats the stack without it on that part's target by more than base seed noise in both seeds, NM/TX skill15 loss at most 0.0009, no shape FAIL, cov99 not worse (28.3). A part that fails is dropped and the next one is tried on the unchanged stack. Ties go to the simpler stack.
+- Not greedy-stacked (different output, no shared target; each stays its own opt-in item with its own PASS, adoption still needs the user, section 8): Mode F rows 1, 2, 15, 25 (ftnest = SIGMA + NEST + world start is the Mode F candidate, 29.9), ENSF2, RA gap, IL-207b / UR9, G2-2, O2, AV6a / UR3, O1 / AV7, S1 / AV31, gusts AV13 / AV36, NOW2 / E3, DP tower, T3.
+- Step 1 cost: `scripts/n1_crossfit.py` gets `--config` / `--data` (defaults unchanged, so the p2f run is reproducible), 4 folds x 2 seeds at 6000 steps (~2 h GPU), range map from held-out years as N1, then shear and lapse maps refit in order, score (a) and (b) as s25_arm.sh.
+
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
 **29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
