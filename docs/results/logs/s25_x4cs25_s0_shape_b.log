@@ -1,0 +1,47 @@
+         metric   var     band    value
+shear_p99_ratio shear   0-1 km   1.0113
+   ri_lt1_share    ri   0-1 km   0.6635
+   ri_lt1_truth    ri   0-1 km   0.6633
+shear_p99_ratio shear   1-5 km   1.0415
+   ri_lt1_share    ri   1-5 km   0.2506
+   ri_lt1_truth    ri   1-5 km   0.2398
+shear_p99_ratio shear  5-12 km   0.9958
+   ri_lt1_share    ri  5-12 km   0.1566
+   ri_lt1_truth    ri  5-12 km   0.1427
+shear_p99_ratio shear 12-18 km   1.0077
+   ri_lt1_share    ri 12-18 km   0.0431
+   ri_lt1_truth    ri 12-18 km   0.0402
+      vcorr_sep     u   0-1 km   0.0045
+      vcorr_sep     u   1-3 km   0.0202
+      vcorr_sep     u   3-6 km   0.0330
+      vcorr_sep     u    6+ km   0.0466
+      variogram     u      all 103.9148
+      vcorr_sep     v   0-1 km   0.0059
+      vcorr_sep     v   1-3 km   0.0133
+      vcorr_sep     v   3-6 km   0.0211
+      vcorr_sep     v    6+ km   0.0235
+      variogram     v      all 112.2358
+      vcorr_sep     T   0-1 km   0.0056
+      vcorr_sep     T   1-3 km   0.0242
+      vcorr_sep     T   3-6 km   0.0581
+      vcorr_sep     T    6+ km   0.0579
+      variogram     T      all  23.1224
+      vcorr_sep    RH   0-1 km   0.0110
+      vcorr_sep    RH   1-3 km   0.0187
+      vcorr_sep    RH   3-6 km   0.0213
+      vcorr_sep    RH    6+ km   0.0244
+      variogram    RH      all 152.2516
+     block_crps block       b0   0.4195
+     block_crps block       b1   0.4396
+     block_crps block       b2   0.4215
+     block_crps block       b3   0.4307
+     block_crps block       b4   0.4623
+     block_crps block       b5   0.4382
+     block_crps block       b6   0.4382
+      vcorr_nbr block    b0-b1   0.0145
+      vcorr_nbr block    b1-b2   0.0217
+      vcorr_nbr block    b2-b3   0.0382
+      vcorr_nbr block    b3-b4   0.0290
+      vcorr_nbr block    b4-b5   0.0226
+      vcorr_nbr block    b5-b6   0.0335
+wrote models/s25/x4cs25_s0_s25shape_b_cell8.csv
