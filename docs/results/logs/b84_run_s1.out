@@ -1,0 +1,9 @@
+26.2 combined copula + damped stretch 12-18 km (seed 1): 1800 cases (0 skipped), fit 900, test 900, 50 members; f per band 1.00 1.00 1.00 1.09
+source      vertical-corr err   CRPS u v T            shear p99 ratio per band   Ri<1 per band
+  shipped    0.051    4.832  4.686  1.939   0.71 0.90 0.88 0.93   0.659 0.294 0.192 0.116
+  W2 copula  0.050    4.852  4.687  1.939   0.70 0.89 0.94 0.94   0.665 0.333 0.264 0.181
+  combined   0.050    4.853  4.688  1.939   0.70 0.89 0.94 1.01   0.665 0.333 0.264 0.218
+  balloons ri 0.734 0.361 0.196 0.154
+combined: err vs shipped -0.0003 [-0.0115, +0.0142]; CRPS u +0.43 % v +0.04 % T +0.00 %; error <= 0.047 FAIL; vs shipped interval below 0 FAIL; CRPS <= +0.3 % FAIL; p99 0.90-1.10 all bands FAIL; Ri<1 12-18 km within 0.03 and not farther than shipped FAIL
+VERDICT (pre-set rule, this seed): MISS
+Notes: development window (2024-25), tool balloon-corrected, templates from the same station's balloons: not a blind test. Both seeds must pass; PASS -> ASK_LATER only.

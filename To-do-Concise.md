@@ -155,3 +155,4 @@ Processes to finish and check:
 [x] H1 **KILL** 2026-11-19 (prior costs skill15 vs control and base, shape FAIL); H4 skipped. GPU lane done. Next: W2 seed 1 (1800 cases), V5a rerun, 26.2, then 28.3.
 [x] 26.1 W2 rerun (1800 cases): seed 0 PASS, seed 1 MISS (u CRPS +0.41 %) -> MISS stands. V5a rerun running. Next: 26.2.
 [x] 26.1 step 1 done: V5a MISS both seeds; all old verdicts stand. Next: 26.2 combined copula + damped shear at 12-18 km.
+[x] 26.2 combined copula + damped stretch: MISS both seeds (corr err interval crosses 0 / 0.050, Ri<1 12-18 km 0.22-0.24). Next: X2 arm (29.8), then 27, X1.
