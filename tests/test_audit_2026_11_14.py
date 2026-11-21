@@ -88,5 +88,5 @@ def test_forecast_mode_has_no_nan_over_high_ground(cold):
 
 def test_final_test_scores_the_shipped_model():
     txt = open(os.path.join(HERE, "scripts", "final_test_2026h2.sh"), encoding="utf-8").read()
-    assert re.search(r"^N=models/l3_c4w ", txt, re.M) and "source_sha256" in txt and "exit 6" in txt
+    assert re.search(r"^N=models/s25/c4wx4r_s0 ", txt, re.M) and "source_sha256" in txt and "exit 6" in txt  # 28.5 freeze model (manifest model_source)
     assert txt.index("source_sha256") < txt.index("FINAL_TEST_2026H2_DONE\n") or txt.index("source_sha256") < txt.index('echo "started')
