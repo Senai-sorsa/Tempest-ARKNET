@@ -75,6 +75,7 @@ def main():
     ap.add_argument("--last-test-year", type=int, help="score only up to this year")
     ap.add_argument("--hour", type=int, default=0, choices=[0, 12], help="A24 (2026-11-10): launch hour of the scored AND climatology soundings, 0 = 00Z (about 17 h solar, the default) or 12 = 12Z (about 05 h solar, night; outputs get a _12z suffix)")
     ap.add_argument("--first-test-month", type=int, help="with --first-test-year: score only soundings from this month of the first test year on (the 2026 July-October final window; 2026 January-June was already used)")
+    ap.add_argument("--last-test-month", type=int, help="with --last-test-year: score only soundings up to this month of the last test year (2026H2 final window ends in October)")
     ap.add_argument("--station-calib-year", type=int, help="also fit a balloon range calibration (pooled per variable x "
                     "height band) on this year's soundings and apply it on top; must be before --first-test-year")
     ap.add_argument("--station-calib-from-year", type=int, help="fit the balloon calibration on from-year..station-calib-year "
@@ -178,6 +179,8 @@ def main():
         tr, va = np.flatnonzero(t.year < held_from), np.flatnonzero(t.year >= start)
         if a.first_test_month:                                                         # only the months from first_test_month of the first test year on (later years whole)
             va = va[(t.year[va] != held_from) | (t.month[va] >= a.first_test_month)]  # audit #19: calibration years before held_from stay whole
+        if a.last_test_month:                                                          # final-test 28.14 mistake hunt: November soundings fell outside the July-October window
+            va = va[(t.year[va] != last) | (t.month[va] <= a.last_test_month)]
         print(f"{sid}: {len(va):,} complete held-out {a.hour:02d}Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
         p = nearest_point(ds, slat, slon)
         lat, lon, z = (float(ds[k].values[p]) for k in ("lat", "lon", "z_sfc"))

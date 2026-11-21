@@ -57,6 +57,19 @@ for ym in ("202607", "202608", "202609", "202610"):
         print("carried WWV forward to", ym)
 open(p, "w", encoding="utf-8").write("\n".join(lines) + "\n")
 PYEOF
+  # 28.14 mistake hunt (run 2): ONI SON 2026 (= October) is published only in December; without it every October row was dropped as an index gap.
+  # Carry the last season (ASO) forward, like WWV above (an approximation of the known October driver; the unknown-driver headline does not use it).
+  $PY - "$IND/oni.txt" <<'PYEOF' || { echo "FAILED oni"; exit 5; }
+import sys
+p = sys.argv[1]
+lines = [l for l in open(p, encoding="utf-8").read().splitlines() if l.strip()]
+if not any(l.split()[:2] == ["SON", "2026"] for l in lines):
+    last = lines[-1].split()
+    assert last[:2] == ["ASO", "2026"], last
+    lines.append(f"  SON 2026  {last[2]}   {last[3]}")
+    print("carried ONI ASO 2026 forward to SON 2026 (October)")
+open(p, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+PYEOF
 fi
 [ -d $PROF ] || $PY -W ignore -u -m tempest.profiles.to_heights --raw data/raw/era5_em_2026h2 --cds data/raw/era5_cds_2026h2 --out $PROF --first-year 2026 > $OUT/to_heights.log 2>&1 || { echo "FAILED to_heights"; exit 5; }
 [ -f $PART ] || $PY -W ignore -u -m tempest.generator.build_dataset --profiles $PROF --indices $IND --out $PART --first-year 2026 --last-year 2026 --station-map models/station_map_mix.npz --features base --rh-target dpd > $OUT/build.log 2>&1 || { echo "FAILED build"; exit 5; }
@@ -99,9 +112,9 @@ $PY -W ignore -u -m tempest.scoring.score --model models/ft26_p2f.pt --data $D -
   --shuffle --template-cell 8 --shear-map $PSM > $OUT/era5_p2f.log 2>&1
 for X in c4w p2f; do M=$([ $X = c4w ] && echo $N || echo $P); SM=$([ $X = c4w ] && echo $NSM || echo $PSM)
   $PY -W ignore -u -m tempest.scoring.sonde --model models/ft26_$X.pt --data $D --profiles data/pilot/profiles80.zarr --igra data/raw/igra_2026 --m 199 --first-test-year 2026 --last-test-year 2026 \
-    --first-test-month 7 --calib $M.calib2021.npz --shear-map $SM --extras > $OUT/sonde_$X.log 2>&1
+    --first-test-month 7 --last-test-month 10 --indices $IND --calib $M.calib2021.npz --shear-map $SM --extras > $OUT/sonde_$X.log 2>&1
 done
 echo "finished $(date '+%F %T')" >> data/FINAL_TEST_2026H2_DONE
 mkdir -p $OUT/headlines; cp models/ft26_*headline.csv $OUT/headlines/ 2>/dev/null
-$PY scripts/compare_headline.py models/ft26_p2f_cal2021_smap_shufc8_headline.csv models/ft26_c4wp_cal2021_smap_shufc8_lmap_headline.csv > $OUT/compare_era5.txt 2>&1   # same rows (file D)
+$PY scripts/compare_headline.py models/ft26_p2f_cal2021_smap_shufc8_fair_headline.csv models/ft26_c4wp_cal2021_smap_shufc8_lmap_fair_headline.csv > $OUT/compare_era5.txt 2>&1   # same rows (file D)
 echo "done: logs and headlines in $OUT"
