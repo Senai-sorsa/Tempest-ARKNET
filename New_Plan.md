@@ -2846,9 +2846,9 @@ Hybrids looked at and not added:
    - **DP tower: IN, reproduces.** `Launch.observe_tower()` = observe_radar with sigma 0.5 and model levels <= 200 m (kit settings; test checks equality). b67 rerun under current defaults (20:25): 30 min gain 50.1 % [12.8, 72.1] (kit 48.9 %), 60 min 37.2 % [0.4, 57.3]; PASS.
    - **NOW2: IN (input-driven).** `Launch.observe_nowcast` + `tempest_weather_v2/nowcast.py` + package asset `tempest_weather_v2/data/nowcast.npz` (built by `scripts/build_nowcast_asset.py`); `test_nowcast.py` 3 pass.
    - **ENSF2: IN (input-driven).** Freeze checklist: export with `--modef-ens models/modeF_ens.pt`.
-   - **G2-2 Student-t update: default `t_update=True`** (launch.py); b3 kit control arm uses `t_update=False`. Port rerun (`data/g22port.out`) still running at 20:30; target top-10 % cov90 0.85 -> 0.92, rest CRPS ~ -0.0003. Recorded when done.
+   - **G2-2 Student-t update: OUT (port did not reproduce, 20:35).** Rerun of b3 on the current stack: the plain observe already covers the top-10 % surprise cases at 0.90 (kit 2026-11-12: 0.85), so the t widening overshoots (0.92) and costs CRPS (top 10 % +0.0151 [-0.0349, +0.0557], rest +0.0007 [-0.0004, +0.0018]); verdict FAIL. Default set back to `t_update=False` (opt-in as before), test_obs restored to the opt-in check.
    - **AU-1 fair baseline default** (score.py / sonde.py, `--plain-baseline` = old), README line 20.
-   - **OUT (do not delay the freeze):** AV36 / AV12 (no measured gust or blh input in the tool; kit scored a point MAE predictor, not an ensemble); E3 (pair table not in the tool); SIGMA days 8-10 (beyond the tool's 7.5-day range).
+   - **OUT (do not delay the freeze):** G2-2 (above); AV36 / AV12 (no measured gust or blh input in the tool; kit scored a point MAE predictor, not an ensemble); E3 (pair table not in the tool); SIGMA days 8-10 (beyond the tool's 7.5-day range).
    - Full pytest: not completed (run 1 cut by a 2400 s timeout at ~13 %, run 2 killed for low memory; not restarted). Every item test above passes on its own.
 
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)

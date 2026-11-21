@@ -458,7 +458,7 @@ class Launch:
             s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
                                                                                   spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
         t_fac = None
-        if self._obs.get("_t_update"):       # G2-2 (default for ground reports): Student-t widening of the conditioned members when the readings surprise the prior
+        if self._obs.get("_t_update"):       # G2-2 (opt-in): Student-t widening of the conditioned members when the readings surprise the prior
             t_fac = _t_widen_factor(base._ensure_pool()["samples"], eng_obs, sig)
             for k in ("u", "v", "t2m"):     # shortcut: T / p / RH profiles not widened (rho and sound speed would need recomputing); widen them if wind + t2m pass
                 if k in s:
@@ -502,7 +502,7 @@ class Launch:
             eng_obs[("wind_u", float(h))], eng_obs[("wind_v", float(h))] = float(ur), float(vr)
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=True):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=False):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
@@ -525,7 +525,7 @@ class Launch:
         soft = any(v is not None for v in (age_hours, distance_km, elevation_diff_m))
         if speed_space or (speed_space is None and OBS_SPEED_SPACE and soft):   # W6: update the 10 m speed in normal-score space of the prior's own speed distribution (see _speed_space_update); default for soft observations
             obs["_speed_space"] = True
-        if t_update:                # G2-2 (ON by default since New_Plan 28.11 item 8; t_update=False = old update): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
+        if t_update:                # G2-2 (opt-in, off by default; port rerun 2026-11-20 did not reproduce, New_Plan 28.11 item 13): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
             obs["_t_update"] = True
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
