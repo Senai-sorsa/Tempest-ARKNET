@@ -67,7 +67,7 @@ def to_profiles(doc, elevation=None, liquid_phase=True):
     shape = agl.shape[:-1] + (1,)
     hw = np.concatenate([np.full(shape, 10.0), agl], -1)
     ht = np.concatenate([np.full(shape, 2.0), agl], -1)
-    rh_anchor = rh2m if rh2m is not None else np.where(np.isfinite(rh[..., :1].squeeze(-1)), np.clip(rh[..., 0], 0, 100), np.nan)
+    rh_anchor = rh2m if rh2m is not None else np.take_along_axis(np.where(above, np.clip(rh, 0, 100), np.nan), np.argmax(above, -1)[..., None], -1)[..., 0]  # lowest above-ground level (Gemini 2026-11-20)
     out = dict(
         time=np.array(h["time"], dtype="datetime64[m]"),
         u=interp_columns(hw, np.concatenate([u10[..., None], u], -1), HEIGHTS, 100, log_first=LOG_TO_FIRST_LEVEL),

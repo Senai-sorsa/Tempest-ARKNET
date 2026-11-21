@@ -2894,3 +2894,28 @@ Hybrids looked at and not added:
 **29.9 X2 arm + 27.5 result (2026-11-19 20:06).** X2 KILL (factor gap 0.26-0.77 between fit years, cov99 stays 0.03-0.13 short); 27.5 MISS (NM/TX 5-9 d +0.6 to +1.3 % vs SIGMA; 1 d cov99 ~0.03 under binned). Run on the PIT members (stated deviation in the b85 header); b85 scores 16 cells incl. 12-18 km, 27.5 below 12 km. Row in section 9. Section 27 closed; next 28.3 (greedy, ftnest as the Mode F candidate), X1 (b86, CPU), X4, X5.
 
 **29.10 X1 result (2026-11-19 20:45).** X1 MISS on both seeds (err gain 0.001 / 0.004 < 0.005; Ri<1 0.12 over balloons at 5-12 km, 0.05 at 12-18 km). Copula line closed, no ASK_LATER. Row in section 9. Next: 28.3 greedy (1A rows 1-25; no X has passed), X4 (GPU), X5 (CPU).
+
+**28.12 Gemini code review (2026-11-20 ~22:00, AUTOPILOT 676; backup bak143).** Every finding was checked with a test. Real and FIXED:
+- (1) `stats.Coupled` conditional draws mapped columns through the wrong marginals (couple() / CLI only, not the main pool).
+- (2) Speed-space and site-cal factor uncapped aloft: new `launch._level_factor` keeps 10 m exact and caps aloft at 1/3..3, tapering to 1 at SPEED_TOP_M. Shipped pool: max k 4.7, 0.024 % of members > 3.
+- (3) A speed with no direction was pinned as a north wind (direct API only; METAR drops VRB): it now moves the speed only.
+- (4) observe_radar / observe_tower crashed with no elevation.
+- (5) regust / provenance used the default asset set, not the solar-hour one (Denver overlap).
+- (6) Soft observations were not inflated with inflate_decay_m (default None, latent), and `conditioned()` dropped localize_m.
+- (7) api grid step hard-coded 0.25 (latent).
+- (8) Bias hour floored (opt-in TEMPEST_BIAS_DIR).
+- (9) Fractional sequence / downrange offsets collided seeds; downrange UTC time shifted.
+- (10) Dryden w recursion carried variance upward: w std 10-50 % above target above 100 m, < 0.1 m/s.
+- (11) avionics ducting gave the 0.2 horizon floor (now k 20).
+- (12) atomic_write temp name not thread-unique.
+- (13) x4r_offset / modeF longitude match without wrap (no effect in the US boxes).
+- (14) igra heights all-NaN if the lowest level has no T.
+- (15) nearterm RH anchor could be a below-ground level.
+
+Not bugs: the f-string (py >= 3.12) and Karman steps (speed only). Not fixed:
+- Zero surface-pressure spread is a modelling limit and needs a freeze-time model change (~0.2-0.5 % density).
+- The `tempest/output/atmosphere.py` dev copy is scripts-only; the shipped api `_cut` was fixed earlier (IL-139).
+
+Tests: new tests/test_gemini_review_2026_11_20.py and tempest_weather_v2/tests/test_v2_gemini_review_2026_11_20.py. Full pytest 536 passed. DP tower replay not rerun after the fixes (last run 20:25, before them: 50.1 %, PASS).
+
+Headline impact: none material. Validated scores come from the pool / Mode F paths, which these fixes leave unchanged except the rare k > 3 members and the Dryden w (flight-sim only). api.py fixes stay UNCOMMITTED under the freeze hold.

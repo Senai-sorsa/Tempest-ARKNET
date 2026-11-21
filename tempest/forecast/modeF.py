@@ -75,7 +75,7 @@ def load_year(year, ds, hres_dir="data/raw/wb2_hres", n_points=60, seed=0, bl=No
     truth = {v: ds[v].isel(time=tidx).values for v in PROFILE}                 # (377, nT, 44)
     pl, pn = ds.lat.values, ds.lon.values
     la_all = np.round((h.latitude.values[None, :] - pl[:, None]), 3) == 0
-    lo_all = np.round((h.longitude.values[None, :] - 360.0 - pn[:, None]), 3) == 0
+    lo_all = np.round((h.longitude.values[None, :] - pn[:, None] + 180.0) % 360.0 - 180.0, 3) == 0
     assert la_all.any(1).all() and lo_all.any(1).all(), "a store point has no matching HRES grid latitude / longitude (argmax would silently pick index 0)"
     assert (la_all.sum(1) == 1).all() and (lo_all.sum(1) == 1).all(), "duplicate HRES grid matches"
     pt_la, pt_lo = la_all.argmax(1), lo_all.argmax(1)                          # grid index of each store point
@@ -126,7 +126,7 @@ def load_year_v2(year, ds, hres_dir="data/raw/wb2_hres_v2", n_points=16, seed=0,
             truth = {v: ds[v].isel(time=tidx).values for v in PROFILE}
             pl, pn = ds.lat.values, ds.lon.values
             la_all = np.round((h.latitude.values[None, :] - pl[:, None]), 3) == 0
-            lo_all = np.round((h.longitude.values[None, :] - 360.0 - pn[:, None]), 3) == 0
+            lo_all = np.round((h.longitude.values[None, :] - pn[:, None] + 180.0) % 360.0 - 180.0, 3) == 0
             assert la_all.any(1).all() and lo_all.any(1).all(), "a store point has no matching HRES grid latitude / longitude"
             assert (la_all.sum(1) == 1).all() and (lo_all.sum(1) == 1).all(), "duplicate HRES grid matches"
             pt_la, pt_lo = la_all.argmax(1), lo_all.argmax(1)

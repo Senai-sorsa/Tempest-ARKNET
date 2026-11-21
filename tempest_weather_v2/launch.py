@@ -34,6 +34,16 @@ OBS_SPEED_SPACE = True        # W6 (2026-11-10): the speed-space update is the D
 SPEED_RHO_PER_HOUR = 0.72     # W6: hourly persistence of the 10 m speed in normal-score space (scripts/weibull_persistence.py: 0.67 TCS, 0.76 MAF, ASOS 2015-22)
 NEIGHBOUR_RHO_FROM_GAIN = True  # A3-fix B (ASK_LATER 23, adopted 2026-11-11): a report >= obs.OWN_STATION_KM away uses rho = obs.effective_gain (distance, height, age) in the speed-space step; 14 neighbour runs: coverage +0.07..+0.15, CRPS lower in 13 (kit_b3_a3fix_neighbour_rho.log). Own-station reports unchanged. False = rho from age only
 SPEED_TOP_M = 300.0           # W6: the speed-space update tapers to nothing at this height
+SPEED_K_MAX = 3.0             # Gemini 2026-11-20: the 10 m speed ratio carried to the levels above is held to [1/3, 3]; a near-calm 10 m member otherwise multiplied the 50-300 m wind by up to
+                              # ~90 (synthetic) / 4.7 (real pools, 0.02 % of members). The 10 m level itself still gets its exact target, so the W6 / site-cal validations (10 m) are unchanged
+
+
+def _level_factor(k, z):
+    """1 + (k - 1) x taper(z) per sample and height, with k clipped to [1/SPEED_K_MAX, SPEED_K_MAX] above the lowest level (which keeps k exactly)."""
+    taper = np.clip(1.0 - (np.asarray(z, float) - z[0]) / (SPEED_TOP_M - z[0]), 0.0, 1.0)
+    fac = 1.0 + (np.clip(k, 1.0 / SPEED_K_MAX, SPEED_K_MAX)[:, None] - 1.0) * taper[None, :]
+    fac[:, 0] = k
+    return fac
 
 
 def _speed_space_update(cond_u, cond_v, prior_speed, obs_speed, rho, z, rng):
@@ -53,9 +63,7 @@ def _speed_space_update(cond_u, cond_v, prior_speed, obs_speed, rho, z, rng):
     order = np.argsort(sp0)
     new0 = np.empty(n)
     new0[order] = target
-    k = new0 / np.maximum(sp0, 0.05)
-    taper = np.clip(1.0 - (np.asarray(z, float) - z[0]) / (SPEED_TOP_M - z[0]), 0.0, 1.0)
-    fac = 1.0 + (k[:, None] - 1.0) * taper[None, :]
+    fac = _level_factor(new0 / np.maximum(sp0, 0.05), z)
     return cond_u * fac, cond_v * fac
 
 
@@ -208,9 +216,9 @@ class Launch:
         return self._elev
 
     # ---- time
-    def _asset_path(self):
-        """The asset folder that serves this place: `assets=` if given, else the region set that covers it (as api.atmosphere_set chooses), else the default set (which refuses with its own message)."""
-        return self.assets or api.region_assets(self.lat, self.lon)
+    def _asset_path(self, solar_hour=None):
+        """The asset folder that serves this place: `assets=` if given, else the region set that covers it (as api.atmosphere_set chooses; with `solar_hour`, the one A24 picks for that hour), else the default set (which refuses with its own message)."""
+        return self.assets or api.region_assets(self.lat, self.lon, solar_hour=solar_hour)
 
     def _solar_window(self):
         """Solar hours the serving assets were trained for (manifest solar_hours; 06-21 h for assets exported before 2026-11-07), so an all-hours export is not cut to 06-21 h here."""
@@ -248,15 +256,15 @@ class Launch:
         """Gemini bug 3: the gust law (mean and scale of the gust excess) is a function of the 10 m wind speed; after the wind is moved by an observation or by HRRR it has to be evaluated again, otherwise the reported gust stays at the prior's value (a pinned 25 m/s wind with gust = wind). Returns samples (a new dict) with gust_mu / gust_beta recomputed, or the input if the pool has no gust law."""
         if "gust_mu" not in samples:
             return samples
-        g = api._assets(self._asset_path())["gust"]                   # the serving region's gust law (was always the default set when assets=None)
-        if g is None:
-            return samples
         ws = np.hypot(np.asarray(samples["u"], float)[:, 0], np.asarray(samples["v"], float)[:, 0])
         hrs = np.asarray(launch_times).astype("datetime64[h]")
-        mu, beta = np.empty(len(ws), np.float32), np.empty(len(ws), np.float32)
+        mu, beta = np.array(samples["gust_mu"], np.float32), np.array(samples["gust_beta"], np.float32)
         for h in np.unique(hrs):
             m = hrs == h
             t = np.datetime64(h, "s").astype(datetime).replace(tzinfo=timezone.utc)
+            g = api._assets(self._asset_path(timeutil.solar_hour(t.replace(tzinfo=None), self.lon)))["gust"]   # the region set that served this hour (A24 picks by solar hour)
+            if g is None:
+                continue
             law = (lambda ws_, *a_: api._gust_params_measured(ws_, *a_, g=g)) if measured else (lambda ws_, *a_: api._gust_params(g, ws_, *a_))   # IL-183: g carries a region's own law       # W8c: a wind conditioned on a station measurement uses the law fitted on measured winds
             mu[m], beta[m] = law(ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
         out = dict(samples)
@@ -321,9 +329,7 @@ class Launch:
         hrs = np.asarray(pool["launch_times"]).astype("datetime64[h]").astype(np.int64) % 24
         new = sitecal.apply_site(cal, sp, hrs)
         ratio = np.where(sp > 1e-6, new / np.maximum(sp, 1e-6), 1.0)
-        z = np.asarray(_core.HEIGHTS, float)
-        taper = np.clip(1.0 - (z - z[0]) / (300.0 - z[0]), 0.0, 1.0)
-        f = 1.0 + (ratio[:, None] - 1.0) * taper[None, :]
+        f = _level_factor(ratio, np.asarray(_core.HEIGHTS, float))
         s["u"], s["v"] = (u * f).astype(np.float32), (v * f).astype(np.float32)
         s = self._regust(s, pool["launch_times"])
         return dict(pool, samples=s, flags=list(pool["flags"]) + ["ground-wind-site-calibrated-" + cal["method"]])
@@ -438,7 +444,7 @@ class Launch:
         base = Launch.with_(self, _obs=None)
         eng_obs = self._obs_to_engine(base)
         sig = self._sensor_sigma(base, eng_obs)
-        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M)       # weighted observations are soft: the observed columns move with the error, they are not pinned
+        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M) if eng_obs else base.engine()       # weighted observations are soft: the observed columns move with the error, they are not pinned
         from tempest_weather_v2.montecarlo import latin_hypercube       # Gemini bug 9: stratified, not plain random, uniforms for the conditioned pool (the unconditioned pool uses Sobol)
         u = latin_hypercube(n, 16, np.random.default_rng(np.random.SeedSequence([self.seed, 2])))
         out = eng.sample_sobol(u)
@@ -447,7 +453,13 @@ class Launch:
         for k in ("gust_mu", "gust_beta"):
             if k in out:
                 s[k] = np.asarray(out[k], np.float32)
-        if self._obs.get("_speed_space") and "wind_10m" in self._measurements():        # W6 (opt-in): the 10 m speed updated in normal-score space of the prior's own speed distribution
+        speed_only = "wind_10m" in self._measurements() and "wind_from_deg" not in self._measurements()
+        soft_obs = any(k in self._obs for k in ("_age_h", "_dist_km", "_dz_m"))
+        if speed_only and not soft_obs:          # a pinned speed without a direction: every member's 10 m speed set to it, direction kept, the change fading out by SPEED_TOP_M
+            spd_obs = float(names.parse_quantity(self._measurements()["wind_10m"], "speed", self.units))
+            fac = _level_factor(spd_obs / np.maximum(np.hypot(s["u"][:, 0], s["v"][:, 0]).astype(float), 0.05), _core.HEIGHTS)
+            s["u"], s["v"] = (s["u"] * fac).astype(np.float32), (s["v"] * fac).astype(np.float32)
+        elif (self._obs.get("_speed_space") or speed_only) and "wind_10m" in self._measurements():        # W6: the 10 m speed updated in normal-score space of the prior's own speed distribution
             bs0 = base._ensure_pool()["samples"]
             spd_obs = float(names.parse_quantity(self._measurements()["wind_10m"], "speed", self.units))
             age = float(self._obs.get("_age_h", 0.0) or 0.0)
@@ -486,9 +498,9 @@ class Launch:
 
     def _obs_to_engine(self, base):
         o, eng_obs = self._measurements(), {}
-        if "wind_10m" in o:
+        if "wind_10m" in o and "wind_from_deg" in o:      # Gemini 2026-11-20: a speed without a direction was pinned as a NORTH wind; it now moves the speed only (_conditioned_pool)
             spd = names.parse_quantity(o["wind_10m"], "speed", self.units)
-            frm = float(o.get("wind_from_deg", 0.0))
+            frm = float(o["wind_from_deg"])
             eng_obs[("wind_u", 10.0)] = -spd * np.sin(np.radians(frm))
             eng_obs[("wind_v", 10.0)] = -spd * np.cos(np.radians(frm))
         if "temperature" in o:
@@ -585,7 +597,8 @@ class Launch:
             profile = R.latest_profile(site, t, max_age_min=max_age_min, fetch=fetch)
             if profile is None:
                 raise ValueError(f"no {site} radar wind profile within {max_age_min} min before {t:%Y-%m-%d %H:%M} UTC")
-        elev = float(self.elevation_info()[0])
+        elev = self.elevation_info()[0]
+        elev = float(self._ensure_pool()["samples"]["elevation_m"] if elev is None else elev)     # Gemini 2026-11-20: model-grid elevation is None here (float(None) crashed)
         z = [float(x) - elev for x in profile["heights_asl_m"]]
         if not (len(z) == len(profile["u"]) == len(profile["v"])) or len(z) < 2:
             raise ValueError(f"the {site} radar profile needs at least two levels with one u and one v each (got {len(z)} heights, {len(profile['u'])} u, {len(profile['v'])} v)")
@@ -610,7 +623,8 @@ class Launch:
         top of observe(wind_10m=..., wind_from_deg=...) from the same tower's 10 m wind; do that first."""
         if not (len(heights_agl_m) == len(u) == len(v)):
             raise ValueError(f"the tower profile needs one u and one v per height (got {len(heights_agl_m)} heights, {len(u)} u, {len(v)} v)")
-        elev = float(self.elevation_info()[0])
+        elev = self.elevation_info()[0]
+        elev = float(self._ensure_pool()["samples"]["elevation_m"] if elev is None else elev)     # Gemini 2026-11-20: model-grid elevation is None here (float(None) crashed)
         prof = dict(heights_asl_m=[elev + float(h) for h in heights_agl_m], u=[float(x) for x in u], v=[float(x) for x in v], site=site, time=time)
         return self.observe_radar(site=site, profile=prof, levels_m=tuple(float(h) for h in _core.HEIGHTS if h <= 200.0), sigma_ms=sigma_ms)
 
@@ -806,7 +820,9 @@ class Launch:
     def provenance(self):
         p = self._ensure_pool()
         info0 = p["infos"][0] if p["infos"] else {}
-        return dict(package_version=__version__, format_version=FORMAT_VERSION, asset_manifest_hash=_manifest_hash(self.assets), modes=p["modes"], seed=self.seed,
+        cells = self.resolved_window().cells_utc
+        sh = timeutil.solar_hour(cells[len(cells) // 2].astype("datetime64[s]").astype(datetime), self.lon)   # shortcut: the window's middle hour picks the set; a window straddling two sets reports one
+        return dict(package_version=__version__, format_version=FORMAT_VERSION, asset_manifest_hash=_manifest_hash(self._asset_path(sh)), modes=p["modes"], seed=self.seed,
                     now=str(self._now) if self._now else None, elevation_source=p["elevation_source"], source=info0.get("source"), valid_utc=info0.get("valid_utc"), window=p["window"],
                     forecast_model=("IFS (Open-Meteo)" if "forecast" in p["modes"] else None))
 

@@ -43,6 +43,8 @@ def compute(z_true_m, pressure_Pa, temp_K, rh_pct=None, geometric=True):
     e = np.zeros_like(T) if rh_pct is None else np.clip(np.atleast_2d(np.asarray(rh_pct, float)), 0, 100) / 100.0 * saturation_vapour_hpa(T)
     N = 77.6 * (p / 100.0) / T + 3.73e5 * e / T ** 2
     dN = np.gradient(N, z, axis=1)                                                                           # per metre
-    k = 1.0 / (1.0 + RE * dN * 1e-6)
-    horizon = np.sqrt(2.0 * np.clip(k, 0.2, 20.0) * RE * np.maximum(z_agl, 0.0)[None, :]) / 1000.0
+    den = 1.0 + RE * dN * 1e-6
+    k = 1.0 / den
+    kh = np.where(den > 0.05, np.clip(k, 0.2, 20.0), 20.0)                                                   # Gemini 2026-11-20: ducting (dN/dz <= -157 /km) -> long horizon, not the 0.2 floor
+    horizon = np.sqrt(2.0 * kh * RE * np.maximum(z_agl, 0.0)[None, :]) / 1000.0
     return dict(z_true_agl_m=z_agl, z_baro_msl_m=zb, z_baro_agl_m=zb_agl, altimeter_bias_m=zb_agl - z_agl[None, :], refractivity_N=N, dN_dz_per_km=dN * 1000.0, k_factor=k, radio_horizon_km=horizon)

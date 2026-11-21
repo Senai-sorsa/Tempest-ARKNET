@@ -71,7 +71,8 @@ def heights_gph(lt2, p, gph, tk, rh):
     e = np.nan_to_num(rh[pl] / 100) * 611.2 * np.exp(17.67 * tc / (tc + 243.5))
     tv = t * (1 + 0.61 * EPS * e / p[pl])
     dz = RD / G0 * 0.5 * (tv[1:] + tv[:-1]) * (lp[:-1] - lp[1:])
-    zh = np.concatenate([[0.0], np.cumsum(dz)])  # NaN after the first level without T
+    zh = np.concatenate([[0.0], np.cumsum(np.nan_to_num(dz))])  # T is interpolated inside, so NaN only at the ends: zero those steps, the anchor offset absorbs the shift
+    zh[~np.isfinite(t)] = np.nan
     anc = np.isfinite(zh) & np.isfinite(gph[pl])
     if not anc.any():
         return z
