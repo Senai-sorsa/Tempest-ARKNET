@@ -4,7 +4,7 @@ Per hour of a sequence, at the nearest table point and the hour's month / UTC ho
   2. u and v scaled around the hour's member mean by s_u, s_v (b40 scale);
   3. hours after the first are re-ordered by a two-regime Gaussian chain on the 10 m speed (b29 regime_link): correlation rho_calm below the previous
      hour's ERA5 median, rho_windy above, rho ** gap for a gap of several hours; each hour's member set is unchanged (only which member gets which 10 m wind).
-Only the 10 m level (column 0) moves. A table cell without a fit (outside the served hours) leaves that hour as it is and restarts the chain there.
+Only the 10 m level (column 0) moves here; the tool (api.atmosphere_sequence) fades the 10 m change out by 300 m so the 10-50 m shear stays as ERA5's. A table cell without a fit (outside the served hours) leaves that hour as it is and restarts the chain there.
 Table (asset post/ur5_*): lat, lon (P,), xt, xe (P, 12, 24, Q) map knots, ok (P, 12, 24), rho (P, 12, 24, 3) = rho_calm, rho_windy, median, s (2,) = s_u, s_v.
 """
 import numpy as np
@@ -46,8 +46,11 @@ def nearest(T, lat, lon):
     return int(np.argmin((T["lat"] - lat) ** 2 + (T["lon"] - lon) ** 2))
 
 
-def apply(T, p, times, us, vs, rng):
+def apply(T, p, times, us, vs, rng, anchor=False):
     """T table, p table point, times: list of naive UTC datetimes (one per hour), us / vs: lists of (n,) 10 m u, v.
+    anchor=False: the chain's new-hour noise is random (b29 regime_link). anchor=True (tool default): the noise is each member's own 10 m rank score at that hour with the part explained
+    by the chain removed, and only the speed moves (each member keeps its own 10 m direction), so the chain keeps its lag correlation but each member's 10 m moves as little as possible (the 10 m stays paired with its own column above; b89 found
+    random re-ordering of the 10 m alone sends the 10-50 m shear p50 from 18 to 115 m/s per km).
     -> (us', vs', perms): new 10 m winds and, per hour, the member permutation applied by the chain (None = order kept)."""
     order = sorted(range(len(times)), key=lambda i: times[i])
     su, sv = float(T["s"][0]), float(T["s"][1])
@@ -69,9 +72,21 @@ def apply(T, p, times, us, vs, rng):
         else:
             rc, rw, med = T["rho"][p, mp, hp]
             rho = np.where(prev < med, rc, rw) ** gap
-            z = rho * z + np.sqrt(1 - rho ** 2) * rng.standard_normal(n)
+            if anchor:
+                c = norm.ppf((np.argsort(np.argsort(w)) + 0.5) / n)
+                r = np.corrcoef(c, z)[0, 1]
+                e = c - r * z
+                e = e / max(e.std(), 1e-9)
+            else:
+                e = rng.standard_normal(n)
+            z = rho * z + np.sqrt(1 - rho ** 2) * e
             perm = np.argsort(w)[np.argsort(np.argsort(z))]
-            us[i], vs[i], perms[i] = us[i][perm], vs[i][perm], perm
+            if anchor:                                                     # speed only: each member keeps its own 10 m direction
+                k = np.where(w > 1e-6, w[perm] / np.maximum(w, 1e-6), 1.0)
+                us[i], vs[i] = np.where(w > 1e-6, us[i] * k, us[i][perm]), np.where(w > 1e-6, vs[i] * k, vs[i][perm])
+            else:
+                us[i], vs[i] = us[i][perm], vs[i][perm]
+            perms[i] = perm
             w = w[perm]
         prev, prev_t = w, t
     return us, vs, perms
@@ -101,6 +116,10 @@ def _selfcheck():
     assert np.allclose(np.hypot(ou, ov), np.array(ref)), "chain differs from b29 regime_link"
     for k in range(3):                                                      # each hour keeps its member set (pairs u, v moved together)
         assert np.allclose(np.sort(ou[k] + 1j * ov[k]), np.sort(uu[k] + 1j * vv[k]))
+    au, av, _ = apply(T, 0, ts, list(uu), list(vv), np.random.default_rng(5), anchor=True)   # tool mode: speed set kept, each member keeps its direction
+    for k in range(3):
+        assert np.allclose(np.sort(np.hypot(au[k], av[k])), np.sort(w3[k]))
+        assert np.allclose(np.arctan2(av[k], au[k]), np.arctan2(vv[k], uu[k]))
 
 
 _selfcheck()
