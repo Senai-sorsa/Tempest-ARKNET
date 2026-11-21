@@ -37,3 +37,19 @@ def test_statics_sane():
     assert s["oro_m"][0] > 4000 and s["lsm"][1] == 0 and s["coast_km"][1] < -500 < 0 < s["coast_km"][2]
     assert all(np.allclose(v[2], v[3]) for v in s.values())             # longitude wrap
     assert all(np.isfinite(v).all() for v in s.values())
+
+
+def test_clim_recovers_known_cycle():
+    from tempest.geo import clim
+    rng = np.random.default_rng(0)
+    t = np.datetime64("2001-01-01T00") + rng.integers(0, 24 * 365 * 15, 20000).astype("timedelta64[h]")
+    X = clim.basis(t, -105.0)
+    doy, lst = np.arctan2(X[:, 10], X[:, 5]), np.arctan2(X[:, 2], X[:, 1])  # sin/cos of annual h1 and diurnal h1
+    mu = 10 + 8 * np.cos(doy) + 3 * np.sin(lst)
+    sd = 2 + np.cos(doy)
+    y = np.stack([mu + sd * rng.standard_normal(len(t)), np.full(len(t), 5.0)], 1)
+    c = clim.fit(t, -105.0, y)
+    m, s = clim.predict(c, t, -105.0)
+    assert np.abs(m[:, 0] - mu).max() < 0.3 and np.abs(s[:, 0] / sd - 1).mean() < 0.06 and np.allclose(m[:, 1], 5, atol=1e-6)
+    with pytest.raises(ValueError):
+        clim.fit(np.array(["2026-01-01"] * 200, "datetime64[h]"), 0.0, np.zeros(200))
