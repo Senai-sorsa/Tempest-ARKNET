@@ -17,7 +17,7 @@ samples file.
 ## Status (2026-11-05)
 
 - **Climate generator (Phase 2 model `p2f`).** Engression network, 4 members, trained 1991-2020 (+ validation 2021-23) on balloon-corrected ERA5 with humidity learned as dewpoint
-  depression and a tail-weighted wind-shear loss. On the 2024-25 development years it beats the recent-15-year climatology by 2.8 % (CRPS, ERA5) and 0.8 % (real balloons), and the Earth-GRAM-style
+  depression and a tail-weighted wind-shear loss. On the 2024-25 development years it beats the recent-15-year climatology by about 1.7 % (fair CRPS against the whole 15-year pool, ERA5) and about 0.5 % (real balloons); the older thin-pool scoring gave 2.8 % / 0.8 %, and the Earth-GRAM-style
   reference by about 6.7 % / 2.8 %; its 99 % ranges hold about 99 % of outcomes (on ERA5 also against a truth whose balloon noise pool the model never saw, within 0.003; 90 % ranges for winds and humidity above 12 km move up to 0.02 there; balloon coverage stays the reference). Month-ahead skill stays close to climatology by nature; the value is honest, coherent profiles.
 - **Past dates (mode P).** ERA5 for the exact hour, corrected by a residual network trained against balloons: median error 6 % below raw ERA5, CRPS 5.5 % below the older station correction.
 - **Extra outputs.** Pressure, density and speed of sound derived from each sample, vertical wind (w-head), 10 m gusts, 24 h soak history, thermal scaling (physics only), joint 99 % band, coupled sample files.

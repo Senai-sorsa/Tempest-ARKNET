@@ -458,7 +458,7 @@ class Launch:
             s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
                                                                                   spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
         t_fac = None
-        if self._obs.get("_t_update"):       # G2-2 (opt-in): Student-t widening of the conditioned members when the readings surprise the prior
+        if self._obs.get("_t_update"):       # G2-2 (default for ground reports): Student-t widening of the conditioned members when the readings surprise the prior
             t_fac = _t_widen_factor(base._ensure_pool()["samples"], eng_obs, sig)
             for k in ("u", "v", "t2m"):     # shortcut: T / p / RH profiles not widened (rho and sound speed would need recomputing); widen them if wind + t2m pass
                 if k in s:
@@ -502,7 +502,7 @@ class Launch:
             eng_obs[("wind_u", float(h))], eng_obs[("wind_v", float(h))] = float(ur), float(vr)
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=False):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=True):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
@@ -525,7 +525,7 @@ class Launch:
         soft = any(v is not None for v in (age_hours, distance_km, elevation_diff_m))
         if speed_space or (speed_space is None and OBS_SPEED_SPACE and soft):   # W6: update the 10 m speed in normal-score space of the prior's own speed distribution (see _speed_space_update); default for soft observations
             obs["_speed_space"] = True
-        if t_update:                # G2-2 (opt-in, off by default): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
+        if t_update:                # G2-2 (ON by default since New_Plan 28.11 item 8; t_update=False = old update): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
             obs["_t_update"] = True
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
@@ -563,7 +563,7 @@ class Launch:
         if spd >= self.OBS_LIMITS["wind_10m"][1]:
             raise ValueError(f"the nowcast wind ({spd:.0f} m/s) is outside the range an observation may take")
         return self.observe(wind_10m=f"{spd:.3f} m/s", wind_from_deg=math.degrees(math.atan2(-u, -v)) % 360.0, age_hours=age, distance_km=dist, elevation_diff_m=el_s - elev,
-                            source=f"nowcast {station} +{int(lead)}h")
+                            source=f"nowcast {station} +{int(lead)}h", t_update=False)     # NOW2 as tested (no G2-2 widening)
 
     def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None, t_update=False):
         """P3 (opt-in): a NEW Launch conditioned on the NEXRAD VAD wind profile of the nearest radar (or `site`), the newest volume at most max_age_min before the launch time, at the model
@@ -603,6 +603,16 @@ class Launch:
             obs["_t_update"] = True
         obs["_radar_src"] = f"{profile.get('site', site)} {profile.get('time', '')} " + (f"{dist:.0f}km" if math.isfinite(dist) else "unknown-km")
         return self.with_(_obs=obs)
+
+    def observe_tower(self, heights_agl_m, u, v, sigma_ms=0.5, site="tower", time=""):
+        """DP tower (New_Plan 28.11 item 8, kit b67 PASS: 50-150 m wind CRPS -49 % at 30 min lead on the SWiFT 200 m tower): a NEW Launch conditioned on a mast or drone wind profile
+        (u, v in m/s at heights above the pad) with the tested settings, i.e. observe_radar at the model heights 10-200 m the profile covers, sensor error 0.5 m/s. The kit added it on
+        top of observe(wind_10m=..., wind_from_deg=...) from the same tower's 10 m wind; do that first."""
+        if not (len(heights_agl_m) == len(u) == len(v)):
+            raise ValueError(f"the tower profile needs one u and one v per height (got {len(heights_agl_m)} heights, {len(u)} u, {len(v)} v)")
+        elev = float(self.elevation_info()[0])
+        prof = dict(heights_asl_m=[elev + float(h) for h in heights_agl_m], u=[float(x) for x in u], v=[float(x) for x in v], site=site, time=time)
+        return self.observe_radar(site=site, profile=prof, levels_m=tuple(float(h) for h in _core.HEIGHTS if h <= 200.0), sigma_ms=sigma_ms)
 
     # physical limits of a surface observation: outside them the value is a typo, a wrong unit or a broken sensor, never weather. A real extreme (storm, heat wave, hard freeze) is INSIDE them and is trusted.
     OBS_LIMITS = {"wind_10m": (0.0, 100.0, "m/s"), "wind_from_deg": (0.0, 360.0, "deg"), "temperature": (-90.0, 60.0, "C"), "station_pressure": (300.0, 1100.0, "hPa"), "altimeter": (850.0, 1100.0, "hPa")}
@@ -971,6 +981,14 @@ class Launch:
         sub = {k: (v[:n] if isinstance(v, np.ndarray) and v.ndim >= 1 and len(v) >= n and k not in ("height_agl", "height_asl") else v) for k, v in s.items()}
         return AtmosphereSet(sub, launch_times=pool["launch_times"][:n], **reader_kw)
 
+    def real_air(self, n=None, **reader_kw):
+        """RA 1a (New_Plan 28.11 item 8): atmospheres() with the real-air gap added to u, v (api.real_air_gap): the wind ONE balloon or rocket meets, not the grid-box wind, so its
+        90 % bands cover a single sounding (kit b6: 0.83-0.90 -> 0.90-0.92 at left-out stations). Every mode; atmospheres() itself is unchanged."""
+        a = self.atmospheres(n, **reader_kw)
+        s = dict(a.samples)
+        s["u"], s["v"] = api.real_air_gap(s["u"], s["v"], s["height_agl"], seed=self.seed)
+        return AtmosphereSet(s, launch_times=a.launch_times, **a.reader_kw)
+
     def stress(self, variable="wind_10m", quantile=0.999, side="upper", n=200, strata=8, values=None):
         """A5 (roadmap): atmospheres for a RARE ground-level event beyond what the pool holds (a 1-in-1000 storm wind, freeze or heat wave; the Uri freeze at Midland lay below all
         600 climate samples). The tail of the pool's own 10 m wind speed or 2 m temperature beyond its 95th (or 5th) percentile is fitted with a generalised Pareto law (probability-weighted
@@ -1016,7 +1034,7 @@ class Launch:
         parts, used = [], []
         for j in range(k):
             obs = dict(wind_10m=f"{values[j]:.3f} m/s", wind_from_deg=float(dirs[j])) if variable == "wind_10m" else dict(temperature=f"{values[j]:.3f} C")
-            a = self.observe(**obs).atmospheres(per)
+            a = self.observe(**obs, t_update=False).atmospheres(per)      # a pinned what-if value, not a surprising report: no G2-2 widening (stress as before)
             parts.append(a.samples)
             used.append(float(values[j]))
         out = {}

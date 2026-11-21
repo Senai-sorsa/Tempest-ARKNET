@@ -1,0 +1,9 @@
+2026-11-20 19:42 AV13 through api._gust_params, shipped Denver asset law, built-in station flag 1: DEN + APA 2021-23, 39434 hours (3127 at model wind >= 5); 199 members
+  region everywhere CRPS 1.0973  (< 5 m/s 1.0407, >= 5 m/s 1.7547)
+  switch            CRPS 1.0908  (< 5 m/s 1.0336, >= 5 m/s 1.7547)
+  built-in          CRPS 1.1049  (< 5 m/s 1.0336, >= 5 m/s 1.9327)
+  switch gain over built-in: +1.28 % [+1.11, +1.45]
+  switch gain over region everywhere: +0.59 % [+0.43, +0.76]
+  below 5 m/s identical to the built-in law: True
+Port check: switch gain over built-in > 0 (b52 cross-station +1.09 % [+0.91, +1.27]) and identical below 5 m/s -> REPRODUCES
+

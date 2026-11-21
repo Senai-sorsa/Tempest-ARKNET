@@ -119,10 +119,11 @@ def test_t_widen_factor_rule():
     assert abs(_t_widen_factor(prior, mid, {"temp_K": 3.0}) - np.sqrt(10 / 9)) < 0.03
 
 
-def test_observe_t_update_is_opt_in_and_widens_on_a_surprise():
+def test_observe_t_update_is_default_and_widens_on_a_surprise():   # G2-2 ON by default (New_Plan 28.11 item 8)
     L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="si")
     kw = dict(wind_10m=25.0, wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0)
-    a, b = L.observe(**kw), L.observe(**kw, t_update=True)
+    a, b = L.observe(**kw, t_update=False), L.observe(**kw)
+    assert np.array_equal(b._ensure_pool()["samples"]["u"], L.observe(**kw, t_update=True)._ensure_pool()["samples"]["u"])
     pa, pb = a._ensure_pool(), b._ensure_pool()
     assert not any(f.startswith("t-widened") for f in pa["flags"])
     assert any(f.startswith("t-widened") for f in pb["flags"])

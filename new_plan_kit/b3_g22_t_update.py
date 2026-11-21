@@ -62,7 +62,7 @@ def main():
                 D2 = (u0 - pu.mean()) ** 2 / pu.var() + (v0 - pv.mean()) ** 2 / pv.var()     # prior-only surprise for ranking (the obs error is the same for every case)
                 row = [st, h.date(), D2]
                 ws = []
-                for LL in (L.observe(**kw), L.observe(**kw, t_update=True)):
+                for LL in (L.observe(**kw, t_update=False), L.observe(**kw, t_update=True)):
                     s = LL._ensure_pool()["samples"]
                     w = np.hypot(np.asarray(s["u"], float)[:, 0], np.asarray(s["v"], float)[:, 0])
                     ws.append(w)

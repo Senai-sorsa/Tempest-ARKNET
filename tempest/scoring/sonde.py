@@ -89,7 +89,8 @@ def main():
     ap.add_argument("--driver-mode", choices=["analog", "ridge"], default="analog", help="unknown drivers: analog draw (default) or ridge index forecast (what the tool serves)")
     ap.add_argument("--driver-lead", type=int, default=6)
     ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (1 = the old single-day bootstrap)")
-    ap.add_argument("--fair-baseline", action="store_true", help="AU-1 (opt-in): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole station x month pool without replacement (clim15 pools under 20 soundings fall back to all training years); outputs get a _fair suffix")
+    ap.add_argument("--fair-baseline", action="store_true", default=True, help="AU-1 (DEFAULT since New_Plan 28.11 item 8; --plain-baseline = old scoring): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole station x month pool without replacement (clim15 pools under 20 soundings fall back to all training years); outputs get a _fair suffix")
+    ap.add_argument("--plain-baseline", dest="fair_baseline", action="store_false", help="AU-1 off: plain CRPS and the 199-draw climatology pools (the scoring before 28.11 item 8; no _fair suffix)")
     ap.add_argument("--partial", action="store_true", help="AU-6 (opt-in): keep held-out and pool soundings whose u, v, T up to 5 km and surface are complete "
                     "(not only fully complete ones); higher missing columns count in no mean (per-column validity mask), climatology draws "
                     "fill a missing column from pool soundings valid there, the Gaussian uses complete pool soundings; variogram, whole-profile "
@@ -97,8 +98,11 @@ def main():
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
     a = ap.parse_args()
-    if a.partial and (a.fair_baseline or a.offset_from_year or a.station_calib_year or a.shear_table or a.extras):
-        raise SystemExit("--partial does not yet cover --fair-baseline / --offset-from-year / --station-calib-year / --shear-table / --extras")  # shortcut: they assume complete soundings; add per-column masks there when needed
+    if a.partial and a.fair_baseline:     # fair is the default now; --partial does not cover it yet, so it scores plain (as before 28.11 item 8)
+        print("--partial: scoring with the plain baseline (fair baseline not yet covered by --partial)")
+        a.fair_baseline = False
+    if a.partial and (a.offset_from_year or a.station_calib_year or a.shear_table or a.extras):
+        raise SystemExit("--partial does not yet cover --offset-from-year / --station-calib-year / --shear-table / --extras")  # shortcut: they assume complete soundings; add per-column masks there when needed
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
 
