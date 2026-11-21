@@ -1,0 +1,4 @@
+697,164 eligible rows, keeping 697,164
+2026-07-01: 697,164/697,164 rows
+dropping 0 rows with missing values (profile top above 50 hPa, or index gaps)
+wrote data/train/final_2026h2_part.npz: 697,164 rows, 179 targets
