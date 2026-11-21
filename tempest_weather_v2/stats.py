@@ -233,10 +233,11 @@ class Coupled:
         return best
 
     # ---- marginals
-    def _to_data(self, u):
+    def _to_data(self, u, cols=None):
+        cols = range(u.shape[1]) if cols is None else cols         # Gemini 2026-11-20: a conditional draw holds only the unobserved columns; map each through ITS OWN marginal
         out = np.empty_like(u)
-        for j in range(u.shape[1]):
-            out[:, j] = np.interp(u[:, j], self._probs, self._sorted[:, j])
+        for j, col in enumerate(cols):
+            out[:, j] = np.interp(u[:, j], self._probs, self._sorted[:, col])
         return out
 
     def _apply_knobs(self, x):
@@ -309,12 +310,12 @@ class Coupled:
         z = rng.standard_normal((n, len(un))) @ L.T
         out = np.empty((n, len(self.names)))
         if kind == "gauss":
-            out[:, un] = self._to_data(norm_cdf(mu + z))
+            out[:, un] = self._to_data(norm_cdf(mu + z), un)
         else:
             nu2, scale = self._cond[5], self._cond[6]
             t = mu + np.sqrt(scale) * z / np.sqrt(rng.chisquare(nu2, (n, 1)) / nu2)
             g, c = _t_table(self.nu)
-            out[:, un] = self._to_data(np.interp(t, g, c))
+            out[:, un] = self._to_data(np.interp(t, g, c), un)
         for j, v in zip(idx, self._obs.values()):
             out[:, j] = v
         return out

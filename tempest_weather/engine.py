@@ -81,7 +81,7 @@ class Net:
         t, cols = self.x4r, [self.names.index(c) for c in X4R_COLS]
         c = np.asarray(cond, np.float64)[:, cols]
         k = t["keys"]
-        d = (c[:, :1] - k[:, 0]) ** 2 + ((c[:, 1:2] - k[:, 1]) * np.cos(np.deg2rad(c[:, :1]))) ** 2
+        d = (c[:, :1] - k[:, 0]) ** 2 + (((c[:, 1:2] - k[:, 1] + 180.0) % 360.0 - 180.0) * np.cos(np.deg2rad(c[:, :1]))) ** 2
         p = d.argmin(1)
         a, b = np.arctan2(c[:, 2], c[:, 3]), np.arctan2(c[:, 4], c[:, 5])
         X = np.stack([np.ones_like(a)] + [f(j * a) for j in (1, 2, 3) for f in (np.sin, np.cos)] + [f(j * b) for j in (1, 2) for f in (np.sin, np.cos)], -1)

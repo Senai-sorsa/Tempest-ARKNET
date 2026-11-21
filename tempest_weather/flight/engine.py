@@ -143,16 +143,16 @@ class TempestFlightSimEngine:
         mu = gain @ y
         S = self.corr[np.ix_(un, un)] - gain @ C21.T
         scale = float(inflate)
-        if inflate_decay_m:
+        if soft:                  # opt-in: noisy observations do NOT pin their columns; the full Gaussian posterior over every column (the observed ones included) given the observations and their errors
+            C_all = self.corr[:, idx] if taper is None else self.corr[:, idx] * taper
+            g_all = np.linalg.solve(C11, C_all.T).T
+            un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T
+        if inflate_decay_m:       # after the soft branch (Gemini 2026-11-20: it was before it, so soft + decay lost the inflation entirely)
             h = np.array([self.names[i][1] if self.names[i][1] > 0 else 0.0 for i in range(P)])    # pressure (height 0) and the 2 m values sit at the surface
             d = np.abs(h[un][:, None] - h[idx][None, :]).min(1)
             f = np.sqrt(1.0 + (float(inflate) - 1.0) * np.exp(-d / float(inflate_decay_m)))
             S = S * f[:, None] * f[None, :]
             scale = 1.0
-        if soft:                  # opt-in: noisy observations do NOT pin their columns; the full Gaussian posterior over every column (the observed ones included) given the observations and their errors
-            C_all = self.corr[:, idx] if taper is None else self.corr[:, idx] * taper
-            g_all = np.linalg.solve(C11, C_all.T).T
-            un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T
         w, v = np.linalg.eigh(0.5 * (S + S.T))
         o = np.argsort(w)[::-1]
         self._post = dict(idx=idx, un=un, vals=np.array(list(obs.values()), float), mu=mu, eigvals=np.maximum(w[o], 0.0) * scale, eigvecs=v[:, o], soft=bool(soft))
@@ -161,12 +161,12 @@ class TempestFlightSimEngine:
     def clear_observations(self):
         self._post = None
 
-    def conditioned(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False):
+    def conditioned(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False, localize_m=None):
         """F6: a NEW engine conditioned on obs; this one is left untouched (condition_on_observations mutates self._post, a hazard when one engine is shared between runs)."""
         new = copy.copy(self)
         new.__dict__ = dict(self.__dict__)
         new._post = None
-        return new.condition_on_observations(obs, sensor_sigma, inflate, inflate_decay_m, soft)
+        return new.condition_on_observations(obs, sensor_sigma, inflate, inflate_decay_m, soft, localize_m)
 
     def _blocked_normals(self, stream, run_id, n, d, block=256):
         """F1/F2: (n, d) standard normals where every block of `block` rows has its own generator keyed on (seed, stream, run_id, block index): a run of n rows starts with exactly the rows of a

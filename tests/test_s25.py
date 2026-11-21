@@ -201,10 +201,12 @@ def tiny_train(extra):
     n = 1200
     cond = rng.normal(size=(n, len(FEATURES))).astype(np.float32)
     cond[:, FEATURES.index("year")] = np.repeat(np.arange(2000, 2012), n // 12)
+    for k, c in enumerate(("lat", "lon")):                         # 4 grid points x 300 rows: the AV21 / X4 per-point anomaly fit needs >= 44 rows each
+        cond[:, FEATURES.index(c)] = np.tile(np.array([[31.5, -107.5], [32.5, -106.5], [39.5, -104.5], [40.0, -105.0]])[:, k], n // 4)
     base = rng.normal(size=(n, 4 * 44 + 3)).astype(np.float32) * 0.3
     base[:, 2 * 44] += 280
     year = cond[:, FEATURES.index("year")].astype(np.int16)
-    cfg = dict(width=16, depth=2, noise_dim=4, batch=64, steps=4, eval_every=2, val_years=2, lr=2e-3, val_rows=200, **extra)
+    cfg = dict(width=16, depth=2, noise_dim=max(4, extra.get("noise_t_dims", 0)), batch=64, steps=4, eval_every=2, val_years=2, lr=2e-3, val_rows=200, **extra)
     threads = torch.get_num_threads()
     torch.set_num_threads(2)
     try:

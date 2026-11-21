@@ -8,7 +8,7 @@ Only the 10 m level (column 0) moves here; the tool (api.atmosphere_sequence) fa
 Table (asset post/ur5_*): lat, lon (P,), xt, xe (P, 12, 24, Q) map knots, ok (P, 12, 24), rho (P, 12, 24, 3) = rho_calm, rho_windy, median, s (2,) = s_u, s_v.
 """
 import numpy as np
-from scipy.stats import norm
+from tempest_weather.distributions import norm_ppf   # numpy only: the tool must not need scipy
 
 QS = np.linspace(0.005, 0.995, 100)
 
@@ -27,7 +27,7 @@ def apply_map(u, v, xt, xe):
 
 def regime_rho(tpl):
     """real 3-hour windows (k, 3) -> (rho calm, rho windy, median of hour 0) of the normal scores of consecutive hours."""
-    z = norm.ppf((np.argsort(np.argsort(tpl, 0), 0) + 0.5) / len(tpl))
+    z = norm_ppf((np.argsort(np.argsort(tpl, 0), 0) + 0.5) / len(tpl))
     med = np.median(tpl[:, 0])
     r = []
     for sel in (tpl[:, 0] < med, tpl[:, 0] >= med):
@@ -68,12 +68,12 @@ def apply(T, p, times, us, vs, rng, anchor=False):
         gap = None if prev_t is None else (t - prev_t).total_seconds() / 3600.0
         mp, hp = (prev_t.month - 1, prev_t.hour) if prev_t is not None else (None, None)
         if z is None or not T["ok"][p, t.month - 1, t.hour] or not T["ok"][p, mp, hp] or not 0 < gap <= 6:
-            z = norm.ppf((np.argsort(np.argsort(w)) + 0.5) / n)            # chain (re)starts: this hour keeps its order
+            z = norm_ppf((np.argsort(np.argsort(w)) + 0.5) / n)            # chain (re)starts: this hour keeps its order
         else:
             rc, rw, med = T["rho"][p, mp, hp]
             rho = np.where(prev < med, rc, rw) ** gap
             if anchor:
-                c = norm.ppf((np.argsort(np.argsort(w)) + 0.5) / n)
+                c = norm_ppf((np.argsort(np.argsort(w)) + 0.5) / n)
                 r = np.corrcoef(c, z)[0, 1]
                 e = c - r * z
                 e = e / max(e.std(), 1e-9)
@@ -107,7 +107,7 @@ def _selfcheck():
     ts = [datetime(2013, 7, 15, 15 + k) for k in range(3)]
     ou, ov, _ = apply(T, 0, ts, list(uu), list(vv), np.random.default_rng(5))
     w3, r2 = np.hypot(uu, vv), np.random.default_rng(5)
-    zz, prev, ref = norm.ppf((np.argsort(np.argsort(w3[0])) + 0.5) / 500), w3[0], [w3[0]]
+    zz, prev, ref = norm_ppf((np.argsort(np.argsort(w3[0])) + 0.5) / 500), w3[0], [w3[0]]
     for h in (1, 2):
         rho = np.where(prev < 4.0, 0.6, 0.9)
         zz = rho * zz + np.sqrt(1 - rho ** 2) * r2.standard_normal(500)

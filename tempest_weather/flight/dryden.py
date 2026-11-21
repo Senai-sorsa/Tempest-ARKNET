@@ -133,9 +133,11 @@ def synthesize(z_coarse, u, v, T, dz=2.0, seed=0, gust=None, z0=0.03, h_pbl=1200
     # along-path component (w): exact first-order recurrence
     phi = np.exp(-dz / env["L_w"])
     eta = rng.standard_normal((N, nz))
-    wg[:, 0] = env["sigma_w"][:, 0] * eta[:, 0]
+    x = eta[:, 0]                                                             # Gemini 2026-11-20: unit-variance AR(1) scaled by sigma_w(z) (the MIL-spec form, as u / v below); the old recursion carried
+    wg[:, 0] = env["sigma_w"][:, 0] * x                                      # the variance of the levels below upward, so w turbulence leaked ~L_w above the boundary layer and lagged its growth near the ground
     for i in range(1, nz):
-        wg[:, i] = phi[:, i] * wg[:, i - 1] + env["sigma_w"][:, i] * np.sqrt(np.maximum(1 - phi[:, i] ** 2, 0.0)) * eta[:, i]
+        x = phi[:, i] * x + np.sqrt(np.maximum(1 - phi[:, i] ** 2, 0.0)) * eta[:, i]
+        wg[:, i] = env["sigma_w"][:, i] * x
     # transverse components (u, v): second-order Dryden filter, y = K (x1 + sqrt(3) tau x2), x1'' + 2 x1' / tau + x1 / tau^2 = n / tau^2, K = sigma sqrt(tau); Euler sub-steps
     h = dz / nsub
     for out, key in ((ug, 0), (vg, 1)):

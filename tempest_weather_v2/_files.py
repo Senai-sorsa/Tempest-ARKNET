@@ -8,6 +8,7 @@ import contextlib
 import hashlib
 import json
 import os
+import threading
 import time
 
 __all__ = ["cache_dir", "atomic_write", "atomic_json", "read_json", "sha256_bytes", "sha256_file", "cache_put", "cache_get", "file_lock"]
@@ -30,7 +31,7 @@ def atomic_write(path, data):
         data = data.encode("utf-8")
     folder = os.path.dirname(os.path.abspath(path))
     os.makedirs(folder, exist_ok=True)
-    tmp = f"{path}.tmp.{os.getpid()}"
+    tmp = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
     try:
         with open(tmp, "wb") as f:
             f.write(data)
