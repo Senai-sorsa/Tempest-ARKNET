@@ -168,6 +168,9 @@ def _assets(path=None):
             got = hashlib.file_digest(f, "sha256").hexdigest()
         if got != want:
             raise RuntimeError(f"asset {name} does not match its manifest hash (corrupted or from another release); re-copy the assets")
+    unlisted = {"model.npz", "indices.npz", "grid.npz"} - set(manifest["files"])   # audit #20: every file we load must be hash-checked
+    if unlisted:
+        raise RuntimeError(f"assets {sorted(unlisted)} have no manifest hash; re-export the assets")
     z = np.load(os.path.join(path, "model.npz"), allow_pickle=False)
     net = Net.load(os.path.join(path, "model.npz"))
     a = dict(manifest=manifest, net=net, calib=dict(qz=z["calib/qz"], qu=z["calib/qu"], m=z["calib/m"]),
@@ -431,7 +434,9 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     day = t_hr.strftime("%Y-%m-%d")
     fix = OPTIONS["forecast_grid_elevation"]
     doc = fetch(lat, lon, day) if fetch else openmeteo.fetch(lat, lon, day, elevation=z_sfc if fix else None)   # AU-3: Mode F was trained on grid-height surface fields
-    fields = forecast.fields_from_openmeteo(doc, int(t_hr.hour))
+    times = list((doc.get("hourly") or {}).get("time") or [])
+    key = t_hr.strftime("%Y-%m-%dT%H:00")
+    fields = forecast.fields_from_openmeteo(doc, times.index(key) if key in times else int(t_hr.hour))   # audit #32: match the hour by its timestamp (a multi-day or non-GMT response is not indexed by hour of day)
     flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
     if fix and doc.get("elevation") is not None and abs(float(doc["elevation"]) - z_sfc) > 5.0:   # a response at another height (a caller's fetch, or the default terrain downscaling): t2m and sp to the grid height, as _core.site_shift does
         dz = z_sfc - float(doc["elevation"])
@@ -564,7 +569,9 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
                 if kt > 1.0:
                     fflags = fflags + [f"temperature-widened-to-station-scale:x{kt:.2f}"]
             quality = quality + fflags
-            cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
+            ep = np.full(n, elev_grid)                                   # audit #14: the forecast profile is the one at grid point p; the w head must see p's inputs, not the bilinear rows'
+            cond = _core.feature_matrix(names, np.full(n, g["lat"][p]), np.full(n, g["lon"][p]), ep, ep, t_utc.timetuple().tm_yday, sh, t_utc.year, drv[:n, 0], drv[:n, 3], drv[:n, 1], drv[:n, 2],
+                                        gmst=A["indices"].gmst_at(t_utc) if "gmst" in names else None)
         except Exception as e:  # noqa: BLE001  (network, unexpected response: the climate generator answers, and says so)
             used, quality = "ai", ["fallback-mode", f"forecast-fetch-failed:{type(e).__name__}"]
             phys = None
@@ -650,7 +657,7 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     kap_full = None if kap is None else np.concatenate([kap, [kap[2 * nh], kap[2 * nh], kap[3 * nh]]])
     reg_kw = {}
     cr = A.get("coherence_regime")
-    if cr is not None:                                                             # C3: calm / middle / windy trajectories (terciles of the 0-3 km shear) have somewhat different time correlation
+    if cr is not None and rho is None:                                             # audit #38: a caller's own rho wins over the regime tables; C3: calm / middle / windy trajectories (terciles of the 0-3 km shear) have somewhat different time correlation
         I3 = int(np.argmin(np.abs(_core.HEIGHTS - 3000)))
         rr = cr["rho"][:, season]                                                  # (3, lags, 176)
         sfc_r = np.stack([rr[:, :, 2 * nh], rr[:, :, 2 * nh], rr[:, :, 3 * nh]], 2)
@@ -780,7 +787,7 @@ def couple(lat, lon, when, variables, method="whole_sample", setting=0, n=1024, 
     atm, info = _set_for(lat, lon, when, setting, n, seed, mode, kw)
     ev = registry.evaluate(atm, names, np.random.default_rng(seed + 1))
     table = np.stack([ev[v] for v in names], 1)
-    marg = [distributions.describe(table[:, j], setting in (0, 1), units=registry.units_of(v)) for j, v in enumerate(names)] if method == "gaussian_copula" else None
+    marg = [distributions.describe(table[:, j], setting in (0, 1), support="real" if registry.units_of(v) in ("degC", "degF") else None, units=registry.units_of(v)) for j, v in enumerate(names)]   # audit #38: as distribution() if method == "gaussian_copula" else None
     key = registry.evaluate(atm, ["mean_wind@10-3000"])["mean_wind@10-3000"]
     c = coupling.make(method, names, table, marg, key=key)
     c.info = {k: info[k] for k in ("mode", "source", "quality", "valid_utc", "kind")}

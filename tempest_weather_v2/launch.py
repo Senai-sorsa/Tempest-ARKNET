@@ -199,9 +199,10 @@ class Launch:
             elif self._site is not None and self._site.elevation_m is not None:
                 self._elev = (float(self._site.elevation_m), "site-registry", [])
             else:
+                from tempest_weather_v2 import _net
+                prev_offline = _net._offline   # audit #41: restore the caller's setting, not the environment default
                 try:
                     if self.offline:
-                        from tempest_weather_v2 import _net
                         _net.set_offline(True)
                     e = E.lookup(self.lat, self.lon)
                     self._elev = (float(e.m), e.source, ["elevation-source-" + e.source] if e.note else [])
@@ -211,8 +212,7 @@ class Launch:
                         print(f"elevation lookup failed: {ex}")
                 finally:
                     if self.offline:
-                        from tempest_weather_v2 import _net
-                        _net.set_offline(None)
+                        _net.set_offline(prev_offline)
         return self._elev
 
     # ---- time
@@ -575,7 +575,8 @@ class Launch:
         if spd >= self.OBS_LIMITS["wind_10m"][1]:
             raise ValueError(f"the nowcast wind ({spd:.0f} m/s) is outside the range an observation may take")
         return self.observe(wind_10m=f"{spd:.3f} m/s", wind_from_deg=math.degrees(math.atan2(-u, -v)) % 360.0, age_hours=age, distance_km=dist, elevation_diff_m=el_s - elev,
-                            source=f"nowcast {station} +{int(lead)}h", t_update=False)     # NOW2 as tested (no G2-2 widening)
+                            source=f"nowcast {station} +{int(lead)}h", t_update=False,     # NOW2 as tested (no G2-2 widening)
+                            speed_space=False if dist < O.OWN_STATION_KM else None)          # audit #6: the own-station reading is back-solved for the linear (component) update; W6 on it cut the gain ~5x
 
     def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None, t_update=False):
         """P3 (opt-in): a NEW Launch conditioned on the NEXRAD VAD wind profile of the nearest radar (or `site`), the newest volume at most max_age_min before the launch time, at the model
@@ -841,7 +842,7 @@ class Launch:
         d["wind_10m_from_deg"] = W.wind_from_deg(u[:, 0], v[:, 0])
         k3 = z <= 3000.0
         u3, v3 = u[:, k3].mean(1), v[:, k3].mean(1)
-        d["wind_3km"], d["wind_3km_from_deg"] = np.hypot(u3, v3), W.wind_from_deg(u3, v3)
+        d["wind_3km"], d["wind_3km_from_deg"], d["_u3"], d["_v3"] = np.hypot(u3, v3), W.wind_from_deg(u3, v3), u3, v3
         if s.get("gust_mu") is not None and np.isfinite(np.asarray(s["gust_mu"], float)).all():
             d["gust"] = np.maximum(np.asarray(s["gust_mu"], float) - np.asarray(s["gust_beta"], float) * np.log(-np.log(0.5)), d["wind_10m"])
         d["humidity"] = rh2m
@@ -922,7 +923,7 @@ class Launch:
                 vals[k] = float(np.percentile(x, float(percentile)))
             else:
                 vals[k] = self._summ(k, x, sel)
-        for ang, comp in (("wind_from_deg", ("_um", "_vm")),):          # circular quantities from the components
+        for ang, comp in (("wind_from_deg", ("_um", "_vm")), ("wind_3km_from_deg", ("_u3", "_v3"))):          # circular quantities from the components (audit #24: 3 km too; a plain median of 350 and 10 deg is 180)
             xs = slice(None) if sel is None else sel
             vals[ang] = float(W.wind_from_deg(np.median(d[comp[0]][xs]), np.median(d[comp[1]][xs])))
         for ang, (a, b) in (("wind_10m_from_deg", ("u", "v")),):
@@ -1087,6 +1088,15 @@ class Launch:
 
     # ---- Call 5: engine()
     def engine(self, **kw):
+        if self._engine is None and self._obs:   # audit #5: an observed Launch's engine is conditioned on its observations, as its pool is (shortcut: no W6 speed-space / G2-2 step, those act on the pool only)
+            base = Launch.with_(self, _obs=None)
+            eng, eng_obs = base.engine(**kw), self._obs_to_engine(base)
+            if eng_obs:
+                sig = self._sensor_sigma(base, eng_obs)
+                eng = eng.conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M)
+                times, measured = np.asarray(base._ensure_pool()["launch_times"]), MEASURED_GUST_LAW and "wind_10m" in self._measurements()
+                eng.gust_law = lambda out, rows: base._regust(out, times[rows], measured=measured)
+            self._engine = eng
         if self._engine is None:
             from tempest_weather.flight import TempestFlightSimEngine
             pool = self._ensure_pool() if not self._obs else Launch.with_(self, _obs=None)._ensure_pool()
