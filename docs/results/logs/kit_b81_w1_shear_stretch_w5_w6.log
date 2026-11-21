@@ -7,3 +7,30 @@ W1: error vs shipped +0.0052 [-0.0006, +0.0111]; CRPS vs shipped u +0.11 % v +0.
 VERDICT (pre-set rule, this seed): MISS
 Notes: development window (2024-25), EPZ / MAF; tool is balloon-corrected here; not a blind test. Both seeds must pass.
 
+2026-11-18 01:41 24.W1 shear-tail stretch (seed 0): 800 cases (0 skipped), fit on 400 odd-index, test on 400 even-index, 50 members; f per band (0-1, 1-5, 5-12, 12-18 km) = 1.80 1.00 1.32 1.09
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.045                  4.775  4.779  1.929   0.71 0.92 0.86 0.94      0.656 0.291 0.195 0.117
+  W1 stretch           0.050                  4.780  4.788  1.929   1.02 1.12 1.05 1.04      0.756 0.327 0.260 0.154
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.740 0.342 0.194 0.149
+W1: error vs shipped +0.0052 [-0.0006, +0.0111]; CRPS vs shipped u +0.11 % v +0.20 % T +0.00 %; limits: p99 ratio 0.90-1.10 all bands FAIL; CRPS not worse than shipped by over 0.3 % ok; vertical-corr error not worse than shipped by over 0.003 FAIL; Ri<1 12-18 km not worse ok
+VERDICT (pre-set rule, this seed): MISS
+Notes: development window (2024-25), EPZ / MAF; tool is balloon-corrected here; not a blind test. Both seeds must pass.
+
+2026-11-18 01:54 24.W1 shear-tail stretch (seed 1): 800 cases (0 skipped), fit on 400 odd-index, test on 400 even-index, 50 members; f per band (0-1, 1-5, 5-12, 12-18 km) = 1.74 1.00 1.10 1.08
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.071                  4.742  4.699  1.881   0.70 0.89 0.88 0.93      0.661 0.297 0.189 0.112
+  W1 stretch           0.067                  4.745  4.707  1.881   0.97 1.06 0.94 1.00      0.751 0.328 0.211 0.137
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.744 0.358 0.201 0.155
+W1: error vs shipped -0.0041 [-0.0071, +0.0036]; CRPS vs shipped u +0.08 % v +0.17 % T +0.00 %; limits: p99 ratio 0.90-1.10 all bands ok; CRPS not worse than shipped by over 0.3 % ok; vertical-corr error not worse than shipped by over 0.003 ok; Ri<1 12-18 km not worse ok
+VERDICT (pre-set rule, this seed): PASS
+Notes: development window (2024-25), EPZ / MAF; tool is balloon-corrected here; not a blind test. Both seeds must pass.
+
+2026-11-18 02:05 24.W1 shear-tail stretch (seed 1): 800 cases (0 skipped), fit on 400 odd-index, test on 400 even-index, 50 members; f per band (0-1, 1-5, 5-12, 12-18 km) = 1.74 1.00 1.10 1.08
+source                vertical-corr error     CRPS u    v     T     shear p99 ratio per band        Ri<1 share per band
+  shipped              0.071                  4.742  4.699  1.881   0.70 0.89 0.88 0.93      0.661 0.297 0.189 0.112
+  W1 stretch           0.067                  4.745  4.707  1.881   0.97 1.06 0.94 1.00      0.751 0.328 0.211 0.137
+  balloons             -                      -                       1.00 1.00 1.00 1.00             0.744 0.358 0.201 0.155
+W1: error vs shipped -0.0041 [-0.0071, +0.0036]; CRPS vs shipped u +0.08 % v +0.17 % T +0.00 %; limits: p99 ratio 0.90-1.10 all bands ok; CRPS not worse than shipped by over 0.3 % ok; vertical-corr error not worse than shipped by over 0.003 ok; Ri<1 12-18 km not worse ok
+VERDICT (pre-set rule, this seed): PASS
+Notes: development window (2024-25), EPZ / MAF; tool is balloon-corrected here; not a blind test. Both seeds must pass.
+

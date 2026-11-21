@@ -1,0 +1,4 @@
+2026-11-18 16:27 S25 GF4 (GF4 PRE-SET RULE (CPU conditional calibration, scripts/s25_gf4_condcal.py writes models/s25/gf4_result.csv))
+  PIT TV gain -0.00078 [-0.00251, +0.00115]; sign swaps 4; cells 16
+VERDICT (pre-set rule): KILL
+

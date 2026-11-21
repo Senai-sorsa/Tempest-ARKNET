@@ -1,0 +1,49 @@
+member 1  step    500  train 1.7189  val 1.9684  lr 2.80e-04  grad 0.320  87s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.5247 ss 0.66 bias -0.020  v: crps 0.5720 ss 0.70 bias +0.099  T: crps 0.4270 ss 0.87 bias +0.034  RH: crps 0.5929 ss 1.04 bias -0.281  sfc: crps 0.5378 ss 0.64 bias -0.020
+member 2  step    500  train 1.7183  val 1.9703  lr 2.80e-04  grad 0.379  88s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.5213 ss 0.68 bias -0.041  v: crps 0.5568 ss 0.73 bias -0.025  T: crps 0.4275 ss 0.86 bias +0.047  RH: crps 0.5879 ss 0.93 bias +0.008  sfc: crps 0.5093 ss 0.66 bias -0.054
+member 3  step    500  train 1.7166  val 1.9765  lr 2.80e-04  grad 0.343  88s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.5208 ss 0.66 bias +0.032  v: crps 0.5837 ss 0.74 bias +0.146  T: crps 0.4594 ss 0.84 bias -0.134  RH: crps 0.5705 ss 0.95 bias +0.081  sfc: crps 0.5402 ss 0.61 bias -0.096
+member 4  step    500  train 1.7423  val 1.9901  lr 2.80e-04  grad 0.340  88s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.5222 ss 0.63 bias +0.011  v: crps 0.5644 ss 0.78 bias +0.093  T: crps 0.4421 ss 0.83 bias +0.001  RH: crps 0.6042 ss 1.01 bias +0.060  sfc: crps 0.4913 ss 0.68 bias -0.032
+member 1  step   1000  train 1.7227  val 1.8354  lr 2.25e-04  grad 0.296  172s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4601 ss 0.76 bias +0.001  v: crps 0.5470 ss 0.78 bias +0.054  T: crps 0.3731 ss 0.83 bias +0.019  RH: crps 0.5200 ss 0.93 bias -0.098  sfc: crps 0.4528 ss 0.71 bias -0.009
+member 2  step   1000  train 1.7152  val 1.8291  lr 2.25e-04  grad 0.374  173s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4635 ss 0.77 bias +0.007  v: crps 0.5360 ss 0.82 bias -0.006  T: crps 0.3639 ss 0.84 bias -0.029  RH: crps 0.5292 ss 0.88 bias +0.031  sfc: crps 0.4406 ss 0.71 bias -0.018
+member 3  step   1000  train 1.7113  val 1.8306  lr 2.25e-04  grad 0.335  173s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4633 ss 0.78 bias +0.043  v: crps 0.5530 ss 0.81 bias +0.090  T: crps 0.3775 ss 0.80 bias -0.083  RH: crps 0.5244 ss 0.87 bias +0.038  sfc: crps 0.4560 ss 0.66 bias -0.045
+member 4  step   1000  train 1.7371  val 1.8309  lr 2.25e-04  grad 0.342  173s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4590 ss 0.77 bias +0.026  v: crps 0.5420 ss 0.84 bias +0.080  T: crps 0.3742 ss 0.80 bias -0.035  RH: crps 0.5244 ss 0.94 bias +0.024  sfc: crps 0.4316 ss 0.73 bias -0.009
+member 1  step   1500  train 1.7138  val 1.7690  lr 1.50e-04  grad 0.289  258s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4426 ss 0.82 bias -0.007  v: crps 0.5363 ss 0.85 bias +0.019  T: crps 0.3568 ss 0.83 bias -0.010  RH: crps 0.5044 ss 0.91 bias -0.041  sfc: crps 0.4143 ss 0.77 bias +0.005
+member 2  step   1500  train 1.7002  val 1.7668  lr 1.50e-04  grad 0.341  258s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4449 ss 0.84 bias +0.006  v: crps 0.5279 ss 0.89 bias -0.006  T: crps 0.3512 ss 0.85 bias -0.063  RH: crps 0.5133 ss 0.89 bias +0.021  sfc: crps 0.4115 ss 0.75 bias +0.001
+member 3  step   1500  train 1.7064  val 1.7669  lr 1.50e-04  grad 0.304  258s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4427 ss 0.85 bias +0.019  v: crps 0.5408 ss 0.87 bias +0.035  T: crps 0.3570 ss 0.82 bias -0.074  RH: crps 0.5122 ss 0.89 bias +0.010  sfc: crps 0.4144 ss 0.73 bias -0.018
+member 4  step   1500  train 1.7277  val 1.7668  lr 1.50e-04  grad 0.333  258s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4410 ss 0.86 bias +0.010  v: crps 0.5319 ss 0.90 bias +0.046  T: crps 0.3570 ss 0.82 bias -0.049  RH: crps 0.5055 ss 0.92 bias +0.010  sfc: crps 0.4073 ss 0.78 bias +0.007
+member 1  step   2000  train 1.6984  val 1.7417  lr 7.50e-05  grad 0.233  343s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4371 ss 0.87 bias -0.018  v: crps 0.5322 ss 0.90 bias -0.005  T: crps 0.3514 ss 0.86 bias -0.031  RH: crps 0.5002 ss 0.92 bias -0.024  sfc: crps 0.4000 ss 0.82 bias +0.014
+member 2  step   2000  train 1.7241  val 1.7384  lr 7.50e-05  grad 0.317  343s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4367 ss 0.89 bias -0.008  v: crps 0.5249 ss 0.92 bias -0.013  T: crps 0.3471 ss 0.88 bias -0.067  RH: crps 0.5068 ss 0.91 bias +0.010  sfc: crps 0.3986 ss 0.82 bias +0.010
+member 3  step   2000  train 1.7123  val 1.7394  lr 7.50e-05  grad 0.308  343s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4355 ss 0.89 bias -0.002  v: crps 0.5363 ss 0.91 bias +0.008  T: crps 0.3510 ss 0.85 bias -0.069  RH: crps 0.5084 ss 0.91 bias -0.008  sfc: crps 0.3997 ss 0.80 bias -0.004
+member 4  step   2000  train 1.7204  val 1.7397  lr 7.50e-05  grad 0.276  343s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4346 ss 0.90 bias +0.001  v: crps 0.5283 ss 0.93 bias +0.024  T: crps 0.3504 ss 0.86 bias -0.055  RH: crps 0.5011 ss 0.93 bias +0.002  sfc: crps 0.3978 ss 0.83 bias +0.011
+member 1  step   2500  train 1.7077  val 1.7286  lr 2.01e-05  grad 0.238  428s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4339 ss 0.91 bias -0.027  v: crps 0.5303 ss 0.93 bias -0.018  T: crps 0.3487 ss 0.89 bias -0.039  RH: crps 0.4983 ss 0.93 bias -0.022  sfc: crps 0.3953 ss 0.87 bias +0.018
+member 2  step   2500  train 1.6901  val 1.7243  lr 2.01e-05  grad 0.242  428s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4323 ss 0.92 bias -0.017  v: crps 0.5240 ss 0.95 bias -0.019  T: crps 0.3451 ss 0.91 bias -0.062  RH: crps 0.5029 ss 0.93 bias -0.002  sfc: crps 0.3936 ss 0.87 bias +0.014
+member 3  step   2500  train 1.7028  val 1.7273  lr 2.01e-05  grad 0.206  428s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4319 ss 0.93 bias -0.015  v: crps 0.5338 ss 0.93 bias -0.005  T: crps 0.3480 ss 0.89 bias -0.060  RH: crps 0.5063 ss 0.93 bias -0.016  sfc: crps 0.3945 ss 0.85 bias +0.004
+member 4  step   2500  train 1.7037  val 1.7270  lr 2.01e-05  grad 0.246  429s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4319 ss 0.93 bias -0.009  v: crps 0.5269 ss 0.94 bias +0.008  T: crps 0.3470 ss 0.89 bias -0.055  RH: crps 0.4998 ss 0.94 bias -0.010  sfc: crps 0.3937 ss 0.87 bias +0.013
+member 1  step   3000  train 1.7028  val 1.7228  lr 0.00e+00  grad 0.225  513s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4322 ss 0.93 bias -0.032  v: crps 0.5292 ss 0.95 bias -0.024  T: crps 0.3471 ss 0.91 bias -0.042  RH: crps 0.4971 ss 0.94 bias -0.022  sfc: crps 0.3935 ss 0.90 bias +0.021
+member 2  step   3000  train 1.6897  val 1.7181  lr 0.00e+00  grad 0.207  513s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4303 ss 0.94 bias -0.023  v: crps 0.5238 ss 0.96 bias -0.022  T: crps 0.3444 ss 0.93 bias -0.057  RH: crps 0.5009 ss 0.95 bias -0.014  sfc: crps 0.3914 ss 0.90 bias +0.016
+member 3  step   3000  train 1.7213  val 1.7219  lr 0.00e+00  grad 0.246  513s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4302 ss 0.95 bias -0.022  v: crps 0.5327 ss 0.95 bias -0.012  T: crps 0.3467 ss 0.91 bias -0.055  RH: crps 0.5049 ss 0.94 bias -0.021  sfc: crps 0.3924 ss 0.89 bias +0.010
+member 4  step   3000  train 1.7159  val 1.7207  lr 0.00e+00  grad 0.215  514s
+    val by var (standardised; ss = spread/skill, 1 ideal): u: crps 0.4306 ss 0.94 bias -0.019  v: crps 0.5259 ss 0.96 bias -0.003  T: crps 0.3454 ss 0.92 bias -0.051  RH: crps 0.4992 ss 0.95 bias -0.018  sfc: crps 0.3917 ss 0.90 bias +0.015
+trained in 9.0 min

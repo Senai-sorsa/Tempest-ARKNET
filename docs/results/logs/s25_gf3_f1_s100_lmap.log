@@ -1,0 +1,6 @@
+   0-1 km lapse K/km 90th/99th/99.9th  truth   21.0   43.8   65.2   before   30.9   78.9  128.0   after   23.1   46.5   68.2
+   1-5 km lapse K/km 90th/99th/99.9th  truth   10.0   12.6   15.8   before   11.6   17.7   22.9   after   10.4   13.3   16.4
+  5-12 km lapse K/km 90th/99th/99.9th  truth    9.0   10.7   12.7   before   10.1   13.1   15.9   after    9.2   11.0   13.0
+ 12-18 km lapse K/km 90th/99th/99.9th  truth    6.3    9.2   11.4   before    7.1   11.6   14.9   after    6.4    9.4   11.7
+superadiabatic share (> 9.8 K/km, all bands): truth 0.098  before 0.150  after 0.115
+wrote models/s25/gf3_f1_s100_lmap_noshuf.npz

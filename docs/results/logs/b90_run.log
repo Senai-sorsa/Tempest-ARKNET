@@ -1,0 +1,14 @@
+O3 through the tool path (Launch.launch_week, k = 7, alpha 1/30), 2023-25, 150 days per site, seed 0
+TCS: 150 test days, 0 skipped; launch_week factor mean 1.111 (range 0.903-1.368)
+  no factor    CRPS 1.423  coverage 0.81
+  auto         CRPS 1.439  coverage 0.84
+  launch_week  CRPS 1.419  coverage 0.85
+  launch_week minus no factor: -0.0044 [-0.0762, +0.0646]
+  launch_week minus auto: -0.0201 [-0.0411, +0.0009]
+MAF: 150 test days, 0 skipped; launch_week factor mean 0.996 (range 0.899-1.165)
+  no factor    CRPS 1.497  coverage 0.93
+  auto         CRPS 1.497  coverage 0.93
+  launch_week  CRPS 1.503  coverage 0.91
+  launch_week minus no factor: +0.0056 [-0.0141, +0.0254]
+  launch_week minus auto: +0.0056 [-0.0141, +0.0254]
+Port check: TCS launch_week minus auto should repeat b38 k = 7 minus IL-207b alone (-0.0227 [-0.0482, +0.0003]) within noise; MAF b38 -0.0269 was vs the MAF IL-207b start.

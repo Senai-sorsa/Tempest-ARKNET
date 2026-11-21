@@ -1,0 +1,103 @@
+Traceback (most recent call last):
+  File "C:\Users\Senai\Tempest-ARKNET\scripts\s25_shape.py", line 204, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Senai\Tempest-ARKNET\scripts\s25_shape.py", line 163, in main
+    x = sample_stack(a.model, a.calib, d, idx, a.m, rng, a.first_year, a.shuffle, a.template_cell, a.shear_map, a.lapse_map, a.device)
+  File "C:\Users\Senai\Tempest-ARKNET\scripts\s25_shape.py", line 52, in sample_stack
+    x[sl] = clip_ranges(spread.apply(cal, sampler.profiles(rep).reshape(len(cond[idx[sl]]), m, -1), clip=False))
+                        ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Senai\Tempest-ARKNET\tempest\calibrate\spread.py", line 65, in apply
+    raise ValueError(f"calibration fitted with m = {int(table['m'])}, applied to m = {samples.shape[1]}")
+ValueError: calibration fitted with m = 199, applied to m = 99
+FAILED env PYTHONPATH=. .venv/Scripts/python -W ignore scripts/s25_shape.py models/s25/base_s0.pt models/s25/base_s0.calib2021.npz data/train/pilot80_l21_day_dpd.npz --out models/s25/gf4_fit_shape --first-year 2021 --last-year 2023 --shuffle --template-cell 8 --shear-map models/s25/base_s0_smap_cell8.npz --lapse-map models/s25/base_s0_lmap_cell8.npz --device cpu --m 99 --rows 4000 --dump models/s25/gf4_fit.npz
+         metric   var     band    value
+shear_p99_ratio shear   0-1 km   1.0165
+   ri_lt1_share    ri   0-1 km   0.6559
+   ri_lt1_truth    ri   0-1 km   0.6640
+shear_p99_ratio shear   1-5 km   1.0327
+   ri_lt1_share    ri   1-5 km   0.2501
+   ri_lt1_truth    ri   1-5 km   0.2346
+shear_p99_ratio shear  5-12 km   1.0310
+   ri_lt1_share    ri  5-12 km   0.1553
+   ri_lt1_truth    ri  5-12 km   0.1481
+shear_p99_ratio shear 12-18 km   1.0223
+   ri_lt1_share    ri 12-18 km   0.0432
+   ri_lt1_truth    ri 12-18 km   0.0382
+      vcorr_sep     u   0-1 km   0.0039
+      vcorr_sep     u   1-3 km   0.0148
+      vcorr_sep     u   3-6 km   0.0276
+      vcorr_sep     u    6+ km   0.0256
+      variogram     u      all 104.1642
+      vcorr_sep     v   0-1 km   0.0031
+      vcorr_sep     v   1-3 km   0.0082
+      vcorr_sep     v   3-6 km   0.0121
+      vcorr_sep     v    6+ km   0.0169
+      variogram     v      all 114.3777
+      vcorr_sep     T   0-1 km   0.0061
+      vcorr_sep     T   1-3 km   0.0289
+      vcorr_sep     T   3-6 km   0.0645
+      vcorr_sep     T    6+ km   0.0546
+      variogram     T      all  21.8026
+      vcorr_sep    RH   0-1 km   0.0070
+      vcorr_sep    RH   1-3 km   0.0144
+      vcorr_sep    RH   3-6 km   0.0151
+      vcorr_sep    RH    6+ km   0.0127
+      variogram    RH      all 155.5350
+wrote models/s25/gf4_fit_shape.csv
+         metric   var     band    value
+shear_p99_ratio shear   0-1 km   1.0129
+   ri_lt1_share    ri   0-1 km   0.6634
+   ri_lt1_truth    ri   0-1 km   0.6632
+shear_p99_ratio shear   1-5 km   1.0352
+   ri_lt1_share    ri   1-5 km   0.2513
+   ri_lt1_truth    ri   1-5 km   0.2416
+shear_p99_ratio shear  5-12 km   0.9784
+   ri_lt1_share    ri  5-12 km   0.1587
+   ri_lt1_truth    ri  5-12 km   0.1469
+shear_p99_ratio shear 12-18 km   1.0075
+   ri_lt1_share    ri 12-18 km   0.0432
+   ri_lt1_truth    ri 12-18 km   0.0416
+      vcorr_sep     u   0-1 km   0.0039
+      vcorr_sep     u   1-3 km   0.0224
+      vcorr_sep     u   3-6 km   0.0418
+      vcorr_sep     u    6+ km   0.0466
+      variogram     u      all 105.2088
+      vcorr_sep     v   0-1 km   0.0077
+      vcorr_sep     v   1-3 km   0.0129
+      vcorr_sep     v   3-6 km   0.0148
+      vcorr_sep     v    6+ km   0.0163
+      variogram     v      all 112.2280
+      vcorr_sep     T   0-1 km   0.0059
+      vcorr_sep     T   1-3 km   0.0232
+      vcorr_sep     T   3-6 km   0.0573
+      vcorr_sep     T    6+ km   0.0596
+      variogram     T      all  22.9996
+      vcorr_sep    RH   0-1 km   0.0092
+      vcorr_sep    RH   1-3 km   0.0179
+      vcorr_sep    RH   3-6 km   0.0214
+      vcorr_sep    RH    6+ km   0.0231
+      variogram    RH      all 152.9529
+wrote models/s25/gf4_score_shape.csv
+var     band  tv_raw  tv_cal       a  b_spread  b_stab  b_w500  swaps  f_mean
+  u   0-1 km  0.0086  0.0166  0.0260   -0.0060 -0.0101  0.0148      0  1.0274
+  u   1-5 km  0.0273  0.0365  0.0215   -0.0660  0.0066  0.0427      0  1.0223
+  u  5-12 km  0.0241  0.0236  0.0233   -0.1166  0.0307  0.0024      0  1.0232
+  u 12-18 km  0.0158  0.0187  0.0144   -0.0873  0.0017 -0.0067      1  1.0162
+  v   0-1 km  0.0184  0.0229  0.0279   -0.0156  0.0159  0.0040      0  1.0284
+  v   1-5 km  0.0196  0.0182  0.0162   -0.0077 -0.0020  0.0102      1  1.0167
+  v  5-12 km  0.0248  0.0252 -0.0021   -0.1346  0.1235  0.0324      1  0.9970
+  v 12-18 km  0.0239  0.0236  0.0013   -0.1049 -0.0538  0.0927      0  1.0027
+  T   0-1 km  0.0557  0.0560  0.0028    0.0583  0.0071 -0.0762      0  1.0012
+  T   1-5 km  0.0411  0.0439 -0.0060   -0.0180  0.0235 -0.0471      0  0.9929
+  T  5-12 km  0.0614  0.0612 -0.0060    0.0491 -0.0390 -0.0237      1  0.9948
+  T 12-18 km  0.0122  0.0133 -0.0104    0.0295  0.0136 -0.0506      0  0.9891
+ RH   0-1 km  0.0352  0.0349 -0.0014    0.0103 -0.0113 -0.0263      0  0.9980
+ RH   1-5 km  0.0269  0.0279  0.0035   -0.0182  0.0046 -0.0047      0  1.0035
+ RH  5-12 km  0.0290  0.0281 -0.0124   -0.0028 -0.0002 -0.0077      0  0.9875
+ RH 12-18 km  0.0388  0.0245 -0.0175    0.0011  0.0061 -0.0251      0  0.9820
+{'gain': -0.0007829932654151422, 'gain_lo': -0.0025123662456558345, 'gain_hi': 0.0011499389937376916, 'swaps': 4, 'cells': 16, 'tv_raw': 0.02892340602106227, 'tv_cal': 0.029706399286477413, 'blocks': 106}
+wrote models/s25/gf4_result.csv
+S25 GF4 (GF4 PRE-SET RULE (CPU conditional calibration, scripts/s25_gf4_condcal.py writes models/s25/gf4_result.csv))
+  PIT TV gain -0.00078 [-0.00251, +0.00115]; sign swaps 4; cells 16
+VERDICT (pre-set rule): KILL

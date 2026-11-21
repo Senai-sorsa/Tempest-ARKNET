@@ -1,0 +1,5 @@
+   0-1 km  99th / 99.9th  truth   65.6   89.0   before   73.4  105.4   after   66.3   91.7
+   1-5 km  99th / 99.9th  truth   22.5   33.7   before   24.9   37.3   after   22.6   33.4
+  5-12 km  99th / 99.9th  truth   19.2   27.7   before   22.7   35.6   after   19.3   28.3
+ 12-18 km  99th / 99.9th  truth   24.4   33.6   before   25.6   36.3   after   24.4   33.7
+wrote models/s25/base_s0_smap_cell8.npz

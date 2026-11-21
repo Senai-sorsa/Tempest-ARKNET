@@ -24,7 +24,7 @@ def describe(path):
         out.append(("shuffle templates", "pooled (one set for the box)"))
     else:
         out.append(("shuffle templates", "NONE"))
-    out += [("shear map", "yes" if "post/smap_grid" in keys else "NONE"), ("lapse map", "yes" if "post/lmap_xk" in keys else "NONE"),
+    out += [("shear map", "yes" if "post/smap_grid" in keys else "NONE"), ("lapse map", "yes" if "post/lmap_xk" in keys else "NONE"), ("shear map aloft (AV35)", "yes" if "post/amap_grid" in keys else "NONE"),
             ("forecast mode (F)", ("yes" + (" + ridge" if m.get("modef_ridge_included") else "") + (f", source {m['modef_source']}" if m.get("modef_source") else "")) if m.get("modef_included") else "NONE"),
             ("past mode (P)", ("yes" + (" + station hybrid" if m.get("modep_sta_included") else "") + (" + surface pool" if m.get("modep_sfc_included") else "")) if m.get("modep_included") else "NONE"),
             ("w head", (f"yes ({m.get('head_source') or 'source not recorded: day-trained'})" + (" + range map" if m.get("wcalib_included") else "")) if m.get("head_included") else "NONE"),

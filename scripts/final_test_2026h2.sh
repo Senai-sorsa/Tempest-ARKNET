@@ -4,7 +4,11 @@
 # data/FINAL_TEST_2026H2_DONE. Needs: CONFIRM_FINAL=yes bash scripts/final_test_2026h2.sh, and all 16 GRIB files of scripts/fetch_final_window.py in data/raw/era5_2026h2.
 # Nothing in it was chosen with these months: the flags are fixed below BEFORE the first run (the shipped stacks), the indices for October carry the last known WWV (September)
 # forward, which is what the tool does for any future query.
-# Scored: (1) the CURRENT tool model (generator_80_c4w + calibration + shuffle c8 + shear map + lapse map, the bundled assets since 2026-11-09), (2) the PREVIOUS tool model
+# 2026-11-14 audit fix: the CURRENT tool model is models/l3_c4w (the sha256 in tempest_weather/assets/manifest.json, checked below before the lock), not generator_80_c4w (sha 7ab6df26,
+# never shipped). It was trained on the 21-level all-hours-store recipe (pilot80_l21_day_dpd: station_map_mix, base features, dpd, --all-hours), so it is scored (1a) on its own recipe
+# (training rows <= 2025 from pilot80_l21_day_dpd + 2026 July-October rows built with --all-hours) = its headline, and (1b) on the SAME rows as the previous model (file D below) for the
+# paired current-vs-previous comparison.
+# Scored: (1) the CURRENT tool model (l3_c4w + calibration + shuffle c8 + shear map + lapse map, the bundled assets since 2026-11-10), (2) the PREVIOUS tool model
 # (generator_80_p2f + calibration + shuffle c8 + shear map, the bundle before), each with the 15-year climatology and the Gaussian (Earth-GRAM-style) baseline in the same headline,
 # on ERA5-type targets of July-October 2026 (5,000 random held-out rows, the scorer default used by every development score and the first final test; more rows do not fit in RAM: N x 199 x 179 floats per array) and on the July-October 2026 balloons of Santa Teresa and Midland (balloon scorer: no lapse-map option, so both models without it).
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
@@ -15,6 +19,11 @@ for m in 202607 202608 202609 202610; do for k in pl1 pl2 pl3 sfc; do [ -f data/
 PY=.venv/Scripts/python; export PYTHONPATH=.
 OUT=docs/final_test_2026h2; mkdir -p $OUT
 PROF=data/pilot/profiles_2026h2.zarr PART=data/train/final_2026h2_part.npz D=data/train/final_2026h2_dpd.npz IND=data/raw/indices_2026h2
+PART21=data/train/final_2026h2_l21_part.npz D21=data/train/final_2026h2_l21_dpd.npz
+N=models/l3_c4w P=models/generator_80_p2f
+want=$($PY -c "import json; print(json.load(open('tempest_weather/assets/manifest.json', encoding='utf-8'))['source_sha256'])")
+[ "$(sha256sum $N.pt | cut -d' ' -f1)" = "$want" ] || { echo "$N.pt is not the model the NM/TX tool ships (manifest source_sha256 $want): fix N before the one-time test"; exit 6; }
+for f in $N.calib2021.npz $N.shearmap2021_cell8.npz $N.lapsemap2021.npz $P.calib2021.npz $P.shearmap2021_cell8.npz data/train/pilot80_l21_day_dpd.npz; do [ -f $f ] || { echo "missing $f"; exit 6; }; done
 # --- data (before the lock: rebuilding them is not a test) ---
 [ -d data/raw/era5_em_2026h2/sp.zarr ] || $PY -W ignore scripts/convert_2026h2.py > $OUT/convert.log 2>&1 || { echo "FAILED convert"; exit 5; }
 if [ ! -d $IND ]; then
@@ -46,19 +55,35 @@ print(f"training-file rows <= 2025: {len(keep):,}; 2026 July-October rows: {len(
 np.savez("data/train/final_2026h2_dpd.npz", **out, cond_names=np.asarray(a["cond_names"]), target_names=np.asarray(a["target_names"]), rh_target=np.asarray(a["rh_target"]))
 PYEOF
 fi
+# the current model's own recipe (2026-11-14): 2026 rows with --all-hours from the same store, joined with pilot80_l21_day_dpd rows <= 2025
+[ -f $PART21 ] || $PY -W ignore -u -m tempest.generator.build_dataset --profiles $PROF --indices $IND --out $PART21 --first-year 2026 --last-year 2026 --station-map models/station_map_mix.npz --features base --rh-target dpd --all-hours > $OUT/build_l21.log 2>&1 || { echo "FAILED build l21"; exit 5; }
+if [ ! -f $D21 ]; then
+  $PY - <<'PYEOF' > $OUT/join_l21.log 2>&1 || { echo "FAILED join l21"; exit 5; }
+import numpy as np
+from tempest.generator.train import load_npz
+a, b = load_npz("data/train/pilot80_l21_day_dpd.npz"), load_npz("data/train/final_2026h2_l21_part.npz")
+for k in ("cond_names", "target_names", "rh_target"):
+    assert np.array_equal(np.asarray(a[k]), np.asarray(b[k])), k
+keep = np.flatnonzero(np.asarray(a["year"]) <= 2025)
+out = {k: np.concatenate([np.asarray(a[k][keep]), np.asarray(b[k])]) for k in ("cond", "target", "year")}
+print(f"l21 training-file rows <= 2025: {len(keep):,}; 2026 July-October rows (all-hours store): {len(b['year']):,}")
+np.savez("data/train/final_2026h2_l21_dpd.npz", **out, cond_names=np.asarray(a["cond_names"]), target_names=np.asarray(a["target_names"]), rh_target=np.asarray(a["rh_target"]))
+PYEOF
+fi
 # --- the one-time scoring ---
 echo "started $(date '+%F %T')" > data/FINAL_TEST_2026H2_DONE
-N=models/generator_80_c4w P=models/generator_80_p2f
-cp $N.pt models/ft26_c4w.pt; cp $P.pt models/ft26_p2f.pt
-$PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4w.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $N.calib2021.npz \
+cp $N.pt models/ft26_c4w.pt; cp $N.pt models/ft26_c4wp.pt; cp $P.pt models/ft26_p2f.pt
+$PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4w.pt --data $D21 --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $N.calib2021.npz \
   --shuffle --template-cell 8 --shear-map $N.shearmap2021_cell8.npz --lapse-map $N.lapsemap2021.npz > $OUT/era5_c4w.log 2>&1
+$PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4wp.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --calib $N.calib2021.npz \
+  --shuffle --template-cell 8 --shear-map $N.shearmap2021_cell8.npz --lapse-map $N.lapsemap2021.npz > $OUT/era5_c4w_samerows.log 2>&1
 $PY -W ignore -u -m tempest.scoring.score --model models/ft26_p2f.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $P.calib2021.npz \
   --shuffle --template-cell 8 --shear-map $P.shearmap2021_cell8.npz > $OUT/era5_p2f.log 2>&1
-for X in c4w p2f; do M=models/generator_80_$X
+for X in c4w p2f; do M=$([ $X = c4w ] && echo $N || echo $P)
   $PY -W ignore -u -m tempest.scoring.sonde --model models/ft26_$X.pt --data $D --profiles data/pilot/profiles80.zarr --igra data/raw/igra_2026 --m 199 --first-test-year 2026 --last-test-year 2026 \
     --first-test-month 7 --calib $M.calib2021.npz --shear-map $M.shearmap2021_cell8.npz --extras > $OUT/sonde_$X.log 2>&1
 done
 echo "finished $(date '+%F %T')" >> data/FINAL_TEST_2026H2_DONE
 mkdir -p $OUT/headlines; cp models/ft26_*headline.csv $OUT/headlines/ 2>/dev/null
-$PY scripts/compare_headline.py models/ft26_p2f_cal2021_smap_shufc8_headline.csv models/ft26_c4w_cal2021_smap_shufc8_lmap_headline.csv > $OUT/compare_era5.txt 2>&1
+$PY scripts/compare_headline.py models/ft26_p2f_cal2021_smap_shufc8_headline.csv models/ft26_c4wp_cal2021_smap_shufc8_lmap_headline.csv > $OUT/compare_era5.txt 2>&1   # same rows (file D)
 echo "done: logs and headlines in $OUT"
