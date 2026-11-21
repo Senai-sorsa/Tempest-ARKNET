@@ -10,6 +10,39 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 
+ANOM_COLS = ["lat", "lon", "doy_sin", "doy_cos", "hour_sin", "hour_cos"]   # AV21: the inputs the anomaly climatology is looked up by
+N_ANOM_BASIS = 11
+LOG_CHI2_1 = 1.2704                                                          # -E[log z^2] for z ~ N(0, 1): turns a fit of log r^2 into log sigma^2
+
+
+def anom_basis(ds, dc, hs, hc, xp):
+    """AV21 harmonic basis from the day-of-year and hour sin / cos inputs (numpy or torch, xp = the module):
+    constant, 3 annual and 2 diurnal harmonics -> (..., 11)."""
+    a, b = xp.arctan2(ds, dc), xp.arctan2(hs, hc)
+    return xp.stack([xp.ones_like(a)] + [f(k * a) for k in (1, 2, 3) for f in (xp.sin, xp.cos)]
+                    + [f(k * b) for k in (1, 2) for f in (xp.sin, xp.cos)], -1)
+
+
+def fit_anom_table(c6, tgt, floor):
+    """AV21: per grid point (rounded lat / lon) least-squares harmonic fit of the mean of every target column and of
+    log(residual^2) (the spread). c6 (N, 6) raw ANOM_COLS values, tgt (N, D) raw targets (sp offset already removed),
+    floor (D,) smallest residual kept inside the log. -> keys (P, 2), coefficients mu (P, 11, D), log-var (P, 11, D)."""
+    import numpy as np
+    c6, tgt = np.asarray(c6, np.float64), np.asarray(tgt, np.float64)
+    keys, pid = np.unique(np.round(c6[:, :2], 3), axis=0, return_inverse=True)
+    pid = pid.ravel()
+    X = anom_basis(c6[:, 2], c6[:, 3], c6[:, 4], c6[:, 5], np)
+    cmu = np.zeros((len(keys), X.shape[1], tgt.shape[1]))
+    clv = np.zeros_like(cmu)
+    for p in range(len(keys)):
+        i = pid == p
+        assert i.sum() >= 4 * X.shape[1], f"point {keys[p]} has only {int(i.sum())} rows for the {X.shape[1]}-term fit"
+        cmu[p] = np.linalg.lstsq(X[i], tgt[i], rcond=None)[0]
+        r2 = (tgt[i] - X[i] @ cmu[p]) ** 2
+        clv[p] = np.linalg.lstsq(X[i], np.log(r2 + np.asarray(floor) ** 2), rcond=None)[0]
+        clv[p, 0] += LOG_CHI2_1
+    return keys, cmu, clv
+
 
 class Block(nn.Module):
     """Pre-norm residual MLP block; the norm's scale/shift come from the noise embedding (conditional layer norm)."""
@@ -26,12 +59,15 @@ class Block(nn.Module):
             nn.init.zeros_(self.cfilm.bias)
         self.ff = nn.Sequential(nn.Linear(width, width), nn.SiLU(), nn.Linear(width, width))
 
-    def forward(self, h, z, zc=None):
+    def forward(self, h, z, zc=None, mask=None):
         s, b = self.film(z).chunk(2, dim=-1)
         if zc is not None:
             sc, bc = self.cfilm(zc).chunk(2, dim=-1)
             s, b = s + sc, b + bc
-        return h + self.ff(self.norm(h) * (1 + s) + b)
+        if mask is None:
+            return h + self.ff(self.norm(h) * (1 + s) + b)
+        x = (self.norm(h) * (1 + s) + b) * mask                                   # NEST: units past the row's width stay 0 everywhere
+        return (h + self.ff[2](self.ff[1](self.ff[0](x)) * mask)) * mask
 
 
 class Generator(nn.Module):
@@ -44,7 +80,8 @@ class Generator(nn.Module):
     def __init__(self, n_cond: int, n_out: int, noise_dim: int = 32, width: int = 512, depth: int = 4,
                  linear_cols: list[int] | None = None, interactions: bool = False, product_pairs: list | None = None,
                  geo: dict | None = None, context_cols: list[int] | None = None, terrain_head: dict | None = None,
-                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None, conv: dict | None = None):
+                 ctx_sep: bool = False, noise_t: dict | None = None, jump: dict | None = None, conv: dict | None = None,
+                 nest: dict | None = None, anom: dict | None = None):
         """Loop-3 options, all off by default (= the adopted network, same parameters and outputs):
         geo = dict(cols=[lat, lon positions], mu=[..], sd=[..], L=10, siren=0): spherical harmonics of the real
           lat/lon (un-normalised with mu/sd) replace the two raw columns; siren > 0 passes them through a 2-layer
@@ -66,11 +103,29 @@ class Generator(nn.Module):
         conv = dict(C=32, layers=3, k=5, n_var=4, n_h=44) (L26): a 1-D convolutional refinement along the heights. The trunk state is projected to C
           features per height, stacked with the network's own profile outputs, passed through `layers` residual convolutions of width k and added back
           to the profile outputs (last layer zero-initialised, so the network starts as without it). Neighbouring heights see each other: aimed at
-          height-to-height roughness (surface jumps, shear tail)."""
+          height-to-height roughness (surface jumps, shear tail).
+        nest = dict(col=i, mu=.., sd=.., widths=[10 ints]) (NEST, SIGMA stage 3, New_Plan 14.3): ordered units; a row whose lead (cond column i,
+          un-normalised with mu / sd) falls in lead day d (1..10) uses only the first widths[d - 1] hidden units (the rest are zeroed after the
+          input layer, inside and after every block and after the head's norm; the norms' statistics see the zeros), so one network is wide where the noise level is small and narrow where it is large.
+        anom = dict(cols=[ANOM_COLS positions], mu=[6], sd=[6], P=points, tm=[n_out], ts=[n_out]) (AV21, L3-8 SAMOS): the network's output is read as a
+          standardised anomaly z and mapped to the normalised target (mu_c + sd_c z - tm) / ts, where mu_c / sd_c are a per-point harmonic climatology
+          (buffers anom_keys / anom_cmu / anom_clv, filled by set_anom from fit_anom_table; the point is the nearest table point to the row's lat / lon).
+          Swapping the table for another region's (scripts/av21_table.py) moves the climatology without retraining.
+          anom mean_only = True (AV40): only mu_c is used, the anomaly is scaled by the training sd ts (the log-spread table is ignored)."""
         super().__init__()
         self.linear_cols = list(linear_cols or [])
         self.geo = dict(geo) if geo else None
         self.context_cols = list(context_cols or [])
+        self.anom = dict(anom) if anom else None
+        if self.anom:
+            P = int(self.anom["P"])
+            for k in ("mu", "sd", "tm", "ts"):
+                self.register_buffer(f"anom_{k}", torch.tensor(self.anom[k], dtype=torch.float32))
+            self.register_buffer("anom_keys", torch.zeros(P, 2))
+            self.register_buffer("anom_cmu", torch.zeros(P, N_ANOM_BASIS, n_out))
+            self.register_buffer("anom_clv", torch.zeros(P, N_ANOM_BASIS, n_out))
+            if "mask" in self.anom:                                     # X4: 0 = this output stays plain (no climatology)
+                self.register_buffer("anom_mask", torch.tensor(self.anom["mask"], dtype=torch.float32))
         drop = set(self.linear_cols) | set(self.geo["cols"] if self.geo else []) | set(self.context_cols)
         self.keep_cols = [i for i in range(n_cond) if i not in drop]
         self.noise_dim = noise_dim
@@ -98,6 +153,10 @@ class Generator(nn.Module):
         self.inp = nn.Linear(n_in + noise_dim, width)
         self.ctx_sep = bool(ctx_sep and self.context_cols)
         self.blocks = nn.ModuleList(Block(width, emb, self.ctx_sep) for _ in range(depth))
+        self.nest = dict(nest) if nest else None
+        if self.nest:
+            assert len(self.nest["widths"]) == 10 and all(0 < w <= width for w in self.nest["widths"])
+            self.register_buffer("nest_mask", (torch.arange(width)[None] < torch.tensor(self.nest["widths"])[:, None]).float())   # (10, width)
         self.head = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, n_out))
         self.noise_t = dict(noise_t) if noise_t else None
         if self.noise_t and self.noise_t.get("head"):
@@ -166,9 +225,14 @@ class Generator(nn.Module):
             if not self.ctx_sep:
                 z, zc = z + zc, None
         h = self.inp(torch.cat([c, eps], dim=-1))
+        mask = self._nest_mask(full) if self.nest else None
+        if mask is not None:
+            h = h * mask
         for blk in self.blocks:
-            h = blk(h, z, zc)
+            h = blk(h, z, zc) if mask is None else blk(h, z, zc, mask)
         hn = self.head[0](h)
+        if mask is not None:
+            hn = hn * mask
         out = self.head[1](hn)
         if self.noise_t and self.noise_t.get("head"):
             K = int(self.noise_t["head"])
@@ -184,7 +248,35 @@ class Generator(nn.Module):
                 x = torch.cat([x, torch.stack([x[:, a] * x[:, b] for a, b in self.product_pairs], 1)], 1)
             s = self.slope(slope_in).view(len(cond), x.shape[1], -1)
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
+        if self.anom:
+            out = self._anom(full, out)
         return out
+
+    def set_anom(self, keys, cmu, clv):
+        """AV21: load a fit_anom_table result into the anomaly buffers (shapes must match model_kw anom P)."""
+        for name, v in (("anom_keys", keys), ("anom_cmu", cmu), ("anom_clv", clv)):
+            getattr(self, name).copy_(torch.as_tensor(v, dtype=torch.float32))
+
+    def _anom(self, full, z):
+        with torch.autocast(full.device.type, enabled=False):          # bf16 would round a 290 K climatology to ~1 K
+            raw = full[:, self.anom["cols"]].float() * self.anom_sd + self.anom_mu
+            k = self.anom_keys
+            d = (raw[:, :1] - k[:, 0]) ** 2 + ((raw[:, 1:2] - k[:, 1]) * torch.cos(torch.deg2rad(raw[:, :1]))) ** 2
+            p = d.argmin(1)
+            X = anom_basis(raw[:, 2], raw[:, 3], raw[:, 4], raw[:, 5], torch)
+            mu = torch.einsum("bk,bkd->bd", X, self.anom_cmu[p])
+            if self.anom.get("mean_only"):                              # AV40: climatology mean only, the spread stays the training sd ts
+                off = (mu.unsqueeze(1) - self.anom_tm) / self.anom_ts
+                return (off * self.anom_mask if "mask" in self.anom else off) + z.float()
+            sd = torch.exp(0.5 * torch.einsum("bk,bkd->bd", X, self.anom_clv[p]).clamp(-60, 60))
+            sd = torch.minimum(torch.maximum(sd, 0.05 * self.anom_ts), 10 * self.anom_ts)
+            out = ((mu.unsqueeze(1) + sd.unsqueeze(1) * z.float()) - self.anom_tm) / self.anom_ts
+            return self.anom_mask * out + (1 - self.anom_mask) * z.float() if "mask" in self.anom else out
+
+    def _nest_mask(self, full):
+        lead = full[:, int(self.nest["col"])] * float(self.nest["sd"]) + float(self.nest["mu"])
+        day = torch.clamp(torch.ceil(lead - 1e-6), 1, 10).long() - 1                # sigma.lead_day
+        return self.nest_mask[day].unsqueeze(1)                                    # (B, 1, width)
 
     def _conv(self, h, out):
         C, nv, nh = int(self.conv["C"]), int(self.conv["n_var"]), int(self.conv["n_h"])
@@ -290,7 +382,10 @@ class TokenGenerator(nn.Module):
 
 
 def make_generator(arch, *args, **kw):
-    """arch "mlp" (default, the adopted model) or "tokens" (IL-8)."""
+    """arch "mlp" (default, the adopted model) or "tokens" (IL-8); any other arch is a New_Plan 25 model (s25_models.build)."""
+    if arch not in ("mlp", "tokens"):
+        from tempest.generator import s25_models
+        return s25_models.build(arch, *args, **kw)
     return (TokenGenerator if arch == "tokens" else Generator)(*args, **kw)
 
 

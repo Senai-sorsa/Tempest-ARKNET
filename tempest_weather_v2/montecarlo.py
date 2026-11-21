@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube"]
+__all__ = ["VehiclePriors", "run", "MCResult", "calibrate_vehicle_sigma", "latin_hypercube", "AdaptiveConformal", "sobol_unit", "sobol_indices", "bootstrap_percentile", "persistence_perturbations", "run_importance", "ISResult"]
 
 
 def latin_hypercube(n, d, rng):
@@ -27,6 +27,66 @@ def latin_hypercube(n, d, rng):
     for j in range(d):
         u[:, j] = u[rng.permutation(n), j]
     return u
+
+
+def sobol_unit(n, d, rng):
+    """(n, d) scrambled Sobol points in (0, 1) (randomised quasi-Monte Carlo; needs scipy, imported here so the module stays numpy-only otherwise). Best with n a power of 2; other n work but lose
+    the balance guarantee."""
+    try:
+        from scipy.stats import qmc
+    except ImportError as e:  # pragma: no cover
+        raise ImportError("method='sobol' needs scipy (scipy.stats.qmc)") from e
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return qmc.Sobol(d, scramble=True, seed=int(rng.integers(2 ** 31))).random(n)
+
+
+def bootstrap_percentile(values, q=95.0, level=95.0, n_boot=500, seed=0):
+    """M8: percentile q of `values` with a bootstrap band -> (estimate, lo, hi) at `level` % confidence. Use it to see how many runs a tail percentile needs: rerun with larger n until (hi - lo) is small enough."""
+    v = np.asarray(values, float)
+    rng = np.random.default_rng(seed)
+    est = np.percentile(v, q, axis=None)
+    bs = np.percentile(v[rng.integers(0, len(v), (n_boot, len(v)))], q, axis=1)
+    a = (100.0 - level) / 2.0
+    return float(est), float(np.percentile(bs, a)), float(np.percentile(bs, 100.0 - a))
+
+
+def sobol_indices(simulate, atmospheres, priors, n=256, seed=0, n_boot=200):
+    """M8: Sobol sensitivity indices of the result to each vehicle parameter and to the atmosphere (the atmosphere is one input: a uniformly chosen member of `atmospheres`). Saltelli (2010) first-order and
+    Jansen total-effect estimators with the A / B / AB_i design: n (d + 2) simulator calls for d inputs (vehicle parameters + the atmosphere). -> dict name -> dict(first, total, first_ci, total_ci) (95 % bootstrap).
+    First-order = the share of the variance this input explains alone; total = including all its interactions (total >= first up to noise)."""
+    names = list(priors.spec) + ["atmosphere"]
+    d = len(names)
+    m = len(atmospheres)
+    rng = np.random.default_rng(seed)
+    AB = sobol_unit(n, 2 * d, rng)
+    A, B = AB[:, :d], AB[:, d:]
+
+    def f(U):
+        par = priors.from_unit(U[:, :d - 1]) if d > 1 else [{} for _ in range(len(U))]
+        return np.array([float(simulate(atmospheres[min(int(U[k, -1] * m), m - 1)], **par[k])) for k in range(len(U))])
+    yA, yB = f(A), f(B)
+    yAB = []
+    for i in range(d):
+        C = A.copy()
+        C[:, i] = B[:, i]
+        yAB.append(f(C))
+    var = np.var(np.concatenate([yA, yB]), ddof=1)
+    if var <= 0:
+        return {nm: dict(first=0.0, total=0.0, first_ci=(0.0, 0.0), total_ci=(0.0, 0.0)) for nm in names}
+
+    def est(idx):
+        v = np.var(np.concatenate([yA[idx], yB[idx]]), ddof=1)
+        v = v if v > 0 else var
+        return [(np.mean(yB[idx] * (yAB[i][idx] - yA[idx])) / v, 0.5 * np.mean((yA[idx] - yAB[i][idx]) ** 2) / v) for i in range(d)]
+    full = est(np.arange(n))
+    boots = np.array([est(rng.integers(0, n, n)) for _ in range(n_boot)])          # (n_boot, d, 2)
+    out = {}
+    for i, nm in enumerate(names):
+        out[nm] = dict(first=float(full[i][0]), total=float(full[i][1]), first_ci=tuple(float(x) for x in np.percentile(boots[:, i, 0], [2.5, 97.5])),
+                       total_ci=tuple(float(x) for x in np.percentile(boots[:, i, 1], [2.5, 97.5])))
+    return out
 
 
 def _ppf_normal(p):
@@ -71,7 +131,13 @@ class VehiclePriors:
         names = list(self.spec)
         if not names:
             return [dict() for _ in range(n)]
-        u = latin_hypercube(n, len(names), rng) if method == "lhs" else rng.random((n, len(names)))
+        u = latin_hypercube(n, len(names), rng) if method == "lhs" else sobol_unit(n, len(names), rng) if method == "sobol" else rng.random((n, len(names)))
+        return self.from_unit(u)
+
+    def from_unit(self, u):
+        """(n, d) uniforms in (0, 1) -> list of n parameter dicts (the transform `sample` uses)."""
+        names = list(self.spec)
+        n = len(u)
         cols = {}
         for j, name in enumerate(names):
             kind, sd = self.spec[name]
@@ -81,7 +147,8 @@ class VehiclePriors:
 
 
 class MCResult:
-    def __init__(self, values, params, atm_index):
+    def __init__(self, values, params, atm_index, atm_metrics=None):
+        self.atm_metrics = atm_metrics or {}          # name -> per-atmosphere number (pad air density, mean wind below 200 m / 3 km); filled by run()
         self.values = np.asarray(values, float)
         self.params = params
         self.atm_index = np.asarray(atm_index, int)
@@ -108,16 +175,70 @@ class MCResult:
             out[name] = float(np.corrcoef(np.argsort(np.argsort(x)), y)[0, 1] ** 2) if np.std(x) > 0 else 0.0
         a = self.atm_index.astype(float)
         out["atmosphere (by its sample index; use varying atmospheres)"] = 0.0 if np.std(a) == 0 else float(np.corrcoef(np.argsort(np.argsort(a)), y)[0, 1] ** 2)
+        for name, m in self.atm_metrics.items():                           # Gemini bug 1: the sample index is not a physical quantity (its rank correlation with the apogee is chance); the physical metrics are
+            x = np.asarray(m, float)[self.atm_index]
+            out[f"atmosphere: {name}"] = float(np.corrcoef(np.argsort(np.argsort(x)), y)[0, 1] ** 2) if np.std(x) > 0 else 0.0
         return out
+
+    def explained(self):
+        """Joint rank regression of the result on all vehicle parameters (r2_vehicle) and on vehicle parameters plus the physical atmosphere metrics (r2_all); atmosphere_gain = r2_all - r2_vehicle is the part
+        of the variance the atmosphere adds once the vehicle is accounted for (the first-order shares of `contributions` can overlap). Needs atmosphere metrics (set by run())."""
+        y = np.argsort(np.argsort(self.values)).astype(float)
+        rk = lambda x: np.argsort(np.argsort(x)).astype(float)
+        names = list(self.params[0]) if self.params else []
+        veh = [rk(np.array([p[n] for p in self.params], float)) for n in names if np.std([p[n] for p in self.params]) > 0]
+        atm = [rk(np.asarray(m, float)[self.atm_index]) for m in self.atm_metrics.values() if np.std(np.asarray(m, float)[self.atm_index]) > 0]
+
+        def r2(cols):
+            if not cols or len(y) <= len(cols) + 2:
+                return 0.0
+            X = np.column_stack([np.ones(len(y))] + cols)
+            beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+            res = y - X @ beta
+            return float(1.0 - res.var() / y.var())
+        rv, ra = r2(veh), r2(veh + atm)
+        return dict(r2_vehicle=rv, r2_all=ra, atmosphere_gain=max(ra - rv, 0.0))
 
     def summary(self):
         v = self.values
         return dict(n=int(len(v)), mean=float(v.mean()), sd=float(v.std(ddof=1)) if len(v) > 1 else 0.0, p5=self.interval(90)[0], p50=float(np.median(v)), p95=self.interval(90)[1])
 
 
-def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
+def atmosphere_metrics(atm):
+    """Physical summary numbers of one reader: air density at the pad, mean wind speed from the pad to 200 m and to 3 km (in the reader's units); None when the reader cannot give them."""
+    try:
+        z0 = float(atm.elevation_m)
+        rho = float(np.asarray(atm.air(z0 + 1.0))[2])
+        sp = lambda top: float(np.mean(np.linalg.norm(np.asarray(atm.wind_many(z0 + np.linspace(10.0, top, 24))), axis=-1)))
+        return dict(pad_air_density=rho, mean_wind_0_200m=sp(200.0), mean_wind_0_3km=sp(3000.0))
+    except Exception:  # noqa: BLE001  (a custom reader without these attributes: the index-based share remains)
+        return None
+
+
+def persistence_perturbations(atmospheres, rho, n, rng, smooth_m=300.0):
+    """M2: n frozen wind perturbations (dict z, east, north) for the persistence increment: the change of the wind between the last measurement and launch. At every height the sd is
+    sqrt(2 (1 - rho)) times the sd of that wind component over `atmospheres` (an AtmosphereSet: its samples are the spread of the air at launch), smoothed over about `smooth_m` metres in height.
+    rho: correlation of the wind anomaly with itself over the age (array over the model heights, from persistence.wind_persistence)."""
+    s = atmospheres.samples
+    z = np.asarray(s["height_agl"], float)
+    k = np.sqrt(2.0 * np.clip(1.0 - np.asarray(rho, float), 0.0, 2.0))
+    sd = {key: np.asarray(s[key], float).std(0) * k for key in ("u", "v")}
+    dz = max(float(np.median(np.diff(z))), 1.0)
+    ker = np.exp(-0.5 * (np.arange(-12, 13) * dz / float(smooth_m)) ** 2)
+    ker /= np.sqrt((ker ** 2).sum())                                    # keeps the variance of white noise after smoothing
+    out = []
+    for _ in range(int(n)):
+        e = {key: np.convolve(rng.standard_normal(len(z) + 24), ker, "valid")[:len(z)] * sd[key] for key in ("u", "v")}
+        out.append(dict(z=z, east=e["u"], north=e["v"]))
+    return out
+
+
+def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None, conditioned=False):
     """Call simulate(atmosphere, **vehicle_parameters) n times with atmosphere k and a sampled vehicle parameter set; return an MCResult.
-    atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order."""
+    atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order.
+    wind_age (M2, opt-in): the correlation `rho` of the wind anomaly with itself over the age of the latest wind measurement (array over the model heights, see persistence.wind_persistence); every run then adds a
+    frozen wind change with sd sqrt(2 (1 - rho)) x the pool sd (NASA: total = system dispersion + wind in-persistence increment). Needs atmospheres from Launch.atmospheres() of a Launch that has been CONDITIONED on the measurement (observe): on an unconditioned pool the full spread is already there and the increment double counts.
+    """
     priors = priors or VehiclePriors()
     m = len(atmospheres)
     if m == 0:
@@ -126,13 +247,89 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs"):
     rng = np.random.default_rng(seed)
     idx = np.concatenate([rng.permutation(m) for _ in range(math.ceil(n / m))])[:n]
     params = priors.sample(n, rng, method)
+    if wind_age is not None and not conditioned:
+        raise ValueError("wind_age adds the change since the last measurement on top of the spread that is left AFTER that measurement; pass conditioned=True only for atmospheres from a Launch that was conditioned with observe(...) (on an unconditioned pool the increment double counts)")
+    pert = persistence_perturbations(atmospheres, wind_age, n, rng) if wind_age is not None else None
     vals = []
     for k in range(n):
+        atm = atmospheres[int(idx[k])]
+        if pert is not None:
+            atm = atm.perturbed(pert[k])
+        v = float(simulate(atm, **params[k]))
+        if not math.isfinite(v):
+            raise ValueError(f"the simulator returned {v} for atmosphere {int(idx[k])} and parameters {params[k]}")
+        vals.append(v)
+    per = [atmosphere_metrics(atmospheres[k]) for k in range(m)]
+    metrics = {key: np.array([d[key] for d in per]) for key in per[0]} if all(d is not None for d in per) else {}
+    return MCResult(vals, params, idx, metrics)
+
+
+class ISResult:
+    """run_importance output: values (n), weights (n, mean 1 over the pool's own distribution), atm_index (n), the tilted metric and the estimate of P(value > threshold)."""
+
+    def __init__(self, values, weights, atm_index, params, threshold, tilt):
+        self.values, self.weights, self.atm_index, self.params = np.asarray(values, float), np.asarray(weights, float), np.asarray(atm_index), params
+        self.threshold, self.tilt = threshold, tilt
+
+    def probability(self, threshold=None, above=True):
+        """-> (estimate, standard error) of P(value > threshold) (above=False: below) under the UNtilted pool; the plain weighted mean (unbiased), its error from the spread of the weighted terms."""
+        t = self.threshold if threshold is None else threshold
+        hit = (self.values > t) if above else (self.values < t)
+        term = self.weights * hit
+        return float(term.mean()), float(term.std(ddof=1) / math.sqrt(len(term)))
+
+    def effective_n(self):
+        """Kish effective sample size of the weights (n when the tilt is 0)."""
+        return float(self.weights.sum() ** 2 / (self.weights ** 2).sum())
+
+    def quantile(self, q):
+        """Weighted quantile (0-1) of the values under the untilted pool (self-normalised weights)."""
+        o = np.argsort(self.values)
+        c = np.cumsum(self.weights[o]) / self.weights.sum()
+        return float(self.values[o][min(np.searchsorted(c, q), len(c) - 1)])
+
+
+def run_importance(simulate, atmospheres, threshold, priors=None, n=200, tilt=2.0, metric="mean_wind_0_200m", seed=0, method="lhs"):
+    """M9: importance sampling for RARE outcomes (rail-exit or ground wind above a limit, landing outside a zone): crude Monte Carlo needs about 100 / p runs to see a probability p; here the runs are drawn from
+    the atmosphere pool with probability proportional to exp(tilt * z), z = the normal score of the atmosphere's rank in `metric` (Gaussian space of the wind quantile), and weighted back by
+    (1 / m) / q, so P(value > threshold) stays unbiased for the pool's distribution while the windy atmospheres that make the rare outcome are simulated far more often (tilt 2 moves the mean
+    normal score to about 2, the windiest 2-3 %). Vehicle parameters are drawn from their priors as in run(). The pool bounds the reach: a pool of m atmospheres cannot show a wind more extreme than
+    its own most extreme sample, so make the pool large (atmospheres are cheap, the simulator is not; m >= 20 / p) and check ISResult.effective_n().
+    CAUTION (checked 2026-11-09 against 3000 crude runs): the estimate is unbiased, but when the rare outcome is driven partly by inputs the tilt does not target (vehicle scale factors,
+    other air) and the effective n is small (< about 20), the reported standard error can be far too small: with 150 runs one draw read 0.0017 +- 0.0003 where the truth was 0.0080
+    (300 runs: 0.0080 +- 0.0023). Use n >= 300, tilt the metric that drives the outcome, and confirm once against a short crude run.
+    metric: a key of atmosphere_metrics() ("mean_wind_0_200m", "mean_wind_0_3km", "pad_air_density"), a callable reader -> number, or an array of one number per atmosphere."""
+    priors = priors or VehiclePriors()
+    m = len(atmospheres)
+    if m < 2:
+        raise ValueError("need a pool of atmospheres")
+    if isinstance(metric, str):
+        per = [atmosphere_metrics(atmospheres[k]) for k in range(m)]
+        if any(d is None for d in per):
+            raise ValueError(f"these readers cannot give {metric!r}; pass metric as a callable or an array")
+        x = np.array([d[metric] for d in per], float)
+    elif callable(metric):
+        x = np.array([float(metric(atmospheres[k])) for k in range(m)], float)
+    else:
+        x = np.asarray(metric, float)
+        if x.shape != (m,):
+            raise ValueError("metric array needs one value per atmosphere")
+    r = np.argsort(np.argsort(x, kind="stable"), kind="stable")
+    z = _ppf_normal((r + 0.5) / m)
+    lq = float(tilt) * z
+    q = np.exp(lq - lq.max())
+    q /= q.sum()
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(m, size=int(n), replace=True, p=q)
+    w = (1.0 / m) / q[idx]
+    params = priors.sample(int(n), rng, method)
+    vals = []
+    for k in range(int(n)):
         v = float(simulate(atmospheres[int(idx[k])], **params[k]))
         if not math.isfinite(v):
             raise ValueError(f"the simulator returned {v} for atmosphere {int(idx[k])} and parameters {params[k]}")
         vals.append(v)
-    return MCResult(vals, params, idx)
+    return ISResult(vals, w, idx, params, threshold, tilt)
 
 
 def calibrate_vehicle_sigma(errors_pct, atmosphere_sd_pct):
@@ -146,3 +343,35 @@ def calibrate_vehicle_sigma(errors_pct, atmosphere_sd_pct):
         raise ValueError("errors and atmosphere spreads need the same, non-zero length")
     atm = float(np.mean(a ** 2))
     return dict(vehicle_rms_pct=math.sqrt(max(float(np.mean(e ** 2)) - atm, 0.0)), vehicle_scatter_pct=math.sqrt(max(float(np.var(e)) - atm, 0.0)), bias_pct=float(e.mean()), n=int(e.size), reliable=bool(e.size >= 5))
+
+
+class AdaptiveConformal:
+    """M10: adaptive conformal calibration of a central quantile interval of an ensemble (online conformal inference, Gibbs and Candes 2021, in its padding form as used for AI weather ensembles). The interval is the
+    ensemble's central (1 - alpha) interval stretched about its centre by a factor s_t that moves after every verified case: s_t+1 = s_t + gamma (miss_t - alpha), miss_t = 1 when the observation fell outside the
+    stretched interval. The long-run share of misses converges to alpha WHATEVER the ensemble's own calibration (distribution-free, marginal over time, not conditional on the case). A quantile re-levelling would saturate at
+    the ensemble's min / max when the ensemble is too narrow; the stretch does not.
+    Use: ac = AdaptiveConformal(0.10); lo, hi = ac.interval(samples); ... later ac.update(observed, (lo, hi)). For the 10 m wind (past-mode coverage 0.79) and for the total apogee interval of `run`.
+    gamma: step size (0.01-0.1); larger adapts faster but jitters. s is kept in [0.05, 20]."""
+
+    def __init__(self, alpha=0.10, gamma=0.05):
+        if not 0.0 < alpha < 1.0 or gamma <= 0:
+            raise ValueError("alpha must be in (0, 1) and gamma positive")
+        self.alpha, self.gamma, self.stretch = float(alpha), float(gamma), 1.0
+        self.n, self.misses = 0, 0
+
+    def interval(self, samples):
+        x = np.asarray(samples, float)
+        lo, hi = np.quantile(x, self.alpha / 2.0), np.quantile(x, 1.0 - self.alpha / 2.0)
+        c, h = 0.5 * (lo + hi), 0.5 * (hi - lo)
+        return float(c - self.stretch * h), float(c + self.stretch * h)
+
+    def update(self, observed, interval):
+        miss = 0.0 if interval[0] <= observed <= interval[1] else 1.0
+        self.stretch = float(min(max(self.stretch + self.gamma * (miss - self.alpha), 0.05), 20.0))
+        self.n += 1
+        self.misses += int(miss)
+        return bool(miss)
+
+    @property
+    def coverage(self):
+        return 1.0 - self.misses / self.n if self.n else float("nan")

@@ -51,8 +51,10 @@ def test_forecast_mode_answers_inside_the_window():
 
 
 def test_fallback_outside_the_tested_hours_and_leads_and_on_fetch_failure():
-    early = tw.values(32.9, -106.9, "2026-11-08T09:00", ["T@2000"], n=199, now=NOW, fetch=canned)       # 09 h solar: not in 14-20
-    assert early["mode"] == "ai" and any("solar-hours" in q for q in early["quality"])
+    late = tw.values(32.9, -106.9, "2026-11-08T20:30", ["T@2000"], n=199, now=NOW, fetch=canned)       # 20.5 h solar: outside the forecast window 02-20 h, inside the climate model's 06-21 h
+    assert late["mode"] == "ai" and any("solar-hours" in q for q in late["quality"])
+    morning = tw.values(32.9, -106.9, "2026-11-08T09:00", ["T@2000"], n=199, now=NOW, fetch=canned)    # F-V2: 09 h solar is served by forecast mode since 2026-11-10 (tested at 05 / 11 / 17 h)
+    assert morning["mode"] == "forecast"
     far = tw.values(32.9, -106.9, "2026-11-20T17:00", ["T@2000"], n=199, now=NOW, fetch=canned)         # 15 days ahead
     assert far["mode"] == "ai" and any("lead-outside" in q for q in far["quality"])
 
@@ -66,3 +68,53 @@ def test_forecast_distribution_is_calibrated_width_and_coherent():
     c = tw.couple(32.9, -106.9, WHEN, ["T@2000", "T@2500"], n=398, now=NOW, fetch=canned)
     k, rows = c.draw(398, np.random.default_rng(0)) if c.draw.__code__.co_argcount > 2 else c.draw(398)
     assert rows.shape[1] == 2 and np.corrcoef(rows.T)[0, 1] > 0.5       # neighbouring heights move together (real error profiles reorder the samples)
+
+
+def test_ensemble_features_are_opt_in_and_checked():
+    """ASK_LATER 21: ens_features must be 24 finite values (spreads >= 0); assets without the ensemble network refuse them instead of silently answering HRES-only."""
+    ens = {k: (1.0 if k.endswith("sd") else 3.0) for k in TF.ENS_FEATURES}
+    assert TF.ens_vector(ens).shape == (24,) and TF.ens_vector(list(ens.values()))[1] == 1.0
+    for bad in ([1.0] * 23, {**ens, "v10_sd": -0.5}, {**ens, "t2m_mean": float("nan")}):
+        with pytest.raises(ValueError):
+            TF.ens_vector(bad)
+    if not json.load(open(os.path.join(ASSETS, "manifest.json"))).get("modef_ens_included", False):
+        with pytest.raises(ValueError, match="no ensemble mode F"):
+            tw.values(32.9, -106.9, WHEN, ["T@2000"], n=50, now=NOW, fetch=canned, ens_features=ens)
+
+
+@pytest.mark.parametrize("single", [True, False])
+def test_forecast_mode_moves_every_sample_by_one_grid_shift(monkeypatch, single):   # AU-2 (New_Plan 15.1)
+    from tempest_weather import _core, api
+    seen, real = [], _core.site_shift
+    monkeypatch.setattr(_core, "site_shift", lambda phys, dz: (seen.append(np.array(dz, float)), real(phys, dz))[1])
+    monkeypatch.setitem(api.OPTIONS, "forecast_single_shift", single)
+    atm, info = api.atmosphere_set(32.99, -106.97, WHEN, n=1024, elevation=1401, now=NOW, fetch=canned)
+    assert info["mode"] == "forecast" and len(seen) == 1
+    want = info["elevation_m"] - info["grid_elevation_m"]
+    if single:
+        assert np.allclose(seen[0], want)
+    else:                                                         # the old line: rows keep their own blend point's height (two values at Spaceport America)
+        assert len(np.unique(seen[0])) > 1
+
+
+@pytest.mark.parametrize("fix", [True, False])
+def test_surface_values_from_another_height_are_moved_to_the_grid_once(monkeypatch, fix):   # AU-3 (New_Plan 15.1)
+    from tempest_weather import _core, api
+    monkeypatch.setitem(api.OPTIONS, "forecast_grid_elevation", fix)
+    run = lambda f: api.atmosphere_set(32.99, -106.97, WHEN, n=4, predicted=True, elevation=1401, now=NOW, fetch=f)
+    plain, info = run(canned)
+    zg = info["grid_elevation_m"]
+    low, info2 = run(lambda la, lo, d: dict(canned(la, lo, d), elevation=zg - 90.0))        # same numbers, said to be 90 m below the grid
+    moved = any(q.startswith("forecast-surface-values-moved-from-source-height") for q in info2["quality"])
+    if not fix:
+        assert not moved and np.allclose(low["sp"], plain["sp"]) and np.allclose(low["t2m"], plain["t2m"])
+        return
+    assert moved and not any(q.startswith("forecast-surface-values-moved") for q in info["quality"])
+    t0 = 14.0 + 273.15
+    assert np.allclose(low["t2m"] - plain["t2m"], -_core.LAPSE * 90.0, atol=1e-4)
+    assert np.allclose(low["sp"] / plain["sp"], np.exp(-_core.G0 * 90.0 / (_core.RD * (t0 - _core.LAPSE * 45.0))), rtol=1e-4)   # float32 and the site step's t2m dependence: ~2 Pa of a 914 Pa shift
+
+
+def test_default_request_asks_for_the_grid_height():   # AU-3
+    from tempest_weather.sources import openmeteo
+    assert "elevation=1495.5" in openmeteo.url(32.99, -106.97, "2026-11-08", elevation=1495.46) and "elevation" not in openmeteo.url(32.99, -106.97, "2026-11-08")

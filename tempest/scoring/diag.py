@@ -82,11 +82,26 @@ def tail_support(n_rows, q, n_layers=1, day=None, exceed=None):
     return out
 
 
-def block_bootstrap_ci(values, day, stat=np.mean, n_boot=500, seed=0, alpha=0.05):
+BLOCK_DAYS = 21  # AU-4 (New_Plan 15.1): first lag where the daily model - clim15 CRPS autocorrelation is below 0.1 in every headline band = 19 (T 12-18 km; the others 1-7), rounded up to whole weeks
+
+
+def day_number(day):
+    """Day ids year * 1000 + day of year -> continuous day numbers (days since 1970), so a block runs across the year end."""
+    d = np.asarray(day, np.int64)
+    start = np.array([f"{y}-01-01" for y in d // 1000], "datetime64[D]")
+    return (start + (d % 1000).astype("timedelta64[D]")).astype(np.int64)
+
+
+def block_ids(day, block_days=1):
+    """AU-4: resampling unit of the bootstraps. block_days 1 = the day ids as given (any labels); > 1 = consecutive blocks of that many days (needs year * 1000 + doy ids)."""
+    return np.asarray(day) if block_days <= 1 else day_number(day) // int(block_days)
+
+
+def block_bootstrap_ci(values, day, stat=np.mean, n_boot=500, seed=0, alpha=0.05, block_days=1):
     """IL-110: 95 % interval of stat(values) by resampling whole days (values (N,) or (N, k) with one row per day member; day (N,)). -> (estimate, lo, hi). Rows of one day are never split, so
-    the interval is not falsely narrow for tails that sit in a few weather days."""
+    the interval is not falsely narrow for tails that sit in a few weather days. block_days (AU-4): resample blocks of that many consecutive days."""
     v = np.asarray(values, float)
-    _, inv = np.unique(np.asarray(day), return_inverse=True)
+    _, inv = np.unique(block_ids(day, block_days), return_inverse=True)
     order = np.argsort(inv, kind="stable")
     v, inv = v[order], inv[order]
     starts = np.searchsorted(inv, np.arange(inv.max() + 1))
@@ -113,13 +128,19 @@ def valid_from_fill_top(top, D):
     return ok
 
 
-def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
+def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None, override=None, daily=None, block_days=1):
     """Band table with 95 % intervals from a bootstrap over whole days (rows on one day move together, so resampling
     rows would give falsely narrow intervals). sets: dict name -> (N, m, D) samples, needs clim, known, unknown and
     optionally clim15 (climatology from the last 15 years before the test, so skill is not just "knows it got warmer").
     skill = 1 - CRPS / CRPS_clim; mae = error of the per-column median (the best guess); cov99 = inside the 99 % range.
     valid (N, D) bool, opt-in (IL-143): columns that are real data. Heights a dataset filled above its highest valid level (fill_top) are False and count in no band mean; a row with no valid
-    column in a band drops out of that band. None = every column counts, as before."""
+    column in a band drops out of that band. None = every column counts, as before.
+    override (AU-1, opt-in): dict "crps_<set>" / "mae_<set>" -> ready (N, D) per-row arrays used instead of computing them
+    from the samples (the fair CRPS and the whole-pool climatology of score --fair-baseline). None = as before.
+    daily (AU-4 step 0, opt-in): csv path; writes per day id and band the row count and the summed band-mean CRPS of every set
+    (sum / rows = that day's mean; the headline means are sum over days / rows over days). None = nothing written.
+    block_days (AU-4): the bootstrap resamples blocks of that many consecutive days (day ids year * 1000 + doy); 1 = single days / any labels."""
+    override = override or {}
     from tempest.scoring.score import coverage90, crps_ensemble  # late import: score imports diag
     masks = np.stack([sel for _, _, sel in groups], 1).astype(np.float64)
     if valid is None:
@@ -133,11 +154,14 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
         band = lambda a: (a.astype(np.float64) * vm) @ masks / np.maximum(cnt, 1.0)
     stat = {}
     for k, x in sets.items():
-        stat[f"crps_{k}"] = band(crps_ensemble(x, truth))
-        stat[f"mae_{k}"] = band(np.abs(np.median(x, 1) - truth))
+        stat[f"crps_{k}"] = band(override[f"crps_{k}"] if f"crps_{k}" in override else crps_ensemble(x, truth))
+        stat[f"mae_{k}"] = band(override[f"mae_{k}"] if f"mae_{k}" in override else np.abs(np.median(x, 1) - truth))
     for k in ("known", "unknown"):
         stat[f"cov99_{k}"] = band(coverage90(sets[k], truth, p))
     _, inv = np.unique(day, return_inverse=True)
+    if daily is not None:
+        _write_daily(daily, stat, inv, np.unique(day), groups, have)
+    _, inv = np.unique(block_ids(day, block_days), return_inverse=True)
     rng = np.random.default_rng(seed)
     nd = inv.max() + 1
     c = np.vstack([np.ones(nd), rng.multinomial(nd, np.full(nd, 1 / nd), n_boot)])  # times each day is drawn; row 0 = as is
@@ -161,6 +185,10 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
         put("skill15_gauss", 1 - mean["crps_gauss"] / mean["crps_clim15"])
         for k in ("known", "unknown"):  # margin of the model over the Gaussian baseline, in units of clim15 CRPS (> 0 = model wins)
             put(f"margin_gauss_{k}", (mean["crps_gauss"] - mean[f"crps_{k}"]) / mean["crps_clim15"])
+    if "crps_gauss15" in mean and "crps_clim15" in mean:  # AU-7: Gaussian of the recent climate = the shape part of the margin alone
+        put("skill15_gauss15", 1 - mean["crps_gauss15"] / mean["crps_clim15"])
+        for k in ("known", "unknown"):
+            put(f"margin_gauss15_{k}", (mean["crps_gauss15"] - mean[f"crps_{k}"]) / mean["crps_clim15"])
     for k in ("clim", "clim15", "known", "unknown"):
         if f"mae_{k}" in mean:
             out[f"mae_{k}"] = mean[f"mae_{k}"][0]
@@ -169,12 +197,21 @@ def headline(sets, truth, day, groups, p=0.99, n_boot=1000, seed=0, valid=None):
     return pd.DataFrame(out)
 
 
+def _write_daily(path, stat, inv, days, groups, have):
+    nd = len(days)
+    daysum = lambda v: np.stack([np.bincount(inv, v[:, g], nd) for g in range(v.shape[1])], 1)
+    w = np.ones((len(inv), len(groups))) if have is None else have
+    pd.concat([pd.DataFrame({"day": days, "var": v, "band": b, "rows": daysum(w)[:, g],
+                             **{k: daysum(x * w)[:, g] for k, x in stat.items() if k.startswith("crps_")}})
+               for g, (v, b, _) in enumerate(groups)], ignore_index=True).to_csv(path, index=False)
+
+
 def print_headline(tab, path):
     """Compact print: value [95 % interval]; also saved in full to path."""
     tab.to_csv(path, index=False)
     f = lambda c: tab.apply(lambda r: f"{r[c]:.3f} [{r[c + '_lo']:.3f}, {r[c + '_hi']:.3f}]", axis=1)
     show = tab[["var", "band"]].copy()
-    for c in ("skill_known", "skill_unknown", "skill15_known", "skill15_unknown", "skill15_gauss", "margin_gauss_unknown",
+    for c in ("skill_known", "skill_unknown", "skill15_known", "skill15_unknown", "skill15_gauss", "margin_gauss_unknown", "skill15_gauss15", "margin_gauss15_unknown",
               "cov99_known", "cov99_unknown"):
         if c in tab:
             show[c] = f(c)

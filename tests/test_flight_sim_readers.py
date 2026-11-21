@@ -52,3 +52,17 @@ def test_anchor_and_sample_index():
         atm.anchor(1430.0)
     a, w = TempestAtmosphere(s, 2), TempestWind(s, 2)
     assert a.s.k == w.s.k == 2 and np.isclose(a.conditions(float(s["height_asl"][5])).temperature, s["T"][2, 5])
+
+
+def test_below_10m_loglaw_is_opt_in():
+    s = _samples()
+    site = float(s["height_asl"][0] - s["height_agl"][0])
+    lin, ll = TempestWind(s, 2), TempestWind(s, 2, below_10m="loglaw", z0_m=0.1)
+    u10 = s["u"][2, 0]
+    assert np.isclose(lin.velocity(site)[1], 0.72 * u10)
+    assert np.isclose(ll.velocity(site + 2.0)[1], np.log(2 / 0.1) / np.log(10 / 0.1) * u10)
+    assert ll.velocity(site)[1] == 0.0
+    for z in (10.0, 400.0):
+        assert np.allclose(ll.velocity(site + z), lin.velocity(site + z))
+    with pytest.raises(ValueError):
+        TempestWind(s, 2, below_10m="loglaw", z0_m=20.0)

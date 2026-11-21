@@ -124,6 +124,7 @@ def feature_matrix(names, lat, lon, elev_site, elev_grid, doy, solar_hour, year,
 
 
 LAPSE, SHIFT_SCALE = 0.0065, 1500.0
+RH_SHIFT_BLEND = False   # AU-9 switch back: True restores the old second fade of the humidity change (under-applied aloft)
 
 
 def _pbl_top(T):
@@ -152,7 +153,8 @@ def site_shift(phys, dz, shift_mode=None, top_m=1500.0):
     t_old = phys[:, 2 * nh:3 * nh].astype(np.float64)
     t_new = t_old - LAPSE * d2 * w
     rh = phys[:, 3 * nh:4 * nh]
-    phys[:, 3 * nh:4 * nh] = np.clip(rh * es_liquid(t_old) / es_liquid(t_new) * w + rh * (1 - w), 0, 100)
+    kept = rh * es_liquid(t_old) / es_liquid(t_new)                         # AU-9: t_new already carries the fade w, so the dew point is kept fully
+    phys[:, 3 * nh:4 * nh] = np.clip(kept * w + rh * (1 - w) if RH_SHIFT_BLEND else kept, 0, 100)
     phys[:, 2 * nh:3 * nh] = t_new
     phys[:, 4 * nh + 2] = np.clip(phys[:, 4 * nh + 2] * es_liquid(t) / es_liquid(t - LAPSE * dz), 0, 100)
     phys[:, 4 * nh] = t - LAPSE * dz
@@ -229,6 +231,33 @@ def shuffle_apply(x, template):
     return np.take_along_axis(np.sort(x, axis=1), ranks, axis=1)
 
 
+def lapse_apply(table, x, smooth=9):
+    """L21b: lapse-rate quantile map (IL-162), the numpy runtime copy of tempest.calibrate.lapse_map.apply. table: xk, yk (bands, K) knots; x (S, m, D) physical, T in columns 2 NH .. 3 NH.
+    Per band (0-1, 1-5, 5-12, 12-18 km) the layer lapse rate is mapped above the band's median (identity below, slope 1 beyond the last knot), the change is accumulated up the column and only
+    its rough part is kept (high-pass), with the lowest level pinned."""
+    mid = HEIGHTS[1:].astype(np.float64)
+    dz = np.diff(HEIGHTS.astype(np.float64)) / 1000.0
+    band = np.digitize(mid, [1000, 5000, 12000])
+    t0 = 2 * NH
+    out = x.copy()
+    t = x[..., t0:t0 + NH].astype(np.float64)
+    dT = np.diff(t, axis=-1)
+    L = -dT / dz
+    L2 = L.copy()
+    for b in range(len(table["xk"])):
+        sel = band == b
+        xk, yk = np.asarray(table["xk"][b], np.float64), np.asarray(table["yk"][b], np.float64)
+        v = L[..., sel]
+        mapped = np.interp(v, xk, yk) + np.where(v > xk[-1], v - xk[-1], 0.0)
+        L2[..., sel] = np.where(v <= xk[0], v, mapped)
+    delta = np.cumsum(-L2 * dz - dT, axis=-1)
+    delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
+    rough = delta - _uniform_filter_nearest(delta, smooth)
+    rough = rough - rough[..., :1]
+    out[..., t0:t0 + NH] = (t + rough).astype(x.dtype)
+    return out
+
+
 def shuffle_apply_ranks(x, ranks):
     """Same as shuffle_apply with the template given as per-column ranks along the sample axis (uint8, as stored in the assets)."""
     return np.take_along_axis(np.sort(x, axis=1), np.asarray(ranks, np.int64), axis=1)
@@ -267,5 +296,6 @@ def shear_apply(table, x, smooth=9, smooth_m=None):
     delta = np.cumsum(d * (g[..., None, :] - 1.0), axis=-1)
     delta = np.concatenate([np.zeros_like(delta[..., :1]), delta], axis=-1)
     rough = delta - (delta @ gauss_smoother(HEIGHTS, smooth_m).T if smooth_m else _uniform_filter_nearest(delta, smooth))   # smooth_m (opt-in): Gaussian of that width in metres
+    rough = rough - rough[..., :1]                                                    # Gemini bug 5: pin the height-0 wind (same line as in tempest/calibrate/shear_map.py)
     out[..., :2 * NH] = (uv + rough).reshape(*x.shape[:-1], 2 * NH).astype(x.dtype)
     return out

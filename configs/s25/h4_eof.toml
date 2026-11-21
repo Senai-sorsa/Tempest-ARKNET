@@ -1,0 +1,3 @@
+# H4 network for the top EOFs (95 % variance) + AR(1)-in-height small scale with predicted amplitude / length
+arch = "eof"
+s25 = {eof_var = 0.95}

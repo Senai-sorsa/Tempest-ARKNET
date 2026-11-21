@@ -30,7 +30,49 @@ from tempest_weather_v2.timeutil import Window, WindowError
 
 __all__ = ["Launch", "AtmosphereSet", "Window", "Launches"]
 
+OBS_SPEED_SPACE = True        # W6 (2026-11-10): the speed-space update is the DEFAULT for SOFT observations (age / distance / elevation given): ASOS persistence 2023-25, 300 hours per station, CRPS 1.148 -> 1.140 (TCS), 1.016 -> 0.987 (MAF), 90 % coverage 0.74 -> 0.81, 0.85 -> 0.91 (scripts/w6_observe_eval.py); pinned observations are unchanged. False = the old component-only update
+SPEED_RHO_PER_HOUR = 0.72     # W6: hourly persistence of the 10 m speed in normal-score space (scripts/weibull_persistence.py: 0.67 TCS, 0.76 MAF, ASOS 2015-22)
+NEIGHBOUR_RHO_FROM_GAIN = True  # A3-fix B (ASK_LATER 23, adopted 2026-11-11): a report >= obs.OWN_STATION_KM away uses rho = obs.effective_gain (distance, height, age) in the speed-space step; 14 neighbour runs: coverage +0.07..+0.15, CRPS lower in 13 (kit_b3_a3fix_neighbour_rho.log). Own-station reports unchanged. False = rho from age only
+SPEED_TOP_M = 300.0           # W6: the speed-space update tapers to nothing at this height
+
+
+def _speed_space_update(cond_u, cond_v, prior_speed, obs_speed, rho, z, rng):
+    """W6 (opt-in, observe(..., speed_space=True)): the 10 m speed after an observation, in normal-score space of the PRIOR pool's own speed distribution: z_obs = Phi^-1(F(s_obs)), target
+    z ~ N(rho z_obs, 1 - rho^2) (stratified), speeds = F^-1(Phi(z)); the conditioned samples keep their order by speed and are rescaled to these speeds, the factor tapering to 1 at SPEED_TOP_M.
+    Direction, temperature and the rest stay as the engine conditioned them. -> new (u, v) arrays."""
+    from statistics import NormalDist
+    nd = NormalDist()
+    ps = np.sort(np.asarray(prior_speed, float))
+    m = len(ps)
+    f_obs = np.clip((np.searchsorted(ps, obs_speed) + 0.5) / (m + 1.0), 0.5 / (m + 1), 1 - 0.5 / (m + 1))
+    z_obs = nd.inv_cdf(float(f_obs))
+    n = len(cond_u)
+    zz = rho * z_obs + np.sqrt(max(1.0 - rho * rho, 1e-6)) * np.array([nd.inv_cdf((i + rng.random()) / n) for i in range(n)])
+    target = np.sort(np.quantile(ps, np.clip([nd.cdf(x) for x in zz], 0.0, 1.0)))
+    sp0 = np.hypot(cond_u[:, 0], cond_v[:, 0])
+    order = np.argsort(sp0)
+    new0 = np.empty(n)
+    new0[order] = target
+    k = new0 / np.maximum(sp0, 0.05)
+    taper = np.clip(1.0 - (np.asarray(z, float) - z[0]) / (SPEED_TOP_M - z[0]), 0.0, 1.0)
+    fac = 1.0 + (k[:, None] - 1.0) * taper[None, :]
+    return cond_u * fac, cond_v * fac
+
+
+INFLATE_DECAY_M = None        # Gemini bug 2 was NOT a bug: the scalar 1.5 inflation at every height is what the balloon check (s6_condition_eval.py) found calibrated; fading it with distance (1500 m tried) drops the 90 % coverage of the unobserved upper levels from 0.88-0.94 back to 0.82-0.85 and loses a little CRPS. None = the scalar (as before the audit); a number in metres switches the fading on
+MEASURED_GUST_LAW = True       # W8c (a plain mismatch, B23): after observe(wind_10m=...) the gust uses api._gust_params_measured, the law fitted on MEASURED winds (validation CRPS 0.93 -> 0.51, 16+ m/s 12.95 -> 1.40); False = the model-wind law as before
+
 FORMAT_VERSION = 1
+
+
+def _arrays_sha(arrays):
+    """sha256 over name, dtype, shape and bytes of each array (sorted by name)."""
+    h = hashlib.sha256()
+    for k in sorted(arrays):
+        a = np.ascontiguousarray(arrays[k])
+        h.update(f"{k}|{a.dtype.str}|{a.shape}|".encode())
+        h.update(a.tobytes())
+    return h.hexdigest()
 SAMPLE_KEYS = ("u", "v", "T", "RH", "p", "rho", "a", "w", "t2m", "sp", "rh2m", "gust_mu", "gust_beta")
 Z0_DEFAULT = 0.03
 
@@ -77,7 +119,7 @@ def _manifest_hash(assets):
 
 
 class Launch:
-    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, _pool=None, _obs=None, _hrrr=None):
+    def __init__(self, *args, elevation=None, units="us", seed=0, tz=None, now=None, offline=False, n=1024, assets=None, mode=None, verbose=False, z0=None, era5_store=None, past_wind_spread=1.0, site_cal="auto", past_era5_anchor=True, _pool=None, _obs=None, _hrrr=None):
         if units not in ("us", "si"):
             raise ValueError("units must be 'us' or 'si'")
         self._site, self._tz_note = None, None
@@ -91,6 +133,8 @@ class Launch:
         self._elevation_arg = elevation
         self._z0_arg = z0
         self.era5_store = era5_store            # past dates: folder of the local ERA5 profile store (else the TEMPEST_ERA5_STORE environment variable)
+        self.past_era5_anchor = bool(past_era5_anchor)         # M5c: PAST mode only: centre the near-ground wind ensemble on the ERA5 10 m wind (speed CRPS -5 % / -11 % at TCS / MAF; with past_wind_spread=1.2 -8 % / -13 %). ON by default since 2026-11-09: GW-F confirmed it at a third, non-airport site (USCRN basin, 2019-22: CRPS 0.764 -> 0.744 by day, 0.891 -> 0.845 at other hours); False = the plain past ensemble
+        self._site_cal = site_cal                            # M6 / W5: a sitecal calibration (fit_site) applied to the sampled ground wind speed; None = off; "auto" (default) = the IL-207b factor when the pad is within OWN_STATION_KM of the TCS station, else off
         self.past_wind_spread = float(past_wind_spread)      # C4a: widen the PAST-mode wind spread near the ground (GW-1: the past mode is over-confident at 10 m; 1.2 fitted). 1.0 = off
         if not 0.5 <= self.past_wind_spread <= 3.0:
             raise ValueError("past_wind_spread must be between 0.5 and 3 (1.0 = off, 1.2 = the value fitted against station winds)")
@@ -127,7 +171,7 @@ class Launch:
     def with_(self, **kw):
         """A new Launch with some settings changed (place/time/observations/units/seed/...)."""
         base = dict(elevation=self._elevation_arg, units=self.units, seed=self.seed, tz=self.tz_name, now=self._now, offline=self.offline, n=self.n, assets=self.assets, mode=self.mode,
-                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, _obs=self._obs, _hrrr=self._hrrr)
+                    verbose=self.verbose, z0=self._z0_arg, era5_store=self.era5_store, past_wind_spread=self.past_wind_spread, site_cal=self._site_cal, past_era5_anchor=self.past_era5_anchor, _obs=self._obs, _hrrr=self._hrrr)
         place = kw.pop("place", None)
         when = kw.pop("when", self._when)
         base.update(kw)
@@ -164,9 +208,22 @@ class Launch:
         return self._elev
 
     # ---- time
+    def _asset_path(self):
+        """The asset folder that serves this place: `assets=` if given, else the region set that covers it (as api.atmosphere_set chooses), else the default set (which refuses with its own message)."""
+        return self.assets or api.region_assets(self.lat, self.lon)
+
+    def _solar_window(self):
+        """Solar hours the serving assets were trained for (manifest solar_hours; 06-21 h for assets exported before 2026-11-07), so an all-hours export is not cut to 06-21 h here."""
+        try:
+            w = None if self.assets else api.region_solar_window(self.lat, self.lon)      # several sets for one place (a day set and an all-hours set): the union of their windows
+            lo, hi = w if w else api._assets(self._asset_path())["manifest"].get("solar_hours", [timeutil.SOLAR_LO, timeutil.SOLAR_HI])
+        except FileNotFoundError:
+            lo, hi = timeutil.SOLAR_LO, timeutil.SOLAR_HI
+        return float(lo), (float(hi) + 1e-9 if float(hi) >= 24.0 else float(hi))  # resolve() keeps sh < hi: 24 h must keep 23:59
+
     def resolved_window(self):
         if self._resolved is None:
-            self._resolved = self.window.resolve(self.lon, self.tz_name, now=self._now)
+            self._resolved = self.window.resolve(self.lon, self.tz_name, now=self._now, solar=self._solar_window())
         return self._resolved
 
     @property
@@ -187,6 +244,90 @@ class Launch:
             self._pool = pool
         return pool
 
+    def _regust(self, samples, launch_times, measured=False):
+        """Gemini bug 3: the gust law (mean and scale of the gust excess) is a function of the 10 m wind speed; after the wind is moved by an observation or by HRRR it has to be evaluated again, otherwise the reported gust stays at the prior's value (a pinned 25 m/s wind with gust = wind). Returns samples (a new dict) with gust_mu / gust_beta recomputed, or the input if the pool has no gust law."""
+        if "gust_mu" not in samples:
+            return samples
+        g = api._assets(self._asset_path())["gust"]                   # the serving region's gust law (was always the default set when assets=None)
+        if g is None:
+            return samples
+        ws = np.hypot(np.asarray(samples["u"], float)[:, 0], np.asarray(samples["v"], float)[:, 0])
+        hrs = np.asarray(launch_times).astype("datetime64[h]")
+        mu, beta = np.empty(len(ws), np.float32), np.empty(len(ws), np.float32)
+        for h in np.unique(hrs):
+            m = hrs == h
+            t = np.datetime64(h, "s").astype(datetime).replace(tzinfo=timezone.utc)
+            law = (lambda ws_, *a_: api._gust_params_measured(ws_, *a_, g=g)) if measured else (lambda ws_, *a_: api._gust_params(g, ws_, *a_))   # IL-183: g carries a region's own law       # W8c: a wind conditioned on a station measurement uses the law fitted on measured winds
+            mu[m], beta[m] = law(ws[m], t.timetuple().tm_yday, float(t.hour), api._gust_station(self.lat, self.lon))
+        out = dict(samples)
+        out["gust_mu"], out["gust_beta"] = mu, beta
+        return out
+
+    def calibrate_site(self, cal):
+        """M6 / W5: a new Launch whose sampled wind speeds are corrected with a site calibration from `tempest_weather_v2.sitecal.fit_site` (a month or more of pad anemometer data against this tool's
+        speeds at the same hours; method "ratio", "hourly" or "quantile"; "hourly" uses the UTC hour of each sample, so fit it with UTC hours). The speed at every height is rescaled by the correction found
+        at the lowest model height, fading to none by 300 m (the record says nothing about the air above); direction is kept. The gust law is evaluated again."""
+        return self.with_(site_cal=cal)
+
+    def _effective_site_cal(self, pool):
+        """IL-207b on by default (ASK_LATER 24, user 2026-11-17): site_cal="auto" gives the TCS factor to a pad within OWN_STATION_KM of the TCS station and nothing elsewhere (the offset is that
+        airport's, not the 30 km away pad's). Any explicit calibration, or None, is used as given."""
+        if not (isinstance(self._site_cal, str) and self._site_cal == "auto"):
+            return self._site_cal
+        from tempest_weather_v2 import obs as O, sitecal
+        lat_s, lon_s, _ = O.STATIONS["TCS"]
+        if O.haversine_km(self.lat, self.lon, lat_s, lon_s) >= O.OWN_STATION_KM:
+            return None
+        t0 = np.asarray(pool["launch_times"]).astype("datetime64[s]")[0].astype(datetime).replace(tzinfo=timezone.utc)
+        return sitecal.tcs_speed_factor(t0)
+
+    LAUNCH_WEEK_DAYS, LAUNCH_WEEK_ALPHA = 7, 1.0 / 30.0
+
+    def launch_week(self, readings):
+        """O3 (b38 / AV10, New_Plan 28.11 item 12): a NEW Launch whose ground wind is scaled by the pad anemometer's last week. `readings` = {datetime: measured 10 m speed m/s}
+        (naive = UTC), best at 09 / 13 / 17 local. Per local day before the launch day (the LAUNCH_WEEK_DAYS calendar days before it): r = mean measured / mean tool speed at the same hours
+        (no site factor, n 200); the factor starts at this pad's IL-207b "auto" factor for the launch hour (1.0 away from TCS) and moves f <- f + alpha (r - f), oldest day first.
+        b38 (k 7, 2023-25): CRPS 1.464 -> 1.437 at MAF, -0.023 at TCS."""
+        from zoneinfo import ZoneInfo
+        r = self.resolved_window()
+        if not r.single:
+            raise ValueError("launch_week needs a single launch time, not a window")
+        z = ZoneInfo(self.tz_name)
+        t0 = r.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+        auto = self.with_(site_cal="auto")._effective_site_cal({"launch_times": r.cells_utc[:1]})
+        f = float(auto["hourly"][t0.hour]) if auto is not None else 1.0
+        days = {}
+        for t, y in readings.items():
+            t = (t if t.tzinfo else t.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+            back = (t0.astimezone(z).date() - t.astimezone(z).date()).days
+            if 1 <= back <= self.LAUNCH_WEEK_DAYS:
+                days.setdefault(back, []).append((t, float(y)))
+        for d in sorted(days, reverse=True):
+            m, tool = [], []
+            for t, y in days[d]:
+                L = self.with_(when=t.strftime("%Y-%m-%d %H:%M"), tz="UTC", n=200, seed=int(t.timestamp()) % 100000, site_cal=None, _obs={}, _hrrr=None)
+                s = L._ensure_pool()["samples"]
+                m.append(y)
+                tool.append(float(np.hypot(np.asarray(s["u"])[:, 0], np.asarray(s["v"])[:, 0]).mean()))
+            if np.mean(tool) > 0.1:
+                f += self.LAUNCH_WEEK_ALPHA * (float(np.mean(m) / np.mean(tool)) - f)
+        return self.with_(site_cal={"method": "ratio", "ratio": f})
+
+    def _apply_site_cal(self, pool, cal):
+        from tempest_weather_v2 import sitecal
+        s = dict(pool["samples"])
+        u, v = np.asarray(s["u"], float), np.asarray(s["v"], float)
+        sp = np.hypot(u[:, 0], v[:, 0])
+        hrs = np.asarray(pool["launch_times"]).astype("datetime64[h]").astype(np.int64) % 24
+        new = sitecal.apply_site(cal, sp, hrs)
+        ratio = np.where(sp > 1e-6, new / np.maximum(sp, 1e-6), 1.0)
+        z = np.asarray(_core.HEIGHTS, float)
+        taper = np.clip(1.0 - (z - z[0]) / (300.0 - z[0]), 0.0, 1.0)
+        f = 1.0 + (ratio[:, None] - 1.0) * taper[None, :]
+        s["u"], s["v"] = (u * f).astype(np.float32), (v * f).astype(np.float32)
+        s = self._regust(s, pool["launch_times"])
+        return dict(pool, samples=s, flags=list(pool["flags"]) + ["ground-wind-site-calibrated-" + cal["method"]])
+
     def _apply_hrrr(self, pool):
         """C3: move the near-ground u, v of every sample so the median is HRRR's 10 m wind (weight 1.0) and the spread about it is x0.8, both fading out by 300 m (fitted in scripts/hrrr_vs_asos.py)."""
         from tempest_weather_v2 import hrrr
@@ -199,6 +340,7 @@ class Launch:
             x = np.median(x, axis=0, keepdims=True) + (x - np.median(x, axis=0, keepdims=True)) * (1.0 + (hrrr.SPREAD_SCALE - 1.0) * taper)
             x = x + hrrr.HRRR_WEIGHT * (target - med) * taper
             s[k] = x.astype(np.float32)
+        s = self._regust(s, pool["launch_times"])
         return dict(pool, samples=s, hrrr_applied=True, flags=list(pool["flags"]) + ["ground-wind-anchored-to-HRRR"])
 
     def _ensure_pool_raw(self, n=None):
@@ -223,7 +365,7 @@ class Launch:
         infos_flags = []
         for gi, (t_utc, pos) in enumerate(groups):
             iso = t_utc.replace(tzinfo=timezone.utc).isoformat()
-            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store)
+            atm, info = api.atmosphere_set(self.lat, self.lon, iso, n=len(pos), seed=self.seed * 1009 + gi, elevation=elev_m, mode=self.mode, assets=self.assets, now=self._now, era5_store=self.era5_store, **({"era5_anchor": 1.0} if self.past_era5_anchor else {}))
             if elev_m is None:
                 elev_m = float(info["elevation_m"])
             if self.past_wind_spread != 1.0 and info.get("mode") == "past":
@@ -261,6 +403,9 @@ class Launch:
             flags.append("window-hours-independent")
         self._pool = dict(samples=samples, launch_times=times, infos=infos, modes={k: v / n for k, v in mode_count.items()}, elevation_source=esrc, flags=flags,
                           day_share=r.day_share, window=r.description)
+        cal = self._effective_site_cal(self._pool)
+        if cal is not None:
+            self._pool = self._apply_site_cal(self._pool, cal)
         return self._pool
 
     def _measurements(self):
@@ -271,29 +416,56 @@ class Launch:
         observation error for the Gaussian update; no bookkeeping keys = exact pins, as before."""
         from tempest_weather_v2 import obs as O
         o = self._obs
+        radar = {(c, float(h)): float(o.get("_radar_sigma", 3.0)) for h in o.get("_radar", {}) for c in ("wind_u", "wind_v")}   # P3: each radar level carries its own error (radar-minus-balloon 3 m/s)
         if not any(k in o for k in ("_age_h", "_dist_km", "_dz_m")):
-            return None
-        r = self.resolved_window()
-        t_mid = r.cells_utc[len(r.cells_utc) // 2]
-        night = O.night_weight(timeutil.solar_hour(t_mid.astype("datetime64[s]").astype(datetime), self.lon))
-        gain = O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0), night)
+            return radar or None
+        gain = self._report_gain()
         pool = base._ensure_pool()["samples"]
         prior = {("wind_u", 10.0): np.std(np.asarray(pool["u"], float)[:, 0]), ("wind_v", 10.0): np.std(np.asarray(pool["v"], float)[:, 0]),
                  ("temp_K", 2.0): np.std(np.asarray(pool["t2m"], float)), ("pressure_Pa", 0.0): np.std(np.asarray(pool["sp"], float))}
-        return {k[0]: O.observation_sigma(prior[k], gain) for k in eng_obs if k in prior}
+        return {**{k[0]: O.observation_sigma(prior[k], gain) for k in eng_obs if k in prior}, **radar}
+
+    def _report_gain(self):
+        """Effective gain of the soft report (age x distance x height, day/night at the window's middle hour)."""
+        from tempest_weather_v2 import obs as O
+        o = self._obs
+        r = self.resolved_window()
+        t_mid = r.cells_utc[len(r.cells_utc) // 2]
+        night = O.night_weight(timeutil.solar_hour(t_mid.astype("datetime64[s]").astype(datetime), self.lon))
+        return O.effective_gain(o.get("_age_h", 0.0), o.get("_dist_km", 0.0), o.get("_dz_m", 0.0), night)
 
     def _conditioned_pool(self, n):
         base = Launch.with_(self, _obs=None)
         eng_obs = self._obs_to_engine(base)
         sig = self._sensor_sigma(base, eng_obs)
-        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None)       # weighted observations are soft: the observed columns move with the error, they are not pinned
-        u = np.random.default_rng(np.random.SeedSequence([self.seed, 2])).random((n, 16))
+        eng = base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M)       # weighted observations are soft: the observed columns move with the error, they are not pinned
+        from tempest_weather_v2.montecarlo import latin_hypercube       # Gemini bug 9: stratified, not plain random, uniforms for the conditioned pool (the unconditioned pool uses Sobol)
+        u = latin_hypercube(n, 16, np.random.default_rng(np.random.SeedSequence([self.seed, 2])))
         out = eng.sample_sobol(u)
         s = {k: np.asarray(out[k], np.float32) for k in ("u", "v", "T", "RH", "p", "rho", "a", "t2m", "sp", "rh2m") if k in out}
         s["w"] = np.asarray(out["w"], np.float32) if "w" in out else np.zeros_like(s["u"])
         for k in ("gust_mu", "gust_beta"):
             if k in out:
                 s[k] = np.asarray(out[k], np.float32)
+        if self._obs.get("_speed_space") and "wind_10m" in self._measurements():        # W6 (opt-in): the 10 m speed updated in normal-score space of the prior's own speed distribution
+            bs0 = base._ensure_pool()["samples"]
+            spd_obs = float(names.parse_quantity(self._measurements()["wind_10m"], "speed", self.units))
+            age = float(self._obs.get("_age_h", 0.0) or 0.0)
+            rho = min(SPEED_RHO_PER_HOUR ** age, 0.97)
+            from tempest_weather_v2 import obs as O
+            if NEIGHBOUR_RHO_FROM_GAIN and float(self._obs.get("_dist_km", 0.0) or 0.0) >= O.OWN_STATION_KM:
+                rho = min(self._report_gain(), rho)     # never more than an own report of the same age (kit tested 1 h: gain <= 0.62 < 0.72, so identical there)
+            s["u"], s["v"] = (x.astype(np.float32) for x in _speed_space_update(np.asarray(s["u"], float), np.asarray(s["v"], float), np.hypot(np.asarray(bs0["u"], float)[:, 0], np.asarray(bs0["v"], float)[:, 0]),
+                                                                                  spd_obs, rho, _core.HEIGHTS, np.random.default_rng(np.random.SeedSequence([self.seed, 6]))))
+        t_fac = None
+        if self._obs.get("_t_update"):       # G2-2 (opt-in): Student-t widening of the conditioned members when the readings surprise the prior
+            t_fac = _t_widen_factor(base._ensure_pool()["samples"], eng_obs, sig)
+            for k in ("u", "v", "t2m"):     # shortcut: T / p / RH profiles not widened (rho and sound speed would need recomputing); widen them if wind + t2m pass
+                if k in s:
+                    m = s[k].mean(0, keepdims=True)
+                    s[k] = (m + t_fac * (s[k] - m)).astype(np.float32)
+        times = np.resize(base._ensure_pool()["launch_times"], n)     # AU-12: the base pool's window times, cycled to n (was every sample at the first one's time)
+        s = self._regust(s, times, measured=MEASURED_GUST_LAW and "wind_10m" in self._measurements())
         elev = float(base._ensure_pool()["samples"]["elevation_m"])
         s["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
         s["elevation_m"] = elev
@@ -308,8 +480,9 @@ class Launch:
                 if z > 4.0 and name_ not in far:
                     far.append(name_)
         flags_far = [f"observation-far-outside-the-prior-{'-'.join(far)}-kept-as-real-check-for-a-typo"] if far else []
-        return dict(samples=s, launch_times=bp["launch_times"][:1].repeat(n), infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
-                    flags=list(bp["flags"]) + flags_far + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []), day_share=bp["day_share"], window=bp["window"])
+        multi = len(np.unique(times.astype("datetime64[h]"))) > 1         # the conditioned members are drawn from the whole window's pool: their hours are labels, not used by the update
+        return dict(samples=s, launch_times=times, infos=bp["infos"], modes=bp["modes"], elevation_source=bp["elevation_source"],
+                    flags=list(bp["flags"]) + flags_far + (["t-widened-x%.2f" % t_fac] if t_fac is not None and t_fac > 1.0 else []) + ["conditioned-on-%d-measurements-not-yet-validated" % len(self._measurements())] + ([f"observation-from-{self._obs['_source']}"] if "_source" in self._obs else []) + (["radar-wind-" + self._obs["_radar_src"].replace(" ", "-")] if "_radar_src" in self._obs else []) + (["window-hours-not-used-by-conditioning"] if multi else []), day_share=bp["day_share"], window=bp["window"])
 
     def _obs_to_engine(self, base):
         o, eng_obs = self._measurements(), {}
@@ -325,9 +498,11 @@ class Launch:
         elif "altimeter" in o:                                           # a sea-level altimeter setting (METAR "A3002"): back to pad pressure through the standard atmosphere
             elev = float(base._ensure_pool()["samples"]["elevation_m"])
             eng_obs[("pressure_Pa", 0.0)] = float(W.station_pressure_hpa(names.parse_quantity(o["altimeter"], "pressure", self.units), elev)) * 100.0
+        for h, (ur, vr) in self._obs.get("_radar", {}).items():        # P3: radar wind levels (observe_radar)
+            eng_obs[("wind_u", float(h))], eng_obs[("wind_v", float(h))] = float(ur), float(vr)
         return eng_obs
 
-    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None):
+    def observe(self, wind_10m=None, wind_from_deg=None, temperature=None, station_pressure=None, altimeter=None, sounding=None, age_hours=None, distance_km=None, elevation_diff_m=None, source=None, speed_space=None, t_update=False):
         """A NEW Launch conditioned on launch-day measurements at the pad: 10 m wind speed and direction (from), 2 m temperature, pad (station) pressure, or a sea-level altimeter setting
         (what a METAR reports; converted to pad pressure through the standard atmosphere). Numbers use the Launch's units, strings carry their own ("14 mph", "82 F", "29.92 inHg").
         `sounding="auto"` needs the sounding module (R2, not built)."""
@@ -347,10 +522,97 @@ class Launch:
         for k, v in (("_age_h", age_hours), ("_dist_km", distance_km), ("_dz_m", elevation_diff_m), ("_source", source)):
             if v is not None:
                 obs[k] = v
+        soft = any(v is not None for v in (age_hours, distance_km, elevation_diff_m))
+        if speed_space or (speed_space is None and OBS_SPEED_SPACE and soft):   # W6: update the 10 m speed in normal-score space of the prior's own speed distribution (see _speed_space_update); default for soft observations
+            obs["_speed_space"] = True
+        if t_update:                # G2-2 (opt-in, off by default; port rerun 2026-11-20 did not reproduce, New_Plan 28.11 item 13): widen the conditioned spread when the readings are far from the prior (_t_widen_factor)
+            obs["_t_update"] = True
         if not {k for k in obs if not k.startswith("_")}:
             raise ValueError("give at least one measurement")
         self._check_observation(obs)
         return self.with_(_obs=obs)
+
+    def observe_nowcast(self, station, t_utc, history):
+        """(opt-in) A NEW Launch conditioned on the NOW2 nowcast (tempest_weather_v2.nowcast): the next 1 / 2 / 3 / 6 h of 10 m wind at `station` (one of obs.STATIONS) from its own last 6 hourly (u, v) reports and
+        the 3 nearest stations' last 3 (`history` = {station: [(u, v), ...] newest last, the last row valid at `t_utc`, m/s, u east, v north). The launch time must be exactly 1, 2, 3 or 6 h after `t_utc`.
+        Evidence (2015-17, all 9 stations better): CRPS +8.3 / +8.5 / +8.2 / +7.0 % vs one-reading observe(), cov90 0.908. A station within 5 km of the pad: the nowcast enters as a soft reading with
+        the gain 1 - (its predictive sd / climatological sd)^2 (the reading is back-solved so the update moves the median as the nowcast does; the pad prior's own mean and sd stand in for the station's);
+        a station farther away: its predicted wind is treated like a report from there (weighted by distance and height, as observe_latest)."""
+        from tempest_weather_v2 import nowcast as NC, obs as O
+        r = self.resolved_window()
+        if not r.single:
+            raise ValueError("observe_nowcast needs a single launch time, not a window")
+        if station not in O.STATIONS:
+            raise ValueError(f"{station!r} is not one of the nowcast stations {sorted(O.STATIONS)}")
+        t0 = r.cells_utc[0].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+        t_utc = t_utc.replace(tzinfo=timezone.utc) if t_utc.tzinfo is None else t_utc.astimezone(timezone.utc)
+        lead = (t0 - t_utc).total_seconds() / 3600.0
+        if lead not in NC.LEADS:
+            raise ValueError(f"launch time minus t_utc is {lead:g} h; the nowcast covers {NC.LEADS} h ahead")
+        p = NC.predict(station, t_utc, history, int(lead))
+        lat_s, lon_s, el_s = O.STATIONS[station]
+        dist = O.haversine_km(self.lat, self.lon, lat_s, lon_s)
+        elev = float(self._ensure_pool()["samples"]["elevation_m"]) if self._pool is not None else (self.elevation_info()[0] or 0.0)
+        if dist < O.OWN_STATION_KM:
+            g = p["gain"]
+            u, v = (p["clim"][i] + p["clim_sd"][i] * p["anomaly"][i] / g for i in (0, 1))
+            age = -O.TAU_H * math.log(g)
+        else:
+            u, v, age = p["u"][0], p["v"][0], 0.0
+        spd = math.hypot(u, v)
+        if spd >= self.OBS_LIMITS["wind_10m"][1]:
+            raise ValueError(f"the nowcast wind ({spd:.0f} m/s) is outside the range an observation may take")
+        return self.observe(wind_10m=f"{spd:.3f} m/s", wind_from_deg=math.degrees(math.atan2(-u, -v)) % 360.0, age_hours=age, distance_km=dist, elevation_diff_m=el_s - elev,
+                            source=f"nowcast {station} +{int(lead)}h", t_update=False)     # NOW2 as tested (no G2-2 widening)
+
+    def observe_radar(self, site=None, profile=None, levels_m=(500.0, 1000.0, 1500.0, 2000.0), sigma_ms=None, max_age_min=45, fetch=None, t_update=False):
+        """P3 (opt-in): a NEW Launch conditioned on the NEXRAD VAD wind profile of the nearest radar (or `site`), the newest volume at most max_age_min before the launch time, at the model
+        heights `levels_m` above the pad, each with a sensor error of sigma_ms (default 3 m/s, the radar-minus-balloon error). `profile` = dict(heights_asl_m, u, v[, site, time]) skips the
+        download (offline use, tests). Evidence (El Paso radar vs EPZ balloons, 120 days): CRPS of the wind above +32 % at 2.5-5 km, +16 % at 5-12 km, +7 % at 12-18 km, coverage 0.93-0.94.
+        Needs MetPy for the download path. Combines with observe(): surface measurements stay as they are."""
+        from tempest_weather_v2 import radar as R
+        if site is None:
+            site, dist = R.nearest(self.lat, self.lon)
+        else:
+            if site in R.RADARS:
+                lat_r, lon_r, _ = R.RADARS[site]
+                dist = math.hypot((lat_r - self.lat) * 111.0, (lon_r - self.lon) * 111.0 * math.cos(math.radians(self.lat)))
+            else:
+                dist = float("nan")                     # a radar not in R.RADARS: position unknown here, so the distance is reported as unknown (was 0 km)
+        if profile is None:
+            r = self.resolved_window()
+            t = r.cells_utc[len(r.cells_utc) // 2].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+            profile = R.latest_profile(site, t, max_age_min=max_age_min, fetch=fetch)
+            if profile is None:
+                raise ValueError(f"no {site} radar wind profile within {max_age_min} min before {t:%Y-%m-%d %H:%M} UTC")
+        elev = float(self.elevation_info()[0])
+        z = [float(x) - elev for x in profile["heights_asl_m"]]
+        if not (len(z) == len(profile["u"]) == len(profile["v"])) or len(z) < 2:
+            raise ValueError(f"the {site} radar profile needs at least two levels with one u and one v each (got {len(z)} heights, {len(profile['u'])} u, {len(profile['v'])} v)")
+        rad = {}
+        for h in levels_m:
+            if float(h) not in [float(x) for x in _core.HEIGHTS]:
+                raise ValueError(f"radar level {h} m is not a model height ({list(_core.HEIGHTS)})")
+            if z and min(z) <= h <= max(z):
+                rad[float(h)] = (float(np.interp(h, z, profile["u"])), float(np.interp(h, z, profile["v"])))
+        if not rad:
+            raise ValueError(f"the {site} profile ({min(z):.0f}-{max(z):.0f} m above the pad) covers none of the levels {list(levels_m)}")
+        obs = dict(self._obs)
+        obs["_radar"], obs["_radar_sigma"] = rad, float(sigma_ms or R.VAD_SIGMA_MS)
+        if t_update:
+            obs["_t_update"] = True
+        obs["_radar_src"] = f"{profile.get('site', site)} {profile.get('time', '')} " + (f"{dist:.0f}km" if math.isfinite(dist) else "unknown-km")
+        return self.with_(_obs=obs)
+
+    def observe_tower(self, heights_agl_m, u, v, sigma_ms=0.5, site="tower", time=""):
+        """DP tower (New_Plan 28.11 item 8, kit b67 PASS: 50-150 m wind CRPS -49 % at 30 min lead on the SWiFT 200 m tower): a NEW Launch conditioned on a mast or drone wind profile
+        (u, v in m/s at heights above the pad) with the tested settings, i.e. observe_radar at the model heights 10-200 m the profile covers, sensor error 0.5 m/s. The kit added it on
+        top of observe(wind_10m=..., wind_from_deg=...) from the same tower's 10 m wind; do that first."""
+        if not (len(heights_agl_m) == len(u) == len(v)):
+            raise ValueError(f"the tower profile needs one u and one v per height (got {len(heights_agl_m)} heights, {len(u)} u, {len(v)} v)")
+        elev = float(self.elevation_info()[0])
+        prof = dict(heights_asl_m=[elev + float(h) for h in heights_agl_m], u=[float(x) for x in u], v=[float(x) for x in v], site=site, time=time)
+        return self.observe_radar(site=site, profile=prof, levels_m=tuple(float(h) for h in _core.HEIGHTS if h <= 200.0), sigma_ms=sigma_ms)
 
     # physical limits of a surface observation: outside them the value is a typo, a wrong unit or a broken sensor, never weather. A real extreme (storm, heat wave, hard freeze) is INSIDE them and is trusted.
     OBS_LIMITS = {"wind_10m": (0.0, 100.0, "m/s"), "wind_from_deg": (0.0, 360.0, "deg"), "temperature": (-90.0, 60.0, "C"), "station_pressure": (300.0, 1100.0, "hPa"), "altimeter": (850.0, 1100.0, "hPa")}
@@ -428,7 +690,10 @@ class Launch:
     def domain(self):
         """Is this place inside what the generator was trained on? -> dict(status "inside" | "edge" | "outside", reason, edge_km, elevation_gap_m, region). Outside = no asset set covers the point (the tool refuses there);
         edge = within 0.25 degrees (about 25 km) of the trained box edge or a site more than 500 m from the model grid's height: the model is extrapolating a little (Denver, 17 degrees away in height-feature space, was
-        measured as clearly outside by the L3-28 dissimilarity test, which this simple check does not replace)."""
+        measured as clearly outside by the L3-28 dissimilarity test, which this simple check does not replace).
+        Also di, di_threshold, di_region: the L3-28 dissimilarity index of this place against the nearest trained grid (above di_threshold = outside its
+        area of applicability; Denver scored 21-36 against the NM/TX grid's 2.5). Report only: status still comes from the box test. None without a
+        site height (outside the boxes the height is not looked up online; pass elevation= to get it)."""
         import os
         name = None
         for nm, a in sorted(api.regions().items(), key=lambda kv: (kv[0] != "assets", kv[0])):
@@ -436,7 +701,9 @@ class Launch:
                 name, box = nm, a
                 break
         if name is None:
-            return dict(status="outside", reason="no trained asset set covers this point", edge_km=None, elevation_gap_m=None, region=None)
+            known = self._elev is not None or self._elevation_arg is not None or (self._site is not None and self._site.elevation_m is not None)
+            di = self._di(self.elevation_info()[0] if known else None)
+            return dict(status="outside", reason="no trained asset set covers this point", edge_km=None, elevation_gap_m=None, region=None, **di)
         edge_deg = min(self.lat - box["lat"][0], box["lat"][1] - self.lat, (self.lon - box["lon"][0]) * np.cos(np.radians(self.lat)), (box["lon"][1] - self.lon) * np.cos(np.radians(self.lat)))
         edge_km = float(edge_deg * 111.0)
         g = api._assets(os.path.join(api.HERE, name))["grid"]
@@ -449,7 +716,40 @@ class Launch:
             reasons.append(f"{edge_km:.0f} km from the edge of the trained area")
         if gap is not None and abs(gap) > self.EDGE_DZ_M:
             reasons.append(f"site is {gap:+.0f} m from the model grid height")
-        return dict(status="edge" if reasons else "inside", reason="; ".join(reasons) or "inside the trained area", edge_km=edge_km, elevation_gap_m=gap, region=name)
+        return dict(status="edge" if reasons else "inside", reason="; ".join(reasons) or "inside the trained area", edge_km=edge_km, elevation_gap_m=gap, region=name, **self._di(site))
+
+    _DI_FITS = {}
+
+    def _di(self, site):
+        """L3-28 dissimilarity index (same maths as tempest/scoring/di.py, which the tool does not ship) against each trained grid -> dict(di, di_threshold,
+        di_region) for the grid with the lowest DI. shortcut: the grid height stands in for both training heights (site and grid); fine for a report,
+        recompute from the training rows before DI gates anything."""
+        import os
+        if site is None:
+            return dict(di=None, di_threshold=None, di_region=None)
+
+        def sphere(p):
+            la, lo = np.radians(p[:, 0]), np.radians(p[:, 1])
+            return np.column_stack([np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la), p[:, 2:]])
+        best = None
+        for nm in api.regions():
+            if nm not in self._DI_FITS:
+                g = api._assets(os.path.join(api.HERE, nm))["grid"]
+                x = sphere(np.column_stack([g["lat"], g["lon"], g["elev"], g["elev"]]).astype(float))
+                mu, sd = x.mean(0), x.std(0)
+                sd[:3] = np.sqrt((sd[:3] ** 2).sum())
+                sd = np.where(sd > 0, sd, 1.0)
+                z = (x - mu) / sd
+                d = np.linalg.norm(z[:, None] - z[None], axis=-1)
+                np.fill_diagonal(d, np.inf)
+                nn = d.min(1)
+                self._DI_FITS[nm] = (mu, sd, z, nn.mean(), (nn / nn.mean()).max())
+            mu, sd, z, dbar, thr = self._DI_FITS[nm]
+            q = (sphere(np.array([[self.lat, self.lon, site, site]], float)) - mu) / sd
+            v = float(np.linalg.norm(z - q, axis=1).min() / dbar)
+            if best is None or v < best[0]:
+                best = (v, float(thr), nm)
+        return dict(di=best[0], di_threshold=best[1], di_region=best[2]) if best else dict(di=None, di_threshold=None, di_region=None)
 
     # ---- trust, provenance
     @property
@@ -485,7 +785,7 @@ class Launch:
         if dom["status"] == "edge":
             text += f"; near the edge of what the model was trained on ({dom['reason']})"
         if self._hrrr:
-            text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted at airport stations that HRRR assimilates, so optimistic for a remote pad; not validated beyond near-analysis)"
+            text += f"; ground wind anchored to {self._hrrr['note']} (weights fitted at airport stations that HRRR assimilates; at an independent basin station HRRR was no better than ERA5, so expect no gain at a remote pad; not validated beyond near-analysis)"
         if self._measurements():
             text += f"; conditioned on {len(self._measurements())} measurements (not yet validated)"
             o = self._obs
@@ -498,6 +798,8 @@ class Launch:
                 if "_age_h" in o:
                     detail.append(f"{o['_age_h']:.1f} h old")
                 text += " (" + ", ".join(detail) + "; gain fitted on station pairs, see obs.py)"
+        for note in getattr(self, "_saved_notes", ()):
+            text += "; " + note
         return text + ". The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)"
 
     @property
@@ -628,9 +930,13 @@ class Launch:
         sp = np.hypot(np.asarray(s["u"], float), np.asarray(s["v"], float))[:, sel]
         k = 1.0 if self.units == "si" else 1.0 / 0.44704
         ps = [float(p) for p in percentiles]
+        wb = [stats._weibull(c[c > 0.0]) if (c > 0.0).sum() >= 20 else None for c in sp.T]     # W9: Weibull shape / scale per height (what hub-height style wind statistics use); None where the fit fails
         return dict(units="m/s" if self.units == "si" else "mph", heights_m=[float(x) for x in h[sel]],
                     speed={p: [float(v) * k for v in np.percentile(sp, p, axis=0)] for p in ps},
-                    mean_0_200m={p: float(np.percentile(sp.mean(1), p)) * k for p in ps})
+                    mean_0_200m={p: float(np.percentile(sp.mean(1), p)) * k for p in ps},
+                    weibull_shape=[None if w is None else float(w[0]["shape"]) for w in wb],
+                    weibull_scale=[None if w is None else float(w[0]["scale"]) * k for w in wb],
+                    calm_share=[float(x) for x in (sp < 0.5).mean(0)])                     # share of samples below 0.5 m/s (stations: 3-9 % at 10 m; the ERA5-trained tool about 1 %, see scripts/w4_premise_check.py)
 
     # ---- Call 2: distribution()
     def distribution(self, variables, spread="full"):
@@ -643,7 +949,12 @@ class Launch:
             key = names.resolve_name(name)
             if key not in d:
                 raise ValueError(f"{key} has no per-sample values here")
-            r = stats.fit_best(d[key])
+            if names.VARIABLES[key][1] == "speed" and float(np.min(d[key])) > 0.0:       # wind speeds are positive and Weibull-like (shape about 1.5-3): never offer a family that allows negative speeds (Gumbel, normal, Student-t)
+                r = stats.fit_best(d[key], families=("weibull", "lognormal"))
+                if r["type"] is None:
+                    r = stats.fit_best(d[key])
+            else:
+                r = stats.fit_best(d[key])
             r["units"] = names.unit_label(key, self.units)
             r["quantiles_display"] = {p: float(names.to_units(key, v, self.units)) for p, v in r["quantiles"].items()}
             r["spread"] = "full" if spread == "full" else "full (typical-only spread not separable: flagged spread-typical-unavailable)"
@@ -670,6 +981,94 @@ class Launch:
         sub = {k: (v[:n] if isinstance(v, np.ndarray) and v.ndim >= 1 and len(v) >= n and k not in ("height_agl", "height_asl") else v) for k, v in s.items()}
         return AtmosphereSet(sub, launch_times=pool["launch_times"][:n], **reader_kw)
 
+    def real_air(self, n=None, **reader_kw):
+        """RA 1a (New_Plan 28.11 item 8): atmospheres() with the real-air gap added to u, v (api.real_air_gap): the wind ONE balloon or rocket meets, not the grid-box wind, so its
+        90 % bands cover a single sounding (kit b6: 0.83-0.90 -> 0.90-0.92 at left-out stations). Every mode; atmospheres() itself is unchanged."""
+        a = self.atmospheres(n, **reader_kw)
+        s = dict(a.samples)
+        s["u"], s["v"] = api.real_air_gap(s["u"], s["v"], s["height_agl"], seed=self.seed)
+        return AtmosphereSet(s, launch_times=a.launch_times, **a.reader_kw)
+
+    def stress(self, variable="wind_10m", quantile=0.999, side="upper", n=200, strata=8, values=None):
+        """A5 (roadmap): atmospheres for a RARE ground-level event beyond what the pool holds (a 1-in-1000 storm wind, freeze or heat wave; the Uri freeze at Midland lay below all
+        600 climate samples). The tail of the pool's own 10 m wind speed or 2 m temperature beyond its 95th (or 5th) percentile is fitted with a generalised Pareto law (probability-weighted
+        moments, shape held in -0.5 .. 0.3), `strata` values are read off it at equal probability steps beyond `quantile`, and for each value the Launch is CONDITIONED on it with observe()
+        (pinned), so the profile above follows the event with the learned correlations and every guard / flag of observe applies. Opt-in; the ordinary pool is unchanged.
+        variable: "wind_10m" (m/s; direction drawn from the pool's own windiest 5 %) or "temperature" (C); side "upper" or "lower" (only "upper" for wind).
+        LIMIT: the tail comes from the tool's OWN climate; it cannot invent an event the training years never had (a cold tail often fits as bounded: at Midland in February the
+        1-in-1000 freeze reads about -12 C while the Uri freeze of 2021 was -17.2 C). Pass `values=[...]` (SI: m/s or C, e.g. the site's record) to condition on given extremes instead;
+        `quantile` then only labels the probability you assign to them.
+        -> AtmosphereSet of about n atmospheres with `.stress` = dict(variable, side, quantile, probability (the share of real cases at least this extreme, = 1 - quantile), values (per stratum, SI), flags)."""
+        if variable not in ("wind_10m", "temperature"):
+            raise ValueError("variable must be 'wind_10m' or 'temperature'")
+        if side not in ("upper", "lower") or (variable == "wind_10m" and side != "upper"):
+            raise ValueError("side must be 'upper' (wind) or 'upper' / 'lower' (temperature)")
+        if not 0.95 < float(quantile) < 1.0:
+            raise ValueError("quantile must be between 0.95 and 1 (the tail fit uses the pool beyond its 5 % end)")
+        if self._obs:
+            raise ValueError("stress() conditions on the extreme value itself; call it on a Launch without observations")
+        s = self._ensure_pool()["samples"]
+        u0, v0 = np.asarray(s["u"], float)[:, 0], np.asarray(s["v"], float)[:, 0]
+        x = np.hypot(u0, v0) if variable == "wind_10m" else np.asarray(s["t2m"], float) - 273.15
+        sign = 1.0 if side == "upper" else -1.0
+        y = sign * x
+        thr = float(np.quantile(y, 0.95))
+        e = np.sort(y[y > thr] - thr)
+        if len(e) < 10:
+            raise ValueError("the pool is too small for a tail fit (needs at least 200 samples)")
+        b0 = e.mean()
+        a1 = np.mean(e * (len(e) - 1 - np.arange(len(e))) / max(len(e) - 1, 1))    # Hosking-Wallis moment a1 = E[X (1 - F)] on the sorted exceedances
+        xi = float(np.clip(2.0 - b0 / max(b0 - 2 * a1, 1e-12), -0.5, 0.3))     # k = a0 / (a0 - 2 a1) - 2, xi = -k
+        sig = max(2 * b0 * a1 / max(b0 - 2 * a1, 1e-12), 1e-6)
+        k = int(strata)
+        levels = float(quantile) + (1.0 - float(quantile)) * (np.arange(k) + 0.5) / k
+        p = (levels - 0.95) / 0.05
+        ex = sig / xi * ((1 - p) ** (-xi) - 1) if abs(xi) > 1e-6 else -sig * np.log(1 - p)
+        values = sign * (thr + ex) if values is None else np.asarray(values, float).ravel()
+        k = len(values)
+        rng = np.random.default_rng(np.random.SeedSequence([self.seed, 5]))
+        if variable == "wind_10m":
+            top = np.flatnonzero(np.hypot(u0, v0) >= np.quantile(np.hypot(u0, v0), 0.95))
+            dirs = (np.degrees(np.arctan2(-u0[top], -v0[top])) % 360.0)[rng.integers(0, len(top), k)]
+        per = max(1, -(-int(n) // k))
+        parts, used = [], []
+        for j in range(k):
+            obs = dict(wind_10m=f"{values[j]:.3f} m/s", wind_from_deg=float(dirs[j])) if variable == "wind_10m" else dict(temperature=f"{values[j]:.3f} C")
+            a = self.observe(**obs, t_update=False).atmospheres(per)      # a pinned what-if value, not a surprising report: no G2-2 widening (stress as before)
+            parts.append(a.samples)
+            used.append(float(values[j]))
+        out = {}
+        for key, val in parts[0].items():
+            if isinstance(val, np.ndarray) and val.ndim >= 1 and len(val) == per and key not in ("height_agl", "height_asl"):
+                out[key] = np.concatenate([pp[key] for pp in parts])
+            else:
+                out[key] = val
+        res = AtmosphereSet(out, None)
+        res.stress = dict(variable=variable, side=side, quantile=float(quantile), probability=1.0 - float(quantile), values=used, gpd_shape=xi, gpd_scale=sig, threshold=sign * thr,
+                          flags=["stress-tail-extrapolated-gpd", "conditioned-on-the-extreme-value"])
+        return res
+
+    def sequence(self, offsets=(0, 1, 2, 3), n=None, **reader_kw):
+        """G2 / M11 (Gemini bug 4): the SAME n atmospheres over several hours as one coherent sequence (sample j is one weather system followed through the hours), for hold-time and window-slip Monte Carlo.
+        offsets: hours after the start of the launch window. -> list of AtmosphereSet, one per offset (same sample index = same trajectory). The ordinary pool keeps drawing each sample at its own random time
+        of the window, which is right for one launch at an unknown time; use this when the same flight is tried at several hours. Needs assets with a lag-correlation table (api.atmosphere_sequence)."""
+        n = int(n or self.n)
+        r = self.resolved_window()
+        elev_m, _, _ = self.elevation_info()
+        when = r.cells_utc[0].astype(datetime).replace(tzinfo=timezone.utc).isoformat()
+        kw = dict(elevation=elev_m, mode=self.mode, now=self._now, era5_store=self.era5_store)
+        atms, infos = api.atmosphere_sequence(self.lat, self.lon, when, offsets=tuple(offsets), n=n, seed=self.seed, assets=self.assets, **kw)
+        elev = float(infos[0]["elevation_m"])
+        out = []
+        for atm, info, o in zip(atms, infos, offsets):
+            smp = {k: np.asarray(atm[k], np.float32) for k in SAMPLE_KEYS if atm.get(k) is not None}
+            smp["height_agl"] = np.asarray(_core.HEIGHTS, np.float32)
+            smp["elevation_m"] = elev
+            smp["height_asl"] = (elev + smp["height_agl"]).astype(np.float32)
+            t = np.datetime64(datetime.fromisoformat(info["valid_utc"]).replace(tzinfo=None), "s")
+            out.append(AtmosphereSet(smp, launch_times=np.full(n, t), **reader_kw))
+        return out
+
     # ---- Call 5: engine()
     def engine(self, **kw):
         if self._engine is None:
@@ -680,7 +1079,8 @@ class Launch:
             for k in ("w", "gust_mu", "gust_beta"):
                 if k in s:
                     atm[k] = np.asarray(s[k], float)
-            self._engine = TempestFlightSimEngine(atm=atm, info={"elevation_m": float(s["elevation_m"])}, seed=self.seed, **kw)
+            z0 = float(np.median(self._derive(s, pool["launch_times"])["surface_roughness_m"]))      # A7: the site roughness, used by sample_sobol_batch(z0_roughness_m="site")
+            self._engine = TempestFlightSimEngine(atm=atm, info={"elevation_m": float(s["elevation_m"]), "z0_m": z0}, seed=self.seed, **kw)
         return self._engine
 
     # ---- save / load (I-8)
@@ -689,10 +1089,12 @@ class Launch:
         s = pool["samples"]
         meta = dict(format_version=FORMAT_VERSION, package_version=__version__, lat=self.lat, lon=self.lon, tz=self.tz_name, units=self.units, seed=self.seed, n=self.n,
                     site=self._site.name if self._site else None, window=pool["window"], modes=pool["modes"], elevation_source=pool["elevation_source"], flags=pool["flags"],
-                    provenance=self.provenance, day_share=pool["day_share"], obs={k: str(v) for k, v in self._obs.items()})
+                    provenance=self.provenance, day_share=pool["day_share"], obs={k: str(v) for k, v in self._obs.items()}, hrrr_note=self._hrrr["note"] if self._hrrr else None)
         arrays = {f"s_{k}": np.asarray(v) for k, v in s.items()}
+        arrays["launch_times"] = pool["launch_times"].astype("datetime64[s]").astype("int64")
+        meta["sha256"] = _arrays_sha(arrays)                  # 5.2.20: the archive is hash-stamped; load refuses a file whose numbers changed
         with open(path, "wb") as f:                           # a file handle: np.savez would otherwise append ".npz" to the name
-            np.savez(f, launch_times=pool["launch_times"].astype("datetime64[s]").astype("int64"), meta=np.array(json.dumps(meta, default=str)), **arrays)
+            np.savez(f, meta=np.array(json.dumps(meta, default=str)), **arrays)
         return str(path)
 
     @classmethod
@@ -702,6 +1104,8 @@ class Launch:
             if meta.get("format_version", 0) > FORMAT_VERSION:
                 raise ValueError(f"{path} was written by a newer version (format {meta['format_version']})")
             s = {k[2:]: z[k] for k in z.files if k.startswith("s_")}
+            if meta.get("sha256") and _arrays_sha({k: z[k] for k in z.files if k != "meta"}) != meta["sha256"]:
+                raise ValueError(f"{path}: the saved numbers do not match their hash (the file was changed or damaged)")
             if "elevation_m" in s:
                 s["elevation_m"] = float(s["elevation_m"])
             lt = z["launch_times"].astype("datetime64[s]")
@@ -711,11 +1115,21 @@ class Launch:
         if meta.get("site"):
             object.__setattr__(L, "_site", get_site(meta["site"]))
         object.__setattr__(L, "_loaded", True)
+        # the saved samples already carry the observations / HRRR anchor, but load does not restore them; keep the label so a reloaded file says what its numbers are
+        notes, o = [], meta.get("obs") or {}
+        n_obs = sum(not k.startswith("_") for k in o)
+        if n_obs:
+            notes.append(f"conditioned on {n_obs} measurements before saving" + (f" (from {o['_source']})" if "_source" in o else "") + " (not yet validated)")
+        if meta.get("hrrr_note"):
+            notes.append(f"ground wind anchored to {meta['hrrr_note']} before saving")
+        object.__setattr__(L, "_saved_notes", notes)
         return L
 
     def stale(self, now=None):
         """C1: True when the real clock has moved into a mode that differs from the one used (e.g. a climate estimate for a time that has since become a forecast)."""
         now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:                                         # AU-17: a naive time is UTC, as everywhere else in the tool
+            now = now.replace(tzinfo=timezone.utc)
         return (now - self.created).total_seconds() > 6 * 3600
 
     def __repr__(self):
@@ -757,3 +1171,28 @@ class Launches:
             x = L._derive(L._ensure_pool()["samples"])[key]
             out.append(np.nanpercentile(x, [50, 10, 90]))
         return np.array(out)
+
+T_NU = 8.0
+
+
+def _t_widen_factor(prior, eng_obs, sig, nu=T_NU):
+    """G2-2 ('Innovative idea review.md' G2-2 step 1): D^2 = sum over the k observed numbers of ((obs - prior mean) / sqrt(prior var + obs var))^2; factor = sqrt((nu + D^2) / (nu + k)),
+    limited to 1-2 (never narrows). obs var = sensor sigma^2 (surface keys by name, radar keys by (component, height)); 0 for exact pins."""
+    hi = {float(h): i for i, h in enumerate(_core.HEIGHTS)}
+    cols = {"wind_u": "u", "wind_v": "v"}
+    sig = sig or {}
+    d2, k = 0.0, 0
+    for key, y in list(eng_obs.items())[:10]:
+        c, h = key
+        if c in cols:
+            x = np.asarray(prior[cols[c]], float)[:, hi[float(h)]]
+        elif c == "temp_K":
+            x = np.asarray(prior["t2m"], float)
+        elif c == "pressure_Pa":
+            x = np.asarray(prior["sp"], float)
+        else:
+            continue
+        so = sig.get(key, sig.get(c, 0.0))
+        d2 += (float(y) - x.mean()) ** 2 / max(x.var() + float(so) ** 2, 1e-12)
+        k += 1
+    return float(np.clip(np.sqrt((nu + d2) / (nu + k)), 1.0, 2.0)) if k else 1.0

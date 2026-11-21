@@ -32,7 +32,7 @@ def fill(rep, cond, year, m, lead_months, rng, table=None):
         if mo not in cache:
             h = int((mo.year - origin.year) * 12 + mo.month - origin.month)
             d = index_forecast.draw(known, origin, max(h, 1), m, rng)                        # columns: oni, qbo30, qbo50, wwv
-            lag = index_forecast.draw(known, origin, max(h - 3, 1), m, rng)[:, 0] if "oni_lag3" in cols else None
+            lag = index_forecast.draw_lag(known, origin, max(h, 1), 3, d[:, 0], rng) if "oni_lag3" in cols else None   # AU-16: joint with the target month's ONI, observed when known
             cache[mo] = (d, lag)
         d, lag = cache[mo]
         sl = slice(i * m, (i + 1) * m)

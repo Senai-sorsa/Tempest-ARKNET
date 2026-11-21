@@ -13,7 +13,17 @@ from tempest.profiles.to_heights import HEIGHTS
 from tempest_weather import _core, engine
 
 ASSET = "tempest_weather/assets/model.npz"
-CKPT = "models/generator_80_p2f.pt"
+def _source_ckpt():
+    """The checkpoint the bundled assets were exported from (manifest model_source), so the parity holds for whichever model is shipped (generator_80_c4w since 2026-11-09)."""
+    import json
+    try:
+        with open(os.path.join(os.path.dirname(ASSET), "manifest.json"), encoding="utf-8") as f:
+            return os.path.join("models", json.load(f)["model_source"])
+    except (OSError, KeyError, ValueError):
+        return "models/generator_80_p2f.pt"
+
+
+CKPT = _source_ckpt()
 needs_assets = pytest.mark.skipif(not (os.path.exists(ASSET) and os.path.exists(CKPT)), reason="exported assets / checkpoint not present")
 
 

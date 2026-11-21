@@ -1,0 +1,3 @@
+# H5 refinement flow trained on tau in [0.8, 1] (t0 = 0.2), composed with the paired base draft by scripts/s25_compose_refine.py
+arch = "flow"
+s25 = {tau_min = 0.8, steps = 3}

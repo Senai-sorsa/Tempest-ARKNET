@@ -18,14 +18,17 @@ def hourly_variables():
     return SURFACE + [f"{v}_{p}hPa" for v in PRESSURE for p in LEVELS_SERVED]
 
 
-def url(lat, lon, day, model="ecmwf_ifs025"):
+def url(lat, lon, day, model="ecmwf_ifs025", elevation=None):
+    """elevation (AU-3; None = not sent): metres the 2 m temperature and surface pressure refer to. Unsent, Open-Meteo downscales them to its own 90 m terrain height."""
     q = dict(latitude=f"{lat:.4f}", longitude=f"{lon:.4f}", hourly=",".join(hourly_variables()), start_date=day, end_date=day, models=model, wind_speed_unit="ms",
              timezone="GMT")
+    if elevation is not None:
+        q["elevation"] = f"{float(elevation):.1f}"
     return BASE + "?" + urllib.parse.urlencode(q)
 
 
-def fetch(lat, lon, day, model="ecmwf_ifs025", timeout=30):
-    with urllib.request.urlopen(url(lat, lon, day, model), timeout=timeout) as r:
+def fetch(lat, lon, day, model="ecmwf_ifs025", timeout=30, elevation=None):
+    with urllib.request.urlopen(url(lat, lon, day, model, elevation), timeout=timeout) as r:
         doc = json.loads(r.read().decode("utf-8"))
     if "hourly" not in doc:
         raise ValueError(f"Open-Meteo answered without hourly data: {str(doc)[:200]}")

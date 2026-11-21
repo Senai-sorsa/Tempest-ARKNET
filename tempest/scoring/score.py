@@ -45,6 +45,39 @@ def crps_ensemble(x, y):
     return 2 / m ** 2 * ((x - y[:, None]) * (m * (y[:, None] < x) - i + 0.5)).sum(1)
 
 
+def crps_fair(x, y):
+    """AU-1: fair ensemble CRPS (Ferro 2014), spread term over m (m - 1) pairs instead of m^2: an ensemble of m values
+    is no longer charged ~1/m of its CRPS, so a 75-row climatology pool and 199 model draws are judged alike. Same shapes."""
+    x = np.sort(x, axis=1)
+    m = x.shape[1]
+    i = np.arange(1, m + 1)[None, :, None]
+    return np.abs(x - y[:, None]).mean(1) - ((2 * i - m - 1) * x).sum(1) / max(m * (m - 1), 1)
+
+
+def pool_scores(target, pools, keys_va, truth, conv=None):
+    """AU-1: fair CRPS and median error of a climatology scored from its WHOLE pool, without replacement.
+    pools: key -> target row indices of that group's pool; conv turns rows into physical units (default to_physical;
+    sonde passes rows that already are). Returns (crps (N, D), mae (N, D), pool size R (N,))."""
+    crps, mae, R = np.empty_like(truth, dtype=np.float64), np.empty_like(truth, dtype=np.float64), np.empty(len(truth), np.int64)
+    for k in np.unique(keys_va):
+        sel = np.flatnonzero(keys_va == k)
+        P = np.sort((conv or to_physical)(target[pools[k]]).astype(np.float64), axis=0)  # (R, D)
+        r = len(P)
+        spread_term = ((2 * np.arange(1, r + 1) - r - 1)[:, None] * P).sum(0) / max(r * (r - 1), 1)
+        y = truth[sel].astype(np.float64)
+        crps[sel] = np.stack([np.abs(P - yy).mean(0) for yy in y]) - spread_term
+        mae[sel] = np.abs(np.median(P, 0) - y)
+        R[sel] = r
+    return crps, mae, R
+
+
+def twcrps_ensemble(x, y, threshold):
+    """M3: threshold-weighted CRPS for the upper tail (chaining function v(z) = max(z, threshold)): only differences above `threshold` count, so a forecast is judged on strong winds /
+    extremes and not on the calm bulk. Same shapes as crps_ensemble; threshold in the units of x (a scalar, or an array broadcast against y). threshold = -inf gives the ordinary CRPS."""
+    t = np.asarray(threshold, float)
+    return crps_ensemble(np.maximum(x, t[..., None, None] if t.ndim else t), np.maximum(y, t))
+
+
 def coverage90(x, y, p=0.9):
     """Truth inside the ensemble's central p range: the k-th lowest to k-th highest of m samples, k = (1-p)/2 (m+1).
     A perfect ensemble then holds the truth (m+1-2k)/(m+1) of the time (= p when (1-p)/2 (m+1) is whole, e.g.
@@ -71,6 +104,26 @@ def gaussian_samples(x, n, m, rng):
     mu, sd = x.mean(0), x.std(0) + 1e-9
     L = np.linalg.cholesky(np.corrcoef((x - mu) / sd, rowvar=False) + 1e-6 * np.eye(x.shape[1]))
     return clip_ranges(mu + (rng.standard_normal((n, m, x.shape[1])) @ L.T) * sd)
+
+
+def gauss15_samples(keys, rec, va, tr, target, m, rng, min_rows=300):
+    """AU-7: Gaussian baseline of the RECENT climate: mean + covariance from the clim15 rows `rec` (last 15 years before the test) of the
+    same grid point x month x 2-hour bin; under min_rows rows the grid point x month of `rec`; if that is empty, of all training rows `tr`."""
+    out = None
+    cnt = np.bincount(keys[rec], minlength=keys.max() + 1)
+    gk = np.where(cnt[keys] >= min_rows, keys, -1 - keys // 12)
+    for g in np.unique(gk[va]):
+        if g >= 0:
+            rows = rec[keys[rec] == g]
+        else:
+            rows = rec[keys[rec] // 12 == -1 - g]
+            rows = rows if len(rows) else tr[keys[tr] // 12 == -1 - g]
+        rows = np.sort(rng.choice(rows, min(len(rows), 3000), replace=False))
+        sel = np.flatnonzero(gk[va] == g)
+        x = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), m, rng)
+        out = np.empty((len(va), m, x.shape[-1]), x.dtype) if out is None else out
+        out[sel] = x
+    return out
 
 
 def group_keys(cond):
@@ -125,11 +178,14 @@ def main():
     ap.add_argument("--pit-damp", type=float, default=1.0, help="strength of --pit-recal in (0, 1]")
     ap.add_argument("--pit-recal", help="full PIT recalibration table (scripts/il86_fit.py): applied right after the range map; outputs get a _pit suffix")
     ap.add_argument("--template-cell", type=int, default=0, help="with --shuffle: dependence templates per block of N x N grid points (8 = 2 degrees)")
+    ap.add_argument("--template-before-year", type=int, default=None, help="AU-14: with --template-cell / --pooled-template, templates from years before this one (the export uses 2021; default: the first test year, as before)")
     ap.add_argument("--debias", help="L3-34: per point x month x 4-hour-bin mean-error table from tempest.scoring.debias (needs --calib), applied after the calibration maps; outputs get a _debias suffix")
     ap.add_argument("--year-clamp", type=int, help="L14e: hold the year feature of the scored rows at this year (the straight-line year slopes are not extrapolated beyond it)")
     ap.add_argument("--year-shift", type=float, default=0.0, help="with --year-clamp: pooled warming, K per year, added to t2m and T up to 10 km for the years beyond the clamp")
     ap.add_argument("--shuffle-w", type=float, default=1.0, help="IL-161: with --shuffle, weight of the template ranks against the network's own order (1 = the plain Schaake shuffle)")
     ap.add_argument("--shuffle", action="store_true", help="Schaake shuffle: keep every column's samples, take the order across columns from the real climatology draws of the same group; outputs get a _shuf suffix")
+    ap.add_argument("--blend-wind", help="IL-167 (opt-in): a second model checkpoint whose u, v columns replace the main model's, each range-calibrated with its own --blend-calib, BEFORE the shuffle and the maps; outputs get a _bw suffix")
+    ap.add_argument("--blend-calib", help="range calibration of --blend-wind")
     ap.add_argument("--shear-map", help="shear-space quantile map from tempest.calibrate.shear_map (needs --calib); outputs get a _smap suffix")
     ap.add_argument("--lapse-map", help="IL-162: lapse-rate quantile map from tempest.calibrate.lapse_map, applied after the shuffle and the shear map; outputs get an _lmap suffix")
     ap.add_argument("--shift", help="median bias shift from tempest.calibrate.shift (needs --calib); outputs get a _shift suffix")
@@ -141,10 +197,16 @@ def main():
     ap.add_argument("--driver-lead", type=int, default=6, help="lead in months for --driver-mode ridge")
     ap.add_argument("--extras", action="store_true", help="also write PIT histograms, coverage at 50/80/90/99 %%, wind speed/"
                     "direction error and the worst months/columns to <stem>_extras_*.csv (old outputs unchanged)")
+    ap.add_argument("--tail", action="store_true", help="IL-107: also write <stem>_tail.csv: threshold-weighted CRPS above the climatological 99th percentile (upper 1 %%) of the wind speed at 10 / 100 / 300 m / 1 / 3 km and of the 10 m - 1 km shear, model vs climatology, and the exceedance rates")
     ap.add_argument("--mc", action="store_true", help="also write the Monte Carlo checks of GLOBAL_PLAN §9 (tempest.scoring.mc) to <stem>_mc.csv")
     ap.add_argument("--stress", action="store_true", help="also write the season x ENSO x time-of-day stress table "
                     "(<stem>_stress.csv) and print the worst cells; read-only")
     ap.add_argument("--mask-filled", action="store_true", help="IL-143: leave the heights a dataset built with --fill-top filled (above fill_top_idx) out of the headline table; off = they count as before")
+    ap.add_argument("--fair-baseline", action="store_true", default=True, help="AU-1 (DEFAULT since New_Plan 28.11 item 8; --plain-baseline = old scoring): fair CRPS for every set, and clim / clim15 CRPS and median error from the whole pool of the group without replacement (clim15 pools under 20 rows fall back to all years); the 199-draw arrays still feed shuffle, variogram, coverage, tail, mc, stress. Outputs get a _fair suffix")
+    ap.add_argument("--plain-baseline", dest="fair_baseline", action="store_false", help="AU-1 off: plain CRPS and the 199-draw climatology pools (the scoring before 28.11 item 8; no _fair suffix)")
+    ap.add_argument("--gauss15", action="store_true", help="AU-7 (opt-in): a second Gaussian baseline fitted on the clim15 rows (last 15 years before the test; month-only fallback under 300 rows); headline gets skill15_gauss15 and margin_gauss15_* beside the existing columns. Own random stream: every other number unchanged")
+    ap.add_argument("--block-days", type=int, default=diag.BLOCK_DAYS, help="AU-4: headline intervals resample blocks of this many consecutive days (default %(default)s, from the lag autocorrelation of the daily skill; 1 = the old single-day bootstrap)")
+    ap.add_argument("--daily", action="store_true", help="AU-4 step 0: also write <stem>_daily.csv: per day and headline band the row count and the summed CRPS of every set (for the day-to-day autocorrelation of the skill)")
     ap.add_argument("--joint", help="joint-band widths from tempest.calibrate.joint (needs --calib): also reports the "
                     "whole-profile coverage of the simultaneous 99 %% band (output only; samples are not changed)")
     a = ap.parse_args()
@@ -197,6 +259,7 @@ def main():
         rows = np.sort(rng.choice(rows, min(len(rows), 3000), replace=False))
         sel = np.flatnonzero(gk[va] == g)
         gauss[sel] = gaussian_samples(to_physical(target[rows]).astype(np.float64), len(sel), a.m, rng)
+    gauss15 = gauss15_samples(keys, rec, va, tr, target, a.m, np.random.default_rng(a.seed + 15015)) if a.gauss15 else None
 
     rep = np.repeat(cond[va], a.m, axis=0)
     if a.year_clamp:   # L14e: the year slope is learned per place, season, hour and height; beyond the clamp year the feature stays at the clamp (optionally plus a pooled warming shift below)
@@ -205,6 +268,13 @@ def main():
     known = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         known = spread.apply(cal, known)
+    if a.blend_wind:                                                                 # IL-167: wind columns from a second model, same inputs, its own range calibration
+        from tempest.generator.sample import HEIGHTS as _HB
+        nuv = 2 * len(_HB)
+        bsamp = Sampler(torch.load(a.blend_wind, map_location="cpu", weights_only=True), device=a.device)
+        bcal = spread.load(a.blend_calib, a.blend_wind) if a.blend_calib else None
+        bk = bsamp.profiles(rep).reshape(len(va), a.m, -1)
+        known[..., :nuv] = (spread.apply(bcal, bk) if bcal else bk)[..., :nuv]
     dc = [FEATURES.index(k) for k in drivers()]  # oni, wwv, qbo (+ the ONI hinges and lag when the dataset has them)
     if a.driver_mode == "ridge":
         from tempest.scoring import ridge_drivers
@@ -214,6 +284,9 @@ def main():
     unknown = sampler.profiles(rep).reshape(len(va), a.m, -1)
     if cal:
         unknown = spread.apply(cal, unknown)
+    if a.blend_wind:
+        bu = bsamp.profiles(rep).reshape(len(va), a.m, -1)
+        unknown[..., :nuv] = (spread.apply(bcal, bu) if bcal else bu)[..., :nuv]
     if a.year_clamp and a.year_shift:   # pooled warming (K per year) for t2m and the troposphere (T up to 10 km) for the years beyond the clamp
         from tempest.generator.sample import HEIGHTS as _H, PROFILE as _P
         nh = len(_H)
@@ -249,10 +322,13 @@ def main():
     if a.shuffle:
         from tempest.calibrate import shuffle as shuf_mod
         tpl = clim
+        t_before = a.template_before_year or a.first_test_year or int(year[va].min())
+        if a.template_before_year:
+            print(f"shuffle templates from years before {t_before} (--template-before-year)")
         if a.template_cell:                                                          # IL-95: templates per block of N x N grid points, as shipped in the tool
-            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), t_before, cell=a.template_cell, n_lon=shuf_mod.grid_n_lon(cond))
         if a.pooled_template:                                                        # IL-94: templates pooled over grid points, as shipped in the tool
-            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), a.first_test_year or int(year[va].min()), pooled=True)
+            tpl = shuf_mod.group_template(target, keys, year, va, a.m, np.random.default_rng(a.seed + 5), t_before, pooled=True)
         known, unknown = shuf_mod.apply(known, tpl, a.shuffle_w), shuf_mod.apply(unknown, tpl, a.shuffle_w)
     if a.shear_map:
         if not cal:
@@ -277,6 +353,17 @@ def main():
         from tempest.calibrate import shear_tail
         st, prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
         known, unknown = shear_tail.apply(st, known, prng), shear_tail.apply(st, unknown, prng)
+    fair = {}
+    if a.fair_baseline:   # AU-1: per-row CRPS / median error arrays that replace the plain ones in the CSV and the headline
+        kv = keys[va]
+        p_all = {k: tr[l:h] for k, l, h in zip(kv, lo, hi)}
+        p_15 = {k: (rec[l:h] if h - l >= 20 else p_all[k]) for k, l, h in zip(kv, lo2, hi2)}
+        for name, pools in (("clim", p_all), ("clim15", p_15)):
+            fair[f"crps_{name}"], fair[f"mae_{name}"], R = pool_scores(target, pools, kv, truth)
+            print(f"AU-1 fair baseline {name}: whole-pool size R median {int(np.median(R))} (10-90 % {int(np.percentile(R, 10))}-{int(np.percentile(R, 90))})"
+                  + (f"; {int(np.sum(hi2 - lo2 < 20))} rows with under 20 recent rows use the all-years pool" if name == "clim15" else ""), flush=True)
+        for name, x in (("gauss", gauss), ("known", known), ("unknown", unknown)) + ((("gauss15", gauss15),) if a.gauss15 else ()):
+            fair[f"crps_{name}"] = crps_fair(x, truth)
     res = pd.DataFrame({"column": physical_names()})
     sets = [("clim", clim), ("gauss", gauss), ("known", known), ("unknown", unknown)]
     n = len(HEIGHTS)
@@ -285,15 +372,15 @@ def main():
     for name in ("gauss", "known", "unknown"):
         vs[f"vs_skill_{name}"] = 1 - vs[f"vs_{name}"] / vs["vs_clim"]
     for name, x in sets:
-        res[f"crps_{name}"] = crps_ensemble(x, truth).mean(0)
+        res[f"crps_{name}"] = (fair[f"crps_{name}"] if fair else crps_ensemble(x, truth)).mean(0)
         res[f"cov90_{name}"] = coverage90(x, truth).mean(0)
         res[f"cov99_{name}"] = coverage90(x, truth, 0.99).mean(0)
         med = np.median(x, 1)
-        res[f"mae_{name}"] = np.abs(med - truth).mean(0)
+        res[f"mae_{name}"] = fair[f"mae_{name}"].mean(0) if f"mae_{name}" in fair else np.abs(med - truth).mean(0)
         res[f"rmse_{name}"] = np.sqrt(((med - truth) ** 2).mean(0))
     for name in ("gauss", "known", "unknown"):
         res[f"skill_{name}"] = 1 - res[f"crps_{name}"] / res["crps_clim"]
-    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "")
+    stem = a.model.rsplit(".", 1)[0] + ("_cal" + a.calib.rsplit(".calib", 1)[-1].removesuffix(".npz") if cal else "") + ("_debias" if a.debias else "") + ("_trust" if a.trust else "") + ("_seas" if a.seasonal else "") + ("_stail" if a.shear_tail else "") + ("_shift" if a.shift else "") + ("_smap" if a.shear_map else "") + ("_shuf" if a.shuffle else "") + ("pool" if a.shuffle and a.pooled_template else "") + (f"c{a.template_cell}" if a.shuffle and a.template_cell else "") + ("_ridge" if a.driver_mode == "ridge" else "") + ("_pit" if a.pit_recal else "") + ("_qmc" if a.qmc else "") + ("_lmap" if a.lapse_map else "") + ("_bw" if a.blend_wind else "") + (f"_yc{a.year_clamp}" if a.year_clamp else "") + (f"s{a.year_shift:g}" if a.year_clamp and a.year_shift else "") + ("_fair" if a.fair_baseline else "") + ("_g15" if a.gauss15 else "") + (f"_tb{a.template_before_year}" if a.shuffle and a.template_before_year else "")
     out = stem + ".score.csv"
     res.to_csv(out, index=False)
 
@@ -338,11 +425,30 @@ def main():
             raise SystemExit("--mask-filled needs a dataset built with --fill-top (it has no fill_top_idx)")
         valid = diag.valid_from_fill_top(np.asarray(d["fill_top_idx"])[va], truth.shape[1])
         print(f"--mask-filled: {1 - valid.mean():.1%} of the columns are filled heights and are left out of the headline")
-    diag.print_headline(diag.headline(dict(sets, clim15=clim15), truth, day, band_masks(), valid=valid), stem + "_headline.csv")
+    diag.print_headline(diag.headline(dict(sets, clim15=clim15, **({"gauss15": gauss15} if a.gauss15 else {})), truth, day, band_masks(), valid=valid, override=fair or None,
+                                      daily=stem + "_daily.csv" if a.daily else None, block_days=a.block_days), stem + "_headline.csv")
     diag.report(stem, known, truth, physical_names(), band_masks(), (keys[va] // 12) % 12 + 1, var_slices())
     if a.extras:
         from tempest.scoring import extras  # late import, only for the flag
         extras.write(stem, unknown, truth, band_masks(), (keys[va] // 12) % 12 + 1, physical_names(), "unknown")
+    if a.tail:                                                                       # IL-107: tail-weighted scores (skill15 resolves only about +-0.001 per seed; tail changes hide inside it)
+        nh_ = len(HEIGHTS)
+        def _fields(p):
+            u_, v_ = p[..., :nh_], p[..., nh_:2 * nh_]
+            out_ = {f"speed_{int(h)}m": np.hypot(u_[..., j], v_[..., j]) for j, h in enumerate(HEIGHTS) if h in (10.0, 100.0, 300.0, 1000.0, 3000.0)}
+            j1 = int(np.argmin(np.abs(np.asarray(HEIGHTS) - 1000.0)))
+            out_["shear_10m_1km"] = np.hypot(u_[..., j1] - u_[..., 0], v_[..., j1] - v_[..., 0])
+            return out_
+        fx, fc, ft = _fields(unknown), _fields(clim15), _fields(truth)
+        trow = []
+        for k_ in ft:
+            t_ = float(np.quantile(fc[k_], 0.99))                                   # threshold: 99th percentile of the recent climatology pool
+            tw = lambda ens: crps_ensemble(np.maximum(ens, t_)[..., None], np.maximum(ft[k_], t_)[:, None])[:, 0].mean()
+            m_, c_ = tw(fx[k_]), tw(fc[k_])
+            trow.append(dict(field=k_, threshold=t_, twcrps_model=m_, twcrps_clim=c_, tw_skill=1 - m_ / c_ if c_ > 0 else np.nan,
+                             exceed_truth=float((ft[k_] > t_).mean()), exceed_model=float((fx[k_] > t_).mean())))
+        pd.DataFrame(trow).to_csv(stem + "_tail.csv", index=False)
+        print(pd.DataFrame(trow).round(4).to_string(index=False), flush=True)
     if a.mc:
         from tempest.scoring import mc  # late import, only for the flag
         mc.write(stem, unknown, clim15, truth, cond[va], list(FEATURES), band_masks())

@@ -94,7 +94,11 @@ def test_window_draws_several_hours_and_reports_it():
     assert len({int(t.astype("datetime64[h]").astype("int64")) for t in pool["launch_times"]}) >= 4
     atms = L.atmospheres(20)
     assert len(atms) == 20 and atms[3].launch_time is not None
+    cond = L.observe(wind_10m="14 mph", wind_from_deg=240)                          # AU-12: conditioning keeps the window's hours and says they are labels
+    cp = cond._ensure_pool()
+    assert len(np.unique(cp["launch_times"].astype("datetime64[h]"))) >= 4 and "window-hours-not-used-by-conditioning" in cp["flags"]
     one = Launch("spaceport_america", WHEN, mode="ai", n=100)
+    assert "window-hours-not-used-by-conditioning" not in one.observe(wind_10m="14 mph", wind_from_deg=240)._ensure_pool()["flags"]
     assert "10:00 MDT" in one.local_time_note and "solar" in one.local_time_note
 
 
@@ -136,6 +140,7 @@ def test_save_and_load_roundtrip(tmp_path, launch):
 def test_engine_and_observe_condition_on_launch_day_measurements(launch):
     eng = launch.engine()
     assert eng is launch.engine()                                                   # cached
+    assert eng.info["z0_m"] == pytest.approx(launch.z0())                           # A7: the site roughness travels with the engine
     cond = launch.observe(wind_10m="14 mph", wind_from_deg=240, temperature="82 F")
     assert cond is not launch and launch._obs == {} and len(cond._obs) == 3
     r0, r1 = launch.weather(all=True), cond.weather(all=True)
@@ -223,7 +228,20 @@ def test_domain_inside_edge_outside():
     far = Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64, elevation=3500, units="si").domain()
     assert far["status"] == "edge" and "model grid height" in far["reason"]
     out = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64).domain()                                  # no asset set covers it
-    assert out["status"] == "outside" and out["region"] is None
+    assert out["status"] == "outside" and out["region"] is None and out["di"] is None                         # no height known: no online lookup, no DI
+
+
+def test_domain_reports_the_dissimilarity_index_with_the_same_maths_as_the_research_code():
+    import os
+    from tempest.scoring import di as DI
+    from tempest_weather import api
+    g = api._assets(os.path.join(api.HERE, "assets"))["grid"]
+    f = DI.fit(np.column_stack([g["lat"], g["lon"], g["elev"], g["elev"]]).astype(float))
+    ins = Launch(32.5, -104.5, "2027-06-16 10:00", mode="ai", n=64, elevation=1300, units="si").domain()
+    assert ins["di_region"] == "assets" and ins["di"] == pytest.approx(DI.di(f, np.array([[32.5, -104.5, 1300.0, 1300.0]]))[0])
+    assert ins["di_threshold"] == pytest.approx(f["thr"]) and ins["di"] < ins["di_threshold"]
+    far = Launch(45.0, -90.0, "2027-06-16 10:00", mode="ai", n=64, elevation=300, units="si").domain()
+    assert far["status"] == "outside" and far["di"] > 5 * far["di_threshold"]
 
 
 def test_trust_line_says_atmosphere_only_and_gives_climate_advice():
@@ -283,3 +301,208 @@ def test_ground_wind_profile_rows():
     assert g["speed"][50][0] == pytest.approx(float(np.median(np.hypot(s["u"][:, 0], s["v"][:, 0]))))
     us = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="us", seed=4).ground_wind_profile()
     assert us["units"] == "mph" and us["speed"][50][0] == pytest.approx(g["speed"][50][0] / 0.44704, rel=1e-6)
+    assert len(g["weibull_shape"]) == len(g["weibull_scale"]) == len(g["calm_share"]) == len(g["heights_m"])          # W9 shape rows
+    assert all(1.0 < x < 5.0 for x in g["weibull_shape"]) and all(0.0 <= x <= 1.0 for x in g["calm_share"])
+    assert us["weibull_scale"][0] == pytest.approx(g["weibull_scale"][0] / 0.44704, rel=1e-6) and us["weibull_shape"] == g["weibull_shape"]
+    assert g["speed"][10][0] < g["weibull_scale"][0] < g["speed"][90][0] * 1.2
+
+
+def test_speed_distributions_are_positive_families_weibull_or_lognormal():
+    L = Launch("spaceport_america", "2027-07-16 10:00", mode="ai", n=1024, units="si", seed=3)
+    d = L.distribution(["wind_speed", "wind_10m", "wind_3km", "gust"])
+    for k, r in d.items():
+        assert r["type"] in ("weibull", "lognormal"), (k, r["type"])               # wind_speed and wind_3km used to pick a Gumbel, which allows negative speeds
+    w = d["wind_10m"]
+    if w["type"] == "weibull":
+        assert 1.2 < w["params"]["shape"] < 4.0
+    t = L.distribution(["temperature"])["temperature"]
+    assert t["type"] is not None                                                   # other variables are untouched
+
+
+def test_gust_law_follows_the_observed_wind():
+    """Gemini bug 3: after observe(wind_10m=25 m/s) the gust law must be evaluated at the new wind, not left at the prior's value."""
+    base = Launch(32.94, -106.91, "2027-06-16 10:00", tz="America/Denver", seed=3, n=60)
+    pool0 = base._ensure_pool()["samples"]
+    if "gust_mu" not in pool0:
+        pytest.skip("no gust law in these assets")
+    hot = base.observe(wind_10m="25 m/s", wind_from_deg=270)
+    mu_hot = np.asarray(hot._ensure_pool()["samples"]["gust_mu"])
+    assert mu_hot.mean() > np.asarray(pool0["gust_mu"]).mean() + 3.0
+
+
+def test_sequence_keeps_samples_coherent_over_hours():
+    """G2 / M11: sample j is one weather system through the hours (the ordinary pool draws every sample independently)."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, seed=1)
+    seq = L.sequence((0, 1), n=150)
+    z = L.elevation_info()[0] + 1500.0
+    a = [np.array([s[i].wind(z)[1] for i in range(150)]) for s in seq]
+    assert len(seq) == 2 and len(seq[0]) == 150
+    assert np.corrcoef(a[0], a[1])[0, 1] > 0.4
+
+
+def test_calibrate_site_rescales_ground_wind_and_fades_aloft():
+    """M6 / W5 wiring: a ratio calibration of 0.8 lowers the 10 m speed by 20 %, nothing at 300 m and above; the original Launch is unchanged."""
+    from tempest_weather_v2.sitecal import fit_site
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=200, seed=3)
+    ref = np.linspace(1, 8, 300)
+    cal = fit_site(ref, 0.8 * ref, method="ratio")
+    C = L.calibrate_site(cal)
+    a, b = L._ensure_pool()["samples"], C._ensure_pool()["samples"]
+    sp = lambda s, j: np.hypot(s["u"][:, j], s["v"][:, j])
+    assert abs(sp(b, 0).mean() / sp(a, 0).mean() - 0.8) < 0.01
+    z = np.asarray(a["height_agl"])
+    j = int(np.argmin(np.abs(z - 500)))
+    assert np.allclose(sp(b, j), sp(a, j), rtol=1e-4)
+    assert "ground-wind-site-calibrated-ratio" in C._ensure_pool()["flags"] and "ground-wind-site-calibrated-ratio" not in L._ensure_pool()["flags"]
+
+
+def test_past_era5_anchor_flag_reaches_atmosphere_set_only_when_on(monkeypatch):
+    """M5c / GW-F: the anchor is on by default (era5_anchor=1.0 in the call; it acts in past mode only); past_era5_anchor=False adds nothing (the old call)."""
+    from tempest_weather import api
+    seen = []
+    real = api.atmosphere_set
+
+    def spy(*a, **k):
+        seen.append(dict(k))
+        return real(*a, **k)
+    monkeypatch.setattr(api, "atmosphere_set", spy)
+    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1, past_era5_anchor=False)._ensure_pool()
+    Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=30, seed=1)._ensure_pool()
+    assert "era5_anchor" not in seen[0] and seen[1].get("era5_anchor") == 1.0
+
+
+def test_measured_wind_gust_law_matches_station_gust_factors(monkeypatch):
+    """W8c / W8d: after observe(wind_10m=...) the gust uses the law fitted on MEASURED winds. Physical gust (default, one-minute data): factor about 1.4 at light wind and 1.3-1.4 in strong
+    wind (stations 1.44 / 1.38 / 1.33), held above 20 m/s. METAR convention (GUST_PHYSICAL = False): no gust group most hours at light wind. The model-wind law fed the same wind gave 2.4-4.8."""
+    import numpy as np
+    from tempest_weather import api
+    rng = np.random.default_rng(0)
+    assert api.GUST_PHYSICAL is True
+
+    def draws(ws):
+        mu, beta = api._gust_params_measured(np.full(4000, ws), 172, 18.0, 1.0)
+        return np.maximum(mu - beta * np.log(-np.log(rng.random(4000).clip(1e-12, 1 - 1e-12))), ws)
+    light, strong, storm = draws(3.0), draws(14.0), draws(30.0)
+    assert 1.25 < np.median(light) / 3.0 < 1.75                                  # physical gust at light wind: about 1.44 x the wind (one-minute data)
+    assert 1.2 < np.median(strong) / 14.0 < 1.5 and 1.15 < np.median(storm) / 30.0 < 1.6
+    assert np.all(np.isfinite(storm)) and np.percentile(storm, 99) / 30.0 < 2.2   # a storm never produces an impossible gust
+    monkeypatch.setattr(api, "GUST_PHYSICAL", False)
+    assert (draws(3.0) == 3.0).mean() > 0.85                                    # METAR convention: about 95 % of 2-5 m/s hours have no gust group
+    monkeypatch.setattr(api, "GUST_PHYSICAL", True)
+    base = Launch(32.94, -106.91, "2027-06-16 10:00", tz="America/Denver", seed=3, n=200)
+    if "gust_mu" not in base._ensure_pool()["samples"]:
+        pytest.skip("no gust law in these assets")
+    obs = base.observe(wind_10m="18 m/s", wind_from_deg=270)
+    d = obs._derive(obs._ensure_pool()["samples"])
+    assert np.median(d["gust"] / d["wind_10m"]) < 1.6
+    from tempest_weather_v2 import launch as LM
+    old, LM.MEASURED_GUST_LAW = LM.MEASURED_GUST_LAW, False
+    try:
+        o2 = base.observe(wind_10m="18 m/s", wind_from_deg=270)
+        d2 = o2._derive(o2._ensure_pool()["samples"])
+    finally:
+        LM.MEASURED_GUST_LAW = old
+    assert np.median(d2["gust"] / d2["wind_10m"]) > np.median(d["gust"] / d["wind_10m"]) + 0.2       # the switch restores the model-wind law
+
+
+def test_stress_conditions_the_profile_on_a_rare_tail_value():
+    """A5: stress() reads a 1-in-1000 value off a GPD fit to the pool's own tail and conditions on it; the profile above follows; given values are used as they are; bad input refused."""
+    import numpy as np
+    L = Launch(31.9425, -102.2019, "2021-02-16 08:00", tz="America/Chicago", mode="ai", n=1024, units="si", seed=3, elevation=872)
+    s = L._ensure_pool()["samples"]
+    w = np.hypot(s["u"][:, 0], s["v"][:, 0])
+    B = L.stress("wind_10m", 0.999, n=40)
+    assert len(B) == 40 and B.stress["probability"] == pytest.approx(0.001) and min(B.stress["values"]) > np.quantile(w, 0.99)
+    assert np.median(np.hypot(B.samples["u"][:, 6], B.samples["v"][:, 6])) > np.median(np.hypot(s["u"][:, 6], s["v"][:, 6]))      # the wind aloft follows the storm
+    A = L.stress("temperature", 0.999, "lower", n=16, values=[-17.2, -15.0])
+    assert A.stress["values"] == [-17.2, -15.0] and len(A) == 16
+    assert np.median(A.samples["T"][:, 8]) < np.median(s["T"][:, 8]) - 5.0                                                       # the cold reaches 1 km
+    with pytest.raises(ValueError):
+        L.stress("wind_10m", side="lower")
+    with pytest.raises(ValueError):
+        L.stress("temperature", quantile=0.5)
+
+
+def test_observe_radar_conditions_the_profile_at_the_radar_levels_only_with_their_error():
+    """P3: observe_radar(profile=...) conditions the 500-2000 m wind on the radar with a 3 m/s error (soft, not pinned); the default pool is untouched; levels outside the profile are refused."""
+    import numpy as np
+    L = Launch(31.8728, -106.6981, "2027-06-16 17:00", tz="America/Denver", n=200, seed=2, units="si")
+    elev = float(L.elevation_info()[0])
+    prof = dict(site="EPZ", time="2027-06-16T23:00:00+00:00", heights_asl_m=[elev + h for h in (300.0, 800.0, 1500.0, 2500.0)], u=[12.0, 14.0, 16.0, 18.0], v=[0.0, 0.0, 0.0, 0.0])
+    R = L.observe_radar(profile=prof)
+    s0, s1 = L._ensure_pool()["samples"], R._ensure_pool()["samples"]
+    from tempest_weather import _core
+    j = list(_core.HEIGHTS).index(1000.0)
+    assert abs(np.median(s1["u"][:, j]) - np.interp(1000.0, [300, 800, 1500, 2500], [12, 14, 16, 18])) < 2.0           # pulled to the radar value
+    assert np.std(s1["u"][:, j]) > 0.5                                                                                  # soft: the 3 m/s error keeps a spread
+    assert any(f.startswith("radar-wind-EPZ") for f in R._ensure_pool()["flags"])
+    assert L._obs == {} and abs(np.median(s0["u"][:, j]) - np.median(s1["u"][:, j])) > 1.0                          # the original Launch is unchanged
+    with pytest.raises(ValueError):
+        L.observe_radar(profile=dict(heights_asl_m=[elev + 3000.0, elev + 4000.0, elev + 5000.0], u=[1, 2, 3], v=[0, 0, 0]))
+    with pytest.raises(ValueError, match="at least two levels"):                                                        # empty or ragged profile: a clear message, not a min() crash
+        L.observe_radar(profile=dict(heights_asl_m=[], u=[], v=[]))
+    with pytest.raises(ValueError, match="at least two levels"):
+        L.observe_radar(profile=dict(heights_asl_m=[elev + 500.0, elev + 1500.0], u=[1.0], v=[0.0, 0.0]))
+    Q = L.observe_radar(site="XYZ", profile={k: v for k, v in prof.items() if k != "site"})                                                                      # a radar not in the table: distance unknown, not 0 km
+    assert any(f.startswith("radar-wind-XYZ") and f.endswith("unknown-km") for f in Q._ensure_pool()["flags"])
+
+
+def test_launch_window_follows_the_assets_solar_hours(monkeypatch):
+    """A24: the launch window is cut to the solar hours the SERVING assets were trained for (manifest solar_hours), not to a fixed 06-21 h, so an all-hours export serves night launches."""
+    from tempest_weather import api
+    from tempest_weather_v2 import timeutil
+    night = "2027-06-16 02:00"                                                       # about 01 h solar at Spaceport America
+    import os
+    day_only = os.path.join(os.path.dirname(api.__file__), "assets_denver")           # a 06-21 h set (the Denver day model)
+    with pytest.raises(timeutil.WindowError):
+        Launch(39.7, -104.9, night, tz="America/Denver", n=50, assets=day_only).resolved_window()
+    assert len(Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window().cells_utc) >= 1   # since 2026-11-10 the bundled NM/TX set is all-hours
+    real = api._assets
+    monkeypatch.setattr(api, "_assets", lambda path=None: {**real(path), "manifest": {**real(path)["manifest"], "solar_hours": [0.0, 24.0]}})
+    monkeypatch.setattr(api, "region_solar_window", lambda lat, lon, root=None: (0.0, 24.0))          # as if an all-hours set covered the place
+    r = Launch(32.99, -106.97, night, tz="America/Denver", n=50).resolved_window()
+    assert len(r.cells_utc) >= 1
+    assert Launch(32.99, -106.97, "2027-06-16 23:59", tz="America/Denver", n=50)._solar_window()[1] > 24.0   # 24 h keeps the last minute (resolve keeps sh < hi)
+
+
+def test_soft_wind_observation_updates_the_speed_in_normal_score_space():
+    """W6: a soft wind observation (age / distance given) uses the speed-space update by default (OBS_SPEED_SPACE); a pinned one does not; the 10 m speed moves toward the observation and stays positive."""
+    import numpy as np
+    L = Launch(32.99, -106.97, "2027-06-16 15:00", tz="America/Denver", n=200, seed=3, units="si")
+    soft = L.observe(wind_10m="12 m/s", wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0)
+    pinned = L.observe(wind_10m="12 m/s", wind_from_deg=240)
+    off = L.observe(wind_10m="12 m/s", wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0, speed_space=False)
+    assert soft._obs.get("_speed_space") and not pinned._obs.get("_speed_space") and not off._obs.get("_speed_space")
+    sp = lambda X: np.hypot(np.asarray(X._ensure_pool()["samples"]["u"])[:, 0], np.asarray(X._ensure_pool()["samples"]["v"])[:, 0])
+    s0, s1 = sp(L), sp(soft)
+    assert (s1 >= 0).all() and abs(np.median(s1) - 12.0) < abs(np.median(s0) - 12.0)      # pulled toward the observation
+
+
+def test_saved_conditioned_launch_keeps_its_label_after_load(tmp_path, launch):
+    """A saved conditioned launch holds conditioned samples; the reloaded trust line must still say so (it used to read as a plain climate estimate)."""
+    cond = launch.observe(wind_10m="14 mph", wind_from_deg=240, temperature="82 F")
+    L2 = Launch.load(cond.save(str(tmp_path / "cond.tempest")))
+    assert "conditioned on 3 measurements before saving (not yet validated)" in L2.trust and "atmosphere only" in L2.trust
+    assert abs(L2.weather(all=True).wind_10m - 14.0) < 0.6
+    assert "conditioned" not in Launch.load(launch.save(str(tmp_path / "plain.tempest"))).trust
+
+
+def test_saved_file_is_hash_stamped_and_a_changed_file_is_refused(tmp_path, launch):
+    """5.2.20: save writes a sha256 of the saved numbers; load checks it. Files without a hash (older saves) still load."""
+    import json
+    p = launch.save(str(tmp_path / "a.tempest"))
+    with np.load(p) as z:
+        arrays = {k: z[k] for k in z.files}
+    meta = json.loads(str(arrays["meta"]))
+    assert len(meta["sha256"]) == 64 and Launch.load(p).weather().to_dict() == launch.weather().to_dict()
+    arrays["s_u"] = arrays["s_u"].copy()
+    arrays["s_u"][0, 0] += 1.0
+    with open(tmp_path / "b.tempest", "wb") as f:
+        np.savez(f, **arrays)
+    with pytest.raises(ValueError, match="hash"):
+        Launch.load(str(tmp_path / "b.tempest"))
+    meta.pop("sha256")
+    arrays["meta"] = np.array(json.dumps(meta))
+    with open(tmp_path / "c.tempest", "wb") as f:
+        np.savez(f, **arrays)
+    assert len(Launch.load(str(tmp_path / "c.tempest")).atmospheres(5)) == 5

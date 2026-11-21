@@ -31,6 +31,17 @@ def pool_matrix(atm):
     return np.concatenate([atm["u"], atm["v"], atm["T"], atm["RH"], atm["t2m"][:, None], atm["sp"][:, None], atm["rh2m"][:, None]], 1).astype(np.float64)
 
 
+def _gaspari_cohn(d, half_width):
+    """Gaspari-Cohn compactly supported correlation function of distance d (support 2 x half_width)."""
+    r = np.abs(np.asarray(d, float)) / float(half_width)
+    out = np.zeros_like(r)
+    a, b = r <= 1.0, (r > 1.0) & (r < 2.0)
+    ra, rb = r[a], r[b]
+    out[a] = -0.25 * ra ** 5 + 0.5 * ra ** 4 + 0.625 * ra ** 3 - (5.0 / 3.0) * ra ** 2 + 1.0
+    out[b] = (1.0 / 12.0) * rb ** 5 - 0.5 * rb ** 4 + 0.625 * rb ** 3 + (5.0 / 3.0) * rb ** 2 - 5.0 * rb + 4.0 - (2.0 / 3.0) / rb
+    return out
+
+
 class TempestFlightSimEngine:
     def __init__(self, lat=None, lon=None, when=None, n_pool=2048, seed=0, assets=None, atm=None, info=None, tail_extrap=True, **kw):
         if atm is None:
@@ -97,12 +108,14 @@ class TempestFlightSimEngine:
         return out
 
     # ---- module 2
-    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False):
+    def condition_on_observations(self, obs, sensor_sigma=None, inflate=1.5, inflate_decay_m=None, soft=False, localize_m=None):
         """obs: {(variable, height_m): measured value}; variables wind_u, wind_v (m/s), temp_K, rh_pct, pressure_Pa (surface, height 0). Heights must be model heights (10, 50, 100 ... 18000 m)
         or 2 m for temp_K / rh_pct. sensor_sigma: physical standard deviation of the sensors (one number or {variable: sigma}); default: practically exact pins. inflate: factor on the posterior variance of the unobserved columns (1.0 = the pure Schur complement; 1.5 is the default: the check in
         scripts/s6_condition_eval.py found the pure version too sharp: 90 % intervals held 80-86 % of balloons, 88-92 % with 1.5).
         inflate_decay_m (IL-138, opt-in; None = the single scalar): the variance of every unobserved column is multiplied by 1 + (inflate - 1) exp(-d / inflate_decay_m), d = distance in metres from the
-        column's height to the nearest observed height: the sharpness the pure update has near a measurement is corrected there, and columns far from every measurement (still close to the prior) are not widened."""
+        column's height to the nearest observed height: the sharpness the pure update has near a measurement is corrected there, and columns far from every measurement (still close to the prior) are not widened.
+        localize_m (G1, opt-in; None = off): Gaspari-Cohn taper of the covariance between observed and unobserved columns with their height distance (half-width in metres, zero beyond 2x), so a pinned 10 m wind cannot move the
+        stratosphere through a noisy long-range correlation. Not yet judged on balloons: keep off until `scripts/` shows it wins."""
         idx, y = [], []
         for (var, h), val in obs.items():
             k = (var, float(h))
@@ -117,10 +130,15 @@ class TempestFlightSimEngine:
         if sensor_sigma is None:
             lat_sig = np.full(len(idx), 1e-3)
         else:
-            sig = np.array([sensor_sigma.get(self.names[i][0], 0.0) if isinstance(sensor_sigma, dict) else float(sensor_sigma) for i in idx])
+            sig = np.array([sensor_sigma.get(tuple(self.names[i]), sensor_sigma.get(self.names[i][0], 0.0)) if isinstance(sensor_sigma, dict) else float(sensor_sigma) for i in idx])   # P3: a (variable, height) key overrides the variable's sigma
             lat_sig = np.maximum(sig / self._sd[idx], 1e-3)              # physical sensor sd -> latent units (about the sd of the column)
         C11 = self.corr[np.ix_(idx, idx)] + np.diag(lat_sig ** 2)
         C21 = self.corr[np.ix_(un, idx)]
+        taper = None
+        if localize_m:
+            hh = np.array([n[1] if n[1] > 0 else 0.0 for n in self.names])
+            taper = _gaspari_cohn(np.abs(hh[:, None] - hh[idx][None, :]), float(localize_m))             # (P, len(idx))
+            C21 = C21 * taper[un]
         gain = np.linalg.solve(C11, C21.T).T
         mu = gain @ y
         S = self.corr[np.ix_(un, un)] - gain @ C21.T
@@ -132,7 +150,7 @@ class TempestFlightSimEngine:
             S = S * f[:, None] * f[None, :]
             scale = 1.0
         if soft:                  # opt-in: noisy observations do NOT pin their columns; the full Gaussian posterior over every column (the observed ones included) given the observations and their errors
-            C_all = self.corr[:, idx]
+            C_all = self.corr[:, idx] if taper is None else self.corr[:, idx] * taper
             g_all = np.linalg.solve(C11, C_all.T).T
             un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T
         w, v = np.linalg.eigh(0.5 * (S + S.T))
@@ -256,18 +274,24 @@ class TempestFlightSimEngine:
         return bad
 
     # ---- the one-call contract (blueprint section "Unified integration")
-    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False):
+    def sample_sobol_batch(self, u_sobol_matrix, k_atmo=6, include_dryden_turbulence=True, include_avionics_bias=True, dz_fine_m=2.0, turbulence_seed=0, z0_roughness_m=0.03, dryden_fixes=True, run_id=0, exact_ar=True, dryden_modelling=False, uw_corr=None, spectrum="dryden"):
         """One vectorised call for a simulator. u_sobol_matrix (N, >= k_atmo [+ 4]): columns 0 .. k_atmo-1 drive the leading atmosphere modes; if the matrix has 4 more columns they are the
         1-cos gust (altitude, wavelength, direction, magnitude). -> dict with the coarse batch (u, v, T, RH, p, rho, a ... on the 44 heights), `fine` (Dryden fields on dz_fine_m) and
         `avionics` (barometric altitude, altimeter bias, refractivity, radio horizon) when asked for. dryden_fixes (IL-130; plain bug, ON by default since 2026-11-08 (set the argument to its old value to get the previous behaviour)): exact N^2, no boundary-layer leak above the layer, resolved w added.
         dryden_modelling (IL-135, OFF by default: a modelling choice, needs its own verdict): layer depth from the profile, gust peak from the sample's own gust law.
-        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default)."""
+        run_id (F1/F2) keys the atmosphere residual and the Dryden noise on (seed, run_id, row block), None = the old stream; exact_ar (S1) uses the exact AR(2) transverse filter (both ON by default).
+        G6 (opt-in, OFF by default): uw_corr (e.g. 0.35) couples the turbulent w to the along-wind turbulence (Reynolds stress); spectrum='karman' uses von Karman instead of Dryden shapes.
+        A7 (opt-in, default 0.03 unchanged): z0_roughness_m="site" uses the site roughness in info["z0_m"] (Launch.engine() sets it to Launch.z0(), the land-cover map median)."""
         from tempest_weather.flight import avionics, dryden
+        if isinstance(z0_roughness_m, str):
+            if z0_roughness_m != "site" or self.info.get("z0_m") is None:
+                raise ValueError("z0_roughness_m must be a number (m) or 'site' (needs info['z0_m'], e.g. from Launch.engine())")
+            z0_roughness_m = float(self.info["z0_m"])
         u = np.asarray(u_sobol_matrix, float)
         batch = self.sample_sobol(u[:, :k_atmo], run_id=run_id)
         if include_dryden_turbulence:
             gust = tuple(u[:, k_atmo + i] for i in range(4)) if u.shape[1] >= k_atmo + 4 else None
-            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar,
+            batch["fine"] = dryden.synthesize(batch["z"], batch["u"], batch["v"], batch["T"], dz=dz_fine_m, seed=turbulence_seed, gust=gust, z0=z0_roughness_m, run_id=run_id, exact_ar=exact_ar, uw_corr=uw_corr, spectrum=spectrum,
                                              **(dict(w=batch.get("w"), exact_n2=True, bl_floor0=True) if dryden_fixes else {}),
                                              **(dict(h_pbl_from_profile=True, gust_params=(batch["gust_mu"], batch["gust_beta"]) if batch.get("gust_mu") is not None else None) if dryden_modelling else {}))
         if include_avionics_bias:

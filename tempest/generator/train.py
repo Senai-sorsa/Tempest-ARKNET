@@ -27,7 +27,8 @@ import zipfile
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator, afcrps, energy_score, make_generator
+from tempest.generator.model import ANOM_COLS, Generator, afcrps, energy_score, fit_anom_table, make_generator
+from tempest.generator.s25_losses import energy_distance, energy_score_beta
 from tempest.generator.sample import standard_pressure
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -52,6 +53,8 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 fill_mask=False,            # review 2026-11-07: heights that build_dataset --fill-top filled (above fill_top_idx) count 0 in the loss; needs a dataset built with --fill-top after 2026-11-07
                 shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
+                holdout_fold=None,          # N1 (New_Plan 10.4): 0..3 = validation rows are this fold's 4 held-out years (holdout_years) and the network after the last step is kept (fixed step count). None = as before
+                init=None,                  # N2 (New_Plan 10.4): path of a saved network to start from (fine-tune); its normalisation is kept. None = fresh start (as before)
                 geo_sh=0, geo_siren=0,      # L3: spherical harmonics of degree geo_sh replace raw lat/lon inside the network (siren > 0: through a sine network)
                 context_inputs=[],          # L3: input names routed to the context FiLM instead of the input layer (model.Generator context_cols)
                 context_film_sep=False,     # L3: the context gets its own FiLM per block instead of being added to the noise embedding (model ctx_sep)
@@ -60,7 +63,22 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 noise_t_dims=0, noise_t_nu=4.0,   # Gemini idea 1: this many noise numbers are Student-t (model noise_t)
                 noise_t_head=0, noise_t_clip=8.0,                   # Gemini idea 1b: the first K t numbers also scale a zero-init output head (past the layer norms)
                 jump_k=0, jump_top=3000.0,
-                conv_c=0, conv_layers=3, conv_k=5)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
+                conv_c=0, conv_layers=3, conv_k=5,
+                anom_clim=False,            # AV21: learn standardised anomalies from a per-point harmonic climatology (model anom); False = off
+                anom_mean_only=False,       # AV40: with anom_clim, use the climatology mean only (anomaly spread = training sd); False = AV21 mean + spread
+                anom_skip=[],               # X4: target-name prefixes kept as plain outputs (no climatology), e.g. ["RH_"]; [] = all anomaly
+                anom_blend=1.0,             # X4 line (28.10): scale on the climatology offset of the non-skipped outputs; 1.0 = unchanged
+                nest_widths=None,
+                # New_Plan section 25 keys, all off by default (tempest/generator/s25_losses.py, s25_models.py):
+                es_beta=1.0,                # GF1b: energy-score exponent; 1 = the shipped energy_score
+                vario_weight=0.0, vario_p=0.5,   # GF1c: vertical variogram score, pair weight 1 / separation
+                shear_vec_es_weight=0.0,    # GF1d / IL-62: energy score on each layer's (du, dv) shear vector
+                twes_weight=0.0, twes_q=0.9, twes_top_m=18000.0, twes_tau=0.1,   # GX2: threshold-weighted ES on the 0-18 km (u, v) profile
+                sig_weight=0.0, sig_stride=1,     # GX1: energy score on depth-2 height-path signatures
+                model_kw_extra=None,        # GT2 / s25 archs: extra keyword arguments for the network (e.g. {d = 96} for the token model)
+                s25=None,                   # s25 arch options (flow / rml / har / moe / eof / prior / analog / refine), see s25_models.prepare
+                distill_teacher=None, distill_m=8, distill_data_weight=0.0)   # MF1: energy distance to this teacher checkpoint's samples
+           # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
 
@@ -106,9 +124,17 @@ def _load_one(path):
     return out
 
 
+def holdout_years(last, fold):
+    """N1: fold k of 4 -> its 4 held-out years: the last 16 years up to `last` in 2-year blocks, blocks k and k + 4."""
+    return [last - 15 + 2 * b + i for b in (fold, fold + 4) for i in (0, 1)]
+
+
 def split(year, cond, names, cfg):
     """-> (train, validation) row masks. Tail years by default; with val_block_frac, 14-day blocks from every year
     (the same blocks for every member and seed) with a 3-day gap dropped on each side."""
+    if cfg.get("holdout_fold") is not None:
+        val = np.isin(year, holdout_years(int(np.max(year)), cfg["holdout_fold"]))
+        return ~val & (year > 0), val                # year 0 = rows the caller masked out (scripts/n1_crossfit.py: no RAM copy of the kept years)
     if not cfg.get("val_block_frac"):
         val = year > year.max() - cfg["val_years"]
         return ~val, val
@@ -121,6 +147,9 @@ def split(year, cond, names, cfg):
     if val.sum() < 0.02 * len(year) or min(cnt_t) == 0:                                          # review 1.5: minimum support on both sides
         raise ValueError(f"block validation split has too little support: {int(val.sum())} validation rows, training rows per year min {min(cnt_t)}")
     print(f"block validation: {int(val.sum()):,} validation rows ({100 * val.mean():.1f} %), years without validation rows: {[int(y) for y, c in zip(yrs, cnt_v) if c == 0]}", flush=True)
+    if int(np.max(year)) >= 2023:                                                                   # Gemini bug 10: block validation draws validation rows from every year, so with data from 2023 on the calibration / test years are partly seen in training
+        import warnings
+        warnings.warn("val_block_frac > 0 with training data up to year %d: validation blocks come from every year, so the calibration year 2023 (and later test years) would be partly inside training; cut the data with --max-year 2022 first (the documented use, which does not warn)." % int(np.max(year)), stacklevel=2)
     return tr, val
 
 
@@ -161,6 +190,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     tref = targets(ref)
     tm, ts = tref.mean(0), safe(tref.std(0))
     norm = {k: torch.tensor(v, dtype=torch.float32) for k, v in dict(cm=cm, cs=cs, tm=tm, ts=ts).items()}
+    init_ck = None
+    if cfg["init"]:                                   # N2: the start weights only make sense with the normalisation they were fit with
+        init_ck = torch.load(cfg["init"], map_location="cpu", weights_only=True)
+        init_ck = init_ck["members"] if "members" in init_ck else [init_ck]
+        norm = {k: torch.as_tensor(v, dtype=torch.float32) for k, v in init_ck[0]["norm"].items()}
+        cm, cs, tm, ts = (norm[k].double().numpy() for k in ("cm", "cs", "tm", "ts"))
     linear_cols = [names.index(k) for k in cfg["linear_features"] if k in names]
     lin_names = [names[i] for i in linear_cols]
     pp = [[lin_names.index(a_), lin_names.index(b_)] for a_, b_ in (cfg["product_pairs"] or [])]
@@ -188,6 +223,33 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     if cfg["conv_c"] and n_prof:
         model_kw["conv"] = dict(C=int(cfg["conv_c"]), layers=int(cfg["conv_layers"]), k=int(cfg["conv_k"]), n_var=len(PROFILE), n_h=len(HEIGHTS))
 
+    if cfg["nest_widths"]:
+        li = names.index("lead_days")
+        model_kw["nest"] = dict(col=li, mu=float(cm[li]), sd=float(cs[li]), widths=[int(w) for w in cfg["nest_widths"]])
+
+    s25_tables = None
+    if cfg["arch"] not in ("mlp", "tokens"):          # New_Plan 25 archs: data-fitted options (EOF basis, prior, analog table) from training rows only
+        from tempest.generator import s25_models
+        kw25, s25_tables = s25_models.prepare(cfg, dict(cond=cond, ref=ref, tref=tref, tr_idx=tr_idx, targets=targets, cm=cm, cs=cs, tm=tm, ts=ts,
+                                                         names=names, n_prof=n_prof, year=year), log)
+        model_kw.update(kw25)
+    if cfg["model_kw_extra"]:
+        model_kw.update(cfg["model_kw_extra"])
+    anom_tab = None
+    if cfg["anom_clim"]:                              # AV21: climatology fitted on the training-row sample `ref` only (no validation / test years)
+        ac = [names.index(k) for k in ANOM_COLS]
+        assert not set(ANOM_COLS) & set(cfg["ignore_inputs"]), "anom_clim needs the real lat / lon / doy / hour columns"
+        anom_tab = fit_anom_table(np.asarray(cond[ref][:, ac], np.float64), tref, 1e-3 * ts)
+        model_kw["anom"] = dict(cols=ac, mu=[float(cm[i]) for i in ac], sd=[float(cs[i]) for i in ac], P=len(anom_tab[0]),
+                                tm=[float(x) for x in tm], ts=[float(x) for x in ts])
+        if cfg["anom_mean_only"]:
+            model_kw["anom"]["mean_only"] = True
+        if cfg["anom_skip"] or cfg["anom_blend"] != 1.0:                # the mask scales the offset (mean_only) / mixes anomaly and plain (full)
+            assert 0 < cfg["anom_blend"] <= 1, "anom_blend must be in (0, 1]"
+            model_kw["anom"]["mask"] = [0.0 if any(t.startswith(p) for p in cfg["anom_skip"]) else float(cfg["anom_blend"]) for t in tnames]
+            assert len(model_kw["anom"]["mask"]) == len(tm) and 0 < sum(model_kw["anom"]["mask"]) < len(tm), "anom_skip / anom_blend must leave some, not all, targets at full anomaly"
+        log(f"anom_clim: harmonic climatology at {len(anom_tab[0])} points from {len(ref)} training rows")
+
     def physical(r):  # raw targets -> profiles rebuilt from the differences; works on numpy and torch
         if not n_prof:
             return r
@@ -210,6 +272,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         thr = np.quantile(shear_ref, cfg["shear_tail_q"], axis=0)
         shear_thr = torch.tensor(thr, dtype=torch.float32, device=device)
         shear_scale = torch.tensor(safe(np.maximum(shear_ref - thr, 0).std(0)), dtype=torch.float32, device=device)
+    s25_terms = None
+    if n_prof and any(cfg[k] for k in ("vario_weight", "shear_vec_es_weight", "twes_weight", "sig_weight")):   # New_Plan 25 GF1 / GX2 / GX1
+        from tempest.generator import s25_losses
+        s25_terms = s25_losses.make_terms(cfg, tref, norm, device)
     del ph, tref
     tm_d, ts_d = norm["tm"].to(device), norm["ts"].to(device)
     phys_std = lambda x: (physical(x * ts_d + tm_d) - pm) / ps  # normalised diffs -> standardised profiles
@@ -279,7 +345,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         s, y = phys_std(samples), phys_std(t)
         if top is not None:
             s = torch.where(mk[:, None], y[:, None], s)
-        loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * energy_score(s, y) / math.sqrt(y.shape[-1])
+        loss = afcrps(s, y, cfg["crps_alpha"]) + cfg["es_weight"] * (energy_score(s, y) if cfg["es_beta"] == 1.0 else energy_score_beta(s, y, cfg["es_beta"])) / math.sqrt(y.shape[-1])
         if cfg["low_weight"] != 1.0 and n_prof:
             loss = loss + (cfg["low_weight"] - 1.0) * afcrps(s[..., low_cols], y[..., low_cols], cfg["crps_alpha"])
         if cfg["wind_vec_weight"] and n_prof:
@@ -298,6 +364,8 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             loss = loss + cfg["superadiabatic_weight"] * superadiabatic(samples)
         if cfg["shear_tail_weight"] and n_prof:
             loss = loss + cfg["shear_tail_weight"] * shear_tail_loss(samples, t)
+        if s25_terms is not None:
+            loss = loss + s25_terms(samples, t, s, y)
         return loss
 
     groups = ([(v, slice(i * len(HEIGHTS), (i + 1) * len(HEIGHTS))) for i, v in enumerate(PROFILE)]
@@ -338,6 +406,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         model = make_generator(cfg["arch"], cond.shape[1], target.shape[1], cfg["noise_dim"], cfg["width"], cfg["depth"],
                                linear_cols=linear_cols, **({"interactions": True} if cfg["interactions"] else {}),
                                **({"product_pairs": pp} if pp else {}), **model_kw).to(device)
+        if anom_tab is not None:
+            model.set_anom(*anom_tab)
+        if s25_tables:
+            model.set_tables(**s25_tables)
+        if init_ck:
+            model.load_state_dict(init_ck[k % len(init_ck)]["state"])
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
         g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
@@ -345,6 +419,10 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                         best_state=None, bad=0, history=[], done=False,
                         ema=copy.deepcopy(model).eval() if cfg["ema_decay"] else None))
 
+    teacher = None
+    if cfg["distill_teacher"]:                       # MF1: the student matches the teacher's samples; both must share one normalisation
+        from tempest.generator import s25_models
+        teacher = s25_models.load_teacher(cfg["distill_teacher"], norm, device)
     t0 = time.time()
     for step in range(1, cfg["steps"] + 1):
         for k, M in enumerate(mem):
@@ -354,9 +432,21 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             model.train()
             idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
             c, t = Xc[idx].float(), Xt[idx].float()
-            with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
-                s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
-            loss = score(s.float(), t, None if Xf is None else Xf[idx])
+            if getattr(model, "own_loss", False):    # New_Plan 25 archs with their own training objective (flow matching, RML chain, EOF split)
+                loss = model.train_loss(c, t, dict(score=score, phys_std=phys_std, cfg=cfg, top=None if Xf is None else Xf[idx], gpu=gpu))
+            else:
+                with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
+                    s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
+                if teacher is not None:
+                    with torch.no_grad():
+                        ts_ = teacher(c, cfg["distill_m"]).float()
+                    loss = energy_distance(phys_std(s.float()), phys_std(ts_)) / math.sqrt(s.shape[-1])
+                    if cfg["distill_data_weight"]:
+                        loss = loss + cfg["distill_data_weight"] * score(s.float(), t, None if Xf is None else Xf[idx])
+                else:
+                    loss = score(s.float(), t, None if Xf is None else Xf[idx])
+            if getattr(model, "aux_loss", None) is not None:   # H3: the gate's load-balancing penalty (already weighted by the model)
+                loss = loss + model.aux_loss
             M["opt"].zero_grad(set_to_none=True)
             loss.backward()
             gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), float("inf"))  # measure only, no clipping
@@ -383,7 +473,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                     f"grad {gnorm.item():.3f}  {time.time() - t0:.0f}s")
                 log(f"    val by var (standardised; ss = spread/skill, 1 ideal): {d}")
                 M["history"].append((step, loss.item(), v))
-                if v < M["best"]:
+                if v < M["best"] or cfg["holdout_fold"] is not None:   # N1: fixed step count, the held-out years pick nothing
                     M["best"], M["bad"] = v, 0
                     M["best_state"] = {n: x.detach().cpu().clone() for n, x in model.state_dict().items()}
                 else:

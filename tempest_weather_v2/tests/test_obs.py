@@ -1,6 +1,7 @@
 """Observation ingestion: nearest stations, age / distance weights, IEM parsing (offline fake), observe with weights, observe_latest end to end."""
 from datetime import datetime, timezone
 
+import numpy as np
 import pytest
 
 from tempest_weather_v2 import Launch, obs as O
@@ -55,8 +56,10 @@ def test_observe_with_weights_moves_the_median_less_than_an_exact_pin():
     old = L.observe(wind_10m="9 m/s", wind_from_deg=240, age_hours=3.0).weather(all=True).wind_10m
     far = L.observe(wind_10m="9 m/s", wind_from_deg=240, age_hours=3.0, distance_km=120, elevation_diff_m=80).weather(all=True).wind_10m
     assert abs(pin - 9.0) < 0.5
-    assert abs(old - prior) > 0.2 and abs(pin - prior) > abs(old - prior) > abs(far - prior) - 1e-9     # exact pin > 3 h old > 3 h old and far away
-    assert abs(far - prior) < abs(old - prior)
+    assert abs(old - prior) > 0.2 and abs(pin - prior) > abs(old - prior)                              # exact pin > 3 h old
+    # ASK_LATER 23 (adopted 2026-11-11): a neighbour's rho is capped at the own-station rho of the same age (0.72 ** 3 = 0.37 < its gain 0.46 here),
+    # so the far report moves the 10 m speed as much as the 3 h old one, never more; the old strict '<' only held by float noise (1e-8)
+    assert abs(far - prior) <= abs(old - prior) + 1e-6
 
 
 def test_observe_latest_end_to_end_and_errors():
@@ -86,3 +89,42 @@ def test_observe_latest_skips_a_station_whose_report_is_impossible_and_uses_the_
     only_bad = lambda url: bad if "station=TCS" in url else b"station,valid,metar\n"
     with pytest.raises(LookupError, match="rejected for impossible values"):
         L.observe_latest(fetch=only_bad, max_km=200.0)
+
+
+def test_wind_persistence_from_a_lag_table():
+    """M1: monotone decay with lag, slower aloft, interpolation between lags, sd factor."""
+    import numpy as np
+    from tempest_weather import _core
+    from tempest_weather_v2.persistence import persistence_sd_factor, wind_persistence
+    nh = len(_core.HEIGHTS)
+    lag = np.arange(13)[:, None]
+    tau = np.concatenate([np.linspace(6, 30, nh)] * 4)[None, :]                    # decay time grows with height (hours)
+    table = np.exp(-lag / tau)[None].repeat(4, 0)
+    r0, r3, r6 = (wind_persistence(table, 0, h, [10, 5000]) for h in (0, 3, 6))
+    assert np.allclose(r0, 1.0) and np.all(r3 < 1) and np.all(r6 < r3) and r3[1] > r3[0]
+    half = wind_persistence(table, 1, 2.5, [10])[0]
+    assert wind_persistence(table, 1, 3, [10])[0] < half < wind_persistence(table, 1, 2, [10])[0]
+    assert np.allclose(persistence_sd_factor([1.0, 0.0]), [0.0, np.sqrt(2.0)])
+
+
+def test_t_widen_factor_rule():
+    from tempest_weather_v2.launch import _t_widen_factor
+    rng = np.random.default_rng(0)
+    prior = {"u": rng.normal(0, 2, (4000, 44)), "v": rng.normal(0, 2, (4000, 44)), "t2m": rng.normal(300, 3, 4000), "sp": rng.normal(88000, 300, 4000)}
+    obs = {("wind_u", 10.0): 0.0, ("wind_v", 10.0): 0.0}
+    assert _t_widen_factor(prior, obs, None) == 1.0                       # unsurprising -> never narrows
+    far = {("wind_u", 10.0): 12.0, ("wind_v", 10.0): 0.0}                 # 6 sd: D^2 ~ 36, k = 2 -> sqrt(44 / 10) ~ 2.1 -> capped at 2
+    assert _t_widen_factor(prior, far, None) == 2.0
+    mid = {("temp_K", 2.0): 306.0}                                         # 2 sd, obs sd 3: D^2 = 36 / 18 = 2 -> sqrt(10 / 9)
+    assert abs(_t_widen_factor(prior, mid, {"temp_K": 3.0}) - np.sqrt(10 / 9)) < 0.03
+
+
+def test_observe_t_update_is_opt_in_and_widens_on_a_surprise():   # G2-2 opt-in (port did not reproduce, New_Plan 28.11 item 13)
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=300, units="si")
+    kw = dict(wind_10m=25.0, wind_from_deg=240, age_hours=1.0, distance_km=0.0, elevation_diff_m=0.0)
+    a, b = L.observe(**kw), L.observe(**kw, t_update=True)
+    assert np.array_equal(a._ensure_pool()["samples"]["u"], L.observe(**kw, t_update=False)._ensure_pool()["samples"]["u"])
+    pa, pb = a._ensure_pool(), b._ensure_pool()
+    assert not any(f.startswith("t-widened") for f in pa["flags"])
+    assert any(f.startswith("t-widened") for f in pb["flags"])
+    assert np.std(pb["samples"]["u"][:, 0]) > np.std(pa["samples"]["u"][:, 0])

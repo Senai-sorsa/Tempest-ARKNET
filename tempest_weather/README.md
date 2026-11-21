@@ -29,7 +29,7 @@ atmosphere(32.99, -106.97, "2027-06-16 09:00", percentiles=(15, 50, 85), extras=
 Terminal: `python -m tempest_weather atmosphere --lat 32.99 --lon -106.97 --when "2027-06-16 09:00" --elevation 1400 [--percentile 25 50 75] [--extra gust10] [--format text|toml|json]`;
 `python -m tempest_weather values ... --vars t2m_c sp`; `python -m tempest_weather variables` lists every variable name.
 
-**Time.** A string without an offset is **local solar time** at the longitude (no timezone database is needed); add an offset (`+00:00`, `-06:00`) for an exact instant. Only 06-21 h solar are answered.
+**Time.** A string without an offset is **local solar time** at the longitude (no timezone database is needed); add an offset (`+00:00`, `-06:00`) for an exact instant. Every hour is answered (since 2026-11-10: the bundled NM/TX set and the Denver night set are trained on all 24 h; the Denver day set answers 06-21 h solar and the tool picks the set by hour; each set's hours are in its `manifest.json` `solar_hours`).
 **Percentiles** of `atmosphere` run along **flight conditions from worst (0) to best (100)**, not along any single variable: 15 is a bad but plausible day, 85 a good one. The ranking score
 (`ranking.py`) is a placeholder weighting of wind, shear, gust and air density until your go/no-go limits exist; pass `score_fn=` to use your own. The wind in the output is the 100 m wind
 (as `Weather_to_JARVIS_inputs.py` uses for `UniformWind`); `--format toml` writes the same layout as that script.
@@ -51,8 +51,9 @@ settings with error add the balloon-fitted ERA5 error; without error the answer 
 
 | mode | when | state |
 |---|---|---|
-| `past` | more than ~6 days ago | **works with a local ERA5 store** (`era5_store=` or env `TEMPEST_ERA5_STORE`, the pilot profiles zarr): ERA5 for that hour + a network trained on balloons (median error ~6 % below raw ERA5) + calibrated range |
-| `recent`, `week`, `medium` | now to 46 days ahead | **not available yet**: live forecasts need a verification history that is still being collected; the call falls back to `ai` and says `fallback-mode` in `quality` |
+| `past` | more than ~6 days ago | **works with a local ERA5 store** (`era5_store=` or env `TEMPEST_ERA5_STORE`, the pilot profiles zarr; for night hours list the night store too, separated by `;` on Windows / `:` elsewhere: `data/pilot/profiles.zarr;data/pilot/profiles80_night.zarr`): ERA5 for that hour + a network trained on balloons (median error ~6 % below raw ERA5) + calibrated range |
+| `forecast` | 0.75 to 7.5 days ahead, 02-20 h solar | **works with a network connection** (Open-Meteo ECMWF IFS 0.25 deg at the hour): the forecast profile plus a learned error distribution (mode F; NM/TX skill about 0.7 / 0.6 / 0.4 / 0.25 at 1 / 3 / 5 / 7 days on 2022, Denver 0.68 / 0.57 / 0.43 / 0.26); outside the leads or hours, or without network, it falls back to `ai` and says why in `quality` |
+| `recent`, `week`, `medium` (other sources) | now to 46 days ahead | **not available yet** beyond mode F: other live feeds need a verification history that is still being collected; the call falls back as above |
 | `ai` | beyond, and the fallback | the climate generator, calibrated; skill over "what is normal for this date" is small (a few per cent) by nature, the value is honest ranges and coherent profiles |
 
 ## Honest limits

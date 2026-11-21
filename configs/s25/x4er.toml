@@ -1,0 +1,2 @@
+# New_Plan 28.10 variant e (X4-R k = 3): no training. The model is the base checkpoint plus a residual-referenced climatology offset table,
+# prebuilt by scripts/x4r_build.py (k = 3) and run through scripts/s25_arm.sh with PRE=1; this file only records the (base) config.

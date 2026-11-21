@@ -54,6 +54,7 @@ def test_wwv_scale_does_not_break_the_draw_and_qbo_phase_is_used():
     origin = tab.index[300]
     d = fc.draw(tab, origin, 6, 3000, rng)
     assert np.isfinite(d).all() and abs(d[:, 3].mean() / 1e13) < 100
-    f = fc.fit(tab, origin, 6)
+    f = fc.fit(tab, origin, 6, qbo_phase=True)
+    assert fc.fit(tab, origin, 6)["beta"].shape[0] == 4 * fc.LAGS + 2      # AU-8: phase terms off by default
     assert np.all(np.linalg.eigvalsh(np.corrcoef(np.random.default_rng(0).normal(size=(50, 4)).T)) > 0) and f["cov"].shape == (4, 4)
     assert f["beta"].shape[0] == 4 * fc.LAGS + 2 + 3             # lags, month harmonics, QBO phase sin / cos / amplitude

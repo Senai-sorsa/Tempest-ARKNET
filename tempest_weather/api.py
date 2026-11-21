@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-from tempest_weather import _core, bias as _bias, coherence as _coh, coupling, distributions, forecast, modes, outputs, ranking, registry
+from tempest_weather import _core, bias as _bias, coherence as _coh, coupling, distributions, forecast, modes, outputs, ranking, registry, ur5 as _ur5
 from tempest_weather.engine import Net
 from tempest_weather.sources import era5_local, openmeteo
 from tempest_weather.sources.indices import Indices
@@ -25,7 +25,9 @@ from tempest_weather.sources.indices import Indices
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOX = dict(lat=(31.0, 34.0), lon=(-108.0, -101.0))      # default only; the assets carry their own grid and the check in atmosphere_set uses it
 M_CAL = 199
-OPTIONS = {"permute_blocks": True}   # IL-139 (plain bug, ON by default since 2026-11-08; False = old slicing): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows
+OPTIONS = {"permute_blocks": True, "forecast_single_shift": True, "forecast_grid_elevation": True, "forecast_fill_top": True, "unbiased_blend": True, "ur5_sequence": True, "gust_speed_switch": True}   # forecast_fill_top / unbiased_blend: audit 2026-11-14 plain bugs, ON by default, False = old behaviour (see _fill_forecast_top, _blend_rows)
+#   # ur5_sequence (WD1, New_Plan 28.11 item 12, ON by default; False = old sequences): climate-mode sequences get the 10 m speed map + spread scale + regime chain of tempest_weather/ur5.py when the assets carry post/ur5
+#   # IL-139 (plain bug, ON by default since 2026-11-08; False = old slicing): shuffle the members inside every M_CAL block before the first n rows are kept, so a partial last block is a random subset, not its first rows; forecast_single_shift (AU-2, plain bug, ON by default; False = old line): forecast and past rows all move by elev - grid elevation; forecast_grid_elevation (AU-3, plain bug, ON by default; False = old request): Open-Meteo surface values asked for at the grid height, and moved there with a flag when the response is at another height
 
 
 def _cut(x, groups, n, rng, *also):
@@ -47,8 +49,16 @@ def _load_post(z, manifest):
         post["tpl"] = z["post/tpl"]
     if "post/rank" in z.files:
         post["rank"], post["cell"] = z["post/rank"], int(z["post/cell"])
+        if "post/rank_extra" in z.files:                                     # G3: K - 1 further template draws; block g of 199 atmospheres uses set g mod K
+            post["rank_extra"] = z["post/rank_extra"]
     if "post/smap_grid" in z.files:
         post["smap"] = dict(grid=z["post/smap_grid"], gain=z["post/smap_gain"])
+    if "post/lmap_xk" in z.files:                                       # L21b (opt-in asset, export_tool --post-lmap): lapse-rate quantile map after the shear map
+        post["lmap"] = dict(xk=z["post/lmap_xk"], yk=z["post/lmap_yk"])
+    if "post/amap_grid" in z.files:                                     # AV35 (adopted 2026-11-17, export_tool --post-amap): balloon shear map for 5-18 km, applied last, nothing below 5 km changes
+        post["amap"] = dict(grid=z["post/amap_grid"], gain=z["post/amap_gain"])
+    if "post/ur5_xt" in z.files:                                       # WD1 (New_Plan 28.11 item 12): 10 m wind table, used by atmosphere_sequence only (not _post_process)
+        post["ur5"] = {k: z[f"post/ur5_{k}"] for k in ("lat", "lon", "xt", "xe", "ok", "rho", "s")}
     if "post/seasonal" in z.files:
         post["seasonal"] = z["post/seasonal"]
     if "post/pit_ginv" in z.files:
@@ -71,6 +81,12 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
         lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / 0.25).astype(int) // post["cell"]
         lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / 0.25).astype(int) // post["cell"]
         r = post["rank"][lat_i * ncol + lon_i, month * 12 + hb]               # (groups, 199, 179)
+        if "rank_extra" in post:                                         # G3: a different template draw for each block (set g mod K), so a pool > 199 does not repeat one copula
+            K = 1 + len(post["rank_extra"])
+            r = r.copy()
+            for g in range(len(r)):
+                if g % K:
+                    r[g] = post["rank_extra"][g % K - 1][lat_i[g] * ncol + lon_i[g], month * 12 + hb]
         ok = r.max(axis=(1, 2)) > 0
         if ok.any():
             x = x.copy()
@@ -81,6 +97,14 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
             x = _core.shuffle_apply(x, np.broadcast_to(tpl, x.shape))
     if "smap" in post:
         x = _core.shear_apply(post["smap"], x)
+    if "lmap" in post:                                                   # L21b: the order the scorer uses (shuffle, shear map, lapse map)
+        x = _core.lapse_apply(post["lmap"], x)
+    if "amap" in post:                                                   # AV35: heights below 5 km (u and v) are copied back unchanged
+        y = _core.shear_apply(post["amap"], x)
+        low = np.flatnonzero(_core.HEIGHTS < 5000.0)
+        cols = np.concatenate([low, _core.NH + low])
+        y[..., cols] = x[..., cols]
+        x = y
     return x
 
 
@@ -98,15 +122,36 @@ def regions(root=None):
     return out
 
 
-def region_assets(lat, lon, root=None):
-    """Folder of the asset set whose trained area contains (lat, lon); the default `assets` first, then the others alphabetically. None if no set covers the point."""
+def _solar_window(root, name):
+    try:
+        lo, hi = json.load(open(os.path.join(root, name, "manifest.json"), encoding="utf-8")).get("solar_hours", [6.0, 21.0])
+        return float(lo), float(hi)
+    except (OSError, ValueError):
+        return 6.0, 21.0
+
+
+def region_assets(lat, lon, root=None, solar_hour=None):
+    """Folder of the asset set whose trained area contains (lat, lon); the default `assets` first, then the others alphabetically. None if no set covers the point.
+    A24 (2026-11-10): with `solar_hour`, among the sets that cover the point the one whose manifest solar_hours contain that hour is chosen, the NARROWEST window first (a day
+    specialist by day, an all-hours set at night); if none contains it, the first covering set as before (which then refuses the hour with its own message)."""
     root = root or HERE
     reg = regions(root)
-    for name in sorted(reg, key=lambda n: (n != "assets", n)):
-        a = reg[name]
-        if a["lat"][0] <= lat <= a["lat"][1] and a["lon"][0] <= lon <= a["lon"][1]:
-            return os.path.join(root, name)
-    return None
+    cover = [n for n in sorted(reg, key=lambda n: (n != "assets", n)) if reg[n]["lat"][0] <= lat <= reg[n]["lat"][1] and reg[n]["lon"][0] <= lon <= reg[n]["lon"][1]]
+    if not cover:
+        return None
+    if solar_hour is not None:
+        fits = [n for n in cover if _solar_window(root, n)[0] <= float(solar_hour) <= _solar_window(root, n)[1]]
+        if fits:
+            return os.path.join(root, min(fits, key=lambda n: (_solar_window(root, n)[1] - _solar_window(root, n)[0], cover.index(n))))
+    return os.path.join(root, cover[0])
+
+
+def region_solar_window(lat, lon, root=None):
+    """A24: the union of the solar-hour windows of every asset set that covers (lat, lon) -> (lo, hi), or None (no set covers the point). Windows are assumed to overlap or touch."""
+    root = root or HERE
+    reg = regions(root)
+    w = [_solar_window(root, n) for n in reg if reg[n]["lat"][0] <= lat <= reg[n]["lat"][1] and reg[n]["lon"][0] <= lon <= reg[n]["lon"][1]]
+    return (min(x[0] for x in w), max(x[1] for x in w)) if w else None
 
 
 def _assets(path=None):
@@ -130,6 +175,8 @@ def _assets(path=None):
              modep_calib=dict(qz=z["modep_calib/qz"], qu=z["modep_calib/qu"], m=z["modep_calib/m"]) if manifest.get("modep_included") else None,
              modef=Net.load(os.path.join(path, "model.npz"), prefix="modef_") if manifest.get("modef_included") else None,
              modef_calib=dict(qz=z["modef_calib/qz"], qu=z["modef_calib/qu"], m=z["modef_calib/m"]) if manifest.get("modef_included") else None,
+             modefens=Net.load(os.path.join(path, "model.npz"), prefix="modefens_") if manifest.get("modef_ens_included") else None,
+             modefens_calib=dict(qz=z["modefens_calib/qz"], qu=z["modefens_calib/qu"], m=z["modefens_calib/m"]) if manifest.get("modef_ens_included") else None,
              modef_bl=dict(ratio=z["modef_bl/ratio"], dpd_a=float(z["modef_bl/dpd_a"]), dpd_b=float(z["modef_bl/dpd_b"])) if manifest.get("modef_included") else None,
              modef_tpl={L: z[f"modef_tpl/L{L}"].astype(np.float32) for L in (1, 3, 5, 7)} if manifest.get("modef_included") else None,
              modef_coarse=int(z["modef/coarse"]) if manifest.get("modef_included") else 4,
@@ -142,7 +189,10 @@ def _assets(path=None):
              modef_ridge={L: dict(mu=z[f"modef_ridge/L{L}/mu"], sd=z[f"modef_ridge/L{L}/sd"], W=z[f"modef_ridge/L{L}/W"], res=z[f"modef_ridge/L{L}/res"]) for L in (1, 3, 5, 7)} if manifest.get("modef_ridge_included") else None,
              sta=dict(cols=z["modep_sta/cols"], a=z["modep_sta/a"], b=z["modep_sta/b"], pool=z["modep_sta/pool"], n=z["modep_sta/n"], cuts=z["modep_sta/cuts"]) if manifest.get("modep_sta_included") else None,
              sfc_pool=dict(res=z["modep_sfc/res"], key=z["modep_sfc/key"]) if manifest.get("modep_sfc_included") else None,
-             gust=dict(theta=z["gust/theta"], phi=z["gust/phi"]) if manifest.get("gust_included") else None,
+             gust=(dict(theta=z["gust/theta"], phi=z["gust/phi"], **({"phys_model": dict(theta=z["gust/phys_model_theta"], phi=z["gust/phys_model_phi"]), "phys_model_cap": float(z["gust/phys_model_cap"]),
+                                                                       "phys_measured": dict(theta=z["gust/phys_measured_theta"], phi=z["gust/phys_measured_phi"]), "phys_measured_cap": float(z["gust/phys_measured_cap"]),
+                                                                       "station": float(z["gust/phys_station"])} if "gust/phys_model_theta" in z.files else {}))   # IL-183: a region's own physical gust law (export --gust-phys)
+                   if manifest.get("gust_included") else None),
              indices=Indices(np.load(os.path.join(path, "indices.npz"))), grid=dict(np.load(os.path.join(path, "grid.npz"))))
     _ASSETS[path] = a
     return a
@@ -166,12 +216,114 @@ def _gust_station(lat, lon):
     return 1.0 if d["TCS"] < d["MAF"] else 0.0
 
 
+GUST_WS_CAP = 12.0     # m/s, the highest 10 m wind at which the gust law is evaluated directly (see _gust_params)
+
+
+# W8d: the PHYSICAL gust (highest 5-second peak in the 10 minutes before the report), fitted on ASOS ONE-MINUTE data 2016-2020 (scripts/gust_1min.py; TCS + MAF), instead of the METAR gust
+# group, which is only written for about 10 kt peak-to-lull variation (and never below 14 kt), so the METAR-fitted laws learned gust = wind at light winds (median factor 1.00; the
+# physical factor is 1.44 at 2-5 m/s, 1.40 at 5-8, 1.38 at 8-12, 1.33-1.35 above). Validation 2021-23 against the physical gust (39,118 hours): measured-wind law CRPS 1.73 -> 0.61,
+# 90 % coverage 0.42 -> 0.89; model-wind law 1.34 -> 1.06, median factor 1.00 -> 1.40 (observed 1.44). Gumbel of the total gust, features 1, min(ws, 20), min(ws, 20)^2 / 10,
+# sin / cos day of year, sin / cos UTC hour, station; draws clipped at the wind. GUST_PHYSICAL = False restores the METAR-convention laws (asset law and W8c).
+GUST_PHYSICAL = True
+DAY_ONLY_HEADS = ("whead_clean.pt", "whead.pt")   # w heads trained on the 06-21 h day file only (W-NIGHT 2026-11-10: models/whead_a24 is the all-hours head)
+GUST_PHYS_MEASURED = dict(theta=(0.16972, 1.29927, -0.01981, 0.04733, -0.15682, -0.34964, 0.24143, 0.29770), phi=(-0.63631, 0.05833, -0.00158, 0.05074, -0.08359, -0.16047, 0.17639, 0.17495))
+GUST_PHYS_MODEL = dict(theta=(3.25937, 0.15392, 0.93780, 0.12288, -0.39788, -0.65199, 0.56084, 0.53527), phi=(-0.22505, 0.16732, -0.04382, 0.03208, -0.05818, 0.04936, 0.04311, 0.29220))
+GUST_PHYS_MODEL_CAP = 9.0      # m/s of MODEL wind; above it the gust factor is held (the ws^2 term rises to factor 2.3 at 20 m/s where ERA5 has few cases)
+GUST_SWITCH_WS = 5.0           # m/s of MODEL wind: AV13 (New_Plan 28.11 item 8), a region's own law is used at / above it, the built-in law below (OPTIONS['gust_speed_switch'])
+
+
+def _gust_physical(law, cap, ws, doy, hour, station):
+    ws0 = np.asarray(ws, float)
+    w = np.clip(ws0, 0.0, cap)
+    a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
+    X = np.stack([np.ones_like(w), w, w ** 2 / 10.0, np.full_like(w, np.sin(a)), np.full_like(w, np.cos(a)), np.full_like(w, np.sin(h)), np.full_like(w, np.cos(h)), np.full_like(w, station)], 1)
+    k = np.where(w > 0, ws0 / np.maximum(w, 1e-9), 1.0)
+    return (X @ np.asarray(law["theta"])) * k, np.exp(np.clip(X @ np.asarray(law["phi"]), -6, 4)) * k
+
+
 def _gust_params(g, ws, doy, hour, station=0.0):
-    """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports)."""
+    """hour = UTC hour of the query (the model was fitted with the UTC hour of the reports). Above GUST_WS_CAP the law is held at the gust FACTOR (location and scale per m/s) of the cap: the airport reports it was
+    fitted on have few winds above 12 m/s and the ws^2 term then runs away (20 m/s gave a median gust of 59 m/s); a storm must not produce an impossible gust."""
+    if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), model-wind law
+        if g is not None and "phys_model" in g:                             # IL-183: the region's own law from its assets (its own station flag)
+            r = _gust_physical(g["phys_model"], g["phys_model_cap"], ws, doy, hour, g["station"])
+            if not OPTIONS["gust_speed_switch"]:
+                return r
+            b = _gust_physical(GUST_PHYS_MODEL, GUST_PHYS_MODEL_CAP, ws, doy, hour, station)
+            hi = np.asarray(ws, float) >= GUST_SWITCH_WS                    # AV13: region law only where it beat the built-in law (kit b52, cross-station +1.09 %)
+            return np.where(hi, r[0], b[0]), np.where(hi, r[1], b[1])
+        return _gust_physical(GUST_PHYS_MODEL, GUST_PHYS_MODEL_CAP, ws, doy, hour, station)
+    ws0 = np.asarray(ws, float)
+    ws = np.minimum(ws0, GUST_WS_CAP)
     a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
     X = np.stack([np.ones_like(ws), ws, ws ** 2 / 10.0, np.full_like(ws, np.sin(a)), np.full_like(ws, np.cos(a)), np.full_like(ws, np.sin(h)),
                   np.full_like(ws, np.cos(h)), np.full_like(ws, station)], 1)
-    return X @ g["theta"], np.exp(np.clip(X @ g["phi"], -5, 5))
+    k = np.where(ws > 0, ws0 / np.maximum(ws, 1e-9), 1.0)
+    return (X @ g["theta"]) * k, np.exp(np.clip(X @ g["phi"], -5, 5)) * k
+
+
+# W8c: the gust after a MEASURED sustained wind (Launch.observe(wind_10m=...)). The law above is a function of the MODEL (ERA5 / generator) wind; fed a station's wind it overstated the gust
+# (median factor 1.15 vs 1.00 reported, 2.4-4.8 vs 1.4 at 16+ m/s). Fitted on the OBSERVED wind (scripts/gust_measured_fit.py, ASOS TCS + MAF 2000-2020, winds >= 2 m/s) as a two-part law:
+# P(a gust group | ws, season, UTC hour, station) (logistic, features 1, min(ws, 20), min(ws, 20)^2 / 10, sin/cos day of year, sin/cos UTC hour, station) times a Gumbel of the excess gust - ws
+# (location and log-scale linear in the same features), carried in the runtime's (gust_mu, gust_beta) format as the Gumbel of the total gust whose draws clipped at the wind have the same
+# no-gust share and the same median reported gust ("add2 as Gumbel"). Validation 2021-23: CRPS 0.927 -> 0.510 (all), 4.14 -> 1.21 (12-16 m/s), 12.95 -> 1.40 (16+ m/s), 90 % coverage 0.94-0.98 in every band.
+# Same definition of the gust as the model-wind law (G = max(reported gust, wind): an hour without a METAR gust group counts as gust = wind; see plan W8d for the physical gust at low winds).
+GUST_MEASURED = dict(p=(-7.43023, 0.87712, -0.04187, 0.23106, -0.63393, -1.21744, 0.82497, 1.16042),
+                     loc=(5.60147, -0.61517, 0.34478, 0.12329, 0.04021, 0.09683, 0.03803, 0.23798),
+                     lbeta=(0.01688, -0.05168, 0.04379, 0.04383, -0.02242, -0.02208, 0.09563, 0.12847))
+GUST_MEASURED_WS_CAP = 20.0   # m/s; above it the excess is held at the cap's gust factor (few reports above 20 m/s)
+
+
+def _gust_params_measured(ws, doy, hour, station=0.0, g=None):
+    """(gust_mu, gust_beta) of the gust for a MEASURED 10 m wind ws (m/s); hour = UTC hour. Draws must be clipped at the wind (G >= ws by definition): the clipped mass is the share of hours without a gust group."""
+    if GUST_PHYSICAL:                                                       # W8d: physical gust (one-minute data), measured-wind law
+        if g is not None and "phys_measured" in g:                          # IL-183: the region's own law (g = the assets' gust dict)
+            return _gust_physical(g["phys_measured"], g["phys_measured_cap"], ws, doy, hour, g["station"])
+        return _gust_physical(GUST_PHYS_MEASURED, GUST_MEASURED_WS_CAP, ws, doy, hour, station)
+    ws0 = np.asarray(ws, float)
+    w = np.clip(ws0, 0.0, GUST_MEASURED_WS_CAP)
+    a, h = 2 * np.pi * doy / 365.25, 2 * np.pi * hour / 24.0
+    X = np.stack([np.ones_like(w), w, w ** 2 / 10.0, np.full_like(w, np.sin(a)), np.full_like(w, np.cos(a)), np.full_like(w, np.sin(h)), np.full_like(w, np.cos(h)), np.full_like(w, station)], 1)
+    k = np.where(w > 0, ws0 / np.maximum(w, 1e-9), 1.0)                          # above the cap: excess grows with the wind (gust factor held)
+    p = np.clip(1.0 / (1.0 + np.exp(-(X @ np.asarray(GUST_MEASURED["p"])))), 1e-4, 1 - 1e-4)
+    beta_e = np.exp(np.clip(X @ np.asarray(GUST_MEASURED["lbeta"]), -6, 4))
+    med_e = np.maximum(X @ np.asarray(GUST_MEASURED["loc"]) - beta_e * np.log(-np.log(0.5)), 0.05) * k
+    L = lambda q: -np.log(-np.log(q))
+    beta = med_e / (L(1 - p / 2) - L(1 - p))
+    return ws0 - beta * L(1 - p), beta
+
+
+# RA 1a (New_Plan 28.11 item 8, kit b6_realair_rows): the gap between the grid-box wind (ERA5 / the ensemble) and the wind ONE balloon meets, sd per wind component (m/s) by band of height
+# above ground, fitted 2016-20 on kept stations. Adding it moved the 90 % coverage at left-out stations (2022) from 0.83-0.90 to 0.90-0.92 in every band. (band top m, sd); the 10-17 km sd is used above 17 km.
+REAL_AIR_GAP = ((11.0, 1.54), (1500.0, 1.63), (3000.0, 1.49), (6000.0, 1.49), (10000.0, 1.83), (np.inf, 1.98))
+
+
+def real_air_gap(u, v, heights_agl, seed=0):
+    """RA 1a: (u, v) + independent N(0, gap^2) per component at each height (kit b6 method). Returns new arrays; the inputs are unchanged.
+    shortcut: the noise is independent between heights (the kit checked each level's coverage, not the vertical structure); a correlated gap needs a new fit."""
+    z = np.asarray(heights_agl, float)
+    sd = np.array([g for _, g in REAL_AIR_GAP])[np.minimum(np.searchsorted([t for t, _ in REAL_AIR_GAP], z, side="right"), len(REAL_AIR_GAP) - 1)]
+    rng = np.random.default_rng(seed)
+    u, v = np.asarray(u, float), np.asarray(v, float)
+    return u + rng.standard_normal(u.shape) * sd, v + rng.standard_normal(v.shape) * sd
+
+
+ANCHOR_SPREAD = 1.0        # spread factor of the near-ground wind about its median when anchored on ERA5: 1.0 = unchanged (narrowing to 0.8 or 0.6 made the CRPS and the coverage worse, scripts/gw_past_anchor.py)
+ANCHOR_TOP_M = 300.0
+
+
+def _anchor_to_era5(phys, e, weight, nh):
+    """Past mode: shift the median of the 10 m u, v samples toward the ERA5 10 m wind (weight 1 = onto it) and scale the spread about the median by ANCHOR_SPREAD, both tapering linearly to nothing at ANCHOR_TOP_M. Returns a copy."""
+    z = np.asarray(_core.HEIGHTS, float)
+    taper = np.clip(1.0 - (z - z[0]) / (ANCHOR_TOP_M - z[0]), 0.0, 1.0)
+    out = phys.copy()
+    for off, key in ((0, "u"), (nh, "v")):
+        x = out[:, off:off + nh].astype(float)
+        med = np.median(x, axis=0, keepdims=True)
+        x = med + (x - med) * (1.0 + (ANCHOR_SPREAD - 1.0) * taper)
+        x = x + weight * (float(e[key][0]) - float(np.median(out[:, off]))) * taper
+        out[:, off:off + nh] = x.astype(phys.dtype)
+    return out
 
 
 STATIONS = [(31.8728, -106.6981), (31.9475, -102.1894)]  # Santa Teresa, Midland: the station index the past-date network was trained with
@@ -218,22 +370,73 @@ def _past_phys(A, store, lat, lon, t_utc, n, rng):
 
 
 FORECAST_LEAD = (0.75, 7.5)       # days: the leads mode F was tested at are 1, 3, 5 and 7
-FORECAST_SOLAR = (14.0, 20.0)     # hours of local solar time: the archived cases are all valid at 00 UTC, about 17 h solar in the box (AUTOPILOT F-8a)
+FORECAST_SOLAR = (2.0, 20.0)      # hours of local solar time. Was (14, 20): the training cases are all valid at 00 UTC, about 17 h solar (AUTOPILOT F-8a). F-V2 (2026-11-10, scripts/fv2_eval.py on the
+                                  # 00Z + 12Z refetch, test year 2022, hour-aware climatology): the shipped mode F has CRPS skill +0.67 / +0.56 / +0.38 / +0.19 at 05 h and +0.74 / +0.60 / +0.40 / +0.21 at 11 h
+                                  # (1 / 3 / 5 / 7 d bins) against +0.71 / +0.61 / +0.44 / +0.24 at 17 h, better than raw HRES everywhere; same 3 h margin around the tested hours as before. 23 h (06 UTC) untested.
 
 
-def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None):
+def _blend_rows(pts, wts, groups, rng):
+    """Audit 2026-11-14 (plain bug): grid point of every row, whole blocks of M_CAL rows per point, so that the EXPECTED share of the n rows kept by _cut equals the bilinear weights.
+    The old way (largest-remainder counts, blocks in point order, the end of the last block cut) served e.g. 0.97 / 0.03 instead of 0.845 / 0.115 at Spaceport America and always
+    shortchanged the last point (the north-east corner). Here: floor(w * groups) blocks each, the leftover blocks go to points with probability equal to their remainders (systematic
+    sampling: unbiased, never twice), and the block order is shuffled, so the partial block is a random one."""
+    exact = np.asarray(wts, float) * groups
+    c = np.floor(exact + 1e-12).astype(int)
+    rest = int(groups - c.sum())
+    if rest > 0:
+        rem = np.clip(exact - c, 0.0, None)
+        rem = rem / rem.sum() * rest                                     # sums to `rest`, each <= 1 up to rounding
+        pos = rng.random() + np.arange(rest)
+        c += np.bincount(np.minimum(np.searchsorted(np.cumsum(rem), pos, "right"), len(c) - 1), minlength=len(c))
+    blocks = np.repeat(np.asarray(pts), c)
+    return np.repeat(blocks[rng.permutation(len(blocks))], M_CAL)
+
+
+def _fill_forecast_top(prof):
+    """Audit 2026-11-14 (plain bug): over ground above ~2.6 km the top heights (18 km above ground) lie above the highest served level (50 hPa), so the converter left them NaN;
+    the network then returned NaN for those heights (or whole rows, when a NaN height is one of its inputs) with no flag. As tempest.profiles.to_heights.fill_top does for the
+    climate data: heights above the highest valid one copy its value (u, v, RH constant, T isothermal). Only a gap at the TOP is filled (a NaN below a valid height stays).
+    In place on prof; -> the lowest filled height (m above ground), or None if nothing was filled."""
+    lowest = None
+    for k in ("u", "v", "T", "RH"):
+        x = np.asarray(prof[k], float)
+        ok = np.isfinite(x)
+        if ok.all() or not ok.any():
+            continue
+        top = int(np.flatnonzero(ok)[-1])
+        if top + 1 < len(x) and not ok[top + 1:].any():
+            x = x.copy()
+            x[top + 1:] = x[top]
+            prof[k] = x.astype(np.asarray(prof[k]).dtype)
+            h = float(_core.HEIGHTS[top + 1])
+            lowest = h if lowest is None else min(lowest, h)
+    return lowest
+
+
+def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted, bias_dir=None, ens=None):
     """Forecast mode: Open-Meteo / IFS fields of that hour -> the 44-height profile -> learned forecast-error draws -> range map -> real error-profile dependence.
     -> ((n, 179) physical, the forecast profile dict, quality flags)."""
     t_hr = (t_utc + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)   # nearest forecast hour (14:50 -> 15:00, which may be the next day)
-    doc = (fetch or openmeteo.fetch)(lat, lon, t_hr.strftime("%Y-%m-%d"))
+    day = t_hr.strftime("%Y-%m-%d")
+    fix = OPTIONS["forecast_grid_elevation"]
+    doc = fetch(lat, lon, day) if fetch else openmeteo.fetch(lat, lon, day, elevation=z_sfc if fix else None)   # AU-3: Mode F was trained on grid-height surface fields
     fields = forecast.fields_from_openmeteo(doc, int(t_hr.hour))
     flag = ["forecast-source:open-meteo-ecmwf_ifs025", f"forecast-lead-days:{lead:.2f}"]
+    if fix and doc.get("elevation") is not None and abs(float(doc["elevation"]) - z_sfc) > 5.0:   # a response at another height (a caller's fetch, or the default terrain downscaling): t2m and sp to the grid height, as _core.site_shift does
+        dz = z_sfc - float(doc["elevation"])
+        fields["sp"] *= float(np.exp(-_core.G0 * dz / (_core.RD * (fields["t2m"] - _core.LAPSE * dz / 2))))
+        fields["t2m"] -= _core.LAPSE * dz
+        flag.append(f"forecast-surface-values-moved-from-source-height:{float(doc['elevation']):.0f}m")
     state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
     if state is not None:                                          # IL-98 item B: the live feed's recent surface bias at this site (EWMA, gated), subtracted before the profile is built
         dT, dW = _bias.apply_to_fields(fields, state, lead, t_utc.hour)
         if dT or dW:
             flag.append(f"surface-bias-corrected:dT={dT:+.2f}K,dWS={dW:+.2f}m/s(state-through-{state['updated']})")
     prof = forecast.forecast_profile(fields, z_sfc, A["modef_bl"])
+    if OPTIONS["forecast_fill_top"]:
+        lo_top = _fill_forecast_top(prof)
+        if lo_top is not None:
+            flag.append(f"forecast-top-heights-filled-above-{lo_top:.0f}m-agl(above-the-50hPa-level)")
     if min(abs(lead - x) for x in (1, 3, 5, 7)) > 0.6:
         flag.append("lead-between-the-tested-1-3-5-7-day-leads")
     nh = _core.NH
@@ -243,11 +446,15 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
         return np.tile(row, (n, 1)), prof, flag
     groups = int(np.ceil(n / M_CAL))
     cond = forecast.condition(prof, float(lat), float(lon), z_sfc, t_utc.timetuple().tm_yday, lead, A["modef_coarse"])
-    res = A["modef"].sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
+    net, cal = A["modef"], A["modef_calib"]
+    if ens is not None:                                            # ASK_LATER 21 (opt-in): the caller's 24 IFS-ensemble features -> the ensemble-feature network (CRPS -1.9 to -3.1 % at 1-7 d, 3 seeds, test 2022)
+        net, cal, cond = A["modefens"], A["modefens_calib"], np.concatenate([cond, ens])      # ens checked in atmosphere_set
+        flag.append("forecast-ifs-ensemble-features")
+    res = net.sample(np.tile(cond, (groups * M_CAL, 1)), rng).reshape(groups, M_CAL, -1)
     x = base[None, None, :] + res
     i = 3 * nh
     x[..., i:i + nh] = np.clip(x[..., i:i + nh], 0, 100)
-    x = _core.calibrate(A["modef_calib"], x, clip=False)
+    x = _core.calibrate(cal, x, clip=False)
     tpl = A["modef_tpl"][min((1, 3, 5, 7), key=lambda L: abs(L - lead))]          # real forecast-error profiles of the nearest tested lead
     ranks = np.argsort(np.argsort(tpl[rng.integers(0, len(tpl), (groups, M_CAL))], axis=1), axis=1)
     x = _cut(np.take_along_axis(np.sort(x, axis=1), ranks, axis=1).reshape(groups * M_CAL, -1), groups, n, rng)[0]
@@ -266,11 +473,17 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
     return np.concatenate([x, t2m[:, None], np.full((n, 1), prof["sp"]), rh2m[:, None]], 1).astype(np.float32), prof, flag
 
 
-def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None):
-    """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls."""
+def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=None, mode=None, assets=None, now=None, era5_store=None, fetch=None, bias_dir=None, era5_anchor=0.0, ens_features=None):
+    """-> (atm dict of arrays with the sample first, info dict). The shared engine behind all four calls.
+    ens_features (opt-in, forecast mode only; None = HRES-only as before): the 24 IFS-ensemble values at the place and valid time, in forecast.ENS_FEATURES order (ASK_LATER 21).
+    era5_anchor (opt-in, past mode only; 0 = off): weight in 0-1 of re-centring the median of the near-ground wind ensemble on the ERA5 10 m wind, fading out by 300 m (gw_past_anchor.py, 250 hours: speed CRPS -5 % at TCS, -11 % at MAF; not yet confirmed on other seeds or hours)."""
     if assets is None:                                                   # R-7: the asset set that covers the place; none covers it -> the default set answers with its clear refusal
-        assets = region_assets(lat, lon)
+        assets = region_assets(lat, lon, solar_hour=_time(when, lon)[1])   # A24: and, among those, the one trained for this solar hour
     A = _assets(assets)
+    if ens_features is not None:                                         # checked here, not in the forecast branch, whose fetch-failure fallback would hide a bad input
+        ens_features = forecast.ens_vector(ens_features)
+        if A.get("modefens") is None:
+            raise ValueError("ens_features given, but these assets have no ensemble mode F network (export with --modef-ens models/modeF_ens.pt)")
     box = dict(lat=(float(A["grid"]["lat"].min()), float(A["grid"]["lat"].max())), lon=(float(A["grid"]["lon"].min()), float(A["grid"]["lon"].max())))   # the assets define the trained area
     if not (box["lat"][0] <= lat <= box["lat"][1] and box["lon"][0] <= lon <= box["lon"][1]):
         raise ValueError(f"({lat}, {lon}) is outside the trained area {box}; asset sets available: {regions()}. Other regions need their own assets (docs/plans/REGION_PLAN.md)")
@@ -314,7 +527,7 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     elif predicted:
         row_pt = rng.choice(pts, size=total, p=wts)
     else:
-        row_pt = np.repeat(np.repeat(pts, _core.allocate(wts, groups, rng)), M_CAL)
+        row_pt = _blend_rows(pts, wts, groups, rng) if OPTIONS["unbiased_blend"] else np.repeat(np.repeat(pts, _core.allocate(wts, groups, rng)), M_CAL)
     elev_row = g["elev"][row_pt].astype(float)
     cond = _core.feature_matrix(names, g["lat"][row_pt], g["lon"][row_pt], elev_row, elev_row, t_utc.timetuple().tm_yday, sh, t_utc.year, drv[:, 0], drv[:, 3], drv[:, 1], drv[:, 2],
                                 gmst=A["indices"].gmst_at(t_utc) if "gmst" in names else None)
@@ -324,11 +537,13 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             _, e = _past_phys(A, store, lat, lon, t_utc, M_CAL, rng)
             phys = np.tile(np.concatenate([e["u"], e["v"], e["T"], e["RH"], [e["t2m"], e["sp"], e["rh2m"]]]).astype(np.float32), (n, 1))
         else:
-            phys, _ = _past_phys(A, store, lat, lon, t_utc, n, rng)
+            phys, e_past = _past_phys(A, store, lat, lon, t_utc, n, rng)
+            if era5_anchor:
+                phys = _anchor_to_era5(phys, e_past, float(era5_anchor), _core.NH)
         cond = cond[:n] if len(cond) >= n else np.tile(cond[:1], (n, 1))
     elif used == "forecast":
         try:
-            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir)
+            phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir, ens_features)
             state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
             if state is not None and not predicted:                      # IL-101: widen the lowest wind levels to the observed forecast-error spread at the site
                 k0 = _bias.widen_wind(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)
@@ -358,7 +573,12 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             w_site = _core.calibrate(A["wcalib"], w_all.reshape(groups, M_CAL, -1), clip=False).reshape(total, -1)[:n]
         else:
             w_site = A["head"].sample(np.concatenate([cond, phys.astype(np.float32)], 1), rng)
-    dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
+        if not 6.0 <= sh <= 21.0 and A["manifest"].get("head_source", "whead_clean.pt") in DAY_ONLY_HEADS:   # A24: a head trained on the 06-21 h day file extrapolates at night (manifests before 2026-11-10 carry no head_source: day-trained)
+            quality = quality + ["vertical-wind-w-trained-on-solar-06-21-h-only"]
+    if OPTIONS["forecast_single_shift"]:                              # AU-2 (plain bug, ON by default; False = old line): only the climate generator ran at each row's own grid point; forecast and past profiles were built once at the grid height
+        dz_row = (elev - elev_row[:n]) if used == "ai" else np.full(n, elev - elev_grid)
+    else:
+        dz_row = (elev - elev_row[:n]) if used != "past" else np.full(n, elev - elev_grid)
     if np.any(dz_row != 0):                                           # temperature, pressure and humidity to the site elevation (standard lapse rate fading with height, hypsometric)
         _core.site_shift(phys, dz_row)
     atm = dict(u=phys[:, :nh], v=phys[:, nh:2 * nh], T=phys[:, 2 * nh:3 * nh], RH=phys[:, 3 * nh:4 * nh], t2m=phys[:, 4 * nh], sp=phys[:, 4 * nh + 1], rh2m=phys[:, 4 * nh + 2])
@@ -396,7 +616,9 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     calibrated distribution) and the samples are then tied across hours with a Gaussian copula in time (tempest_weather.coherence; lag correlations of ERA5 anomalies by season and column).
     -> (list of atm dicts, one per offset, sample j = the same trajectory in all of them; list of info dicts). Hours outside the served window (manifest solar_hours, 06-21 solar for older assets) raise like a normal query.
     shortcut: forecast-mode hours are tied with the ERA5 climate lag table, not forecast-error lags; flagged in quality, upgrade with a Mode F lag table."""
-    A = _assets(assets)
+    own = _assets(assets or region_assets(lat, lon, solar_hour=_time(when, lon)[1]))   # 2026-11-10: the serving region's assets (was always the default set when assets=None)
+    A = own if (assets or rho is not None or own.get("coherence") is not None) else _assets(None)   # a region without its own lag table borrows the default one, flagged below
+    borrowed = A is not own
     table = rho if rho is not None else A.get("coherence")
     if table is None:
         raise ValueError("these assets carry no lag-correlation table (export with --coherence models/coherence_lagcorr.npz)")
@@ -425,6 +647,16 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
                       regime_of=lambda x: np.digitize(np.hypot(x[:, I3] - x[:, 0], x[:, nh + I3] - x[:, nh]), cr["edges"]))
     out = _coh.sequence(cols, list(offsets), rho_full, np.random.default_rng(seed + 7), kap_full, **reg_kw)
     elev = sets[0][1]["elevation_m"]
+    T5 = (own.get("post") or {}).get("ur5")
+    if OPTIONS["ur5_sequence"] and T5 is not None and all(i["mode"] == "ai" for _, i in sets):   # WD1: climate-mode 10 m wind (speed map, spread, regime chain); 10 m column only
+        tts = [(t0 + timedelta(hours=float(o))).replace(tzinfo=None) for o in offsets]
+        u5, v5, _ = _ur5.apply(T5, _ur5.nearest(T5, lat, lon), tts, [x[:, 0] for x in out], [x[:, nh] for x in out], np.random.default_rng(seed + 11), anchor=True)
+        taper = np.clip(1.0 - (_core.HEIGHTS - _core.HEIGHTS[0]) / (300.0 - _core.HEIGHTS[0]), 0.0, 1.0)   # the 10 m change fades out by 300 m (as Launch site_cal), so 10-50 m shear stays sane
+        for x, a, b in zip(out, u5, v5):
+            x[:, :nh] += (a - x[:, 0])[:, None] * taper[None, :]
+            x[:, nh:2 * nh] += (b - x[:, nh])[:, None] * taper[None, :]
+        for _, i in sets:
+            i["quality"] = list(i["quality"]) + ["sequence-10m-wind:ur5-wd1"]
     for k, ((atm, info), x) in enumerate(zip(sets, out)):
         if fix_w:
             _refresh_w(atm, cols[k][:, :4 * nh], x[:, :4 * nh])
@@ -432,10 +664,12 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=elev)
         atm.update(p=th["p"], rho=th["rho"], a=th["a"])
-        if atm.get("gust_mu") is not None and A["gust"] is not None:
+        if atm.get("gust_mu") is not None and own["gust"] is not None:
             tt = datetime.fromisoformat(info["valid_utc"])
-            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(own["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), tt.timetuple().tm_yday, tt.hour + tt.minute / 60.0, _gust_station(lat, lon))
         info["coherent_sequence_offsets_h"] = list(offsets)
+        if borrowed:
+            info["quality"] = list(info["quality"]) + ["sequence-coherence:lag-table-borrowed-from-the-default-region"]
         if info["mode"] == "forecast":
             info["quality"] = list(info["quality"]) + ["sequence-coherence:climate-lag-table-not-forecast-error"]
     return [a for a, _ in sets], [i for _, i in sets]
@@ -446,7 +680,9 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
     weather system at every point). Each point is sampled by `atmosphere_set` (own bilinear blend and site elevation), then tied with a Gaussian copula in distance (lag table of ERA5 anomalies by
     distance and season, with the nugget kappa of the time table: ERA5 is smoother than the real atmosphere). Every point must lie inside the trained box.
     -> (list of atm dicts, list of info dicts) in the order of `distances_km`."""
-    A = _assets(assets)
+    own = _assets(assets or region_assets(lat, lon, solar_hour=_time(when, lon)[1]))   # 2026-11-10: the serving region's assets (was always the default set when assets=None)
+    A = own if (assets or own.get("coherence_dist") is not None) else _assets(None)    # a region without its own distance table borrows the default one, flagged below
+    borrowed = A is not own
     if A.get("coherence_dist") is None:
         raise ValueError("these assets carry no distance-correlation table (export with --coherence-dist models/coherence_distcorr.npz)")
     t_utc, _ = _time(when, lon)
@@ -472,9 +708,11 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
         atm["t2m"], atm["sp"], atm["rh2m"] = x[:, 4 * nh], x[:, 4 * nh + 1], np.clip(x[:, 4 * nh + 2], 0, 100)
         th = _core.thermo_column(_core.HEIGHTS, atm["T"], atm["RH"], atm["sp"], t_sfc=atm["t2m"], rh_sfc=atm["rh2m"], z_sfc=info["elevation_m"])
         atm.update(p=th["p"], rho=th["rho"], a=th["a"])
-        if atm.get("gust_mu") is not None and A["gust"] is not None:
-            atm["gust_mu"], atm["gust_beta"] = _gust_params(A["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
+        if atm.get("gust_mu") is not None and own["gust"] is not None:
+            atm["gust_mu"], atm["gust_beta"] = _gust_params(own["gust"], np.hypot(atm["u"][:, 0], atm["v"][:, 0]), t_utc.timetuple().tm_yday, t_utc.hour + t_utc.minute / 60.0, _gust_station(lat, lon))
         info["coherent_downrange_km"] = list(distances_km)
+        if borrowed:
+            info["quality"] = list(info["quality"]) + ["downrange-coherence:distance-table-borrowed-from-the-default-region"]
     return [a for a, _ in sets], [i for _, i in sets]
 
 
@@ -513,7 +751,9 @@ def distribution(lat, lon, when, variables, setting=0, n=1024, seed=0, mode=None
     ev = registry.evaluate(atm, names, np.random.default_rng(seed + 1))
     out = {}
     for v in names:
-        spec = distributions.describe(ev[v], setting in (0, 1), units=registry.units_of(v))
+        u_ = registry.units_of(v)
+        sup = "real" if u_ in ("degC", "degF") else None              # 2026-11-10: degrees C / F have no natural zero, so never a positive-only family (Weibull, lognormal) because one sample happens to be all above 0 (summer afternoons); other variables as before
+        spec = distributions.describe(ev[v], setting in (0, 1), support=sup, units=u_)
         if samples:
             spec["samples"] = ev[v]
         out[v] = spec

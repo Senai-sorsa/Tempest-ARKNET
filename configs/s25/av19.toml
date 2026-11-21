@@ -1,0 +1,4 @@
+# New_Plan 28.8 step 3: AV19 Student-t noise (as configs/generator_l3_studt.toml loop 3) on the c4w paired-base recipe
+noise_t_dims = 8
+noise_t_nu = 4.0
+noise_t_head = 4      # the first 4 t numbers scale a zero-init output head (past the layer norms)

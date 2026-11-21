@@ -3,7 +3,7 @@
     parse("KTCS 241553Z 19002KT 10SM CLR 23/12 A3012 RMK AO2")
     -> Metar(station="KTCS", day=24, hour=15, minute=53, wind_from_deg=190, wind_speed_ms=1.03, gust_ms=None, temp_c=23.0, dew_c=12.0, altimeter_hpa=1020.4, variable=False)
 
-Understands dddff[Ggg]KT / MPS / KMH winds, VRB winds (direction unknown), calm (00000KT), temperature / dew point with M for minus, altimeter A#### (inHg x 100) and Q#### (hPa).
+Understands dddff[Ggg]KT / MPS / KMH winds, VRB winds (direction unknown), the dddVddd variable-direction group (stored as var_from_deg / var_to_deg), calm (00000KT), temperature / dew point with M for minus, altimeter A#### (inHg x 100) and Q#### (hPa).
 Anything it cannot read stays None; `observation_kwargs` lists what could be used. stdlib only.
 """
 import re
@@ -31,6 +31,8 @@ class Metar:
     dew_c: float = None
     altimeter_hpa: float = None
     variable: bool = False
+    var_from_deg: float = None                                            # Gemini A-7: the dddVddd group (direction varying between two bearings), stored for the user; not used by observe()
+    var_to_deg: float = None
 
     def observation_kwargs(self, units="si"):
         """Keyword arguments for `Launch.observe` (in the Launch's units): wind_10m, wind_from_deg (only when the direction is known), temperature, altimeter."""
@@ -80,6 +82,10 @@ def parse(text):
             f["wind_from_deg"] = None if m.group(1) == "VRB" else float(m.group(1))
             if m.group(3):
                 f["gust_ms"] = int(m.group(3)) * k
+            continue
+        m = re.fullmatch(r"(\d{3})V(\d{3})", tok)
+        if m and "var_from_deg" not in f:
+            f["var_from_deg"], f["var_to_deg"] = float(m.group(1)), float(m.group(2))
             continue
         m = _TEMP.match(tok)
         if m and "temp_c" not in f:

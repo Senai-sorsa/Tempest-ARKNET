@@ -1,0 +1,3 @@
+# MF2 Reverse Markov Learning, K = 3
+arch = "rml"
+s25 = {K = 3}

@@ -52,10 +52,13 @@ def to_grid(h, x, grid=HEIGHTS):
     return y.astype(np.float32)
 
 
-def read_igra(path, first_year, last_year):
+def read_igra(path, first_year, last_year, launch_height=None, tol_m=30.0):
     """IGRA2 derived-parameter zip -> (UTC times (S,), profiles (S, 4, 44) u, v, T, RH on HEIGHTS above the launch
-    surface, surface (S, 3) T (K), pressure (Pa), RH (%)). Only nominal 00Z / 12Z soundings are kept."""
+    surface, surface (S, 3) T (K), pressure (Pa), RH (%)). Only nominal 00Z / 12Z soundings are kept.
+    launch_height (AU-13, opt-in; None = keep all): drop soundings whose first level is more than tol_m from it (e.g. Santa Teresa 1991-95,
+    launched at the old El Paso site about 60 m away) and print the count."""
     times, profs, sfcs = [], [], []
+    moved = 0
     with zipfile.ZipFile(path) as z, z.open(z.namelist()[0]) as f:
         lines = io.TextIOWrapper(f, "ascii", errors="replace")
         for line in lines:
@@ -71,10 +74,15 @@ def read_igra(path, first_year, last_year):
             p, gph, t, rh, u, v = a.T
             if not np.isfinite(gph[0]):
                 continue
+            if launch_height is not None and abs(float(geometric_height(gph[0] * G0)) - launch_height) > tol_m:
+                moved += 1
+                continue
             h = geometric_height(gph * G0) - geometric_height(gph[0] * G0)
             profs.append([to_grid(h, u / 10), to_grid(h, v / 10), to_grid(h, t / 10), to_grid(h, rh / 10)])
             sfcs.append([t[0] / 10, p[0], rh[0] / 10])
             times.append(f"{line[13:17]}-{line[18:20]}-{line[21:23]}T{hour:02d}")
+    if launch_height is not None:
+        print(f"{os.path.basename(path)}: {moved:,} soundings dropped, first level more than {tol_m:g} m from the launch height {launch_height:g} m", flush=True)
     return (pd.DatetimeIndex(np.array(times, "datetime64[h]")),
             np.array(profs, np.float32).reshape(-1, 4, len(HEIGHTS)), np.array(sfcs, np.float32).reshape(-1, 3))
 
@@ -107,14 +115,16 @@ def smooth(x, lam):
     return np.linalg.solve(np.eye(n) + lam * d.T @ d, x.T).T
 
 
-def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0):
+def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0, ab=None):
     """Paired level-space profiles (S, 4, 44) + group per sounding -> dict a, b (G, 4, 44) of balloon ~ a + b * ERA5
     (least squares per height; identity where < 50 pairs), moisture tercile cuts (G, 2) of ERA5 RH 5-13 km and
     pool (G, 3, pool_max, 4, 44) of complete leftover profiles per tercile, n (G, 3) of them (0 = none added).
     Leftovers come from soundings as moist as the one corrected: balloon-vs-ERA5 RH scatter is much larger in moist
     air (2023-25 check: RH CRPS 9-18 km -8 %, other variables equal or slightly better).
     ridge > 0 smooths each slope b(z) across heights (Whittaker, penalty on curvature) and refits a(z) so the mean is
-    kept; 0 (default) is the per-height fit as before."""
+    kept; 0 (default) is the per-height fit as before.
+    ab = (a, b) tables (G, 4, 44): keep these lines and only refill the leftover pool from the given pairs (AU-5: a fresh
+    pool from years the lines never saw); None (default) fits the lines as before."""
     rng = np.random.default_rng(seed)
     shape = (n_groups,) + era.shape[1:]
     a, b = np.zeros(shape, np.float32), np.ones(shape, np.float32)
@@ -123,7 +133,9 @@ def fit(era, obs, groups, n_groups, pool_max=3000, seed=0, ridge=0.0):
     for g in range(n_groups):
         E, O = era[groups == g], obs[groups == g]
         mean_e, mean_o, has = np.zeros(E.shape[1:]), np.zeros(E.shape[1:]), np.zeros(E.shape[1:], bool)
-        for i in range(E.shape[1]):
+        if ab is not None:
+            a[g], b[g] = ab[0][g], ab[1][g]
+        for i in range(E.shape[1] if ab is None else 0):
             for k in range(E.shape[2]):
                 ok = np.isfinite(E[:, i, k]) & np.isfinite(O[:, i, k])
                 if ok.sum() >= 50:
@@ -233,11 +245,12 @@ def check(era, obs, cor):
     return pd.DataFrame(rows)
 
 
-def station_pairs(ds, igra_dir, first_year, last_year):
-    """Per station: (times, ERA5 profiles, balloon profiles, balloon surface) for soundings with an ERA5 match."""
+def station_pairs(ds, igra_dir, first_year, last_year, launch_tol=None):
+    """Per station: (times, ERA5 profiles, balloon profiles, balloon surface) for soundings with an ERA5 match. launch_tol (AU-13): see read_igra."""
     out = []
     for sid, (lat, lon) in STATIONS.items():
-        t, prof, sfc = read_igra(os.path.join(igra_dir, f"{sid}-drvd.txt.zip"), first_year, last_year)
+        kw = {} if launch_tol is None else dict(launch_height=ELEV[sid], tol_m=launch_tol)
+        t, prof, sfc = read_igra(os.path.join(igra_dir, f"{sid}-drvd.txt.zip"), first_year, last_year, **kw)
         era = era5_at(ds, nearest_point(ds, lat, lon), t)
         m = np.isfinite(era).all((1, 2))
         print(f"{sid}: {len(t):,} soundings {first_year}-{last_year}, {m.sum():,} with ERA5", flush=True)
@@ -255,10 +268,12 @@ def main():
     ap.add_argument("--check-to", type=int, default=2025)
     ap.add_argument("--ridge", type=float, default=0.0, help="smooth the correction slopes across heights (0 = off, the "
                     "per-height fit); choose it offline with scripts/ridge_check.py")
+    ap.add_argument("--launch-tol", type=float, default=30.0, help="AU-13 (bug fix, on for new fits): drop soundings whose first level is more "
+                    "than this many m from the station's listed launch height (configs/region.toml); negative = keep all (old fits)")
     a = ap.parse_args()
 
     ds = xr.open_zarr(a.profiles)
-    pairs = station_pairs(ds, a.igra, a.first_year, a.check_to)
+    pairs = station_pairs(ds, a.igra, a.first_year, a.check_to, a.launch_tol if a.launch_tol >= 0 else None)
     groups = [group_id(s, t.month, (t.hour == 12).astype(int)) for s, (t, *_) in enumerate(pairs)]
     fit_rows = [t.year <= a.last_year for t, *_ in pairs]
     held = [~m for m in fit_rows]

@@ -229,7 +229,7 @@ class Window:
         for ex in self.exclude:
             keep &= ~self._excluded(ex, local, tzo, now)
         if not keep.any():
-            raise WindowError(f"nothing is left of the window: the valid solar hours {solar[0]:.0f}-{solar[1]:.0f} h are {self._solar_in_local(lon, tzo, flat_c[0])} local on {local[0]:%Y-%m-%d}, and the exclusions removed the rest")
+            raise WindowError(f"nothing is left of the window: the valid solar hours {solar[0]:.0f}-{solar[1]:.0f} h are {self._solar_in_local(lon, tzo, flat_c[0], solar)} local on {local[0]:%Y-%m-%d}, and the exclusions removed the rest")
         cut = 1.0 - flat_w[keep].sum() / requested
         prob = flat_w[keep] / flat_w[keep].sum()
         cells_k = flat_c[keep]
@@ -254,11 +254,11 @@ class Window:
         return out
 
     @staticmethod
-    def _solar_in_local(lon, tzo, first_cell):
+    def _solar_in_local(lon, tzo, first_cell, solar=(SOLAR_LO, SOLAR_HI)):          # 2026-11-10: the window actually used (an all-hours set is 0-24 h)
         d = first_cell.astype("datetime64[D]").astype(datetime)
         base = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
-        lo = base + timedelta(hours=SOLAR_LO - lon / 15.0)
-        hi = base + timedelta(hours=SOLAR_HI - lon / 15.0)
+        lo = base + timedelta(hours=float(solar[0]) - lon / 15.0)
+        hi = base + timedelta(hours=min(float(solar[1]), 24.0) - lon / 15.0)
         return f"{lo.astimezone(tzo):%H:%M}-{hi.astimezone(tzo):%H:%M}"
 
     def __repr__(self):

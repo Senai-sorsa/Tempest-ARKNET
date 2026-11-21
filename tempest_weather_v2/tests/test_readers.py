@@ -170,3 +170,48 @@ def test_perturbation_is_added_to_the_wind_and_zero_at_the_ground():
     b, q = base.wind(1000.0 + 300.0), pert.wind(1000.0 + 300.0)                  # (up, east, north)
     assert q[1] - b[1] == pytest.approx(2.0, abs=1e-4) and q[2] - b[2] == pytest.approx(-1.0, abs=1e-4) and q[0] - b[0] == pytest.approx(0.5, abs=1e-4)
     assert pert.wind(1000.0)[1] == pytest.approx(base.wind(1000.0)[1], abs=1e-4)     # nothing is added at the pad node
+
+
+def test_rocketpy_inputs_are_one_coherent_atmosphere_in_si():
+    """M17: pairs of (altitude ASL, value) for pressure, temperature, wind_u (east) and wind_v (north) that agree with the reader's own lookups."""
+    import numpy as np
+    from tempest_weather_v2 import Launch
+    atm = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2, units="us").atmospheres(20)[3]
+    d = atm.rocketpy_inputs(step_m=250.0)
+    assert set(d) == {"pressure", "temperature", "wind_u", "wind_v"}
+    assert all(len(v) == len(d["pressure"]) > 10 for v in d.values())
+    assert d["pressure"][0][0] == atm.elevation_m and d["pressure"][0][1] > 70000 and 250 < d["temperature"][0][1] < 330
+    assert d["pressure"][-1][1] < d["pressure"][0][1]
+    ref = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2, units="si").atmospheres(20)[3]
+    alt, u = d["wind_u"][8]
+    assert np.isclose(ref.wind(alt)[1], u, atol=1e-3) and np.isclose(ref.wind(alt)[2], d["wind_v"][8][1], atol=1e-3)
+
+
+def test_rocketpy_inputs_reference_can_be_agl():
+    from tempest_weather_v2 import Launch
+    atm = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=20, seed=2).atmospheres(20)[1]
+    a, g = atm.rocketpy_inputs(250.0), atm.rocketpy_inputs(250.0, reference="agl")
+    assert g["pressure"][0][0] == 0.0 and abs(a["pressure"][0][0] - atm.elevation_m) < 1e-6 and a["wind_u"][5][1] == g["wind_u"][5][1]
+    import pytest
+    with pytest.raises(ValueError):
+        atm.rocketpy_inputs(reference="x")
+
+
+def test_below_10m_loglaw_is_opt_in_and_follows_the_log_profile():
+    s = make_samples()
+    lin, ll = Atmosphere(s, 1), Atmosphere(s, 1, below_10m="loglaw", z0_m=0.03)
+    u10 = s["u"][1, 0]
+    assert np.isclose(lin.wind(ELEV + 0.0)[1], 0.72 * u10, rtol=1e-4)          # default unchanged: straight line to the pad node
+    for z in (1.0, 2.0, 5.0):
+        r = np.log(z / 0.03) / np.log(10 / 0.03)
+        assert np.isclose(ll.wind(ELEV + z)[1], r * u10, rtol=1e-4)            # scalar path
+        assert np.isclose(ll.wind_many(np.array([ELEV + z]))[0, 1], r * u10, rtol=1e-4)   # vector path
+        assert np.isclose(ll.velocity(ELEV + z)[1], r * u10, rtol=1e-4)        # flight_sim interface
+    assert ll.wind(ELEV + 0.01)[1] == 0.0                                        # below z0: calm
+    for z in (10.0, 55.0, 3000.0):                                               # unchanged from 10 m up, air unchanged everywhere
+        assert np.allclose(ll.wind(ELEV + z), lin.wind(ELEV + z)) and np.allclose(ll.air(ELEV + z), lin.air(ELEV + z))
+    assert np.allclose(ll.air(ELEV + 3.0), lin.air(ELEV + 3.0))
+    s["surface_roughness_m"] = np.full(len(s["u"]), 0.5)                         # the samples' own roughness when z0_m is not given
+    assert np.isclose(Atmosphere(s, 1, below_10m="loglaw").wind(ELEV + 2.0)[1], np.log(2 / 0.5) / np.log(10 / 0.5) * u10, rtol=1e-4)
+    with pytest.raises(ValueError):
+        Atmosphere(s, 1, below_10m="cubic")

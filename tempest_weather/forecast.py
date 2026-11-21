@@ -118,6 +118,19 @@ def flat(prof):
     return np.concatenate([prof["u"], prof["v"], prof["T"], prof["RH"]]).astype(np.float32)
 
 
+# ASK_LATER 21: the ensemble-feature mode F inputs, in this order (scripts/il14_ens_rows.py): mean and spread (sd over the 50 IFS ENS members) of u10, v10 (m/s), t2m (K),
+# then u, v (m/s) and t (K) at 500, 700 and 850 hPa
+ENS_FEATURES = [f"{v}_{s}" for v in ("u10", "v10", "t2m") for s in ("mean", "sd")] + [f"{v}{p}_{s}" for v in ("u", "v", "t") for p in (500, 700, 850) for s in ("mean", "sd")]
+
+
+def ens_vector(ens):
+    """dict by ENS_FEATURES name, or a sequence in that order -> (24,) float32; anything missing, non-finite or a negative spread is refused."""
+    x = np.array([ens[k] for k in ENS_FEATURES] if isinstance(ens, dict) else ens, np.float32).ravel()
+    if x.shape != (len(ENS_FEATURES),) or not np.isfinite(x).all() or (x[1::2] < 0).any():
+        raise ValueError(f"ens_features needs {len(ENS_FEATURES)} finite values (spreads >= 0) in this order: {ENS_FEATURES}")
+    return x
+
+
 def condition(prof, lat, lon, z_sfc_m, doy, lead_days, coarse=4):
     """The network input row, as tempest.forecast.modeF.cond_matrix: lat, lon, z_sfc / 1e4, doy harmonics, lead / 7, and every `coarse`-th height of u, v, T, RH."""
     a = 2 * np.pi * doy / 365.25

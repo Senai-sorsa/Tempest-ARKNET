@@ -66,3 +66,104 @@ def test_calibrate_vehicle_sigma_from_flights():
     assert calibrate_vehicle_sigma([0.1, -0.1], [1.0, 1.0])["vehicle_rms_pct"] == 0.0     # atmosphere spread alone explains it
     with pytest.raises(ValueError):
         calibrate_vehicle_sigma([1.0], [1.0, 2.0])
+
+
+def test_adaptive_conformal_restores_coverage_of_an_overconfident_ensemble():
+    from tempest_weather_v2.montecarlo import AdaptiveConformal
+    rng = np.random.default_rng(0)
+    raw_miss, ac = 0, AdaptiveConformal(0.10, gamma=0.02)
+    n = 3000
+    for _ in range(n):
+        centre = rng.normal(0, 2.0)
+        ens = centre + rng.normal(0, 1.0, 100)              # the ensemble spread (sd 1) is half the real error (sd 2): coverage of the central 90 % would be about 0.63
+        y = centre + rng.normal(0, 2.0)
+        lo, hi = np.quantile(ens, [0.05, 0.95])
+        raw_miss += not (lo <= y <= hi)
+        i = ac.interval(ens)
+        ac.update(y, i)
+    assert 1 - raw_miss / n < 0.75                          # the raw interval is over-confident
+    assert abs(ac.coverage - 0.90) < 0.02 and ac.stretch > 2.0       # adaptive stretching brings it back (the ensemble is about 2x too narrow)
+    with pytest.raises(ValueError):
+        AdaptiveConformal(1.5)
+
+
+def test_physical_atmosphere_metrics_explain_a_wind_driven_result():
+    """Gemini bug 1: the share of the variance due to the atmosphere is measured with physical quantities, not the sample index."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, units="si", seed=4)
+    atms = L.atmospheres(150)
+    z0 = atms[0].elevation_m
+
+    def simulate(atm, drag_scale=1.0):
+        w = atm.wind(z0 + 100.0)
+        return 4000.0 / drag_scale - 40.0 * float(np.hypot(w[1], w[2]))
+    r = run(simulate, atms, VehiclePriors(drag_scale=("normal", 0.02)), n=300, seed=1)
+    assert set(r.atm_metrics) == {"pad_air_density", "mean_wind_0_200m", "mean_wind_0_3km"}
+    c = r.contributions()
+    assert c["atmosphere: mean_wind_0_200m"] > 0.3 and c["atmosphere: mean_wind_0_200m"] > c["atmosphere (by its sample index; use varying atmospheres)"]
+    e = r.explained()
+    assert e["atmosphere_gain"] > 0.3 and e["r2_all"] >= e["r2_vehicle"]
+
+
+def test_sobol_sampling_indices_and_bootstrap_band():
+    """M8: scrambled Sobol sampling keeps the priors' mean / sd; Sobol indices recover a known additive model; the bootstrap band contains the estimate."""
+    from tempest_weather_v2.montecarlo import bootstrap_percentile, sobol_indices
+    p = VehiclePriors(a=("normal", 0.1), b=("normal", 0.1))
+    s = p.sample(1024, np.random.default_rng(0), "sobol")
+    x = np.array([d["a"] for d in s])
+    assert abs(x.mean() - 1) < 0.005 and abs(x.std() - 0.1) < 0.005
+
+    class Atm:                                    # a toy atmosphere reader: its number is its index scaled
+        def __init__(self, k):
+            self.k = k
+    atms = [Atm(k / 31.0) for k in range(32)]
+    sim = lambda atm, a=1.0, b=1.0: 4.0 * (a - 1.0) + 1.0 * (b - 1.0) + 0.2 * (atm.k - 0.5)            # additive: variances 0.16, 0.01, 0.2^2/12 = 0.0033
+    res = sobol_indices(sim, atms, p, n=512, seed=1, n_boot=60)
+    tot = 0.16 + 0.01 + 0.2 ** 2 / 12
+    assert abs(res["a"]["first"] - 0.16 / tot) < 0.06 and res["a"]["first"] > 0.8
+    assert abs(res["a"]["total"] - res["a"]["first"]) < 0.08                                           # additive: no interaction
+    assert res["atmosphere"]["first"] < 0.08 and res["b"]["first"] < 0.12
+    est, lo, hi = bootstrap_percentile(np.random.default_rng(0).normal(size=400), 95)
+    assert lo < est < hi and hi - lo < 0.6
+
+
+def test_wind_persistence_increment_widens_the_wind_dependent_result():
+    """M2: with wind_age (rho < 1) the result spread grows by the persistence increment; rho = 1 changes nothing in the spread."""
+    L = Launch("spaceport_america", "2027-06-16 10:00", mode="ai", n=150, units="si", seed=4)
+    atms = L.atmospheres(150)
+    z0 = atms[0].elevation_m
+
+    def sim(atm):
+        w = atm.wind(z0 + 300.0)
+        return float(w[1])
+    nh = len(atms.samples["height_agl"])
+    base = run(sim, atms, n=300, seed=1)
+    same = run(sim, atms, n=300, seed=1, wind_age=np.ones(nh), conditioned=True)
+    wide = run(sim, atms, n=300, seed=1, wind_age=np.full(nh, 0.7), conditioned=True)
+    with pytest.raises(ValueError):
+        run(sim, atms, n=10, seed=1, wind_age=np.full(nh, 0.7))                  # not declared conditioned: refused
+    assert abs(same.values.std() / base.values.std() - 1) < 0.02
+    assert wide.values.std() > 1.2 * base.values.std()
+
+
+def test_importance_sampling_estimates_a_rare_probability_with_a_smaller_error():
+    """M9: tilting the draws toward the windy end of the pool and weighting back keeps P(value > limit) unbiased for the pool and needs far fewer simulator runs than crude Monte Carlo."""
+    from tempest_weather_v2.montecarlo import run_importance
+    x = np.random.default_rng(1).standard_normal(20000)                          # the pool: one "wind" number per atmosphere; the simulator returns it plus vehicle noise
+    pool = list(range(len(x)))
+    sim = lambda k, drag_scale=1.0: float(x[k]) * drag_scale
+    pri = VehiclePriors(drag_scale=("normal", 0.02))
+    truth = float(np.mean(x * 1.0 > 2.5))                                        # about 0.006
+    est, se, eff = [], [], []
+    for s in range(20):
+        r = run_importance(sim, pool, 2.5, priors=pri, n=400, tilt=2.5, metric=x, seed=s)
+        p, e = r.probability()
+        est.append(p), se.append(e), eff.append(r.effective_n())
+    assert abs(np.mean(est) - truth) < 3 * np.std(est) / np.sqrt(len(est)) + 0.0005
+    crude_se = math.sqrt(truth * (1 - truth) / 400)
+    assert np.mean(se) < 0.5 * crude_se and 5 < np.mean(eff) < 400                    # Kish effective n is about 16 at tilt 2.5: the weights spend the bulk to resolve the tail
+    flat = run_importance(sim, pool, 2.5, n=50, tilt=0.0, metric=x, seed=0)
+    assert np.allclose(flat.weights, 1.0)                                        # tilt 0 = crude Monte Carlo
+    r = run_importance(sim, pool, 2.5, n=2000, tilt=1.0, metric=x, seed=3)
+    assert abs(r.quantile(0.5) - np.median(x)) < 0.1                             # the weighted quantile undoes the tilt
+    with pytest.raises(ValueError):
+        run_importance(sim, pool, 2.5, metric=x[:10])

@@ -134,6 +134,13 @@ def load(path, model=None, calib=None):
     return t
 
 
+def apply_for(path, model, calib, x, keys, year, target, idx, first, m):
+    """Blend x (rows idx) as tempest.scoring.score --trust does: climatology window = the clim_years before `first`."""
+    tw = load(path, model, calib)
+    q = ClimPool(keys, year, target, (first - int(tw["clim_years"]), first - 1), m).quantiles(keys[idx])
+    return apply_full(tw, x, q)
+
+
 def main():
     from tempest.generator.features import FEATURES, drivers
     from tempest.scoring.score import band_masks, group_keys  # late import: score imports this module

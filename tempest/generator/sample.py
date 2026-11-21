@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 
-from tempest.generator.model import Generator, make_generator
+from tempest.generator.model import Generator, TokenGenerator, make_generator
 from tempest.profiles.diff import from_diff
 from tempest.profiles.to_heights import HEIGHTS, PROFILE
 
@@ -71,6 +71,7 @@ def standard_pressure(z):
 
 LAPSE = 0.0065        # K per m, standard atmosphere
 SHIFT_SCALE = 1500.0  # m: the site-elevation temperature shift fades with height above the ground, exp(-z / SHIFT_SCALE)
+RH_SHIFT_BLEND = False  # AU-9 switch back: True restores the old second fade of the humidity change (under-applied aloft)
 
 
 def _es(t):
@@ -81,7 +82,7 @@ def to_site(phys: np.ndarray, z_grid, z_site) -> np.ndarray:
     """(..., 179) physical values at the ERA5 grid elevation -> values at the site elevation (in place).
     sp: hypsometric equation. t2m: standard lapse rate. The temperature profile above ground follows with a shift that fades with height,
     -lapse * dz * exp(-z / 1500 m), so there is no jump between the 2 m and the 10 m value; humidity keeps its dew point (RH changes with T, kept <= 100 %)
-    at 2 m and on the profile with the same fading weight."""
+    at 2 m and on the profile (AU-9: the fade acts through T only)."""
     dz = np.asarray(z_site, np.float64) - np.asarray(z_grid, np.float64)
     nh = len(HEIGHTS)
     j = nh * len(PROFILE)
@@ -93,7 +94,8 @@ def to_site(phys: np.ndarray, z_grid, z_site) -> np.ndarray:
     T_old = phys[..., iT:iT + nh].copy()
     T_new = T_old - LAPSE * dz_ * w
     rh_old = phys[..., iR:iR + nh]
-    phys[..., iR:iR + nh] = np.clip(rh_old * _es(T_old) / _es(T_new) * w + rh_old * (1 - w), 0, 100)       # dew point kept where the shift acts
+    kept = rh_old * _es(T_old) / _es(T_new)                                       # AU-9: T_new already carries the fade w, so the dew point is kept fully
+    phys[..., iR:iR + nh] = np.clip(kept * w + rh_old * (1 - w) if RH_SHIFT_BLEND else kept, 0, 100)
     phys[..., iT:iT + nh] = T_new
     ir = j + SURFACE.index("rh2m")
     phys[..., ir] = np.clip(phys[..., ir] * _es(t) / _es(t - LAPSE * dz), 0, 100)
@@ -161,7 +163,12 @@ class Sampler:
             eps = sobol_normal(len(c) // self.qmc_m, self.qmc_m, m0.noise_dim).to(self.device)
         for i, (model, n) in enumerate(self.members):
             kw = {"eps": eps[i::len(self.members)]} if eps is not None else {}
-            out[i::len(self.members)] = model((c[i::len(self.members)] - n["cm"]) / n["cs"], 1, **kw)[:, 0] * n["ts"] + n["tm"]
+            x = (c[i::len(self.members)] - n["cm"]) / n["cs"]
+            if isinstance(model, TokenGenerator):   # one (rows, 44 tokens, d) pass runs out of GPU memory at a million rows: chunk (the mlp path is unchanged, so its random stream is too)
+                y = torch.cat([model(x[j:j + 16384], 1)[:, 0] for j in range(0, len(x), 16384)])
+            else:
+                y = model(x, 1, **kw)[:, 0]
+            out[i::len(self.members)] = y * n["ts"] + n["tm"]
         out = out.cpu().numpy()
         if self.sp_offset is not None:
             j, e = self.sp_offset

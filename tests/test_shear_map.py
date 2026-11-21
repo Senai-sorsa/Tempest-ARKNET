@@ -58,3 +58,24 @@ def test_full_distribution_fit_moves_the_bulk_too():
     med = lambda a: np.median(SM._band_values(SM.shears(a[..., :2 * SM.NH].reshape(*a.shape[:-1], 2, SM.NH).astype(float))[1])[1])
     tm = np.median(SM._band_values(SM.shears(truth[:, :2 * SM.NH].reshape(300, 2, SM.NH).astype(float))[1])[1])
     assert abs(med(y) - tm) < abs(med(x) - tm)                                  # the median shear moves toward the truth's
+
+
+def test_lowest_level_is_not_moved():
+    """Gemini bug 5: the wind at height 0 stays as sampled."""
+    x = _profiles(300, 30, 1.0, 0)
+    truth = _profiles(300, 1, 1.8, 1)[:, 0]
+    y = SM.apply(SM.fit(x, truth), x)
+    assert np.allclose(y[..., 0], x[..., 0], atol=1e-4) and np.allclose(y[..., NH], x[..., NH], atol=1e-4)
+
+
+def test_threshold_weighted_crps_ignores_the_calm_bulk():
+    """M3: twCRPS equals the CRPS at -inf, is zero when everything is below the threshold, and punishes a missed storm more than a missed calm."""
+    from tempest.scoring.score import crps_ensemble, twcrps_ensemble
+    rng = np.random.default_rng(0)
+    x = np.abs(rng.normal(3, 1.5, size=(50, 40, 1)))
+    y = np.abs(rng.normal(3, 1.5, size=(50, 1)))
+    assert np.allclose(twcrps_ensemble(x, y, -np.inf), crps_ensemble(x, y))
+    assert np.allclose(twcrps_ensemble(np.minimum(x, 5), np.minimum(y, 5), 50.0), 0.0)
+    calm_miss = twcrps_ensemble(np.full((1, 40, 1), 3.0), np.array([[1.0]]), 8.0)
+    storm_miss = twcrps_ensemble(np.full((1, 40, 1), 3.0), np.array([[12.0]]), 8.0)
+    assert calm_miss[0, 0] == 0.0 and storm_miss[0, 0] > 3.0

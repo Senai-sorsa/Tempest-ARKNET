@@ -17,11 +17,12 @@ samples file.
 ## Status (2026-11-05)
 
 - **Climate generator (Phase 2 model `p2f`).** Engression network, 4 members, trained 1991-2020 (+ validation 2021-23) on balloon-corrected ERA5 with humidity learned as dewpoint
-  depression and a tail-weighted wind-shear loss. On the 2024-25 development years it beats the recent-15-year climatology by 2.8 % (CRPS, ERA5) and 0.8 % (real balloons), and the Earth-GRAM-style
-  reference by about 6.7 % / 2.8 %; its 99 % ranges hold about 99 % of outcomes. Month-ahead skill stays close to climatology by nature; the value is honest, coherent profiles.
+  depression and a tail-weighted wind-shear loss. On the 2024-25 development years it beats the recent-15-year climatology by about 1.7 % (fair CRPS against the whole 15-year pool, ERA5) and about 0.5 % (real balloons); the older thin-pool scoring gave 2.8 % / 0.8 %, and the Earth-GRAM-style
+  reference by about 6.7 % / 2.8 %; its 99 % ranges hold about 99 % of outcomes (on ERA5 also against a truth whose balloon noise pool the model never saw, within 0.003; 90 % ranges for winds and humidity above 12 km move up to 0.02 there; balloon coverage stays the reference). Month-ahead skill stays close to climatology by nature; the value is honest, coherent profiles.
 - **Past dates (mode P).** ERA5 for the exact hour, corrected by a residual network trained against balloons: median error 6 % below raw ERA5, CRPS 5.5 % below the older station correction.
 - **Extra outputs.** Pressure, density and speed of sound derived from each sample, vertical wind (w-head), 10 m gusts, 24 h soak history, thermal scaling (physics only), joint 99 % band, coupled sample files.
 - **Forecast modes (Phase 4)** are built up to the data limits: the ensemble-to-heights converter, router and clients exist; calibration waits on the daily logger archive (started 2026-11-05).
+- **All 24 hours and two regions (2026-11-10):** NM/TX (31-34 N, 108-101 W) and Denver (38-40 N, 106-104 W) are served at every hour (`tempest_weather/assets*`, see `docs/results/FINAL_REPORT.md` section 11); forecast mode (mode F) answers 0.75-7.5 days ahead at 02-20 h solar in both.
 - **Tool (Phase 5).** Plan in `docs/plans/PHASE5_TOOL.md`.
 - Full history, every experiment and its numbers with intervals: [docs/plans/PLAN.md](docs/plans/PLAN.md); Phase 4 log: [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md); work plan: `docs/plans/PHASED_PLAN.md`.
   The 2024-25 years are "development" years (used for many decisions); 2026 January-June is the untouched final test.
@@ -44,12 +45,13 @@ python -m tempest.scoring.sonde --model models/X.pt --data D.npz --profiles P.za
 python -m tempest.output.atmosphere --lat 32.99 --lon -106.97 --when "2027-06-16 15:00" --out out/demo     # one call -> coupled atmosphere files
 python scripts/compare_headline.py OLD_headline.csv NEW_headline.csv           # the phase pass rule
 ```
+Flight validation: record the pad weather of every launch in [docs/templates/pad_observations.csv](docs/templates/pad_observations.csv) and check the tool against it with `python scripts/atmosphere_check.py FILE.csv` (judges the air directly, without the rocket model's error).
 Every new option is a flag that is off by default. Forecast logger: `python -m tempest.ops.logger --loop 12` and `python -m tempest.ops.logger_p4 --loop 24`.
 Cap long jobs at 12 of the 20 CPU threads (`source scripts/cap_cpu.sh` first). CDS key: `%USERPROFILE%\.ecmwfdatastoresrc` (never commit it).
 
 ## Docs
 
-[docs/plans/PLAN.md](docs/plans/PLAN.md) (plan and results), [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md), [docs/plans/TOOL_PLAN.md](docs/plans/TOOL_PLAN.md) (older tool plan),
+[ATTRIBUTION.md](ATTRIBUTION.md) (data sources and how to credit them), [examples/monte_carlo_quickstart.py](examples/monte_carlo_quickstart.py) (Monte Carlo workflow), [docs/plans/PLAN.md](docs/plans/PLAN.md) (plan and results), [docs/logs/PHASE4_LOG.md](docs/logs/PHASE4_LOG.md), [docs/plans/TOOL_PLAN.md](docs/plans/TOOL_PLAN.md) (older tool plan),
 [docs/research/research-notes.md](docs/research/research-notes.md), [docs/agent/ASK_LATER.md](docs/agent/ASK_LATER.md) (items waiting for the user). **All documents, by kind: [docs/README.md](docs/README.md).**
 
 ## License

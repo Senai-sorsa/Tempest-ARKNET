@@ -34,3 +34,25 @@ def test_tool_picks_the_asset_set_by_location(tmp_path):
     assert api.region_assets(32.9, -106.9, str(tmp_path)).endswith("assets")
     assert api.region_assets(39.7, -105.0, str(tmp_path)).endswith("assets_denver")
     assert api.region_assets(45.0, -100.0, str(tmp_path)) is None
+
+
+def test_tool_picks_the_day_set_by_day_and_the_all_hours_set_at_night(tmp_path):
+    """A24: two sets for the same box (a day specialist 06-21 h and an all-hours set 0-24 h): by day the narrower day set, at night the all-hours set; the window is their union."""
+    import json
+    from tempest_weather import api
+    box = {"lat": [31.0, 34.0], "lon": [-108.0, -101.0]}
+    for name, hours in (("assets", [6.0, 21.0]), ("assets_allhours", [0.0, 24.0]), ("assets_denver", None)):
+        d = tmp_path / name
+        d.mkdir()
+        m = {"area": box if name != "assets_denver" else {"lat": [38.0, 40.0], "lon": [-106.0, -104.0]}}
+        if hours:
+            m["solar_hours"] = hours
+        (d / "manifest.json").write_text(json.dumps(m))
+    r = str(tmp_path)
+    assert api.region_assets(32.9, -106.9, r, solar_hour=12.0).endswith("assets")              # day: the day specialist
+    assert api.region_assets(32.9, -106.9, r, solar_hour=2.0).endswith("assets_allhours")      # night: the all-hours set
+    assert api.region_assets(32.9, -106.9, r).endswith("assets")                               # no hour: as before
+    assert api.region_assets(39.7, -105.0, r, solar_hour=2.0).endswith("assets_denver")        # nothing covers the hour: the first covering set (it refuses with its own message)
+    assert api.region_solar_window(32.9, -106.9, r) == (0.0, 24.0)
+    assert api.region_solar_window(39.7, -105.0, r) == (6.0, 21.0)                             # old manifests without solar_hours are 06-21 h
+    assert api.region_solar_window(45.0, -100.0, r) is None

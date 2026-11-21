@@ -61,3 +61,85 @@ def test_one_call_contract_returns_coarse_fine_and_avionics_columns():
     assert np.abs(b["fine"]["gust_u"]).max() + np.abs(b["fine"]["gust_v"]).max() > 0          # the last four columns placed a gust
     a = b["avionics"]
     assert a["altimeter_bias_m"].shape == (6, NH + 1) and np.isfinite(a["refractivity_N"]).all()
+
+
+def test_localisation_taper_is_opt_in_and_limits_the_reach_of_an_observation():
+    """G1: off = unchanged; on = a pinned 10 m wind moves levels near it as before and far levels much less."""
+    from tempest_weather.flight.engine import _gaspari_cohn
+    assert _gaspari_cohn(0.0, 1000.0) == 1.0 and _gaspari_cohn(2500.0, 1000.0) == 0.0 and 0 < _gaspari_cohn(1000.0, 1000.0) < 1
+    pool = synthetic_pool()
+    u = np.random.default_rng(2).random((3000, 12))
+    obs = {("wind_u", 10.0): 9.0}
+    a = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs).sample_sobol(u)
+    a2 = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs, localize_m=None).sample_sobol(u)
+    b = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).condition_on_observations(obs, localize_m=500.0).sample_sobol(u)
+    assert np.array_equal(a["u"], a2["u"])
+    free = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1300.0}).sample_sobol(u)
+    far = 20
+    assert abs(b["u"][:, far].mean() - free["u"][:, far].mean()) < 0.3 * abs(a["u"][:, far].mean() - free["u"][:, far].mean())
+    assert np.allclose(b["u"][:, 0], 9.0)
+
+
+def test_dryden_reynolds_stress_is_opt_in_and_keeps_the_vertical_variance():
+    """G6: uw_corr anticorrelates w' with the along-wind u' near the ground, fading with height; default unchanged."""
+    from tempest_weather.flight import dryden
+    z = np.array([10, 50, 100, 200, 500, 1000, 2000.0])
+    N = 800
+    u, v, T = np.tile(8 + 0 * z, (N, 1)), np.zeros((N, 7)), np.tile(290 - 0.0065 * z, (N, 1))
+    a = dryden.synthesize(z, u, v, T, seed=1)
+    a0 = dryden.synthesize(z, u, v, T, seed=1, uw_corr=None)
+    b = dryden.synthesize(z, u, v, T, seed=1, uw_corr=0.35)
+    assert np.array_equal(a["w_turb"], a0["w_turb"])
+    i50, i1500 = np.searchsorted(b["z"], 50), np.searchsorted(b["z"], 1500)
+    c = lambda r, i: np.corrcoef(r["u_turb"][:, i], r["w_turb"][:, i])[0, 1]
+    assert c(b, i50) < -0.2 and abs(c(a, i50)) < 0.15 and abs(c(b, i1500)) < 0.15
+    assert abs(b["w_turb"][:, i50].std() / a["w_turb"][:, i50].std() - 1) < 0.1
+
+
+def test_gust_law_is_capped_in_strong_wind_and_dryden_adds_only_the_excess(monkeypatch):
+    """Gust law (asset law, GUST_PHYSICAL = False): unchanged up to 12 m/s, gust factor held above (20 m/s used to give a median gust of 59 m/s); Dryden gust amplitude = total gust minus the mean wind."""
+    from tempest_weather import api
+    monkeypatch.setattr(api, "GUST_PHYSICAL", False)
+    from tempest_weather.flight import dryden
+    g = dict(theta=np.array([0.5, 1.0, 0.1, 0, 0, 0, 0, 0.0]), phi=np.array([0.0, 0.05, 0.0, 0, 0, 0, 0, 0.0]))
+    lo = np.array([3.0, 12.0])
+    mu0, b0 = api._gust_params(g, lo, 100, 12.0)
+    assert np.allclose(mu0, [0.5 + 3 + 0.09, 0.5 + 12 + 1.44])
+    mu, b = api._gust_params(g, np.array([12.0, 24.0]), 100, 12.0)
+    assert np.isclose(mu[1], 2 * mu[0]) and np.isclose(b[1], 2 * b[0])                      # factor held: twice the wind, twice the gust
+    z = np.array([10, 50, 100, 200.0])
+    N = 400
+    u = np.full((N, 4), 8.0)
+    v, T = np.zeros((N, 4)), np.full((N, 4), 290.0)
+    gp = (np.full(N, 9.0), np.full(N, 0.5))                                                  # total gust about 9 m/s at an 8 m/s wind: excess about 1 m/s
+    r = dryden.synthesize(z, u, v, T, seed=1, gust=tuple(np.full(N, x) for x in (0.0, 0.5, 0.0, 0.5)), gust_params=gp)
+    assert np.hypot(r["gust_u"], r["gust_v"]).max() < 3.0
+
+
+def test_physical_gust_laws_have_station_gust_factors_and_hold_the_factor_in_storms():
+    """W8d: physical-gust laws (one-minute ASOS data): model-wind law median factor 1.3-1.8 at 6-9 m/s and the factor held above 9 m/s; measured-wind law 1.3-1.5 at 6-16 m/s; finite, sane storms."""
+    from tempest_weather import api
+    L = lambda q: -np.log(-np.log(q))
+    med = lambda mu, b, w: np.maximum(mu + b * L(0.5), w) / w
+    w = np.array([6.0, 9.0, 18.0, 36.0])
+    mu, b = api._gust_params(None, w, 172, 18.0, 1.0)
+    f = med(mu, b, w)
+    assert np.all((f[:2] > 1.3) & (f[:2] < 1.8)) and np.allclose(f[2:], f[1], rtol=1e-6)        # held factor above the cap (9 m/s)
+    mu, b = api._gust_params_measured(np.array([6.0, 10.0, 16.0, 40.0]), 172, 18.0, 1.0)
+    f = med(mu, b, np.array([6.0, 10.0, 16.0, 40.0]))
+    assert np.all((f > 1.25) & (f < 1.65))                                                       # June early afternoon (18 UTC) is the gustiest hour: 1.52 at 6 m/s (stations 5-8 m/s: median 1.40, p90 1.71)
+
+
+def test_site_roughness_reaches_the_turbulence_step_only_when_asked():
+    """A7: z0_roughness_m='site' uses info['z0_m'] (set by Launch.engine()); the default stays 0.03 m."""
+    pool, u = synthetic_pool(n=1500), np.random.default_rng(4).random((6, 6))
+    fine = lambda eng, **kw: eng.sample_sobol_batch(u, k_atmo=6, dz_fine_m=20.0, include_avionics_bias=False, **kw)["fine"]["u_total"]
+    eng = TempestFlightSimEngine(atm=pool, info={"elevation_m": 1400.0, "z0_m": 0.5})
+    base = fine(eng)
+    assert np.allclose(base, fine(eng, z0_roughness_m=0.03))                                     # default unchanged
+    assert np.allclose(fine(eng, z0_roughness_m="site"), fine(eng, z0_roughness_m=0.5))           # the site value is used
+    assert not np.allclose(fine(eng, z0_roughness_m="site"), base)
+    with pytest.raises(ValueError):
+        fine(TempestFlightSimEngine(atm=pool, info={"elevation_m": 1400.0}), z0_roughness_m="site")
+    with pytest.raises(ValueError):
+        fine(eng, z0_roughness_m="map")

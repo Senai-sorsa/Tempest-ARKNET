@@ -1,0 +1,5 @@
+# New_Plan 28.9 (28.4 MISS-idea arm): X4 = AV40 climatology-mean anomaly output (AV41 MISS: Denver -0.19 -> -0.015 / -0.018 both seeds,
+# failed only RH shape) with the RH outputs kept plain (anom_skip), on the c4w paired-base recipe. One setting, no tuning.
+anom_clim = true
+anom_mean_only = true
+anom_skip = ["RH_"]

@@ -24,20 +24,39 @@ def sha(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+X4R_CUTOFF = 1.0   # degrees (cos-lat distance) to the nearest X4-R table point; farther rows get no offset (G-stage areas outside the fit)
+
+
 def pack(ckpt, prefix, arrays):
     members = ckpt["members"] if "members" in ckpt else [ckpt]
     m0 = members[0]
     c = m0["cfg"]
     # the numpy engine (tempest_weather/engine.py) runs only the plain MLP + linear slope; anything else would export silently wrong
-    extra = [k for k, bad in (("model_kw", bool(m0.get("model_kw"))), ("arch", c.get("arch", "mlp") not in (None, "mlp")),
+    kw = m0.get("model_kw") or {}
+    x4r = set(kw) == {"anom"} and kw["anom"].get("mean_only") and "mask" not in kw["anom"]     # New_Plan 28.11: X4-R offset table (scripts/x4r_build.py) is ported
+    extra = [k for k, bad in (("model_kw", bool(kw) and not x4r), ("arch", c.get("arch", "mlp") not in (None, "mlp")),
                               ("interactions", bool(c.get("interactions"))), ("product_pairs", bool(m0.get("product_pairs")))) if bad]
     if extra:
         raise SystemExit(f"{prefix or 'model'}: checkpoint uses {extra}, which the numpy engine does not implement; port them to tempest_weather/engine.py first")
     meta = dict(members=len(members), n_cond=m0["n_cond"], n_out=m0["n_out"], linear_cols=list(m0["linear_cols"]), noise_dim=c["noise_dim"], width=c["width"],
                 depth=c["depth"], sp_offset=m0.get("sp_offset"), cond_names=list(m0.get("cond_names", [])), rh_target=m0.get("rh_target", "rh"))
+    if x4r:
+        # the raw-target offset is X @ (cmu - tm); every member must carry the same table (x4r_build attaches one offset to all)
+        dcs = []
+        for m in members:
+            dc = m["state"]["anom_cmu"].double().numpy().copy()
+            dc[:, 0, :] -= m["state"]["anom_tm"].double().numpy()
+            dcs.append(dc)
+        assert all(np.allclose(d, dcs[0], atol=1e-4 * (np.abs(dcs[0]).max() + 1e-12)) for d in dcs), "X4-R tables differ between members"
+        assert [m0["cond_names"][i] for i in kw["anom"]["cols"]] == ["lat", "lon", "doy_sin", "doy_cos", "hour_sin", "hour_cos"]
+        arrays[prefix + "x4r/keys"] = m0["state"]["anom_keys"].numpy().astype(np.float32)
+        arrays[prefix + "x4r/dc"] = dcs[0].astype(np.float32)
+        meta.update(x4r=True, x4r_cutoff=X4R_CUTOFF)
     arrays[prefix + "meta"] = np.array(json.dumps(meta))
     for k, m in enumerate(members):
         for n, v in m["state"].items():
+            if n.startswith("anom_"):
+                continue
             arrays[f"{prefix}m{k}/{n}"] = v.numpy().astype(np.float32)
         for n, v in m["norm"].items():
             arrays[f"{prefix}norm{k}/{n}"] = v.numpy().astype(np.float32)
@@ -60,8 +79,12 @@ def main():
     ap.add_argument("--calib", required=True)
     ap.add_argument("--head")
     ap.add_argument("--post-templates", help="IL-91/F-16: dataset npz; stores Schaake-shuffle dependence templates (month x 2-hour bin, 199 real training-year profiles each) in the assets")
+    ap.add_argument("--post-template-sets", type=int, default=1, help="G3: independent template draws per cell and bin (K); the tool gives the g-th block of 199 atmospheres set g mod K, so a pool larger than 199 does not repeat one copula. 1 = as before (set 0 is drawn exactly as before)")
     ap.add_argument("--post-cell", type=int, default=0, help="with --post-templates: one template set per block of N x N grid points (8 = 2 degrees; stored as uint8 ranks) instead of one for the whole box")
     ap.add_argument("--post-smap", help="IL-91/F-16: shear-space map npz (tempest.calibrate.shear_map output) to apply after the shuffle")
+    ap.add_argument("--post-lmap", help="L21b / IL-162: lapse-rate quantile map npz (tempest.calibrate.lapse_map output, fitted on THIS model's stack) applied after the shear map; opt-in")
+    ap.add_argument("--post-amap", help="AV35 (adopted 2026-11-17): balloon shear map for 5-18 km (models/av35_shearmap_aloft.npz: grid, gain); applied after the lapse map, heights below 5 km are left as they are")
+    ap.add_argument("--post-ur5", help="WD1 (New_Plan 28.11 item 12): 10 m wind table for climate-mode sequences (scripts/build_ur5.py output, built on THIS stack); applied in atmosphere_sequence only")
     ap.add_argument("--post-pit", help="PIT recalibration table npz (scripts/il86_fit.py output); loop 2 H1, opt-in, off by default")
     ap.add_argument("--post-pit-damp", type=float, default=0.5, help="strength of --post-pit (0.5 = the tested half-way map)")
     ap.add_argument("--post-seasonal", help="seasonal width factors npz (tempest.calibrate.seasonal output); not verified inside the stack, off unless asked")
@@ -72,8 +95,10 @@ def main():
     ap.add_argument("--coherence-dist", help="group C2: distance-correlation table (scripts/c2_fit_distcorr.py output) for downrange coherence")
     ap.add_argument("--wcalib", help="F-27: range map for the w head (scripts/whead_calib.py output); default off")
     ap.add_argument("--gust")
+    ap.add_argument("--gust-phys", help="IL-183: a region's physical gust law (npz: model_theta, model_phi, model_cap, measured_theta, measured_phi, measured_cap, station) from scripts/gust_1min.py; the tool then uses it instead of the built-in NM/TX constants")
     ap.add_argument("--modep", help="past-date residual network (models/modeP.pt); its range map is read from the same name with .calib.npz")
     ap.add_argument("--modef", help="forecast-conditioned network (models/modeF_v2.pt); range map from the same name with .calib.npz")
+    ap.add_argument("--modef-ens", help="ASK_LATER 21 (opt-in): also store the ensemble-feature mode F network (models/modeF_ens.pt, + its .calib.npz); the tool uses it only when the caller passes the 24 IFS-ensemble features (ens_features=...)")
     ap.add_argument("--modef-bl", default="models/modeF_bl.npz", help="boundary-layer tables fitted with the forecast converter")
     ap.add_argument("--modef-rows", default="data/modeF", help="training rows (per-year npz) from which the error-profile templates of the Schaake shuffle are taken")
     ap.add_argument("--modef-ridge", action="store_true", help="IL-80: also store the per-lead ridge regression (and a pool of its residuals) so forecast mode can mix the network 50:50 with the ridge")
@@ -94,7 +119,7 @@ def main():
             arrays[f"calib/{k}"] = cal[k]
     if a.head:
         pack(torch.load(a.head, map_location="cpu", weights_only=True), "head_", arrays)
-    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit)
+    post = bool(a.post_templates or a.post_smap or a.post_seasonal or a.post_pit or a.post_lmap or a.post_amap or a.post_ur5)
     if a.post_templates:
         from tempest.calibrate.shuffle import cell_keys
         from tempest.generator.sample import to_physical
@@ -125,6 +150,18 @@ def main():
                         tpl[c, b] = np.argsort(np.argsort(x_, axis=0), axis=0).astype(np.uint8)
             arrays["post/rank"] = tpl
             arrays["post/cell"] = np.array(a.post_cell)
+            if a.post_template_sets > 1:                                           # G3: further independent draws (other seeds), same cells and bins
+                extra = np.zeros((a.post_template_sets - 1,) + tpl.shape, np.uint8)
+                for s_ in range(1, a.post_template_sets):
+                    rng_s = np.random.default_rng(1000 + s_)
+                    for c, k0 in zip(cid, cells):
+                        for b in range(144):
+                            r = tr[keys[tr] == k0 * 144 + b]
+                            if len(r):
+                                pick = np.sort(rng_s.choice(r, 199, replace=len(r) < 199))
+                                x_ = to_physical(np.asarray(dd["target"][pick]))
+                                extra[s_ - 1, c, b] = np.argsort(np.argsort(x_, axis=0), axis=0).astype(np.uint8)
+                arrays["post/rank_extra"] = extra
         else:
             tpl = np.zeros((144, 199, 179), np.float16)
             for k in range(144):
@@ -137,6 +174,16 @@ def main():
         sm = np.load(a.post_smap)
         arrays["post/smap_grid"], arrays["post/smap_gain"] = sm["grid"], sm["gain"]
         assert "edges" not in sm.files, "7-group maps need an edges asset (not exported yet)"
+    if a.post_lmap:
+        lm = np.load(a.post_lmap)
+        arrays["post/lmap_xk"], arrays["post/lmap_yk"] = lm["xk"], lm["yk"]
+    if a.post_amap:
+        am = np.load(a.post_amap)
+        arrays["post/amap_grid"], arrays["post/amap_gain"] = am["grid"], am["gain"]
+    if a.post_ur5:
+        ur = np.load(a.post_ur5)
+        for k in ("lat", "lon", "xt", "xe", "ok", "rho", "s"):
+            arrays[f"post/ur5_{k}"] = ur[k]
     if a.post_pit:
         pt = np.load(a.post_pit)
         arrays["post/pit_ginv"], arrays["post/pit_groups"], arrays["post/pit_damp"] = pt["ginv"], pt["groups"], np.array(a.post_pit_damp)
@@ -174,6 +221,11 @@ def main():
     if a.gust:
         g = np.load(a.gust)
         arrays["gust/theta"], arrays["gust/phi"] = g["wind_theta"], g["wind_phi"]
+    if a.gust_phys:
+        assert a.gust, "--gust-phys needs --gust (the METAR-convention law, used when api.GUST_PHYSICAL is off)"
+        gp = np.load(a.gust_phys)
+        for k in ("model_theta", "model_phi", "model_cap", "measured_theta", "measured_phi", "measured_cap", "station"):
+            arrays[f"gust/phys_{k}"] = np.asarray(gp[k], float)
     if a.modep:
         pack(torch.load(a.modep, map_location="cpu", weights_only=True), "modep_", arrays)
         mc = np.load(a.modep.rsplit(".", 1)[0] + ".calib.npz")
@@ -184,12 +236,18 @@ def main():
         mc = np.load(a.modef.rsplit(".", 1)[0] + ".calib.npz")
         for k in mc.files:
             arrays[f"modef_calib/{k}"] = mc[k]
+        if a.modef_ens:
+            pack(torch.load(a.modef_ens, map_location="cpu", weights_only=True), "modefens_", arrays)
+            mc = np.load(a.modef_ens.rsplit(".", 1)[0] + ".calib.npz")
+            for k in mc.files:
+                arrays[f"modefens_calib/{k}"] = mc[k]
         bl = np.load(a.modef_bl)
         for k in bl.files:
             arrays[f"modef_bl/{k}"] = bl[k]
         arrays["modef/coarse"] = np.array(a.modef_coarse)
         rows = [np.load(os.path.join(a.modef_rows, f"{y}.npz")) for y in range(2016, 2021)]       # training years only
-        lead = np.concatenate([r["lead_days"] for r in rows])
+        from tempest.forecast.modeF import lead_bin
+        lead = lead_bin(np.concatenate([r["lead_days"] for r in rows]))                         # F-V2: tested-lead groups (identity for the old whole-day rows; > 7.5 d -> 0, unused)
         err = np.concatenate([(r["obs"] - r["hres"]).reshape(len(r["obs"]), -1) for r in rows])
         rng = np.random.default_rng(0)
         for L in (1, 3, 5, 7):
@@ -218,9 +276,14 @@ def main():
     ds = xr.open_zarr(a.profiles)
     np.savez(os.path.join(a.out, "grid.npz"), lat=ds.lat.values.astype(np.float32), lon=ds.lon.values.astype(np.float32), elev=ds.z_sfc.values.astype(np.float32))
     files = ["model.npz", "indices.npz", "grid.npz"]
+    src = torch.load(a.model, map_location="cpu", weights_only=True)            # 2026-11-10: the years come from the checkpoint and calibration (a fixed "1991-2023" string mislabelled the 2016-21 Denver model)
+    src = src.get("members", [src])[0]
+    ty, vy = src.get("train_years"), src.get("val_years_range")
+    trained_years = (f"{ty[0]}-{ty[1]} (validation {vy[0]}-{vy[1]})" if ty is not None and vy is not None else "unknown (not recorded in the checkpoint)")
+    calibration_fit = (f"up to {int(cal['fit_year'])}, m = {int(cal['m'])}" if "fit_year" in cal.files and "m" in cal.files else "unknown (not recorded in the calibration)")
     manifest = dict(created=datetime.now(timezone.utc).isoformat(timespec="seconds"), area=dict(lat=[float(ds.lat.min()), float(ds.lat.max())], lon=[float(ds.lon.min()), float(ds.lon.max())]),
-                    trained_years="1991-2023 (validation 2021-23)", calibration_fit="2021-2023, m = 199", model_source=os.path.basename(a.model),
-                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), wcalib_included=bool(a.wcalib), post_included=post, modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modef_included=bool(a.modef), gust_included=bool(a.gust), features=meta["cond_names"],
+                    trained_years=trained_years, calibration_fit=calibration_fit, model_source=os.path.basename(a.model),
+                    source_sha256=sha(a.model), calib_sha256=sha(a.calib), head_included=bool(a.head), head_source=(os.path.basename(a.head) if a.head else None), modef_source=(os.path.basename(a.modef) if a.modef else None), wcalib_included=bool(a.wcalib), post_included=post, post_ur5_included=bool(a.post_ur5), modep_sfc_included=bool(a.modep_sfc), modep_sta_included=bool(a.modep_sta), coherence_included=bool(a.coherence), coherence_dist_included=bool(a.coherence_dist), modep_post2022=_has_post2022(a.modep), modef_ridge_included=bool(a.modef and a.modef_ridge), modep_included=bool(a.modep), modep_source=(os.path.basename(a.modep) if a.modep else None), modef_included=bool(a.modef), modef_ens_included=bool(a.modef and a.modef_ens), modef_ens_source=(os.path.basename(a.modef_ens) if a.modef and a.modef_ens else None), gust_included=bool(a.gust), gust_phys_included=bool(a.gust_phys), features=meta["cond_names"],
                     humidity_target=meta["rh_target"], solar_hours=solar_hours, files={f: sha(os.path.join(a.out, f)) for f in files})
     with open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=1)

@@ -6,7 +6,8 @@
 
 `samples` is the dict/npz written by tempest.output.coupled / tempest_weather (arrays with the sample index first). Nothing from flight_sim is imported, so
 the folder stays standalone; the classes are duck-typed to match (world frame (up, east, north) as in flight_sim.utilities.dcm.world_direction).
-Rules (docs/specs/coupled-atmosphere.md 2a): linear interpolation in height; below the first height (10 m above ground) the 10 m value; above the top
+Rules (docs/specs/coupled-atmosphere.md 2a): linear interpolation in height; below 10 m above ground, linear to a pad node at 0 m (wind 0.72 x the 10 m wind,
+vertical wind 0, surface t2m / sp / rh2m; pad_node=False = the old rule: the 10 m value, also used when the surface values are missing); above the top
 height (18 km) wind is held at its top value (the written "blend to zero" would mean calm air at 20 km, which is unphysical, so it is not done) and temperature and
 pressure continue along the US Standard Atmosphere 1976 lapse rates from the top values (no jump). Temperature is interpolated linearly, pressure in log space,
 and density and speed of sound are RECOMPUTED from the interpolated temperature, pressure and humidity, so the four stay consistent between grid heights.
@@ -79,16 +80,34 @@ class _Sample:
 
 
 class TempestWind:
-    """Wind of sample k: velocity(altitude_m) -> [up, east, north] (m/s). Vertical wind only if the samples carry it."""
+    """Wind of sample k: velocity(altitude_m) -> [up, east, north] (m/s). Vertical wind only if the samples carry it.
+    A5 (opt-in, default unchanged): below_10m="loglaw" gives the horizontal wind below the lowest model height (10 m) the log-law shape ln(z / z0) / ln(10 / z0) of the 10 m wind,
+    z0 from `z0_m=` (number or per-sample array), else samples["surface_roughness_m"], else 0.03 m."""
 
-    def __init__(self, samples, k, include_vertical=True, pad_node=True):
+    def __init__(self, samples, k, include_vertical=True, pad_node=True, below_10m="linear", z0_m=None):
+        if below_10m not in ("linear", "loglaw"):
+            raise ValueError("below_10m must be 'linear' (default) or 'loglaw'")
         self.s = _Sample(samples, k, pad_node)
         self.include_vertical = include_vertical
+        self._ll = None
+        if below_10m == "loglaw":
+            h1 = float(np.asarray(samples["height_agl"], float)[0])
+            src = z0_m if z0_m is not None else samples["surface_roughness_m"] if "surface_roughness_m" in samples else None
+            z0 = 0.03 if src is None else float(np.asarray(src, float)) if np.ndim(src) == 0 else float(np.asarray(src, float)[k])
+            if not (np.isfinite(z0) and 0.0 < z0 < h1):
+                raise ValueError(f"surface roughness z0 = {z0} m must be > 0 and below the lowest model height")
+            u, v = np.asarray(samples["u"][k], float), np.asarray(samples["v"][k], float)
+            self._ll = (z0, h1, math.log(h1 / z0), float(u[0]), float(v[0]))
 
     def velocity(self, altitude_m):
         s = self.s
-        z = min(max(altitude_m, s.z[0]), s.z[-1])             # below 10 m above ground: the 10 m value; above the top: held
-        return np.array([float(np.interp(z, s.z, s.w)) if self.include_vertical else 0.0, float(np.interp(z, s.z, s.u)), float(np.interp(z, s.z, s.v))])
+        z = min(max(altitude_m, s.z[0]), s.z[-1])             # below the lowest node (the pad node at 0 m, or 10 m with pad_node=False): that node's value; above the top: held
+        up = float(np.interp(z, s.z, s.w)) if self.include_vertical else 0.0
+        if self._ll is not None and altitude_m - s.site < self._ll[1]:
+            z0, _, den, u1, v1 = self._ll
+            r = math.log(max(altitude_m - s.site, z0) / z0) / den
+            return np.array([up, u1 * r, v1 * r])
+        return np.array([up, float(np.interp(z, s.z, s.u)), float(np.interp(z, s.z, s.v))])
 
 
 class TempestAtmosphere:

@@ -10,7 +10,10 @@
 * F7: `frame` ("une" = up/east/north, the flight_sim world frame; "enu"; "ned"), `units` ("si" or "us": ft, ft/s, degF, inHg, slug/ft3), `reference` ("asl" or "agl" altitude input) and
   `direction` ("to" = velocity of the air, "from" = reversed vector) are applied once, so lookups cost nothing extra.
 * F12: above the top height (18 km, a parameter) `above_top` is "hold" (wind held; T and p continue along the 1976 standard lapse rates, no jump), "decay" (wind falls off with a 5 km scale),
-  "climatology" (standard atmosphere T and p, wind held) or "raise" (AboveTopError). Below the pad node the pad values are held.
+  "climatology" (an alias of "hold", kept for old callers: T and p continue from the top value along the standard lapse rates; a true switch to the
+  standard atmosphere would put a jump at the top, so it is not built; AU-10) or "raise" (AboveTopError). Below the pad node the pad values are held.
+* A5 (opt-in, default unchanged): below_10m="loglaw" gives the horizontal wind below 10 m the log-law shape ln(z / z0) / ln(10 / z0) of the 10 m wind (z0 from `z0_m=`, else the
+  samples' surface_roughness_m, else 0.03 m; e.g. z0_m=Launch.z0()). The default "linear" keeps the straight line to the pad node (0.72 x the 10 m wind at 0 m).
 * F3: the sample schema is height_agl (44,), height_asl (44,), elevation_m, u, v, T, RH, p (N, 44), optional w, t2m, sp, rh2m (N,). `to_samples` of the engine and `atmosphere_set` outputs
   are accepted (see `normalise_samples`, which adds the missing height keys).
 Stdlib + numpy only. Nothing from the flight simulator is imported; the classes are duck-typed to its interfaces.
@@ -61,6 +64,16 @@ def normalise_samples(samples, elevation_m=None):
             raise KeyError(f"samples need {k}")
     s.setdefault("w", None)
     return s
+
+
+def _sample_z0(s, k, z0_m=None):
+    """Roughness length (m) of row k for below_10m="loglaw": z0_m (a number or per-row array) if given, else samples["surface_roughness_m"][k], else 0.03 (Launch's fallback).
+    Launch.z0() gives the launch's median roughness."""
+    src = z0_m if z0_m is not None else s.get("surface_roughness_m")
+    z0 = 0.03 if src is None else float(np.asarray(src, float)) if np.ndim(src) == 0 else float(np.asarray(src, float)[k])
+    if not (np.isfinite(z0) and 0.0 < z0 < float(s["height_agl"][0])):
+        raise ValueError(f"surface roughness z0 = {z0} m must be > 0 and below the lowest model height")
+    return z0
 
 
 def _lapse(h):
@@ -163,7 +176,9 @@ class Atmosphere:
     """Row k of a sample set as wind and air lookups (see the module docstring)."""
 
     def __init__(self, samples, k, *, frame="une", units="si", reference="asl", direction="to", above_top="hold", pad_node=True, pad_wind_factor=0.72,
-                 decay_scale_m=5000.0, elevation_m=None, launch_time=None, index=None, air="model", delta_t_k=0.0, perturbation=None):
+                 decay_scale_m=5000.0, elevation_m=None, launch_time=None, index=None, air="model", delta_t_k=0.0, perturbation=None, below_10m="linear", z0_m=None):
+        if below_10m not in ("linear", "loglaw"):
+            raise ValueError("below_10m must be 'linear' (default: straight line to the pad node) or 'loglaw'")
         if frame not in _FRAMES:
             raise ValueError(f"frame must be one of {sorted(_FRAMES)}, not {frame!r}")
         if units not in ("si", "us"):
@@ -176,6 +191,8 @@ class Atmosphere:
             raise ValueError(f"above_top must be one of {_POLICIES}, not {above_top!r}")
         if air not in ("model", "standard"):
             raise ValueError("air must be 'model' (Tempest's air) or 'standard' (1976 standard atmosphere at the pad elevation; the wind stays Tempest's)")
+        self._ctor = (samples, k, dict(frame=frame, units=units, reference=reference, direction=direction, above_top=above_top, pad_node=pad_node, pad_wind_factor=pad_wind_factor, decay_scale_m=decay_scale_m,
+                                       elevation_m=elevation_m, launch_time=launch_time, index=index, air=air, delta_t_k=delta_t_k, below_10m=below_10m, z0_m=z0_m))       # M2: lets `perturbed` rebuild the reader
         s = standard_air_samples(samples, elevation_m, delta_t_k) if air == "standard" else normalise_samples(samples, elevation_m)
         self.air_source = air
         self.elevation_m = s["elevation_m"]
@@ -189,11 +206,23 @@ class Atmosphere:
                 if perturbation.get(key) is not None:
                     add = np.interp(g, pz, np.asarray(perturbation[key], float), left=0.0, right=0.0).astype(np.float32)
                     setattr(self._t, name, getattr(self._t, name) + add)
+        self._ll = None
+        if below_10m == "loglaw":
+            # A5 (opt-in): horizontal wind below the lowest model height h1 (10 m) = the h1 wind x ln(z / z0) / ln(h1 / z0), zero at and below z0; w, T, p, RH keep the default rule
+            h1 = float(s["height_agl"][0])
+            z0 = _sample_z0(s, k, z0_m)
+            i1 = int(round((h1 - self._t.z0) / GRID_M))
+            self._ll = (z0, h1, math.log(h1 / z0), float(self._t.u[i1]), float(self._t.v[i1]))
         a, b, c, signs = _FRAMES[frame]
         self._perm, self._sign = (a, b, c), np.asarray(signs, np.float32) * (-1.0 if direction == "from" else 1.0)
         self._ft = units == "us"
         self._n = len(self._t.u)
         self._sgn = tuple(float(x) for x in self._sign)
+
+    def perturbed(self, perturbation):
+        """A copy of this reader with a frozen wind perturbation (dict z, east, north, up; see `perturbation=`) added to the wind tables; used by the harness for the wind-persistence increment."""
+        samples, k, kw = self._ctor
+        return Atmosphere(samples, k, perturbation=perturbation, **kw)
 
     # ---- coordinate handling
     def _agl(self, alt):
@@ -232,6 +261,10 @@ class Atmosphere:
                 i, f = self._n - 2, 1.0
         L = t.lists()
         g = lambda arr: arr[i] + (arr[i + 1] - arr[i]) * f
+        if self._ll is not None and z < self._ll[1]:
+            z0, _, den, u1, v1 = self._ll
+            r = math.log(max(z, z0) / z0) / den
+            return g(L[2]), u1 * r, v1 * r, g(L[3]), math.exp(g(L[4])), g(L[5]), g(L[6])
         return g(L[2]), g(L[0]), g(L[1]), g(L[3]), math.exp(g(L[4])), g(L[5]), g(L[6])
 
     # ---- wind
@@ -241,6 +274,11 @@ class Atmosphere:
         pos = self._pos(z)
         t = self._t
         up, e, n = self._interp(t.w, pos), self._interp(t.u, pos), self._interp(t.v, pos)
+        if self._ll is not None:
+            z0, h1, den, u1, v1 = self._ll
+            r = (np.log(np.maximum(z, z0) / z0) / den).astype(np.float32)
+            low = z < h1
+            e, n = np.where(low, u1 * r, e), np.where(low, v1 * r, n)
         vec = np.stack([up, e, n], -1)
         if self.above_top == "decay":
             over = np.maximum(z - t.g_top, 0.0)
@@ -328,6 +366,10 @@ class Atmosphere:
                 if i >= self._n - 1:
                     i, f = self._n - 2, 1.0
             L = t.lists()
+            if self._ll is not None and z < self._ll[1]:
+                z0, _, den, u1, v1 = self._ll
+                r = math.log(max(z, z0) / z0) / den
+                return np.array((L[2][i] + (L[2][i + 1] - L[2][i]) * f, u1 * r, v1 * r))
             return np.array((L[2][i] + (L[2][i + 1] - L[2][i]) * f, L[0][i] + (L[0][i + 1] - L[0][i]) * f, L[1][i] + (L[1][i + 1] - L[1][i]) * f))
         saved = (self._ft, self.reference, self._perm, self._sign)
         self._ft, self.reference, self._perm, self._sign = False, "asl", (0, 1, 2), np.ones(3, np.float32)
@@ -345,6 +387,24 @@ class Atmosphere:
             return self
         raise ValueError(f"launch altitude {launch_altitude_m:.1f} m differs from the atmosphere's site elevation {self.elevation_m:.1f} m by more than {tolerance_m} m; "
                          "give the pad elevation when you generate the atmosphere, or anchor(..., on_mismatch='shift')")
+
+    def rocketpy_inputs(self, step_m=100.0, reference="asl"):
+        """M17: this one coherent atmosphere as the inputs of RocketPy's custom atmosphere (SI, heights above sea level): dict(pressure, temperature, wind_u, wind_v), each a list of (altitude_m, value) pairs
+        with wind_u east and wind_v north. Use one per run so the wind, temperature and pressure of a run come from the same sampled day (RocketPy's own dispersion samples its inputs independently):
+            env.set_atmospheric_model(type="custom_atmosphere", **atm.rocketpy_inputs())     # env = rocketpy.Environment(...) with the pad's latitude / longitude / elevation"""
+        saved = (self._ft, self.reference, self._perm, self._sign)
+        self._ft, self.reference, self._perm, self._sign = False, "asl", (0, 1, 2), np.ones(3, np.float32)
+        try:
+            alts = np.arange(self.elevation_m, self._t.g_top + self.elevation_m + 0.1, step_m)
+            T, p, _, _ = self.air_many(alts).T
+            vec = self.wind_many(alts)
+        finally:
+            self._ft, self.reference, self._perm, self._sign = saved
+        off = 0.0 if reference == "asl" else self.elevation_m if reference == "agl" else None
+        if off is None:
+            raise ValueError("reference must be 'asl' (heights above sea level) or 'agl' (above the pad): the RocketPy docs say only 'height in meters', so check once which your Environment expects")
+        pair = lambda v: [(float(z) - off, float(x)) for z, x in zip(alts, v)]
+        return dict(pressure=pair(p), temperature=pair(T), wind_u=pair(vec[:, 1]), wind_v=pair(vec[:, 2]))
 
     def to_openrocket_csv(self, path, step_m=100.0):
         """Tabular atmosphere for OpenRocket (spec 4): altitude_m, temp_K, pressure_Pa, wind_speed_ms, wind_from_deg (heights above sea level)."""
