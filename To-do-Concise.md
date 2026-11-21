@@ -2,7 +2,7 @@
 
 [x] **FINAL TEST 2026H2 = MISS** (run 2, AUTOPILOT 680): skill15 +0.029, same rows 0.0002 below p2f (rule a), balloons +0.027, cov90 0.904; run 1 (pipeline mistakes) kept as *_run1.
 
-[~] **28.6 GLOBAL-STAGE SETUP** (no G1-G6 training): G0: [x] holdout loader guard tempest/geo/holdout.py + tests/test_global_g0.py (G-stage loaders must call check()) [x] SH pole test [ ] statics.py [ ] clim.py harmonic fitter [ ] below-ground masks [ ] int16 tail check [ ] X4-R distance cutoff; [ ] bundle list [ ] launch scripts [ ] README [ ] results-return format
+[~] **28.6 GLOBAL-STAGE SETUP** (no G1-G6 training): G0: [x] holdout loader guard tempest/geo/holdout.py + tests/test_global_g0.py (G-stage loaders must call check()) [x] SH pole test [x] statics.py (no Koppen: shortcut, needs precip) [ ] clim.py harmonic fitter [ ] below-ground masks [ ] int16 tail check [ ] X4-R distance cutoff; [ ] bundle list [ ] launch scripts [ ] README [ ] results-return format
 
 [x] **28.5 FREEZE DONE 2026-11-21 02:31 (New_Plan 28.14, AUTOPILOT 678)**: tempest_weather/assets_final_2026h2 (X4-R e + ENSF2 + WD1 ur5 on the shipped stack), freeze_diff OK (only planned swaps; ridge W float32 rounding), hashes in data/freeze_2026h2.log, final_test_2026h2.sh repointed + DRY_RUN ok, pass rule pre-set. [ ] NEXT: report to user, then the one-time final 2026 test (go given), then further tests + G0 prep. [ ] Swap assets -> assets_final_2026h2 in the shipped tool = user decision.
 

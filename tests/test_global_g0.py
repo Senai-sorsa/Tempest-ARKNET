@@ -26,3 +26,14 @@ def test_holdout_refuses_places_and_window(monkeypatch):
 def test_sh_finite_at_poles():
     y = sh(np.array([90.0, -90.0, 90.0]), np.array([0.0, 0.0, 123.0]), 10)
     assert np.isfinite(y).all() and np.allclose(y[0], y[2])            # the pole value does not depend on longitude
+
+
+def test_statics_sane():
+    import os
+    from tempest.geo import statics
+    if not os.path.exists(statics.INV):
+        pytest.skip("ERA5 invariants not on disk")
+    s = statics.statics([27.99, 0.0, 39.74, 39.74], [86.93, -30.0, -104.99, -104.99 + 360])  # Everest, mid-Atlantic, Denver twice
+    assert s["oro_m"][0] > 4000 and s["lsm"][1] == 0 and s["coast_km"][1] < -500 < 0 < s["coast_km"][2]
+    assert all(np.allclose(v[2], v[3]) for v in s.values())             # longitude wrap
+    assert all(np.isfinite(v).all() for v in s.values())
