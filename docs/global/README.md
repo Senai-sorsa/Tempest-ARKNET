@@ -6,6 +6,7 @@ Copying the data and submitting jobs are done by hand (not automated). **G6, the
 ## Setup (once)
 ```
 tar -xf tempest_g_bundle.tar && cd <bundle root>
+sed -i 's/\r$//' scripts/global/*.sh scripts/*.sh && chmod +x scripts/global/*.sh   # packed on Windows: strip CRLF
 uv sync && . .venv/bin/activate     # Python >= 3.12, pinned by uv.lock; torch 2.11 from the cu128 index (pyproject.toml).
                                      # If the cluster's CUDA driver is older than 12.8, install the matching torch wheel by hand.
 python -m pytest tests/test_global_g0.py -q                          # 4 passed (statics needs data/raw/era5_static)
