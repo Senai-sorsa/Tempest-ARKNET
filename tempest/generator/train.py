@@ -77,7 +77,8 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 sig_weight=0.0, sig_stride=1,     # GX1: energy score on depth-2 height-path signatures
                 model_kw_extra=None,        # GT2 / s25 archs: extra keyword arguments for the network (e.g. {d = 96} for the token model)
                 s25=None,                   # s25 arch options (flow / rml / har / moe / eof / prior / analog / refine), see s25_models.prepare
-                distill_teacher=None, distill_m=8, distill_data_weight=0.0)   # MF1: energy distance to this teacher checkpoint's samples
+                distill_teacher=None, distill_m=8, distill_data_weight=0.0,
+                balance_groups=False)       # G2 (GLOBAL_PLAN 3.2): draw each batch row from a uniformly chosen group (dataset row_group: box / point / climate zone), then a row inside it; False = plain uniform rows   # MF1: energy distance to this teacher checkpoint's samples
            # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
@@ -153,8 +154,9 @@ def split(year, cond, names, cfg):
     return tr, val
 
 
-def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=None, members=1, fill_top_idx=None):
+def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=None, members=1, fill_top_idx=None, groups=None):
     """-> one checkpoint, or dict(members=[...]) when members > 1 (member k uses seed + k).
+    groups (N,) int: row group ids for cfg balance_groups (dataset array row_group).
     fill_top_idx (N, 4) int8: with cfg fill_mask, the highest real height per row and variable (dataset array of the same name)."""
     cfg = {**DEFAULTS, **(cfg or {})}
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -423,6 +425,15 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     if cfg["distill_teacher"]:                       # MF1: the student matches the teacher's samples; both must share one normalisation
         from tempest.generator import s25_models
         teacher = s25_models.load_teacher(cfg["distill_teacher"], norm, device)
+    gperm = None
+    if cfg["balance_groups"]:
+        if groups is None:
+            raise ValueError("balance_groups needs the dataset's row_group array")
+        gtr = np.asarray(groups)[tr_idx]
+        o = np.argsort(gtr, kind="stable")
+        _, st, ct = np.unique(gtr[o], return_index=True, return_counts=True)
+        gperm, gstart, gcnt = (torch.from_numpy(np.asarray(x, np.int64)).to(device) for x in (o, st, ct))
+        log(f"balance_groups: {len(ct)} groups, {ct.min():,} to {ct.max():,} training rows each")
     t0 = time.time()
     for step in range(1, cfg["steps"] + 1):
         for k, M in enumerate(mem):
@@ -430,7 +441,12 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                 continue
             model = M["model"]
             model.train()
-            idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
+            if gperm is None:
+                idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
+            else:                                    # balance_groups: a uniform group, then a uniform row of it
+                gi = torch.randint(0, len(gcnt), (cfg["batch"],), device=device, generator=M["g"])
+                r = torch.rand(cfg["batch"], device=device, generator=M["g"])
+                idx = gperm[gstart[gi] + (r * gcnt[gi]).long().clamp_max(gcnt[gi] - 1)]
             c, t = Xc[idx].float(), Xt[idx].float()
             if getattr(model, "own_loss", False):    # New_Plan 25 archs with their own training objective (flow matching, RML chain, EOF split)
                 loss = model.train_loss(c, t, dict(score=score, phys_std=phys_std, cfg=cfg, top=None if Xf is None else Xf[idx], gpu=gpu))
@@ -513,11 +529,16 @@ def main():
     ap.add_argument("--hour-cycle", type=int, default=1,
                     help="data-needs test: keep 1 of every N hours, shifted by one hour each day (all hours still seen; "
                          "N=16 on the 06-21 h pilot = one hour per day, the global plan's diurnal-cycled store)")
+    ap.add_argument("--exclude-group", type=int, action="append", default=[],
+                    help="G2 LOBO / G4 LOCO: drop rows of this row_group id (repeatable); needs a dataset with row_group")
     a = ap.parse_args()
     with open(a.config, "rb") as f:
         cfg = tomllib.load(f)
     d = load_npz(a.data)
     m = (d["year"] <= (a.max_year or 9999)) & (d["year"] >= (a.min_year or 0))
+    if a.exclude_group:
+        m &= ~np.isin(np.asarray(d["row_group"]), a.exclude_group)
+        print(f"excluding groups {a.exclude_group} -> {m.sum()} of {len(m)} rows", flush=True)
     if a.point_stride > 1 or a.hour_cycle > 1:
         n = [str(x) for x in d["cond_names"]]
         c = lambda k: np.asarray(d["cond"][:, n.index(k)], dtype=np.float64)
@@ -536,7 +557,8 @@ def main():
         meta["rh_target"] = str(d["rh_target"])
     t0 = time.time()
     train(cond, target, np.asarray(year), cfg, out=a.out, meta=meta, members=int(cfg.pop("members", 1)),
-          fill_top_idx=d["fill_top_idx"][keep] if cfg.get("fill_mask") and "fill_top_idx" in d else None)
+          fill_top_idx=d["fill_top_idx"][keep] if cfg.get("fill_mask") and "fill_top_idx" in d else None,
+          groups=np.asarray(d["row_group"][keep]) if cfg.get("balance_groups") else None)
     print(f"trained in {(time.time() - t0) / 60:.1f} min", flush=True)
 
 

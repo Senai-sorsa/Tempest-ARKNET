@@ -26,9 +26,10 @@ def drivers() -> list[str]:
     return [k for k in DRIVER_NAMES if k in FEATURES]
 
 
-def features(lat, lon, elev_site, elev_grid, doy, solar_hour, year, oni, wwv, qbo30, qbo50, gmst=None, oni_lag3=None) -> np.ndarray:
+def features(lat, lon, elev_site, elev_grid, doy, solar_hour, year, oni, wwv, qbo30, qbo50, gmst=None, oni_lag3=None, **extra) -> np.ndarray:
     """All arguments broadcast to N rows -> (N, len(FEATURES)) float32. Drivers are drawn per sample by the caller.
-    gmst and oni_lag3 are only needed when the active list asks for them.
+    gmst and oni_lag3 are only needed when the active list asks for them. extra: more named columns (G stages:
+    statics such as oro_m / sdor, ztrop_clim), used only when the active list names them.
     shortcut: ERA5 training rows have elev_site == elev_grid, so the model never saw them differ; pass
     elev_site = elev_grid at query time until training uses station-corrected targets (phase 6)."""
     a = 2 * np.pi * np.asarray(doy, float) / 365.25
@@ -40,6 +41,7 @@ def features(lat, lon, elev_site, elev_grid, doy, solar_hour, year, oni, wwv, qb
         cols["gmst"] = gmst
     if oni_lag3 is not None:
         cols["oni_lag3"] = oni_lag3
+    cols.update(extra)
     missing = [k for k in FEATURES if k not in cols]
     if missing:
         raise ValueError(f"features {missing} are active but were not given (pass gmst= / oni_lag3=)")

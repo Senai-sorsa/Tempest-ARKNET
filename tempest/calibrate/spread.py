@@ -107,6 +107,8 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--drawn-drivers", action="store_true", help="fit on samples whose ENSO/QBO/solar inputs are copied "
                     "from earlier years' rows of the same place/month/hour group, as score's 'unknown' set and the tool use")
+    ap.add_argument("--exclude-group", type=int, action="append", default=[],
+                    help="G2 leave-one-box-out: never fit on rows of these row_group ids (concat_npz.py --group)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
     torch.manual_seed(a.seed)  # the generator draws its noise with torch; unseeded, reruns differ by ~0.001 skill
@@ -115,7 +117,10 @@ def main():
     d = load_npz(a.data)
     year = d["year"]
     fy = a.year or int(year.max()) - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1
-    rows = np.sort(rng.choice(np.flatnonzero((year >= (a.from_year or fy)) & (year <= fy)), a.rows, replace=False))
+    pool = (year >= (a.from_year or fy)) & (year <= fy)
+    if a.exclude_group:
+        pool &= ~np.isin(np.asarray(d["row_group"]), a.exclude_group)
+    rows = np.sort(rng.choice(np.flatnonzero(pool), a.rows, replace=False))
     truth = to_physical(np.asarray(d["target"][rows]))
     cond = d["cond"]
     if a.drawn_drivers:

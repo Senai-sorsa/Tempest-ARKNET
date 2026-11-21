@@ -448,7 +448,9 @@ def main():
             tw = lambda ens: crps_ensemble(np.maximum(ens, t_)[..., None], np.maximum(ft[k_], t_)[:, None])[:, 0].mean()
             m_, c_ = tw(fx[k_]), tw(fc[k_])
             trow.append(dict(field=k_, threshold=t_, twcrps_model=m_, twcrps_clim=c_, tw_skill=1 - m_ / c_ if c_ > 0 else np.nan,
-                             exceed_truth=float((ft[k_] > t_).mean()), exceed_model=float((fx[k_] > t_).mean())))
+                             exceed_truth=float((ft[k_] > t_).mean()), exceed_model=float((fx[k_] > t_).mean()),
+                             q99_truth=float(np.quantile(ft[k_], 0.99)), q99_model=float(np.quantile(fx[k_], 0.99)),          # G2-G4 shear gates (GLOBAL_PLAN): tail quantiles of model vs truth
+                             q999_truth=float(np.quantile(ft[k_], 0.999)), q999_model=float(np.quantile(fx[k_], 0.999))))
         pd.DataFrame(trow).to_csv(stem + "_tail.csv", index=False)
         print(pd.DataFrame(trow).round(4).to_string(index=False), flush=True)
     if a.mc:

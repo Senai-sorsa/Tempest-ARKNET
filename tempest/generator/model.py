@@ -193,9 +193,10 @@ class Generator(nn.Module):
             nn.init.zeros_(self.slope[-1].weight)  # start with no effect; training adds what the data supports
             nn.init.zeros_(self.slope[-1].bias)
 
-    def forward(self, cond: torch.Tensor, m: int = 1, eps: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, cond: torch.Tensor, m: int = 1, eps: torch.Tensor | None = None, chi: torch.Tensor | None = None) -> torch.Tensor:
         """cond (B, F) normalised -> m samples per row, (B, m, n_out) normalised. eps (B * m, noise_dim) overrides the Gaussian
-        noise draw (L3-37 quasi-random sampling, sample.sobol_normal); None = the usual torch.randn."""
+        noise draw (L3-37 quasi-random sampling, sample.sobol_normal); None = the usual torch.randn. chi (B * m, dims) overrides
+        the Student-t Chi2(nu) draw of noise_t models (G5 ONNX export: no random ops in the graph); None = drawn here."""
         full = slope_in = cond
         g = self._geo(full) if self.geo else None
         place = ([full[:, self.context_cols]] if self.context_cols else []) + ([g] if g is not None else [])
@@ -213,7 +214,10 @@ class Generator(nn.Module):
             eps = eps.to(device=cond.device, dtype=cond.dtype).view(*c.shape[:2], self.noise_dim)
         if self.noise_t:
             d, nu = int(self.noise_t["dims"]), float(self.noise_t["nu"])
-            chi = torch.distributions.Chi2(torch.tensor(nu, device=cond.device)).sample((*c.shape[:2], d)).to(eps.dtype)
+            if chi is None:
+                chi = torch.distributions.Chi2(torch.tensor(nu, device=cond.device)).sample((*c.shape[:2], d)).to(eps.dtype)
+            else:
+                chi = chi.to(device=cond.device, dtype=eps.dtype).view(*c.shape[:2], d)
             # clamp: chi near 0 gives unbounded draws that, through the tail head, blew T up to inf/NaN (L3-26); |t| > 8 has p ~ 1e-4 at nu = 4
             lim = float(self.noise_t.get("clip", 8.0))                # L3-30: clip 3 tested to tame shear overshoot (not `c`: that is the cond tensor)
             t = (eps[..., :d] / torch.sqrt(chi / nu) * math.sqrt((nu - 2) / nu)).clamp(-lim, lim)
@@ -246,7 +250,7 @@ class Generator(nn.Module):
         if self.linear_cols:
             if self.product_pairs:
                 x = torch.cat([x, torch.stack([x[:, a] * x[:, b] for a, b in self.product_pairs], 1)], 1)
-            s = self.slope(slope_in).view(len(cond), x.shape[1], -1)
+            s = self.slope(slope_in).view(cond.shape[0], x.shape[1], -1)              # shape[0], not len(): stays dynamic in an ONNX trace
             out = out + torch.einsum("bk,bkd->bd", x, s).unsqueeze(1)
         if self.anom:
             out = self._anom(full, out)
