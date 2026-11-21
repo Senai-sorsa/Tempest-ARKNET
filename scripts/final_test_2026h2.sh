@@ -10,9 +10,13 @@
 # paired current-vs-previous comparison.
 # Scored: (1) the CURRENT tool model (l3_c4w + calibration + shuffle c8 + shear map + lapse map, the bundled assets since 2026-11-10), (2) the PREVIOUS tool model
 # (generator_80_p2f + calibration + shuffle c8 + shear map, the bundle before), each with the 15-year climatology and the Gaussian (Earth-GRAM-style) baseline in the same headline,
+# 2026-11-21 FREEZE REPOINT (New_Plan 28.5, user go 2026-11-21): the CURRENT model is now the frozen final stack, models/s25/c4wx4r_s0 (shipped l3_c4w weights + X4-R table,
+# variant e, k 3) with its own refits (calib2021 = spread fit 2021-23, _smap_cell8, _lmap_cell8), checked against tempest_weather/assets_final_2026h2/manifest.json. Same recipe rows
+# (D21 / D) and the same PREVIOUS model as before. Tool-only parts are not in the scorers: AV35 aloft map (checked on balloons by b88), WD1 ur5 (sequences only), NOW2, O3, AV13.
+# DRY_RUN=1 bash scripts/final_test_2026h2.sh = every guard and file check, then prints the scoring plan; no data build, no lock, no scoring.
 # on ERA5-type targets of July-October 2026 (5,000 random held-out rows, the scorer default used by every development score and the first final test; more rows do not fit in RAM: N x 199 x 179 floats per array) and on the July-October 2026 balloons of Santa Teresa and Midland (balloon scorer: no lapse-map option, so both models without it).
 cd /c/Users/Senai/Tempest-ARKNET || exit 1
-[ "$CONFIRM_FINAL" = "yes" ] || { echo "set CONFIRM_FINAL=yes to run the one-time 2026 July-October final test"; exit 2; }
+[ "$CONFIRM_FINAL" = "yes" ] || [ "$DRY_RUN" = "1" ] || { echo "set CONFIRM_FINAL=yes to run the one-time 2026 July-October final test"; exit 2; }
 [ -f data/FINAL_TEST_2026H2_DONE ] && { echo "the 2026 July-October final test was already run: $(cat data/FINAL_TEST_2026H2_DONE)"; exit 3; }
 for m in 202607 202608 202609 202610; do for k in pl1 pl2 pl3 sfc; do [ -f data/raw/era5_2026h2/${k}_$m.grib ] || { echo "missing data/raw/era5_2026h2/${k}_$m.grib"; exit 4; }; done; done
 . scripts/cap_cpu.sh
@@ -20,10 +24,24 @@ PY=.venv/Scripts/python; export PYTHONPATH=.
 OUT=docs/final_test_2026h2; mkdir -p $OUT
 PROF=data/pilot/profiles_2026h2.zarr PART=data/train/final_2026h2_part.npz D=data/train/final_2026h2_dpd.npz IND=data/raw/indices_2026h2
 PART21=data/train/final_2026h2_l21_part.npz D21=data/train/final_2026h2_l21_dpd.npz
-N=models/l3_c4w P=models/generator_80_p2f
-want=$($PY -c "import json; print(json.load(open('tempest_weather/assets/manifest.json', encoding='utf-8'))['source_sha256'])")
-[ "$(sha256sum $N.pt | cut -d' ' -f1)" = "$want" ] || { echo "$N.pt is not the model the NM/TX tool ships (manifest source_sha256 $want): fix N before the one-time test"; exit 6; }
-for f in $N.calib2021.npz $N.shearmap2021_cell8.npz $N.lapsemap2021.npz $P.calib2021.npz $P.shearmap2021_cell8.npz data/train/pilot80_l21_day_dpd.npz; do [ -f $f ] || { echo "missing $f"; exit 6; }; done
+N=models/s25/c4wx4r_s0 P=models/generator_80_p2f
+NSM=${N}_smap_cell8.npz NLM=${N}_lmap_cell8.npz PSM=$P.shearmap2021_cell8.npz
+FROZEN=tempest_weather/assets_final_2026h2/manifest.json
+[ -f $FROZEN ] || { echo "missing $FROZEN: run the 28.5 freeze (scripts/freeze_2026h2.sh) first"; exit 6; }
+want=$($PY -c "import json; print(json.load(open('$FROZEN', encoding='utf-8'))['source_sha256'])")
+[ "$(sha256sum $N.pt | cut -d' ' -f1)" = "$want" ] || { echo "$N.pt is not the frozen final model (manifest source_sha256 $want)"; exit 6; }
+wantc=$($PY -c "import json; print(json.load(open('$FROZEN', encoding='utf-8'))['calib_sha256'])")
+[ "$(sha256sum $N.calib2021.npz | cut -d' ' -f1)" = "$wantc" ] || { echo "$N.calib2021.npz is not the frozen calibration (manifest calib_sha256 $wantc)"; exit 6; }
+$PY - "$N.calib2021.npz" <<'PYEOF' || { echo "calibration fitted on 2026 data"; exit 6; }
+import sys, numpy as np
+c = np.load(sys.argv[1]); assert "fit_year" in c.files and int(c["fit_year"]) < 2026, "fit_year"
+PYEOF
+for f in $N.calib2021.npz $NSM $NLM $P.calib2021.npz $PSM data/train/pilot80_l21_day_dpd.npz data/train/pilot80_dpd.npz; do [ -f $f ] || { echo "missing $f"; exit 6; }; done
+if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY RUN ok: guards passed (16 GRIBs, frozen model + calibration sha, calibration fit year < 2026, all inputs present); lock $( [ -f data/FINAL_TEST_2026H2_DONE ] && echo PRESENT || echo absent )"
+  echo "would score: CURRENT $N (calib $N.calib2021.npz, shuffle c8, $NSM, $NLM) on $D21 and $D; PREVIOUS $P ($P.calib2021.npz, shuffle c8, $PSM) on $D; sondes both; then compare_headline"
+  exit 0
+fi
 # --- data (before the lock: rebuilding them is not a test) ---
 [ -d data/raw/era5_em_2026h2/sp.zarr ] || $PY -W ignore scripts/convert_2026h2.py > $OUT/convert.log 2>&1 || { echo "FAILED convert"; exit 5; }
 if [ ! -d $IND ]; then
@@ -74,14 +92,14 @@ fi
 echo "started $(date '+%F %T')" > data/FINAL_TEST_2026H2_DONE
 cp $N.pt models/ft26_c4w.pt; cp $N.pt models/ft26_c4wp.pt; cp $P.pt models/ft26_p2f.pt
 $PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4w.pt --data $D21 --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $N.calib2021.npz \
-  --shuffle --template-cell 8 --shear-map $N.shearmap2021_cell8.npz --lapse-map $N.lapsemap2021.npz > $OUT/era5_c4w.log 2>&1
+  --shuffle --template-cell 8 --shear-map $NSM --lapse-map $NLM > $OUT/era5_c4w.log 2>&1
 $PY -W ignore -u -m tempest.scoring.score --model models/ft26_c4wp.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --calib $N.calib2021.npz \
-  --shuffle --template-cell 8 --shear-map $N.shearmap2021_cell8.npz --lapse-map $N.lapsemap2021.npz > $OUT/era5_c4w_samerows.log 2>&1
+  --shuffle --template-cell 8 --shear-map $NSM --lapse-map $NLM > $OUT/era5_c4w_samerows.log 2>&1
 $PY -W ignore -u -m tempest.scoring.score --model models/ft26_p2f.pt --data $D --m 199 --first-test-year 2026 --last-test-year 2026 --mc --extras --calib $P.calib2021.npz \
-  --shuffle --template-cell 8 --shear-map $P.shearmap2021_cell8.npz > $OUT/era5_p2f.log 2>&1
-for X in c4w p2f; do M=$([ $X = c4w ] && echo $N || echo $P)
+  --shuffle --template-cell 8 --shear-map $PSM > $OUT/era5_p2f.log 2>&1
+for X in c4w p2f; do M=$([ $X = c4w ] && echo $N || echo $P); SM=$([ $X = c4w ] && echo $NSM || echo $PSM)
   $PY -W ignore -u -m tempest.scoring.sonde --model models/ft26_$X.pt --data $D --profiles data/pilot/profiles80.zarr --igra data/raw/igra_2026 --m 199 --first-test-year 2026 --last-test-year 2026 \
-    --first-test-month 7 --calib $M.calib2021.npz --shear-map $M.shearmap2021_cell8.npz --extras > $OUT/sonde_$X.log 2>&1
+    --first-test-month 7 --calib $M.calib2021.npz --shear-map $SM --extras > $OUT/sonde_$X.log 2>&1
 done
 echo "finished $(date '+%F %T')" >> data/FINAL_TEST_2026H2_DONE
 mkdir -p $OUT/headlines; cp models/ft26_*headline.csv $OUT/headlines/ 2>/dev/null
