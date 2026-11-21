@@ -78,8 +78,9 @@ def _post_process(A, x, doy, sh, pts=None, grid=None):
         x = _core.seasonal_apply(post["seasonal"], x, np.full(len(x), month + 1))
     if "rank" in post and pts is not None:                           # templates per block of grid points (IL-95): each range-map block comes from one point, so it gets its block's ranks
         ncol = -(-len(np.unique(np.round(grid["lon"], 3))) // post["cell"])   # longitudes per grid row (29 for NM/TX)
-        lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / 0.25).astype(int) // post["cell"]
-        lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / 0.25).astype(int) // post["cell"]
+        step = float(np.diff(np.unique(np.round(grid["lat"], 4))).min())     # the grid's own spacing (0.25 deg in every shipped set; was hard-coded)
+        lat_i = np.rint((grid["lat"][pts] - grid["lat"].min()) / step).astype(int) // post["cell"]
+        lon_i = np.rint((grid["lon"][pts] - grid["lon"].min()) / step).astype(int) // post["cell"]
         r = post["rank"][lat_i * ncol + lon_i, month * 12 + hb]               # (groups, 199, 179)
         if "rank_extra" in post:                                         # G3: a different template draw for each block (set g mod K), so a pool > 199 does not repeat one copula
             K = 1 + len(post["rank_extra"])
@@ -239,6 +240,16 @@ def _gust_physical(law, cap, ws, doy, hour, station):
     X = np.stack([np.ones_like(w), w, w ** 2 / 10.0, np.full_like(w, np.sin(a)), np.full_like(w, np.cos(a)), np.full_like(w, np.sin(h)), np.full_like(w, np.cos(h)), np.full_like(w, station)], 1)
     k = np.where(w > 0, ws0 / np.maximum(w, 1e-9), 1.0)
     return (X @ np.asarray(law["theta"])) * k, np.exp(np.clip(X @ np.asarray(law["phi"]), -6, 4)) * k
+
+
+def _hour_utc(t):
+    """The nearest whole UTC hour (the bias state is kept per hour; t.hour truncated 10:50 to 10)."""
+    return int(round(t.hour + t.minute / 60.0)) % 24
+
+
+def _sub_seed(x):
+    """Seed offset of a time offset / distance: int(x) as before for whole numbers; fractional values get their own (0.5 h shared the seed of 0 h)."""
+    return int(x) if float(x).is_integer() else 1_000_000 + int(round(float(x) * 3600.0))
 
 
 def _gust_params(g, ws, doy, hour, station=0.0):
@@ -429,7 +440,7 @@ def _forecast_phys(A, lat, lon, p, z_sfc, t_utc, lead, n, rng, fetch, predicted,
         flag.append(f"forecast-surface-values-moved-from-source-height:{float(doc['elevation']):.0f}m")
     state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
     if state is not None:                                          # IL-98 item B: the live feed's recent surface bias at this site (EWMA, gated), subtracted before the profile is built
-        dT, dW = _bias.apply_to_fields(fields, state, lead, t_utc.hour)
+        dT, dW = _bias.apply_to_fields(fields, state, lead, _hour_utc(t_utc))
         if dT or dW:
             flag.append(f"surface-bias-corrected:dT={dT:+.2f}K,dWS={dW:+.2f}m/s(state-through-{state['updated']})")
     prof = forecast.forecast_profile(fields, z_sfc, A["modef_bl"])
@@ -546,10 +557,10 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
             phys, fprof, fflags = _forecast_phys(A, lat, lon, p, elev_grid, t_utc, lead, n, rng, fetch, predicted, bias_dir, ens_features)
             state = _bias.find(bias_dir or os.environ.get("TEMPEST_BIAS_DIR"), lat, lon)
             if state is not None and not predicted:                      # IL-101: widen the lowest wind levels to the observed forecast-error spread at the site
-                k0 = _bias.widen_wind(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)
+                k0 = _bias.widen_wind(phys, state, lead, _hour_utc(t_utc), _core.NH, heights=_core.HEIGHTS)
                 if k0 > 1.0:
                     fflags = fflags + [f"wind-widened-to-station-scale:x{k0:.2f}"]
-                kt = _bias.widen_temperature(phys, state, lead, t_utc.hour, _core.NH, heights=_core.HEIGHTS)
+                kt = _bias.widen_temperature(phys, state, lead, _hour_utc(t_utc), _core.NH, heights=_core.HEIGHTS)
                 if kt > 1.0:
                     fflags = fflags + [f"temperature-widened-to-station-scale:x{kt:.2f}"]
             quality = quality + fflags
@@ -626,7 +637,7 @@ def atmosphere_sequence(lat, lon, when, offsets=(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6
     sets = []
     for o in offsets:
         t = t0 + timedelta(hours=float(o))
-        sets.append(atmosphere_set(lat, lon, t.replace(tzinfo=timezone.utc).isoformat(), n=n, seed=seed + 1000 + int(o), assets=assets, **kw))
+        sets.append(atmosphere_set(lat, lon, t.replace(tzinfo=timezone.utc).isoformat(), n=n, seed=seed + 1000 + _sub_seed(o), assets=assets, **kw))
     season = ((t0.month % 12) // 3)
     nh = _core.NH
     def flat(a):
@@ -691,7 +702,7 @@ def atmosphere_downrange(lat, lon, when, bearing_deg=90.0, distances_km=(0, 10, 
     for d in distances_km:
         la = lat + d * np.cos(th_) / 111.0
         lo = lon + d * np.sin(th_) / (111.0 * np.cos(np.radians(lat)))
-        sets.append(atmosphere_set(la, lo, when, n=n, seed=seed + 2000 + int(d), assets=assets, **kw))
+        sets.append(atmosphere_set(la, lo, t_utc.replace(tzinfo=timezone.utc).isoformat(), n=n, seed=seed + 2000 + _sub_seed(d), assets=assets, **kw))   # one UTC instant for every point (a naive local `when` was re-read at each point's own longitude)
     season = (t_utc.month % 12) // 3
     flat = lambda a: np.concatenate([a["u"], a["v"], a["T"], a["RH"], a["t2m"][:, None], a["sp"][:, None], a["rh2m"][:, None]], 1)
     rho = A["coherence_dist"]["rho"][season]
