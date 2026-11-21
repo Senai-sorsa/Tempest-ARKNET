@@ -1,0 +1,15 @@
+G0 store check data/raw/era5_global: 420 months (1991-01..2025-12), 0 missing, 0 valid times >= 2026, 7483 points, 0 inside the locked holdouts
+  u     saturated        0  min     -83.03  max     122.31
+  v     saturated        0  min     -96.54  max     101.88
+  t     saturated        0  min     172.08  max     325.06
+  r     saturated        0  min     -20.67  max     185.83
+  z     saturated        0  min   -7370.00  max  208820.00
+  u10   saturated        0  min     -40.94  max      30.54
+  v10   saturated        0  min     -34.10  max      54.05
+  u100  saturated        0  min     -51.68  max      41.32
+  v100  saturated        0  min     -44.30  max      46.57
+  t2m   saturated        0  min     194.26  max     324.98
+  d2m   saturated        0  min     190.72  max     305.76
+  sp    saturated        0  min   50518.00  max  106768.00
+  below ground (p > sp) share per level: 1000 0.491, 925 0.213, 850 0.116, 700 0.038, 600 0.013, 500 0.000, 400 0.000, 300 0.000, 250 0.000, 200 0.000, 150 0.000, 100 0.000, 50 0.000
+OK
