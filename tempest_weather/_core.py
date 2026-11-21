@@ -24,7 +24,7 @@ def es_liquid(t):
 
 
 def rh_from_dpd(t, lnd):
-    td = t - np.maximum(np.expm1(np.clip(lnd, None, 5.0)), 0.0)
+    td = np.maximum(t - np.maximum(np.expm1(np.clip(lnd, None, 5.0)), 0.0), 50.0)   # audit #2: never at or below the Tetens pole (32.19 K), where the ratio flips to ~100 %
     return 100.0 * es_liquid(td) / es_liquid(t)
 
 

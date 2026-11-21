@@ -13,6 +13,7 @@ import numpy as np
 T0, P0, L = 288.15, 101325.0, 0.0065
 RD, G0, RE = 287.05287, 9.80665, 6371000.0
 P11, T11 = 22632.06, 216.65
+P20 = P11 * np.exp(-G0 * 9000.0 / (RD * T11))   # audit #39: 20-32 km layer (lapse -1 K/km)
 EXP = RD * L / G0
 
 
@@ -22,7 +23,8 @@ def baro_altitude_msl(p, geometric=False):
     p = np.asarray(p, float)
     tropo = (T0 / L) * (1.0 - (np.clip(p, 1.0, None) / P0) ** EXP)
     strato = 11000.0 - (RD * T11 / G0) * np.log(np.clip(p, 1.0, None) / P11)
-    h = np.where(p >= P11, tropo, strato)
+    upper = 20000.0 + (T11 / -0.001) * (1.0 - (np.clip(p, 1.0, None) / P20) ** (RD * -0.001 / G0))
+    h = np.where(p >= P11, tropo, np.where(p >= P20, strato, upper))
     return RE * h / (RE - h) if geometric else h
 
 
@@ -44,7 +46,8 @@ def compute(z_true_m, pressure_Pa, temp_K, rh_pct=None, geometric=True):
     N = 77.6 * (p / 100.0) / T + 3.73e5 * e / T ** 2
     dN = np.gradient(N, z, axis=1)                                                                           # per metre
     den = 1.0 + RE * dN * 1e-6
-    k = 1.0 / den
+    with np.errstate(divide="ignore"):
+        k = 1.0 / den
     kh = np.where(den > 0.05, np.clip(k, 0.2, 20.0), 20.0)                                                   # Gemini 2026-11-20: ducting (dN/dz <= -157 /km) -> long horizon, not the 0.2 floor
     horizon = np.sqrt(2.0 * kh * RE * np.maximum(z_agl, 0.0)[None, :]) / 1000.0
     return dict(z_true_agl_m=z_agl, z_baro_msl_m=zb, z_baro_agl_m=zb_agl, altimeter_bias_m=zb_agl - z_agl[None, :], refractivity_N=N, dN_dz_per_km=dN * 1000.0, k_factor=k, radio_horizon_km=horizon)

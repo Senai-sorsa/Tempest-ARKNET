@@ -45,11 +45,12 @@ def omega_to_w(omega, level_pa, sp, p_target, rho):
     return -om / (rho * G0)
 
 
-def row_times(cond):
+def row_times(cond, year=None):
     """IL-177: each dataset row's grid point time in UTC from its own features: the day of year (UTC date, sin / cos at 365.25 d; day 366 wraps to about 0.75 and is mapped back),
     the year and the solar hour minus lon / 15 (rounded to the whole UTC hour). -> pandas DatetimeIndex (naive UTC)."""
     from tempest.generator.features import FEATURES
-    c = {k: np.asarray(cond[:, FEATURES.index(k)], np.float64) for k in ("doy_sin", "doy_cos", "hour_sin", "hour_cos", "year", "lon")}
+    c = {k: np.asarray(cond[:, FEATURES.index(k)], np.float64) for k in ("doy_sin", "doy_cos", "hour_sin", "hour_cos", "lon")}
+    c["year"] = np.asarray(year, np.float64) if year is not None else np.asarray(cond[:, FEATURES.index("year")], np.float64)   # audit #8: p2 inputs carry no year column
     d = (np.arctan2(c["doy_sin"], c["doy_cos"]) % (2 * np.pi)) * 365.25 / (2 * np.pi)
     d = np.where(d < 0.9, d + 365.25, d)
     doy = np.rint(d).astype(np.int64)
@@ -62,16 +63,16 @@ def row_times(cond):
 def from_cond(a):
     """IL-177 (2026-11-10): w for ANY dataset (the joined all-hours files have no row provenance and cannot be replayed): grid point from the row's lat / lon, UTC time from row_times,
     T / RH / sp / t2m / rh2m from the row's own target (what the store holds for that hour), omega from the store, the same omega -> w physics. Rows in time order, in blocks."""
+    d = load_npz(a.data)                                                   # audit #8: activates the dataset's own inputs and humidity target (a dpd file read as RH biased w)
     from tempest.generator.features import FEATURES
     from tempest.generator.sample import to_physical
     from tempest.profiles.to_heights import PROFILE
-    d = np.load(a.data, mmap_mode="r")
     cond, target = d["cond"], d["target"]
     N = len(cond)
     lat_r = np.asarray(cond[:, FEATURES.index("lat")], np.float64)
     lon_r = np.asarray(cond[:, FEATURES.index("lon")], np.float64)
     elev_r = np.asarray(cond[:, FEATURES.index("elev_grid")], np.float64)
-    tt = row_times(np.asarray(cond))
+    tt = row_times(np.asarray(cond), np.asarray(d["year"]) if "year" in d else None)
     wz = xr.open_zarr(a.w, zarr_format=3)["w"]
     wt = pd.DatetimeIndex(wz.valid_time.values)
     levels = wz.pressure_level.values.astype(float) * 100.0

@@ -223,6 +223,8 @@ def main():
     if a.first_test_year:  # an explicit test window is used as given (walk-forward folds earlier than the last val_years); same result when it lies inside them
         held = (year >= a.first_test_year) & (year <= (a.last_test_year or 9999))
     cal = spread.load(a.calib, a.model)
+    if cal and "fit_year" in cal and int(cal["fit_year"]) >= int(year[held].min() if held.any() else 9999):  # audit #18: fit rows run through fit_year inclusive
+        print(f"WARNING: calibration fitted through {int(cal['fit_year'])} overlaps the scored years", flush=True)
     a.m = a.m or (int(cal["m"]) if cal else 50)
     sampler.qmc_m = a.m if a.qmc else 0
     keys = group_keys(cond)

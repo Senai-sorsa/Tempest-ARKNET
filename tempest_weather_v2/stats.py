@@ -118,7 +118,7 @@ def fit_best(x, families=None):
     """-> dict(type, params, fit_ok, ks, tail_err, quantiles {p: value}, n). `type` is None (and fit_ok False) when no family passes."""
     x = np.asarray(x, float)
     x = x[np.isfinite(x)]
-    out = dict(n=int(len(x)), quantiles={p: float(np.quantile(x, p)) for p in QUANTILES}, type=None, params={}, fit_ok=False)
+    out = dict(n=int(len(x)), quantiles={p: float(np.quantile(x, p)) if len(x) else float("nan") for p in QUANTILES}, type=None, params={}, fit_ok=False)   # audit #41: empty input
     if len(x) < 10 or float(x.std()) < 1e-12:
         out["note"] = "constant or too few values" if len(x) >= 1 else "no values"
         return out

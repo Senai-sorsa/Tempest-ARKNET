@@ -7,9 +7,9 @@ Along a VERTICAL traverse the component along the path is the vertical wind w (t
 components u, v are transverse to the path (second-order Dryden filter, correlation (1 - d / 2L) exp(-d / L)). The blueprint had these two roles the other way round; for a vertical path this
 is the consistent assignment.
 Intensity (MIL-HDBK-1797 style): sigma_w = 1.3 u* (1 - z / h_pbl)^(3/4) in the boundary layer with u* from the 10 m wind and the roughness z0 (neutral log law; no stability correction, the
-profile carries none); sigma_u = sigma_v = sigma_w / (0.177 + 0.000823 z)^0.4 below 305 m. Clear-air turbulence where the gradient Richardson number is below 0.25: sigma_cat = |dV/dz| * ell *
-(0.25 - Ri) / 0.25 with a mixing length ell = 20 m (an assumption, set by the caller; the blueprint's expression had the unit 1/s, not m/s). Scales: L_w = z / 2 (to 152 m), L_u = z / (0.177 +
-0.000823 z)^1.2 (to 533 m), clamped to [2.5, 533] m.
+profile carries none); sigma_u = sigma_v = sigma_w / (0.177 + 0.000823 h)^0.4 below 1000 ft (h in feet). Clear-air turbulence where the gradient Richardson number is below 0.25: sigma_cat = |dV/dz| * ell *
+(0.25 - Ri) / 0.25 with a mixing length ell = 20 m (an assumption, set by the caller; the blueprint's expression had the unit 1/s, not m/s). Scales: L_w = z / 2 (to 152 m), L_u = h / (0.177 +
+0.000823 h)^1.2 in feet (to 1000 ft = 305 m, then linear to 533 m at 2000 ft), clamped to [2.5, 533] m.
 numpy only. Reproducible: the same seed gives the same field.
 """
 import numpy as np
@@ -53,10 +53,12 @@ def envelopes(z, u, v, T, z0=0.03, h_pbl=1200.0, ell_cat=20.0, exact_n2=False, b
     else:
         pbl = np.clip(1.0 - z_s[None, :] / hp, 0.05, 1.0) ** 0.75
         sigma_w = 1.3 * u_star[:, None] * pbl + cat
-    ratio = np.where(z_s < 305.0, 1.0 / (0.177 + 0.000823 * np.minimum(z_s, 305.0)) ** 0.4, 1.0)
+    h_ft = np.minimum(z_s, 304.8) / 0.3048                              # audit 2026-11-21 #1: the MIL-HDBK-1797 constants 0.177 + 0.000823 h are for h in FEET (was applied to metres)
+    ratio = 1.0 / (0.177 + 0.000823 * h_ft) ** 0.4                       # = 1 at 1000 ft, continuous above
     sigma_u = sigma_w * ratio[None, :]
     L_w = np.clip(np.where(z_s < 305.0, 0.5 * z_s, 152.0), 2.5, 533.0)
-    L_u = np.clip(np.where(z_s < 533.0, z_s / (0.177 + 0.000823 * z_s) ** 1.2, 533.0), 2.5, 533.0)
+    L_u = np.where(z_s < 304.8, 0.3048 * h_ft / (0.177 + 0.000823 * h_ft) ** 1.2, np.interp(z_s, [304.8, 609.6], [304.8, 533.0]))   # 1000 ft at 1000 ft, linear to 1750 ft at 2000 ft
+    L_u = np.clip(L_u, 2.5, 533.0)
     return dict(sigma_u=sigma_u, sigma_w=sigma_w, L_u=np.broadcast_to(L_u, sigma_u.shape), L_w=np.broadcast_to(L_w, sigma_u.shape), ri=ri)
 
 

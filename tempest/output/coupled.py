@@ -87,7 +87,7 @@ def coupling(arrays, variance=0.99):
             out[f"{tag}_heights_{k}"] = _corr(prof[:, i, :], sp_)                                        # (44, 44)
         full = prof.reshape(n, V * nh)
         out[f"{tag}_full"] = _corr(full, sp_)
-        sfc = [k for k in ("t2m", "sp", "rh2m", "gust_mu", "T_soak") if np.isfinite(arrays[k]).all()]
+        sfc = [k for k in ("t2m", "sp", "rh2m", "gust_mu", "T_soak") if np.isfinite(arrays[k] if arrays[k].ndim == 1 else arrays[k][:, 0]).all()]   # audit #40: only the column used below must be finite
         s = np.stack([arrays[k].astype(np.float64) if arrays[k].ndim == 1 else arrays[k][:, 0].astype(np.float64) for k in sfc], 1)
         out[f"{tag}_surface"] = _corr(np.concatenate([s, full], 1), sp_)[:len(sfc), len(sfc):]            # (S, V*44)
         out[f"{tag}_surface_names"] = np.array(sfc)

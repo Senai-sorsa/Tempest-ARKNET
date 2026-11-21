@@ -60,6 +60,7 @@ def heights_gph(lt2, p, gph, tk, rh):
     """Geopotential height (m) on every level: reported where given, else hypsometric between reported ones."""
     z = gph.copy()
     pl = np.flatnonzero(np.isfinite(p) & (p > 0))
+    pl = pl[np.argsort(-p[pl], kind="stable")]   # audit #16: interp and cumsum need pressure descending (IGRA surface / special levels can be out of order)
     if len(pl) < 2:
         return z
     lp = np.log(p[pl])

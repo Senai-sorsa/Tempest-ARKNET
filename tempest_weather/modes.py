@@ -20,6 +20,10 @@ def lead_days(when_utc, now=None):
         now = datetime.now(timezone.utc).replace(tzinfo=None)
     elif isinstance(now, str):
         now = datetime.fromisoformat(now)
+    if now.tzinfo is not None:   # audit #21: an aware 'now' (e.g. '...+00:00') -> naive UTC
+        now = now.astimezone(timezone.utc).replace(tzinfo=None)
+    if getattr(when_utc, "tzinfo", None) is not None:
+        when_utc = when_utc.astimezone(timezone.utc).replace(tzinfo=None)
     return (when_utc - now).total_seconds() / 86400.0
 
 

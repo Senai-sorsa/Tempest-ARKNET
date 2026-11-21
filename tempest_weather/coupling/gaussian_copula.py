@@ -20,6 +20,7 @@ class GaussianCopula:
         self.columns, self.marginals = list(columns), list(marginals)
         t = np.asarray(table, float)
         z = norm_ppf((_ranks(t) + 0.5) / len(t))                        # normal scores of the ranks
+        z[:, np.ptp(t, axis=0) == 0] = 0.0                              # audit #11: constant columns -> no fake r = 1 (corrcoef gives NaN, then 0)
         c = np.corrcoef(z, rowvar=False)
         self.corr = np.atleast_2d(c)
         self.corr = np.nan_to_num(self.corr)

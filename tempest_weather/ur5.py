@@ -71,10 +71,11 @@ def apply(T, p, times, us, vs, rng, anchor=False):
             z = norm_ppf((np.argsort(np.argsort(w)) + 0.5) / n)            # chain (re)starts: this hour keeps its order
         else:
             rc, rw, med = T["rho"][p, mp, hp]
-            rho = np.where(prev < med, rc, rw) ** gap
+            rho = np.clip(np.where(prev < med, rc, rw), 0.0, 0.999999) ** gap   # audit #36: a negative rho to a fractional power is NaN
             if anchor:
                 c = norm_ppf((np.argsort(np.argsort(w)) + 0.5) / n)
-                r = np.corrcoef(c, z)[0, 1]
+                r = np.corrcoef(c, z)[0, 1] if n > 1 else 0.0
+                r = r if np.isfinite(r) else 0.0                           # audit #36: n == 1 or a constant column
                 e = c - r * z
                 e = e / max(e.std(), 1e-9)
             else:

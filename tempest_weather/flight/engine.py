@@ -57,6 +57,7 @@ class TempestFlightSimEngine:
         self._sorted = np.sort(self.pool, axis=0)
         self._probs = (np.arange(n) + 0.5) / n
         scores = norm_ppf((np.argsort(np.argsort(self.pool, axis=0), axis=0) + 0.5) / n)
+        scores[:, np.ptp(self.pool, axis=0) == 0] = 0.0   # audit #11: a constant column's ranks are its row order; they must not correlate with other constant columns
         c = np.nan_to_num(np.corrcoef(scores, rowvar=False))
         np.fill_diagonal(c, 1.0)
         w, v = np.linalg.eigh(c)
@@ -68,6 +69,7 @@ class TempestFlightSimEngine:
         self.eigvals, self.eigvecs = np.maximum(w[o], 0.0), v[:, o]
         self._sd = self.pool.std(0) + 1e-12
         self._post = None
+        self.gust_law = None   # audit #12: optional f(out, pool_rows) -> out with gust_mu / gust_beta re-evaluated on the conditioned wind (set by tempest_weather_v2.Launch.engine)
 
     # ---- marginals
     TAIL_FRAC = 0.05
@@ -232,6 +234,9 @@ class TempestFlightSimEngine:
     def _finish(self, x, rows=None):
         x[:, 3 * NH:4 * NH] = np.clip(x[:, 3 * NH:4 * NH], 0, 100)
         x[:, -1] = np.clip(x[:, -1], 0, 100)
+        x[:, 2 * NH:3 * NH] = np.clip(x[:, 2 * NH:3 * NH], 150.0, 350.0)   # audit #29: the tail extrapolation is unbounded; keep T, t2m and sp physical
+        x[:, -3] = np.clip(x[:, -3], 150.0, 350.0)
+        x[:, -2] = np.clip(x[:, -2], 1000.0, 120000.0)
         out = dict(u=x[:, :NH], v=x[:, NH:2 * NH], T=x[:, 2 * NH:3 * NH], RH=x[:, 3 * NH:4 * NH], t2m=x[:, -3], sp=x[:, -2], rh2m=x[:, -1], z=np.asarray(_core.HEIGHTS, float))
         th = _core.thermo_column(_core.HEIGHTS, out["T"], out["RH"], out["sp"], t_sfc=out["t2m"], rh_sfc=out["rh2m"], z_sfc=self.elev)
         out.update(p=th["p"], rho=th["rho"], a=th["a"], elevation_m=self.elev)
@@ -239,6 +244,8 @@ class TempestFlightSimEngine:
             for k in ("w", "gust_mu", "gust_beta"):
                 if self.atm.get(k) is not None:
                     out[k] = np.asarray(self.atm[k])[rows]
+            if self._post is not None and self.gust_law is not None and "gust_mu" in out:   # audit #12: the borrowed gust law belongs to the prior wind; evaluate it on the conditioned one
+                out = self.gust_law(out, rows)
         return out
 
     def to_samples(self, batch):

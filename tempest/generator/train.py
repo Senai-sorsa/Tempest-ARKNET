@@ -320,7 +320,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         p = physical(x * ts_d + tm_d)
         T = torch.clamp(p[..., iT_:iT_ + len(HEIGHTS)], 150.0, 350.0)             # early in training the samples can be far off; the formula has a pole at 32 K and overflows
         lnd = p[..., iR_:iR_ + len(HEIGHTS)]
-        td = torch.minimum(T - torch.clamp(torch.expm1(torch.clamp(lnd, max=5.0)), min=0.0), T)
+        td = torch.clamp(torch.minimum(T - torch.clamp(torch.expm1(torch.clamp(lnd, max=5.0)), min=0.0), T), min=50.0)   # audit #2: stay above the pole
         f = lambda q: 17.502 * (q - 273.16) / (q - 32.19)
         return 100.0 * torch.exp(torch.clamp(f(td) - f(T), max=0.0))            # ratio of saturation vapour pressures as one exponential, never above 100 %
 

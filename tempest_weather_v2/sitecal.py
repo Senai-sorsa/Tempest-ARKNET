@@ -24,6 +24,8 @@ def fit_site(reference, site, hours=None, method="hourly", min_per_hour=20):
         raise ValueError("need at least 100 paired hourly values of the same length")
     ok = np.isfinite(r) & np.isfinite(s)
     r, s = r[ok], s[ok]
+    if r.size < 100:   # audit #26: count the usable pairs, not the NaN-padded input
+        raise ValueError("need at least 100 finite paired hourly values")
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}")
     if r.mean() <= 0:
@@ -57,7 +59,9 @@ def apply_site(cal, speeds, hours=None):
     lo, hi = cal["src"], cal["dst"]
     out = np.interp(x, lo, hi)
     over = x > lo[-1]
-    return np.where(over, hi[-1] + (x - lo[-1]) * (hi[-1] - hi[-2]) / max(lo[-1] - lo[-2], 1e-9), out)         # beyond the last knot: continue with the last slope
+    d = lo[-1] - lo[-2]
+    slope = (hi[-1] - hi[-2]) / d if d > 1e-6 else (hi[-1] / lo[-1] if lo[-1] > 0 else 1.0)   # audit #26: tied top knots -> the ratio, not a 1e9 slope
+    return np.where(over, hi[-1] + (x - lo[-1]) * slope, out)         # beyond the last knot: continue with the last slope
 
 
 # IL-207b (ASK_LATER 24, adopted 2026-11-11, opt-in): the tool is too calm at the TCS ASOS station (bias +1.44 m/s, worst warm afternoons).

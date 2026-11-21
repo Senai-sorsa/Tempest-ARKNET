@@ -66,7 +66,7 @@ class _Sample:
         self.z = np.asarray(samples["height_asl"], float)
         self.site = float(self.z[0] - float(np.asarray(samples["height_agl"])[0]))
         self.u, self.v, self.T, self.p, self.RH = g("u"), g("v"), g("T"), g("p"), g("RH")
-        self.w = g("w") if "w" in samples and np.isfinite(np.asarray(samples["w"][k])).all() else np.zeros_like(self.u)
+        self.w = g("w") if samples.get("w") is not None and np.isfinite(np.asarray(samples["w"][k], float)).all() else np.zeros_like(self.u)   # audit #40: w=None -> calm
         self.k = k
         if pad_node and all(key in samples for key in ("t2m", "sp", "rh2m")) and all(np.isfinite(float(np.asarray(samples[key][k]))) for key in ("t2m", "sp", "rh2m")):
             # IL-131 (plain bug, ON by default since 2026-11-08; pad_node=False = old behaviour): a node at the pad (0 m above ground) with the surface state, so conditions(pad) is (t2m, sp, rh2m) and not the 10 m values. Wind there is the 10 m wind

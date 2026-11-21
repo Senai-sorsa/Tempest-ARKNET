@@ -52,6 +52,8 @@ def fill_invalid(x, phys, pool, rng):
     ok = np.isfinite(phys[pool])
     for j in np.flatnonzero(bad.any((0, 1))):
         pj, b = pool[ok[:, j]], bad[..., j]
+        if not len(pj):  # audit #19: no pool sounding valid there -> any sounding valid there, so no NaN reaches the score
+            pj = np.flatnonzero(np.isfinite(phys[:, j]))
         if len(pj):
             x[..., j][b] = phys[pj[rng.integers(0, len(pj), int(b.sum()))], j]
     return x
@@ -114,6 +116,8 @@ def main():
     held_from = a.first_test_year or (last - ckpt.get("members", [ckpt])[0]["cfg"]["val_years"] + 1)  # an explicit first test year is used as given
     last = min(last, a.last_test_year or last)
     cal = spread.load(a.calib, a.model)
+    if cal and "fit_year" in cal and int(cal["fit_year"]) >= held_from:  # audit #18: fit rows run through fit_year inclusive
+        print(f"WARNING: calibration fitted through {int(cal['fit_year'])} overlaps the scored years from {held_from}", flush=True)
     a.m = a.m or (int(cal["m"]) if cal else 50)
     scal = a.station_calib_year
     if scal and scal >= held_from:
@@ -137,7 +141,7 @@ def main():
         if a.shift:
             from tempest.calibrate import shift as shift_mod
             _sh = dict(np.load(a.shift))
-            post.append(lambda x, mo: shift_mod.apply(_sh, x))
+            post.append(lambda x, mo: shift_mod.apply(_sh, x, np.full(len(x), mo) if mo is not None else None))  # audit #19: --by-month tables need the month
         if a.shear_tail:
             from tempest.calibrate import shear_tail as st_mod
             _st, _prng = dict(np.load(a.shear_tail)), np.random.default_rng(12345)
@@ -173,7 +177,7 @@ def main():
         t, phys = t[ok], phys[ok]
         tr, va = np.flatnonzero(t.year < held_from), np.flatnonzero(t.year >= start)
         if a.first_test_month:                                                         # only the months from first_test_month of the first test year on (later years whole)
-            va = va[(t.year[va] > held_from) | (t.month[va] >= a.first_test_month)]
+            va = va[(t.year[va] != held_from) | (t.month[va] >= a.first_test_month)]  # audit #19: calibration years before held_from stay whole
         print(f"{sid}: {len(va):,} complete held-out {a.hour:02d}Z soundings {held_from}-{last}, {len(tr):,} training-year", flush=True)
         p = nearest_point(ds, slat, slon)
         lat, lon, z = (float(ds[k].values[p]) for k in ("lat", "lon", "z_sfc"))

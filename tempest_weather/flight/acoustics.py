@@ -46,6 +46,8 @@ class AcousticRayTracer:
                 c_eff = c_eff * (1.0 + zi / R_EARTH)
                 c_eff_src = c_eff_src * (1.0 + float(source_alt_m) / R_EARTH)
             for j, beta in enumerate(dep):
+                if beta <= 0.0:                                            # audit #9: cos is even; an upward or horizontal ray never comes down to the ground in this model
+                    continue
                 a = np.cos(beta) / c_eff_src
                 s = a * c_eff                                              # cos(theta) along the ray
                 bad = s >= 1.0 - 1e-9

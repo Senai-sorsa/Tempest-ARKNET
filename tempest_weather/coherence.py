@@ -19,9 +19,11 @@ def _scores(x):
 
 def _chol_by_column(rho, offsets, kappa=None, rho_x=None):
     """rho (L, D) lag correlations (L >= 1; lags above L-1 use the last), offsets (K,) hours -> (D, K, K) Cholesky factors of the per-column Toeplitz correlation matrices."""
-    off = np.asarray(offsets)
+    off = np.asarray(offsets, float)
+    if rho_x is None and not np.all(off == np.round(off)):                # audit #13: fractional hours -> interpolate between the hourly rows
+        rho_x = np.arange(rho.shape[0], dtype=float)
     if rho_x is None:                                                      # integer lags (hours): row = lag
-        lag = np.minimum(np.abs(off[:, None] - off[None, :]), rho.shape[0] - 1)
+        lag = np.minimum(np.abs(off[:, None] - off[None, :]), rho.shape[0] - 1).astype(int)
         R = np.moveaxis(rho[lag], -1, 0).astype(np.float64)              # (D, K, K)
     else:                                                                  # rows belong to the distances rho_x (km): linear interpolation between them, the last row beyond
         x = np.asarray(rho_x, float)

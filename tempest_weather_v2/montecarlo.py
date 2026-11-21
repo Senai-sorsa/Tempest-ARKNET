@@ -178,12 +178,14 @@ class MCResult:
         for name, m in self.atm_metrics.items():                           # Gemini bug 1: the sample index is not a physical quantity (its rank correlation with the apogee is chance); the physical metrics are
             x = np.asarray(m, float)[self.atm_index]
             out[f"atmosphere: {name}"] = float(np.corrcoef(np.argsort(np.argsort(x)), y)[0, 1] ** 2) if np.std(x) > 0 else 0.0
-        return out
+        return {k: 0.0 for k in out} if np.std(self.values) == 0 else out   # audit #41: a constant result's ranks are arbitrary
 
     def explained(self):
         """Joint rank regression of the result on all vehicle parameters (r2_vehicle) and on vehicle parameters plus the physical atmosphere metrics (r2_all); atmosphere_gain = r2_all - r2_vehicle is the part
         of the variance the atmosphere adds once the vehicle is accounted for (the first-order shares of `contributions` can overlap). Needs atmosphere metrics (set by run())."""
         y = np.argsort(np.argsort(self.values)).astype(float)
+        if np.std(self.values) == 0:   # audit #41: constant result -> no variance explained
+            return dict(r2_vehicle=0.0, r2_all=0.0, atmosphere_gain=0.0)
         rk = lambda x: np.argsort(np.argsort(x)).astype(float)
         names = list(self.params[0]) if self.params else []
         veh = [rk(np.array([p[n] for p in self.params], float)) for n in names if np.std([p[n] for p in self.params]) > 0]
@@ -215,25 +217,26 @@ def atmosphere_metrics(atm):
         return None
 
 
-def persistence_perturbations(atmospheres, rho, n, rng, smooth_m=300.0):
+def persistence_perturbations(atmospheres, rho, n, rng, smooth_m=300.0, prior_atmospheres=None):
     """M2: n frozen wind perturbations (dict z, east, north) for the persistence increment: the change of the wind between the last measurement and launch. At every height the sd is
     sqrt(2 (1 - rho)) times the sd of that wind component over `atmospheres` (an AtmosphereSet: its samples are the spread of the air at launch), smoothed over about `smooth_m` metres in height.
-    rho: correlation of the wind anomaly with itself over the age (array over the model heights, from persistence.wind_persistence)."""
+    rho: correlation of the wind anomaly with itself over the age (array over the model heights, from persistence.wind_persistence).
+    prior_atmospheres (audit #7, recommended): the UNCONDITIONED set; sqrt(2 (1 - rho)) scales the climatological anomaly sd, and the conditioned sd is ~0 at a pinned reading."""
     s = atmospheres.samples
     z = np.asarray(s["height_agl"], float)
     k = np.sqrt(2.0 * np.clip(1.0 - np.asarray(rho, float), 0.0, 2.0))
-    sd = {key: np.asarray(s[key], float).std(0) * k for key in ("u", "v")}
-    dz = max(float(np.median(np.diff(z))), 1.0)
-    ker = np.exp(-0.5 * (np.arange(-12, 13) * dz / float(smooth_m)) ** 2)
-    ker /= np.sqrt((ker ** 2).sum())                                    # keeps the variance of white noise after smoothing
+    sp = (prior_atmospheres.samples if prior_atmospheres is not None else s)
+    sd = {key: np.asarray(sp[key], float).std(0) * k for key in ("u", "v")}
+    W = np.exp(-0.5 * ((z[:, None] - z[None, :]) / float(smooth_m)) ** 2)   # audit #7: smooth in metres (the heights are not evenly spaced: 40-50 m at the pad, 500 m aloft)
+    W /= np.sqrt((W ** 2).sum(1, keepdims=True))                       # keeps the variance of white noise after smoothing
     out = []
     for _ in range(int(n)):
-        e = {key: np.convolve(rng.standard_normal(len(z) + 24), ker, "valid")[:len(z)] * sd[key] for key in ("u", "v")}
+        e = {key: (W @ rng.standard_normal(len(z))) * sd[key] for key in ("u", "v")}
         out.append(dict(z=z, east=e["u"], north=e["v"]))
     return out
 
 
-def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None, conditioned=False):
+def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_age=None, conditioned=False, prior_atmospheres=None):
     """Call simulate(atmosphere, **vehicle_parameters) n times with atmosphere k and a sampled vehicle parameter set; return an MCResult.
     atmospheres: any indexable sequence of readers (Launch.atmospheres(n)); n defaults to its length. When n is larger than the sequence the atmospheres are reused in a random order.
     wind_age (M2, opt-in): the correlation `rho` of the wind anomaly with itself over the age of the latest wind measurement (array over the model heights, see persistence.wind_persistence); every run then adds a
@@ -249,7 +252,7 @@ def run(simulate, atmospheres, priors=None, n=None, seed=0, method="lhs", wind_a
     params = priors.sample(n, rng, method)
     if wind_age is not None and not conditioned:
         raise ValueError("wind_age adds the change since the last measurement on top of the spread that is left AFTER that measurement; pass conditioned=True only for atmospheres from a Launch that was conditioned with observe(...) (on an unconditioned pool the increment double counts)")
-    pert = persistence_perturbations(atmospheres, wind_age, n, rng) if wind_age is not None else None
+    pert = persistence_perturbations(atmospheres, wind_age, n, rng, prior_atmospheres=prior_atmospheres) if wind_age is not None else None
     vals = []
     for k in range(n):
         atm = atmospheres[int(idx[k])]
