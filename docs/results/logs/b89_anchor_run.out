@@ -1,0 +1,14 @@
+WD1 through the tool path (api.atmosphere_sequence, table models/ur5_wd1_shipped.npz, s_u 1.03 s_v 0.92): climate mode, 10 m wind; truth ERA5 2006-2020, table fit 1991-2005
+  seed 0 L    5: 407 cells; per-hour gap 0.123 -> 0.048; 3-hour error off 0.237 -> on 0.030 (b40 shipped 0.237)
+  seed 0 L    8: 332 cells; per-hour gap 0.192 -> 0.052; 3-hour error off 0.191 -> on 0.024 (b40 shipped 0.191)
+  seed 0 L   10: 161 cells; per-hour gap 0.185 -> 0.033; 3-hour error off 0.154 -> on 0.016 (b40 shipped 0.154)
+  seed 0: 10 m cov90 u 0.932 -> 0.887, v 0.968 -> 0.901; CRPS u 1.8206 -> 1.8027, v 1.5311 -> 1.4845
+  seed 0: 10 -> 50 m shear at hour +1 (m/s per km) p50 / p99 off 18.9 / 67.0, on 19.0 / 66.5 (report only)
+  seed 1 L    5: 407 cells; per-hour gap 0.123 -> 0.050; 3-hour error off 0.236 -> on 0.031 (b40 shipped 0.237)
+  seed 1 L    8: 332 cells; per-hour gap 0.195 -> 0.051; 3-hour error off 0.194 -> on 0.023 (b40 shipped 0.191)
+  seed 1 L   10: 161 cells; per-hour gap 0.186 -> 0.034; 3-hour error off 0.156 -> on 0.015 (b40 shipped 0.154)
+  seed 1: 10 m cov90 u 0.933 -> 0.889, v 0.961 -> 0.888; CRPS u 1.8226 -> 1.8120, v 1.5159 -> 1.4763
+  seed 1: 10 -> 50 m shear at hour +1 (m/s per km) p50 / p99 off 19.1 / 67.1, on 19.2 / 66.6 (report only)
+Rule (b40, set 2026-11-15, minus the map-alone part): PASS = per-hour gap < 0.03, 3-hour error <= half of shipped, u / v cov90 in 0.88-0.92 and no farther from 0.90 than shipped; KILL = CRPS worse than shipped by > 0.0009 or cov90 outside 0.88-0.92; both seeds, all limits.
+WD1 tool-path verdict: MISS (record, no adoption)
+Port check (item 12): the tool-path numbers should match b40 (3-hour error 0.030 / 0.021 / 0.014, gap 0.045 / 0.044 / 0.026, cov90 u / v ~0.90) within seed noise; b40 itself was a technicality MISS on the L 5 / 8 gap, taken in by the 2026-11-20 ruling (item 9).
