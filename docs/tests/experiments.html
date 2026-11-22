@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ranked Experiments Ledger (60) &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  
+</head>
+<body data-page-id="experiments" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Empirical Verification & Ablations · 1991–2026</p>
+          <h1>Ranked Experiments Ledger (60)</h1>
+          <p class="article-lead">All 60 logged Tempest-ARKNET experiments—strictly ranked from Tier 1 shipped breakthroughs to Tier 4 rejected post-mortems, audited against the IL-92 seed-noise floor and the untouched 2026 Jan–Jun holdout.</p>
+          <div class="article-meta"><span>60 Logged Experiments</span><span>Tier 1 (13) → Tier 2 (12) → Tier 3 (9) → Tier 4 (26)</span><span>Dual Gate + 21-Day Block Bootstrap</span></div>
+        </header>
+
+        
+<style>
+  /* Editorial Experiments Ledger Styles (Warm Paper, Zero Dark Mode) */
+  .hygiene-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.35rem;
+    margin: 2rem 0 2.75rem;
+  }
+  .hygiene-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.5rem 1.75rem;
+  }
+  .hygiene-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .hygiene-card p {
+    font-size: 0.98rem;
+    line-height: 1.68;
+    margin: 0;
+    color: var(--ink-body);
+  }
+
+  .lessons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin: 2rem 0 3rem;
+  }
+  .lesson-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.45rem 1.55rem;
+  }
+  .lesson-num {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+  }
+  .lesson-card h4 {
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink-primary);
+    margin: 0 0 0.55rem;
+    line-height: 1.3;
+  }
+  .lesson-card p {
+    font-size: 0.94rem;
+    line-height: 1.6;
+    color: var(--ink-secondary);
+    margin: 0;
+  }
+
+  /* Filter & Search Control Panel */
+  .exp-controls {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 10px;
+    padding: 1.5rem 1.75rem;
+    margin: 2.5rem 0 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  .exp-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .exp-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 260px;
+  }
+  .exp-search-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg-white);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+  }
+  .exp-search-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+  .exp-clear-btn {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.2rem 0.45rem;
+    display: none;
+  }
+  .exp-clear-btn.is-visible {
+    display: inline-block;
+  }
+  .exp-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .exp-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-white);
+    color: var(--ink-body);
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .exp-filter-pill:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .exp-filter-pill.is-selected {
+    background: var(--bg-accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .exp-filter-pill.tier1.is-selected {
+    background: var(--bg-success-soft);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+  }
+  .exp-filter-pill.tier2.is-selected {
+    background: var(--bg-accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .exp-filter-pill.tier3.is-selected {
+    background: var(--bg-warn-soft);
+    border-color: var(--accent-warm);
+    color: var(--accent-warm);
+  }
+  .exp-filter-pill.tier4.is-selected {
+    background: var(--bg-danger-soft);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+  }
+
+  /* Experiment Accordion Cards */
+  .exp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    margin-top: 1.75rem;
+  }
+  .exp-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .exp-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 3px 14px rgba(23, 25, 28, 0.04);
+  }
+  .exp-card-trigger {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 1.35rem 1.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    color: inherit;
+  }
+  .exp-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+  }
+  .exp-id-pill {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    color: var(--ink-primary);
+  }
+  .exp-status-pill {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid transparent;
+  }
+  .exp-sub-pill {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--ink-secondary);
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-hairline);
+  }
+  .exp-card-title {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink-primary);
+    margin: 0 0 0.4rem;
+    line-height: 1.3;
+  }
+  .exp-card-metric {
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    color: var(--ink-secondary);
+    margin: 0;
+  }
+  .exp-chevron {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    color: var(--ink-secondary);
+    transition: transform 0.2s ease;
+    margin-top: 0.2rem;
+  }
+  .exp-card.is-expanded .exp-chevron {
+    transform: rotate(180deg);
+  }
+  .exp-card-body {
+    display: none;
+    padding: 0 1.65rem 1.65rem;
+    border-top: 1px solid var(--border-hairline);
+  }
+  .exp-card.is-expanded .exp-card-body {
+    display: block;
+  }
+  .exp-concept-box {
+    margin: 1.25rem 0;
+    padding: 1.15rem 1.4rem;
+    border-radius: 6px;
+    font-size: 1.04rem;
+    line-height: 1.75;
+    color: var(--ink-body);
+  }
+  .exp-detail-label {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.45rem;
+    display: block;
+  }
+  .exp-tech-text {
+    font-size: 1.02rem;
+    line-height: 1.72;
+    color: var(--ink-body);
+    margin: 0 0 1.25rem;
+  }
+  .exp-metrics-list {
+    margin: 0 0 1.25rem;
+    padding-left: 1.4rem;
+    font-size: 0.96rem;
+    line-height: 1.65;
+    color: var(--ink-body);
+  }
+  .exp-metrics-list li {
+    margin-bottom: 0.4rem;
+  }
+  .exp-code-ref {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    color: var(--ink-secondary);
+    padding: 0.65rem 0.9rem;
+    background: var(--bg-code);
+    border: 1px solid var(--border-hairline);
+    border-radius: 6px;
+    word-break: break-word;
+  }
+
+  /* Benchmark Tab Bar */
+  .bench-tab-bar {
+    display: inline-flex;
+    gap: 0.4rem;
+    padding: 0.25rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+  }
+  .bench-tab-btn {
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .bench-tab-btn.is-active {
+    background: var(--bg-white);
+    border-color: var(--border-strong);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .noise-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #fde68a;
+    background: var(--bg-warn-soft);
+    color: var(--accent-warm);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  .noise-toggle.is-visible {
+    display: inline-flex;
+  }
+  .empty-state {
+    display: none;
+    margin: 2.5rem 0;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 10px;
+  }
+  .empty-state.is-visible {
+    display: block;
+  }
+
+  @media (max-width: 860px) {
+    .hygiene-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<!-- ====================================================================== -->
+<!-- EXPERIMENTAL HYGIENE, TIMELINE & BENCHMARK CHARTS                      -->
+<!-- ====================================================================== -->
+<div class="callout callout-why">
+  <p class="callout-title">How to Read These Benchmarks (Plain English)</p>
+  <p>
+    Every experiment in this ledger is graded on three concrete questions. <strong>CRPS skill</strong> measures how much sharper and closer to reality our generated skies are than guessing the 15-year seasonal average (higher is better). <strong>99% coverage (<code>cov99</code>)</strong> checks whether real weather actually lands inside our outer safety bounds 99% of the time—like testing a range safety net. <strong>Seed noise</strong> is the tiny random wobble from re-training with different random numbers; any improvement smaller than that wobble counts as a tie, not a real win.
+  </p>
+</div>
+
+<!-- 1991-2026 Zero-Leakage Gantt Timeline (Editorial Light Theme) -->
+<figure class="figure-stage">
+  <div class="figure-header">
+    <div>
+      <div style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:0.3rem;">Temporal Split Hygiene &middot; 1991&ndash;2026</div>
+      <h3 class="figure-title">Strict Zero-Leakage Train / Calibration / Dev / Holdout Timeline</h3>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--ink-secondary);"><code>igra_to_heights.py</code> asserts <code>last_year &lt;= 2025</code> &middot; <code>debias.py</code> rejects <code>year &gt;= 2024</code></span>
+  </div>
+  <div style="overflow-x:auto;">
+    <svg viewBox="0 0 960 156" style="width:100%;min-width:680px;height:auto;" role="img" aria-label="1991 to 2026 Train, Calibration, Dev, and Untouched Holdout Gantt Timeline">
+      <line x1="20" y1="116" x2="940" y2="116" stroke="#cfc9bc" stroke-width="1.5" />
+      <g fill="#525866" font-family="JetBrains Mono, monospace" font-size="13">
+        <line x1="20" y1="110" x2="20" y2="122" stroke="#525866" stroke-width="1.5" />
+        <text x="20" y="142" text-anchor="start">1991</text>
+
+        <line x1="255" y1="110" x2="255" y2="122" stroke="#9ca3af" stroke-width="1" />
+        <text x="255" y="142" text-anchor="middle">2005</text>
+
+        <line x1="495" y1="110" x2="495" y2="122" stroke="#525866" stroke-width="1.5" />
+        <text x="495" y="142" text-anchor="middle">2020</text>
+
+        <line x1="650" y1="110" x2="650" y2="122" stroke="#525866" stroke-width="1.5" />
+        <text x="650" y="142" text-anchor="middle">2023</text>
+
+        <line x1="785" y1="110" x2="785" y2="122" stroke="#525866" stroke-width="1.5" />
+        <text x="785" y="142" text-anchor="middle">2025</text>
+
+        <line x1="940" y1="110" x2="940" y2="122" stroke="#b91c1c" stroke-width="1.8" />
+        <text x="940" y="142" text-anchor="end" fill="#b91c1c" font-weight="600">2026 Jun</text>
+      </g>
+
+      <!-- 1. Train 1991-2020 -->
+      <rect x="20" y="20" width="470" height="74" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.8" />
+      <text x="36" y="47" fill="#047857" font-family="Inter, sans-serif" font-size="14" font-weight="700">1. TRAIN (1991&ndash;2020 &middot; 30 Years)</text>
+      <text x="36" y="72" fill="#17191c" font-family="Inter, sans-serif" font-size="13">ERA5 + IGRA2 + ASOS &rarr; 4-Member Engression, Gust &amp; w-Head</text>
+
+      <!-- 2. Cal 2021-2023 -->
+      <rect x="498" y="20" width="146" height="74" rx="8" fill="#eff4ff" stroke="#1d4ed8" stroke-width="1.8" />
+      <text x="510" y="47" fill="#1d4ed8" font-family="Inter, sans-serif" font-size="13.5" font-weight="700">2. CAL (2021&ndash;23)</text>
+      <text x="510" y="68" fill="#17191c" font-family="Inter, sans-serif" font-size="12.5">Spread &middot; Shuffle</text>
+      <text x="510" y="84" fill="#525866" font-family="Inter, sans-serif" font-size="12">Shear/Lapse Maps</text>
+
+      <!-- 3. Dev 2024-2025 -->
+      <rect x="652" y="20" width="128" height="74" rx="8" fill="#fef8ec" stroke="#b45309" stroke-width="1.8" />
+      <text x="664" y="47" fill="#b45309" font-family="Inter, sans-serif" font-size="13.5" font-weight="700">3. DEV (24&ndash;25)</text>
+      <text x="664" y="68" fill="#17191c" font-family="Inter, sans-serif" font-size="12.5">Dual Gate &amp; IL-92</text>
+      <text x="664" y="84" fill="#525866" font-family="Inter, sans-serif" font-size="12">60 Logged Trials</text>
+
+      <!-- 4. Holdout 2026 Jan-Jun -->
+      <rect x="788" y="20" width="152" height="74" rx="8" fill="#fef2f2" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6 3" />
+      <text x="800" y="47" fill="#b91c1c" font-family="Inter, sans-serif" font-size="13" font-weight="700">4. HOLDOUT (2026)</text>
+      <text x="800" y="68" fill="#17191c" font-family="Inter, sans-serif" font-size="12.5">Jan&ndash;Jun Single-Use</text>
+      <text x="800" y="84" fill="#b91c1c" font-family="JetBrains Mono, monospace" font-size="11.5">+2.09% / +1.87%</text>
+    </svg>
+  </div>
+</figure>
+
+<div class="hygiene-grid">
+  <div class="hygiene-card" style="border-top:3px solid var(--accent-green);">
+    <div class="hygiene-kicker" style="color:var(--accent-green);">Dual Statistical Gate</div>
+    <p>Every change had to pass both <code>compare_headline.py</code> (<code>skill15</code> &amp; <code>cov99</code>) and <code>compare_shape.py</code> (8 shape metrics: PIT, coverage, skew, kurtosis, tails, events, vertical corr, shear KS) with <strong>zero WORSE flags</strong>.</p>
+  </div>
+  <div class="hygiene-card" style="border-top:3px solid var(--accent);">
+    <div class="hygiene-kicker" style="color:var(--accent);">Seed-Noise Yardstick (IL-92)</div>
+    <p>Measured across 3 seeds of <code>p2f</code>: ERA5 <code>skill15</code> spread <strong>0.0006</strong>, balloons <strong>0.0013</strong>, <code>|cov99-0.99|</code> <strong>0.0004 / 0.0003</strong>. Audited with fair CRPS (<code>AU-1</code>) and 21-day bootstrap blocks (<code>AU-4</code>, 1.60&times; wider CIs).</p>
+  </div>
+  <div class="hygiene-card" style="border-top:3px solid var(--accent-warm);">
+    <div class="hygiene-kicker" style="color:var(--accent-warm);">2024&ndash;25 Dev vs. 2026 Holdout</div>
+    <p>Train 1991&ndash;2020, Calibrate 2021&ndash;23, Dev 2024&ndash;25. Single-use untouched <strong>2026 Jan&ndash;Jun</strong> final test: ERA5 <code>+0.0209</code>, Balloons <code>+0.0187</code>, beats Gaussian proxy by <strong>+5.6% / +2.2%</strong>.</p>
+  </div>
+  <div class="hygiene-card" style="border-top:3px solid var(--accent-red);">
+    <div class="hygiene-kicker" style="color:var(--accent-red);">Flight-Sim Reality Check</div>
+    <p>On 3 Spaceport America flights, vehicle errors (<strong>+5&ndash;8%</strong>) are <strong>2&ndash;4&times; larger</strong> than weather effects. 87% of wind apogee spread comes from <strong>0&ndash;300 m</strong>. Hybrid <code>air="standard"</code> + Tempest wind achieved lowest MAE (<strong>4.89%</strong>).</p>
+  </div>
+</div>
+
+<!-- Plotly Chart 1: Outcomes by Tier -->
+<figure class="figure-stage">
+  <div class="figure-header">
+    <div>
+      <div style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:0.3rem;">Interactive Distribution &middot; Click Any Bar to Filter</div>
+      <h3 class="figure-title">Experiment Outcomes by Tier (60 Logged Trials)</h3>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--ink-secondary);" id="totalBadge">60 Logged</span>
+  </div>
+  <div id="tierChart" style="width:100%;height:340px;cursor:pointer;"></div>
+  <figcaption class="figure-caption">
+    Every experiment is placed in exactly one tier based on its holdout verification outcome: 13 Major Adopted Wins (Tier 1), 12 Conditional or Opt-In Wins (Tier 2), 9 Neutral or Seed-Noise Ties (Tier 3), and 26 Rejected Post-Mortems (Tier 4).
+  </figcaption>
+</figure>
+
+<!-- Plotly Chart 2: Headline Benchmark Comparison -->
+<figure class="figure-stage">
+  <div class="figure-header">
+    <div>
+      <div style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:0.3rem;">Headline Verification Benchmarks</div>
+      <h3 class="figure-title" id="benchTitle">Mode F Lead-Time CRPS Skill (Test Year 2022)</h3>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;">
+      <label id="noiseFloorWrap" class="noise-toggle">
+        <input id="toggleNoiseFloor" type="checkbox" />
+        <span>Show &plusmn;IL-92 Seed-Noise Floor</span>
+      </label>
+      <div class="bench-tab-bar" role="group" aria-label="Select benchmark view">
+        <button id="tabModeF" type="button" aria-pressed="true" class="bench-tab-btn is-active">Mode F Skill</button>
+        <button id="tabFinal2026" type="button" aria-pressed="false" class="bench-tab-btn">2026 Final Test</button>
+      </div>
+    </div>
+  </div>
+  <div id="benchmarkChart" style="width:100%;height:380px;"></div>
+  <figcaption class="figure-caption" id="benchSubtitle">
+    Forecast-conditioned residual network + 50:50 ridge blend vs. raw ECMWF HRES across 1-day to 7-day forecast lead times.
+  </figcaption>
+</figure>
+
+<!-- 5 Transferable Lessons -->
+<h3 style="font-family:var(--font-serif);font-size:1.65rem;color:var(--ink-primary);margin:3rem 0 0.75rem;">5 Transferable Probabilistic-ML &amp; Physics Lessons</h3>
+<p style="max-width:72ch;color:var(--ink-secondary);margin-bottom:1.5rem;">
+  Distilled from all 60 logged trials across 1991&ndash;2026:
+</p>
+<div class="lessons-grid">
+  <div class="lesson-card">
+    <div class="lesson-num" style="color:var(--accent-green);">01 &middot; SCORING RULES</div>
+    <h4>Proper Scoring Rules &gt; Heavier Backbones</h4>
+    <p>Targeted proper-scoring losses (<code>afCRPS</code> + <code>shear_tail</code> + <code>c4w</code>) consistently beat heavier Transformers (<code>TokenGenerator</code>), Rectified Flows (<code>GF3</code>), and 8-seed ensembles (<code>IL-3</code>).</p>
+  </div>
+  <div class="lesson-card">
+    <div class="lesson-num" style="color:var(--accent);">02 &middot; COORDINATES</div>
+    <h4>Fix Coordinate Space Before Hacking Loss</h4>
+    <p>Moving humidity from bounded <code>[0, 100]%</code> RH to smooth log dewpoint depression (<code>dpd</code>) cut lower-tail misses 4.7&times; without brittle boundary penalties.</p>
+  </div>
+  <div class="lesson-card">
+    <div class="lesson-num" style="color:var(--accent-warm);">03 &middot; SAMPLE SIZE</div>
+    <h4>Respect Effective Sample Size</h4>
+    <p>Serial weather correlation makes naive intervals overconfident. 21-day block bootstrap (<code>AU-4</code>, 1.60&times; wider CIs) and the <code>IL-92</code> seed-noise yardstick stop false wins.</p>
+  </div>
+  <div class="lesson-card">
+    <div class="lesson-num" style="color:var(--accent-red);">04 &middot; BIAS VS. SPREAD</div>
+    <h4>Don&rsquo;t Fix Mean Bias with Spread Inflation</h4>
+    <p>Stretching ensemble spread (<code>AV11</code>, <code>UR1</code>, <code>G2-2</code>) degrades CRPS when the true defect is a local mean offset—fix bias directly via <code>IL-98B</code> EWMA or <code>IL-207b</code> site factors.</p>
+  </div>
+  <div class="lesson-card">
+    <div class="lesson-num" style="color:#6d28d9;">05 &middot; CLEAN WORLDS</div>
+    <h4>Keep Input Worlds &amp; Benchmarks Clean</h4>
+    <p>Don&rsquo;t merge optional inputs into one masked trunk (<code>N4</code>), don&rsquo;t refit on short shifted windows (<code>UR11</code>), and never judge atmosphere-only dispersion against rocket vehicle errors.</p>
+  </div>
+</div>
+
+<!-- Filter & Search Bar -->
+<div class="exp-controls">
+  <div class="exp-search-row">
+    <div class="exp-search-wrap">
+      <input id="searchInput" class="exp-search-input" type="search" placeholder="Search 60 experiments, IDs, or metrics (e.g. p2f, SIGMA, UR5, IL-198, shear)..." />
+      <button id="clearSearch" type="button" class="exp-clear-btn" aria-label="Clear search">&times;</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+      <span id="visibleCounter" style="font-family:var(--font-mono);font-size:0.86rem;color:var(--ink-secondary);">Showing 60 of 60</span>
+      <button id="expandAllBtn" type="button" class="figure-btn" style="padding:0.45rem 0.85rem;font-size:0.88rem;">Expand All</button>
+      <button id="collapseAllBtn" type="button" class="figure-btn" style="padding:0.45rem 0.85rem;font-size:0.88rem;">Collapse All</button>
+    </div>
+  </div>
+
+  <div id="filterBar" class="exp-pill-row" role="group" aria-label="Filter by outcome tier">
+    <button type="button" data-tier="all" aria-pressed="true" class="exp-filter-pill is-selected">All (<span id="count-all">60</span>)</button>
+    <button type="button" data-tier="1" aria-pressed="false" class="exp-filter-pill tier1">Tier 1: Major Wins (<span id="count-1">13</span>)</button>
+    <button type="button" data-tier="2" aria-pressed="false" class="exp-filter-pill tier2">Tier 2: Conditional / Opt-In (<span id="count-2">12</span>)</button>
+    <button type="button" data-tier="3" aria-pressed="false" class="exp-filter-pill tier3">Tier 3: Neutral / Tied (<span id="count-3">9</span>)</button>
+    <button type="button" data-tier="4" aria-pressed="false" class="exp-filter-pill tier4">Tier 4: Rejected / Negative (<span id="count-4">26</span>)</button>
+  </div>
+
+  <div id="subsystemBar" class="exp-pill-row" role="group" aria-label="Filter by subsystem">
+    <span style="font-family:var(--font-mono);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-secondary);margin-right:0.25rem;">Subsystem:</span>
+    <button type="button" data-sub="all" aria-pressed="true" class="exp-filter-pill is-selected">All (<span id="sub-count-all">60</span>)</button>
+    <button type="button" data-sub="data-thermo" aria-pressed="false" class="exp-filter-pill">Data &amp; Thermo (<span id="sub-count-data-thermo">0</span>)</button>
+    <button type="button" data-sub="gen-loss" aria-pressed="false" class="exp-filter-pill">Generator &amp; Loss (<span id="sub-count-gen-loss">0</span>)</button>
+    <button type="button" data-sub="cal-shape" aria-pressed="false" class="exp-filter-pill">Calibration &amp; Shape (<span id="sub-count-cal-shape">0</span>)</button>
+    <button type="button" data-sub="forecast-routing" aria-pressed="false" class="exp-filter-pill">Forecast &amp; Routing (<span id="sub-count-forecast-routing">0</span>)</button>
+    <button type="button" data-sub="launch-flight" aria-pressed="false" class="exp-filter-pill">Launch-Day &amp; Flight-Sim (<span id="sub-count-launch-flight">0</span>)</button>
+  </div>
+</div>
+
+<!-- Empty Search State -->
+<div id="emptyState" class="empty-state">
+  <p style="font-size:1.1rem;font-weight:600;color:var(--ink-primary);margin-bottom:1rem;">No experiments match your current search, tier, or subsystem filter.</p>
+  <button id="resetFiltersBtn" type="button" class="figure-btn">Reset All Filters</button>
+</div>
+
+<!-- ====================================================================== -->
+<!-- 4 MAJOR TIER SUBSECTIONS (Matched by SITE_NAV & Right Scroll-Spy TOC)  -->
+<!-- ====================================================================== -->
+<section id="tier-1" class="subsection">
+  <span class="subsection-num" style="color:var(--accent-green);">Tier 1 &middot; 13 Experiments</span>
+  <h2>Major adopted wins (shipped defaults)</h2>
+  <p>
+    The 13 highest-impact breakthroughs verified on holdout soundings and shipped in Tempest-ARKNET. The top three are expanded by default; click any experiment card to inspect its full plain-English intuition, technical mechanism, verified metrics, and repository code paths.
+  </p>
+  <div id="tier-1-cards" class="exp-list"></div>
+</section>
+
+<section id="tier-2" class="subsection">
+  <span class="subsection-num" style="color:var(--accent);">Tier 2 &middot; 12 Experiments</span>
+  <h2>Conditional, regime-specific &amp; opt-in wins</h2>
+  <p>
+    Strong regime-specific or input-gated improvements that passed core statistical checks—including <code>UR5 / WD1</code> (shipped ON at <code>api.py:28</code> for climate-mode 10 m sequences) and opt-in launch-day or site-calibration hooks awaiting live inputs or global-stage integration.
+  </p>
+  <div id="tier-2-cards" class="exp-list"></div>
+</section>
+
+<section id="tier-3" class="subsection">
+  <span class="subsection-num" style="color:var(--accent-warm);">Tier 3 &middot; 9 Experiments</span>
+  <h2>Neutral, tied, or inside seed noise</h2>
+  <p>
+    Hypotheses whose holdout differences fell inside the <code>IL-92</code> training seed-noise floor, or that traded one metric for another with zero net improvement. Kept logged to prevent redundant re-testing.
+  </p>
+  <div id="tier-3-cards" class="exp-list"></div>
+</section>
+
+<section id="tier-4" class="subsection">
+  <span class="subsection-num" style="color:var(--accent-red);">Tier 4 &middot; 26 Experiments</span>
+  <h2>Rejected &amp; negative post-mortems</h2>
+  <p>
+    Detailed post-mortems of architectures, losses, calibration hacks, and conditioning schemes that degraded CRPS skill, broke 99% coverage, overfit, or failed their physical premise.
+  </p>
+  <div id="tier-4-cards" class="exp-list"></div>
+</section>
+
+<script>
+(function initExperimentsLedger() {
+  const SUBSYSTEM_LABELS = {
+    'data-thermo': 'Data & Thermo',
+    'gen-loss': 'Generator & Loss',
+    'cal-shape': 'Calibration & Shape',
+    'forecast-routing': 'Forecast & Routing',
+    'launch-flight': 'Launch-Day & Flight-Sim'
+  };
+
+  const TIER_STYLES = {
+    1: {
+      border: 'border-left: 4px solid var(--accent-green);',
+      statusStyle: 'background:var(--bg-success-soft);color:var(--accent-green);border-color:#a7f3d0;',
+      conceptStyle: 'background:var(--bg-success-soft);border-left:3px solid var(--accent-green);',
+      labelColor: 'var(--accent-green)'
+    },
+    2: {
+      border: 'border-left: 4px solid var(--accent);',
+      statusStyle: 'background:var(--bg-accent-soft);color:var(--accent);border-color:#bfdbfe;',
+      conceptStyle: 'background:var(--bg-accent-soft);border-left:3px solid var(--accent);',
+      labelColor: 'var(--accent)'
+    },
+    3: {
+      border: 'border-left: 4px solid var(--accent-warm);',
+      statusStyle: 'background:var(--bg-warn-soft);color:var(--accent-warm);border-color:#fde68a;',
+      conceptStyle: 'background:var(--bg-warn-soft);border-left:3px solid var(--accent-warm);',
+      labelColor: 'var(--accent-warm)'
+    },
+    4: {
+      border: 'border-left: 4px solid var(--accent-red);',
+      statusStyle: 'background:var(--bg-danger-soft);color:var(--accent-red);border-color:#fecaca;',
+      conceptStyle: 'background:var(--bg-danger-soft);border-left:3px solid var(--accent-red);',
+      labelColor: 'var(--accent-red)'
+    }
+  };
+
+  const EXPERIMENTS = [
+      // ==================== TIER 1: MAJOR ADOPTED WINS ====================
+      {
+        tier: 1,
+        id: 'p2f / dpd',
+        subsystem: 'gen-loss',
+        title: 'Dewpoint Depression (dpd) + Tail-Weighted Shear Loss + EMA',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'RH_2500 miss 2.76% -> 0.58%; 99.9th shear +2.4 to +4.2 m/s/km',
+        concept: 'Relative humidity hits hard brick walls at 0% and 100%, so Gaussian noise constantly bounces out of bounds and gets clipped flat. Switching to log dewpoint depression turns that walled box into a smooth, open hillside that naturally respects saturation. Pairing that with a tail-weighted shear loss tells the network to pay special attention to the top 10% most violent altitude wind-shear jumps (the gusts that break rocket fins), while EMA (weight averaging) steadies the final network like stabilizing a camera shutter.',
+        technical: 'Replaced raw RH (%) with lnd = ln(1 + max(T - Td, 0)) (--rh-target dpd). Added shear_tail_loss() (shear_tail_weight = 1.0, shear_tail_q = 0.9) applying afCRPS to excess vector shear above the 90th percentile per layer, plus EMA decay 0.999.',
+        metrics: [
+          'RH_2500 lower-tail miss: 2.76% -> 0.58% (p2c) / 0.06% (p2a)',
+          'Whole-profile RH 99% coverage: 0.852 -> 0.903',
+          '99.9th shear (1-5 / 5-12 / >12 km): E12 21.6/24.0/28.3 -> p2f 24.0/27.1/32.5 (truth 25.7/30.3/34.8)',
+          '99th shear: 18.3 / 20.4 / 25.5 vs truth 17.9 / 20.7 / 25.1 m/s/km',
+          'Dev 2024-25 skill15: ERA5 +0.0277 (E12 +0.0273), Balloons +0.0083 (E12 +0.0071)'
+        ],
+        code: 'tempest/generator/sample.py, tempest/generator/train.py::shear_tail_loss, configs/generator_p2f.toml'
+      },
+      {
+        tier: 1,
+        id: 'c4w',
+        subsystem: 'gen-loss',
+        title: 'Near-Ground Vector Wind Loss (0-300 m)',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'skill15 +0.0013 to +0.0024 (3-5x seed noise)',
+        concept: 'Standard atmospheric losses treat every altitude equally from 10 m to 18 km, leaving the lowest 300 m — where a rocket leaves the launch rail slowly and weathercocks into crosswinds — as a tiny sliver of the training signal. Scoring East-West (u) and North-South (v) separately also misses total wind speed. c4w shines a dedicated vector-wind spotlight on the lowest 300 m so the generator nails low-altitude wind speed and direction right off the rail.',
+        technical: 'Added low_wind_loss() (wind_vec_weight = 0.5, low_top_m = 300.0) on top of p2f, with refit spread calibration, shear map, and lapse map. Strictly in-box: zero-shot in Denver it degrades temperature transfer, so Denver keeps its own model.',
+        metrics: [
+          'Dev 2024-25 mean skill15 vs p2f+lapse: +0.0013 / +0.0016 / +0.0013 (score seeds 0-2)',
+          'Second independent training seed: +0.0024 (vs 0.0005 seed noise yardstick)',
+          'Improves both RH and 0-1 km wind skill with lower overall coverage error'
+        ],
+        code: 'tempest/generator/train.py::low_wind_loss, configs/generator_c4w.toml'
+      },
+      {
+        tier: 1,
+        id: 'l3_c4w + Denver',
+        subsystem: 'data-thermo',
+        title: 'All-24-Hour Training (21-Level ERA5) + Local Denver Models',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: '12Z Balloons -0.021 -> +0.016; Denver -0.115 -> +0.017',
+        concept: 'Earlier builds acted like a daytime-only observer who went home at sunset — refusing queries outside 06-21 local solar time and failing badly when extrapolating to dawn 12Z balloons. Meanwhile, Denver ran a tiny legacy model that scored worse than historical averages. Retraining on all 24 hours of 21-level ERA5 taught the generator nocturnal inversions and dawn calms, while dedicated Denver models brought the Rocky Mountain box up to full production quality.',
+        technical: 'Shipped NM/TX l3_c4w (all 24 h, 21-level ERA5, all-hours whead_a24) plus Denver day (l3_blocal_c4w, 06-21 h) and night (a24den_c4w) bundles with full post-processing (IL-170 / D-1).',
+        metrics: [
+          'tool_audit.py (120 held-out 2024-25 h/set): NM/TX day +0.033, night +0.025; Denver day +0.005, night +0.008',
+          '90% coverage across all 4 regimes: 0.85-0.93',
+          'NM/TX 12Z morning balloons (~05 h solar): -0.021 -> +0.016 (00Z unchanged +0.0099 -> +0.0102)',
+          'Denver bundle replacement: old -0.115 -> new +0.017 (matches ERA5 July T)'
+        ],
+        code: 'tempest_weather/assets/, assets_denver/, assets_denver_allhours/, scripts/shipped_check.py'
+      },
+      {
+        tier: 1,
+        id: 'IL-91 / F-16',
+        subsystem: 'cal-shape',
+        title: 'Schaake Shuffle (2-Degree Blocks) + Whole-Distribution Shear Map',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'vcorr_err 0.076 -> 0.039; shear KS 0.044 -> 0.010',
+        concept: 'Fixing the spread at each altitude independently is like shuffling pages from 199 different weather books — every altitude has the right statistics, but the vertical story from ground to 18 km becomes jagged. The Schaake Shuffle borrows the exact vertical rank order from real historical profiles in 2-degree geographic blocks (IL-94/95), snapping all 199 members back into physically coherent columns without altering marginals. A post-shuffle shear map then aligns extreme layer-to-layer wind jumps.',
+        technical: 'Exports uint8 199x179 rank templates per 2-degree block (--post-templates) and a whole-distribution shear quantile map (--post-smap) refit after the shuffle on 2021-23.',
+        metrics: [
+          'Dev 2024-25 vertical corr error: 0.056-0.099 -> 0.046/0.023/0.035/0.035 (u/v/T/RH, beats 0.05 goal)',
+          'Dev 2024-25 shear KS: 0.044 -> 0.010 (0.018/0.009/0.007/0.007, beats 0.03 goal)',
+          'Untouched 2026 Jan-Jun ablation: shear dist 0.0333 -> 0.0274, vcorr_err 0.0697 -> 0.0606'
+        ],
+        code: 'tempest/calibrate/shuffle.py, tempest/calibrate/shear_map.py, tempest/export_tool.py'
+      },
+      {
+        tier: 1,
+        id: 'L21b',
+        subsystem: 'cal-shape',
+        title: 'Lapse-Rate Map (Thermal Stratification Calibration)',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'Super-adiabatic layers 33.8% -> 23.6% (ERA5 21.9%)',
+        concept: 'Raw neural profiles occasionally create "super-adiabatic" air layers that cool faster with altitude than a stable atmosphere allows — like balancing a bowling ball on a beach ball. The lapse-rate map applies the same quantile-mapping logic used for wind shear to vertical temperature steps, restoring physically realistic thermal layering across every altitude band.',
+        technical: 'Quantile map on vertical temperature differences fitted on 2021-23 and ported to pure NumPy in _core.py with a parity test; shipped in both NM/TX and Denver bundles.',
+        metrics: [
+          'Too-steep (super-adiabatic) layers: 33.8% -> 23.6% (vs ERA5 21.9%)',
+          'Temperature CRPS skill improved in every altitude band'
+        ],
+        code: 'tempest/calibrate/lapse_map.py, tempest_weather/_core.py'
+      },
+      {
+        tier: 1,
+        id: 'P3-1 + AV13',
+        subsystem: 'gen-loss',
+        title: 'Physical 1-Min ASOS Gust Law + 5 m/s Speed Switch',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'Gust CRPS 1.73 -> 0.61 m/s (obs); +7.86% windy transfer',
+        concept: 'Standard airport METAR reports leave the gust field blank in light winds even though real 5-second peaks are still ~1.4x the sustained wind — like measuring ocean waves only during hurricanes. Refitting the Gumbel gust law on raw ASOS 1-minute 5-second peaks eliminated that blind spot. Adding AV13 then acts like an automatic transmission: use the local station law below 5 m/s, and shift to the regional law at or above 5 m/s for cleaner cross-airport transfer.',
+        technical: 'Heteroscedastic Gumbel regression refit on physical 1-min ASOS 5-s peaks (NM/TX & Denver DEN+APA). AV13 switches to regional law at model wind >= 5.0 m/s (GUST_PHYSICAL=True, GUST_SWITCH_WS=5.0).',
+        metrics: [
+          'Physical 1-min refit (2021-23): CRPS 1.73 -> 0.61 m/s (measured wind), 1.34 -> 1.06 m/s (model wind)',
+          'Storm gusts accurately held at factor ~1.35',
+          'AV13 (39,434 Denver DEN+APA hours): +1.28% [+1.11, +1.45] overall, +7.86% [+6.65, +9.02] at >= 5 m/s'
+        ],
+        code: 'tempest/gust/model.py, tempest_weather/api.py::_gust_params, tests/test_gust_speed_switch.py'
+      },
+      {
+        tier: 1,
+        id: 'Mode F / IL-73..82',
+        subsystem: 'forecast-routing',
+        title: 'Mode F Forecast-Conditioned Network + 50:50 Ridge Blend + v3 Window',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'CRPS skill 0.691 / 0.539 / 0.350 / 0.209 (1/3/5/7 d)',
+        concept: 'A climate model only knows what June usually looks like, capping its skill near +0.02. Within 1 to 7 days of launch, ECMWF IFS already sees the real cold front or jet stream arriving. Mode F trains a compact, regularized neural network to predict the error distribution around the live forecast, blends it 50:50 with a sturdy ridge regression so day-7 coverage stays solid, and applies a forecast-error Schaake shuffle for realistic vertical coherence.',
+        technical: 'Regularized residual net (IL-77 r1: width 128, depth 2, wd 1e-2, lr 3e-4, every 4th height) blended 50:50 with per-lead ridge (IL-80) + Schaake shuffle (IL-82). Retrained v3 (00Z+12Z) widened window to 02-20 h solar; added Denver Mode F.',
+        metrics: [
+          'Test 2022 skill at 1/3/5/7 d: Raw HRES 0.57/0.34/0.08/-0.21 -> Mode F 50:50 blend 0.691/0.539/0.350/0.209',
+          'Mode F Schaake shuffle (IL-82): vertical corr error 0.30-0.51 -> 0.04-0.12',
+          'v3 retrain adds +0.04 to +0.06 at 05 h solar; Denver Mode F: 0.68 / 0.57 / 0.43 / 0.26'
+        ],
+        code: 'tempest/forecast/modeF.py, tempest_weather/forecast.py, scripts/il6_modeF.py'
+      },
+      {
+        tier: 1,
+        id: 'Mode P / F-12 / F-11a',
+        subsystem: 'forecast-routing',
+        title: 'Mode P Surface Spread + 12-18 km RH Hybrid + ERA5 Ground-Wind Anchor',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 't2m CRPS 1.16 -> 0.68 K; RH 12-18 km 4.76 -> 3.70; Wind -3 to -11%',
+        concept: 'Historical past-date reconstructions had three cracks: surface weather had zero uncertainty spread (pretending ERA5 was exact at the pad), a 2022 radiosonde sensor change threw off the neural network for stratospheric humidity, and near-ground wind drifted off ERA5. Patching all three gave Mode P honest surface ranges, accurate 12-18 km humidity, and tightly anchored surface winds across both airports and remote basins.',
+        technical: 'F-12 (--modep-sfc) adds calibrated spread for t2m/sp/rh2m; F-11a (--modep-sta) serves linear station correction for 13 RH columns in 12-18 km; GW-F/GW-H (past_era5_anchor=True) anchors near-ground wind to ERA5 10 m.',
+        metrics: [
+          'F-12 surface spread: t2m CRPS 1.16 -> 0.68 K, sp 48.8 -> 25.9 Pa, rh2m 3.75 -> 2.92%, cov99 0.99-1.00',
+          'F-11a 12-18 km RH hybrid: test-year CRPS 4.76 -> 3.70 (mean RH 4.9% -> 10.9%)',
+          'GW-F/GW-H ERA5 anchor: speed CRPS -3 to -11% (up to -20% across 4 sites: TCS, MAF, Las Cruces, Monahans)'
+        ],
+        code: 'tempest/forecast/modeP.py, tempest/export_tool.py, tempest_weather/api.py::_past_phys'
+      },
+      {
+        tier: 1,
+        id: 'P3-2 / F-27',
+        subsystem: 'gen-loss',
+        title: 'Calibrated Vertical-Wind (w) Head',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'w cov99 0.984 -> 0.990-0.991; spread/skill 0.91 -> 0.97-1.06',
+        concept: 'Instead of bloating the main generator with 44 extra vertical-wind outputs, a lightweight sidecar network (the w-head) reads a finished horizontal profile and generates matching updrafts and downdrafts. Because it was trained on real profiles but fed generated profiles at runtime, its 99% range ran slightly tight — calibrating it on generated inputs snapped its coverage straight onto 0.990.',
+        technical: 'Conditional Engression w-head (whead_a24 NM/TX, whead_den Denver) + spread quantile map fitted on 2021-23 generated profiles (scripts/whead_calib.py, --wcalib).',
+        metrics: [
+          'Baseline skill vs 15-yr clim (P3-2): +0.0094 (1-5 km), +0.0141 (5-12 km), +0.0108 (12-18 km)',
+          'F-27 calibration: cov99 0.984/0.985/0.984/0.982 -> 0.989/0.990/0.990/0.991',
+          'Spread/skill improved 0.88-0.93 -> 0.97-1.06 with equal or slightly better CRPS'
+        ],
+        code: 'tempest/output/whead.py, scripts/whead_calib.py, tempest_weather/api.py::atmosphere_set'
+      },
+      {
+        tier: 1,
+        id: 'IL-101 / L2-H3',
+        subsystem: 'forecast-routing',
+        title: 'Station-Scale 10 m Wind & 2 m Temperature Widening',
+        status: 'SHIPPED (with bias_dir)',
+        headlineMetric: '10 m station 90% cov: 59-80% -> 88-89%',
+        concept: 'A 25 km weather model grid cell averages wind over a huge patch of desert, smoothing out local gusts — like comparing the average height of a crowd to one person standing on a launch pad. IL-101 widens forecast-mode near-ground wind spread to match real anemometer variance, then smoothly fades the factor back to 1.0 above 150 m so upper-air winds stay untouched.',
+        technical: 'bias.widen_wind() scales u, v deviations by k(z) = 1 + (k0 - 1) * exp(-z / 150 m) using past-only observed forecast-error SDs (k0 ~1.4-2.2); bias.widen_temperature() (L2-H3) covers 7-day 2 m T.',
+        metrics: [
+          '2025-26 ASOS vs ECMWF Previous Runs (17 h solar): 10 m 90% cov 59-80% -> 88-89%',
+          'Tool grid SD 1.1-1.6 m/s lifted to observed station SD 1.9-2.9 m/s',
+          'L2-H3 2 m temperature at 7 d lead: 90% cov 0.79-0.86 -> 0.89 (1-5 d untouched at 0.90-0.94)'
+        ],
+        code: 'tempest_weather/bias.py (widen_wind, widen_temperature), tempest_weather/api.py'
+      },
+      {
+        tier: 1,
+        id: 'IL-98B',
+        subsystem: 'forecast-routing',
+        title: 'Online EWMA Bias Tracker for Live Feeds',
+        status: 'SHIPPED (with bias_dir)',
+        headlineMetric: 'T MAE -0.04 to -0.41 K; Wind MAE up to -0.30 m/s',
+        concept: 'Live numerical weather models often carry steady local biases at specific airports or pads — such as reading 1 m/s calmer than a desert runway every afternoon. Rather than retraining a neural network, an online EWMA tracker keeps a rolling scoreboard of recent forecast-minus-ASOS errors and subtracts the verified offset at query time within 60 km of a tracked station.',
+        technical: 'Gated EWMA bias tracker updated from Open-Meteo Previous Runs vs ASOS (scripts/update_bias.py), loaded via bias_dir / TEMPEST_BIAS_DIR with quality flag surface-bias-corrected.',
+        metrics: [
+          '2024-26 backtest across ECMWF & GFS (leads 1-7 d, both sites): lower MAE in nearly every cell, never worse',
+          'Temperature MAE: ECMWF -0.04 to -0.13 K, GFS -0.05 to -0.41 K',
+          'Wind MAE: ECMWF -0.04 to -0.10 m/s, GFS up to -0.30 m/s'
+        ],
+        code: 'tempest_weather/bias.py, scripts/update_bias.py'
+      },
+      {
+        tier: 1,
+        id: 'IL-198 + O2',
+        subsystem: 'launch-flight',
+        title: 'NEXRAD VAD Radar Conditioning (Up to 145 km Distant)',
+        status: 'SHIPPED (OPT-IN FLAG)',
+        headlineMetric: 'Aloft wind CRPS +31.3% (2.5-5 km), +15.2% (5-12 km)',
+        concept: 'Surface anemometers only see wind at 10 meters, leaving a blind spot through the 0.5-2 km layer where rockets accelerate and drift. NWS NEXRAD Doppler radars continuously publish vertical wind profiles (VAD). Conditioning Tempest on a radar scan pins the middle rungs of the vertical ladder — tightening wind uncertainty all the way up to 18 km, even from a radar 145 km away (O2).',
+        technical: 'radar.latest_profile() + Launch.observe_radar() with VAD_SIGMA_MS = 3.0 m/s (validated by C4 sweep 3.0/3.02/4.16; S3 thinning killed for under-coverage).',
+        metrics: [
+          'El Paso radar vs 00Z balloons (120 d, 2021-23): +31.3% [+25.0, +37.5] at 2.5-5 km',
+          '5-12 km: +15.2% [+9.4, +20.9]; 12-18 km: +6.4% [+2.7, +10.0] (100% of resamples > 0)',
+          'Holloman radar (~145 km, O2): +27.6% vs +29.1% (2.5-5 km), +15.0% vs +13.5% (5-12 km), cov 0.92/0.94',
+          'Night radar caveat: +20% at 2.5-5 km vs +32% by day'
+        ],
+        code: 'tempest_weather_v2/radar.py, tempest_weather_v2/launch.py::observe_radar'
+      },
+      {
+        tier: 1,
+        id: 'FlightSIM / MC',
+        subsystem: 'launch-flight',
+        title: 'Total-Uncertainty Monte Carlo & Hybrid Standard-Air Finding',
+        status: 'SHIPPED DEFAULT',
+        headlineMetric: 'Density within 0.5% of balloons; Hybrid H0 MAE 4.89%',
+        concept: 'Flying real Spaceport America Cup rockets revealed a crucial engineering reality: an atmosphere-only Monte Carlo produces apogee bands that are way too narrow (2-7%) because rocket drag, mass, and impulse errors are 2-4x larger than weather effects. Pairing Tempest with VehiclePriors in a joint Sobol/LHS harness fixes total uncertainty, while offering a hybrid air="standard" + Tempest wind mode lets teams keep their ISA-calibrated density while still getting realistic wind, shear, and Dryden turbulence.',
+        technical: '10 m float32 readers.Atmosphere (~0.7 us scalar lookup, air="standard" option, perturbation= Dryden + 1-cos gust) + montecarlo.py (VehiclePriors, Sobol indices, importance sampling, AdaptiveConformal).',
+        metrics: [
+          'Air density within 0.5% of 149 balloons (0-10 km, 2024-25); 1976 ISA is 6.4% off at the pad',
+          '87% of wind-driven apogee spread comes from 0-300 m (53% from 50-150 m alone)',
+          '3-flight MAE: Hybrid H0 4.89% vs branch S0 5.21%, Tempest past 5.80%, standard S1 6.15%',
+          'Real wind lowers Cup apogees 204-244 ft (1.6-2.0%); turbulence+gust widens SD 15-35%'
+        ],
+        code: 'tempest_weather_v2/readers.py, tempest_weather_v2/montecarlo.py, examples/monte_carlo_quickstart.py'
+      },
+
+      // ==================== TIER 2: CONDITIONAL / OPT-IN ====================
+      {
+        tier: 2,
+        id: 'IL-14 / ENSF2',
+        subsystem: 'forecast-routing',
+        title: 'IFS-Ensemble 24-Feature Mode F (ASK_LATER 21)',
+        status: 'PASS / OPT-IN',
+        headlineMetric: '1-7 d forecast CRPS -1.9 to -3.1% (NM/TX), -1.2 to -2.2% (Denver)',
+        concept: 'A single deterministic forecast gives one guess, whereas a 50-member ensemble reveals both the consensus average and how much the models disagree today. Feeding 24 ensemble mean and spread features into a dedicated Mode F network lets Tempest tighten ranges on calm, predictable days and widen them when weather regimes split.',
+        technical: '24 ensemble features (mean + spread of 10 m wind, 2 m T, and 500/700/850 hPa wind/T) via --modef-ens / api ens_features=. Kept as a separate network (N4 proved merging into one masked trunk fails).',
+        metrics: [
+          'NM/TX 1-7 d CRPS: -1.9% to -3.1% (2-3 seeds); Denver: -1.2% to -2.2% (-0.7 to -2.2% 3 seeds)',
+          '99% coverage not worse; ablation shows 75-90% of gain is ensemble mean, 10-25% is spread',
+          'Limit: test year 2022 only; requires live 24-feature ensemble feed at query time'
+        ],
+        code: 'scripts/il6_modeF.py, tempest/export_tool.py (--modef-ens), data/il14_*.log'
+      },
+      {
+        tier: 2,
+        id: 'SIGMA / UR15',
+        subsystem: 'forecast-routing',
+        title: 'SIGMA Lead-as-Noise Continuous Forecast Scaling (ASK_LATER 43)',
+        status: 'PASS / OPT-IN',
+        headlineMetric: 'Beyond 7.5 d: -3.9 to -4.8% (2022), -6.9 to -8.2% (2023-24)',
+        concept: 'Instead of chopping forecast leads into four rigid bins (1/3/5/7 d) and abruptly falling back to climate at day 7.5, SIGMA treats lead time like a smooth volume knob — continuously fading the forecast anomaly back toward climatology while scaling the residual noise smoothly from day 1 out to day 10.',
+        technical: 'member = mu_clim + beta_{d,c} * (hres - mu_clim) + s_{d,c} * F (tempest/forecast/sigma.py, --sigma). Scoring without the double-fit PIT step lifts cov99 from 0.976-0.983 to 0.987-0.993.',
+        metrics: [
+          '2022 (b18 PASS): -0.3 to -1.7% at 1-7 d, -3.9 to -4.8% beyond 7.5 d; beats climate by 0.55-0.70 CRPS at d 8-10',
+          '2023-24 third period (UR15 PASS): -0.0 to -3.3% at 1-7 d; -6.9 to -8.2% at 9 d (interval < 0)',
+          'No-PIT pipeline cov99: 0.987-0.993 at every lead in both boxes (CRPS within 0.05%)'
+        ],
+        code: 'tempest/forecast/sigma.py, scripts/il6_modeF.py --sigma, new_plan_kit/b18_sigma_stage2.py'
+      },
+      {
+        tier: 2,
+        id: 'X4-R / X4ERS25',
+        subsystem: 'cal-shape',
+        title: 'Post-Hoc Residual-Referenced Climatology Offset (k=3)',
+        status: 'PASS / FINAL CANDIDATE',
+        headlineMetric: 'Denver zero-shot +0.1423 / +0.1464; NM/TX -0.0000 (no retrain)',
+        concept: 'When a New Mexico model predicts Denver zero-shot, it brings New Mexico seasonal averages along for the ride. Retraining in anomaly space fixed Denver but disturbed NM/TX moisture shapes. X4-R solves this with zero retraining: it measures the seasonal harmonic mismatch between observations and the frozen network, then soft-thresholds (k=3) so the offset vanishes in-domain (NM/TX untouched) while cancelling ~74% of transfer bias in Denver.',
+        technical: 'offset = (mu_obs - mu_net) / ts with soft-threshold k=3 attached before calibration/shuffle. Ported to pure NumPy Net.x4r_offset with 1.0 deg cutoff (matches PyTorch to 1.6e-5).',
+        metrics: [
+          'X4ERS25 (k=3, PASS): Denver skill15 +0.1423 / +0.1464 over base (noise 0.0093, >15x noise)',
+          'NM/TX skill15: -0.0000 both seeds; shape PASS; preclip +0.00006 / +0.00004; cov99 OK',
+          'AV35 aloft shear map re-check on X4-R stack (b88): PASS (bit-identical in NM/TX)'
+        ],
+        code: 'configs/s25/x4er.toml, scripts/x4r_build.py, tempest_weather/engine.py::Net.x4r_offset'
+      },
+      {
+        tier: 2,
+        id: 'IL-11',
+        subsystem: 'cal-shape',
+        title: 'Seasonal Width Factors on RH & Surface Only',
+        status: 'KEPT AS FLAG',
+        headlineMetric: 'ERA5 cov99 err 0.0034 -> 0.0025; Balloons 0.0039 -> 0.0036',
+        concept: 'Dry winter mornings and monsoon summer afternoons have very different humidity spreads. After IL-2 showed seasonal widths hurt summer temperature aloft, IL-11 salvaged the idea by applying month-by-month width factors strictly to humidity and surface variables — cleanly trimming coverage overshoot on both ERA5 and balloons.',
+        technical: 'Month x variable-band width multipliers fitted on 2021-23 for RH and surface groups only (--seasonal / --post-seasonal).',
+        metrics: [
+          'ERA5 2024-25: skill15 +0.0277 -> +0.0279, |cov99-0.99| 0.0034 -> 0.0025, no band worse',
+          'Balloons 2024-25: skill15 +0.0083 -> +0.0085, |cov99-0.99| 0.0039 -> 0.0036, min cov99 0.9852'
+        ],
+        code: 'tempest/calibrate/seasonal.py, models/generator_80_p2f.seasonal2021_rhsfc.npz'
+      },
+      {
+        tier: 2,
+        id: 'UR5 / WD1',
+        subsystem: 'forecast-routing',
+        title: '10 m Calm/Windy Two-Regime Sequence Chain',
+        status: 'SHIPPED ON (api.py:28)',
+        headlineMetric: '3-h calm-window error 0.237 -> 0.030; shear spike fixed',
+        concept: 'If the wind is calm at 08:00, it is far more likely to stay calm at 09:00 and 10:00 than independent draws suggest. UR5/WD1 maps the slightly windy climate-mode 10 m speed back to ERA5 quantiles, chains consecutive hours with a calm/windy two-regime Markov model, and smoothly tapers the 10 m change to zero by 300 m so it never creates a false low-level shear cliff.',
+        technical: 'tempest_weather/ur5.py (anchor=True + linear taper to 300 m in api.atmosphere_sequence), exported via --post-ur5 for climate sequences only.',
+        metrics: [
+          'b89 tool-path replay: 3-h calm error 0.237/0.191/0.154 -> 0.030/0.024/0.016 (5/8/10 m/s)',
+          'cov90 u 0.887-0.889, v 0.888-0.901 (vs shipped 0.93/0.97); CRPS u 1.8206->1.8027, v 1.5311->1.4845',
+          '10->50 m shear spike (115/413.5) fixed by anchored chain + taper back to 19.0 / 66.5 (off: 18.9 / 67.0)'
+        ],
+        code: 'tempest_weather/ur5.py, scripts/build_ur5.py, tests/test_ur5_port.py'
+      },
+      {
+        tier: 2,
+        id: 'IL-207b / O3',
+        subsystem: 'launch-flight',
+        title: 'Launch-Week Pad Calibration & Per-Site Wind Factor',
+        status: 'PASS (IL-207b) / OPT-IN',
+        headlineMetric: 'TCS CRPS -0.075 to -0.102; 1-mo pad data -25% MAE (M6)',
+        concept: 'A 25 km grid cell cannot tell whether a launch pad sits in a wind-sheltered basin or on a breezy ridge. IL-207 proved Truth or Consequences under-covered because of a steady +1.44 m/s local bias, not narrow spread. Passing even a week of pad anemometer readings into Launch.launch_week() (or a fitted site factor) removes the local offset automatically.',
+        technical: 'Launch.launch_week(readings) computes a 7-day decaying average (alpha=1/30) starting from the IL-207b auto factor. Automatically active whenever pad readings are supplied.',
+        metrics: [
+          'IL-207b / UR9 (PASS, 21-d blocks): TCS CRPS -0.079 / -0.075 / -0.102 (1.607->1.506), cov 0.78->0.83',
+          'O3 / b90 Launch.launch_week(k=7): TCS minus auto -0.0201 [-0.0411, +0.0009] (b38: -0.0227), cov equal',
+          'M6 benchmark (1 month on-site USCRN): MAE 0.97 -> 0.73 (-25%)'
+        ],
+        code: 'tempest_weather_v2/launch.py::launch_week, tempest_weather_v2/sitecal.py, tests/test_launch_week.py'
+      },
+      {
+        tier: 2,
+        id: 'IL-200 / IL-201',
+        subsystem: 'cal-shape',
+        title: '100-300 m Shear Sharpness Diagnostic & Apogee Impact',
+        status: 'DIAGNOSTIC FINDING',
+        headlineMetric: 'Apogee impact only 0.9% of spread (landing 2.0%)',
+        concept: 'Auditing the all-hours generator against 320 pre-2023 balloons showed median wind shear in the 100-300 m layers was noticeably sharper than real soundings. Before spending weeks chasing it, IL-201 flew 200 rocket trajectories with all interior 100-300 m structure stripped out — proving it moves apogee by less than 1% of its spread.',
+        technical: 'Diagnostic comparison on 320 EPZ+MAF balloons (2021-22) + Sol Invictus 200-atmosphere flight-sim ablation at Spaceport America.',
+        metrics: [
+          'IL-200 median shear (100-300 m): tool 17.5 / 15.4 / 11.7 vs balloons 14.1 / 12.2 / 9.3 m/s/km (ERA5 6.7/6.5/5.0)',
+          'Cause traced to all-hours generator (not shear map or c4w); fine-band shear map did not repair it',
+          'IL-201 flight ablation: 0.9% of apogee spread, 2.0% of landing spread (loads/rail-exit not covered)'
+        ],
+        code: 'scripts/il200_lowlayer_shear.py, docs/results/logs/il200_stage_00z_b.log, il201_shear_apogee.log'
+      },
+      {
+        tier: 2,
+        id: 'AV35',
+        subsystem: 'cal-shape',
+        title: 'Aloft-Only Balloon Shear Map (5-12 km Half + 12-18 km Full)',
+        status: 'PASS / FINAL CANDIDATE',
+        headlineMetric: 'Shear p99 ratio: 5-12 km 0.969, 12-18 km 1.021 (+0.026% CRPS)',
+        concept: 'Upper-air wind shear tails above 5 km still ran ~15-25% softer than real balloons. AV35 applies a gentle balloon-calibrated shear boost strictly above 5 km (half gain at 5-12 km, full at 12-18 km) while copying everything below 5 km bit-identically so launch-rail winds stay untouched.',
+        technical: 'Post-tool balloon shear map tested on 2,623 EPZ/MAF balloons (2021-22) and re-verified on the c4w + X4-R stack (b88).',
+        metrics: [
+          '5-12 km shear p99: 19.0 -> 20.9 vs balloons 21.6 (ratio 0.969)',
+          '12-18 km shear p99: 24.6 -> 29.1 vs balloons 28.5 (ratio 1.021)',
+          'Below 5 km bit-identical; CRPS u+v cost only +0.026% (5-12 km +0.012%, 12-18 km +0.071%)'
+        ],
+        code: 'new_plan_kit/b49_av35_damped_midband.py, new_plan_kit/b88_av35_x4r_recheck.py'
+      },
+      {
+        tier: 2,
+        id: 'RA 1a / UR3',
+        subsystem: 'cal-shape',
+        title: 'Real-Air 6-Band Grid-to-Point Gap (Launch.real_air())',
+        status: 'PASS / OPT-IN',
+        headlineMetric: '197 left-out stations 90% cov: 0.83-0.90 -> 0.90-0.92',
+        concept: 'Instead of fitting ad-hoc widening factors at every airport, RA 1a measured the universal physical gap between a 25 km grid cell and a real point balloon across 30.9 million global pairs — just 6 numbers (1.54 to 1.98 m/s). Adding that measured gap beats site-fitted factors at both TCS and MAF with zero local tuning.',
+        technical: 'api.real_air_gap / Launch.real_air() adds N(0, sd^2) per component across 6 height bands (10 m: 1.54, 0-1.5 km: 1.63, 1.5-3 km: 1.49, 3-6 km: 1.49, 6-10 km: 1.83, >10 km: 1.98 m/s).',
+        metrics: [
+          '197 left-out stations (2022): 90% cov 0.831-0.899 -> 0.902-0.919 in all 6 bands',
+          'UR3 10 m test (1.54 m/s on raw IFS ENS): CRPS TCS 1.248 (AV6 1.268), MAF 1.179 (AV6 1.271); cov err 0.080/0.052'
+        ],
+        code: 'new_plan_kit/b6_realair_rows.py, b27_ur3_gridpoint.py, tempest_weather_v2/tests/test_real_air_tower.py'
+      },
+      {
+        tier: 2,
+        id: 'NOW2',
+        subsystem: 'launch-flight',
+        title: 'Per-Station 1-6 Hour Launch-Day Nowcast',
+        status: 'PASS / INPUT-DRIVEN',
+        headlineMetric: '+8.3 / +8.5 / +8.2 / +7.0% CRPS over observe() at +1/2/3/6 h',
+        concept: 'Single-snapshot assimilation only sees the wind right now, ignoring whether a front is ramping winds up or dying down. NOW2 reads the last 6 hours at the site plus the last 3 hours at its 3 nearest ASOS neighbors (fitted per station after pooled NOW1 hurt windy MAF) to project short-term wind momentum.',
+        technical: 'Launch.observe_nowcast + tempest_weather_v2/nowcast.py + packaged nowcast.npz asset (9 stations, day/night ridge).',
+        metrics: [
+          '2015-17 clean holdout vs observe(): +8.3% / +8.5% / +8.2% / +7.0% CRPS at +1 / +2 / +3 / +6 h',
+          '90% coverage: 0.907-0.908; every one of 9 stations improved (MAF +4.6% at +1 h, worst ABQ +2.3% at +6 h)'
+        ],
+        code: 'tempest_weather_v2/nowcast.py, scripts/build_nowcast_asset.py, new_plan_kit/b63_nowcast_stage2.py'
+      },
+      {
+        tier: 2,
+        id: 'DP Tower',
+        subsystem: 'launch-flight',
+        title: '200 m Pad Tower / Drone Profiler Assimilation',
+        status: 'PASS / SITE-SPECIFIC',
+        headlineMetric: '50-150 m wind CRPS cut 50.1% at 30 min (37.2% at 60 min)',
+        concept: 'If a launch site has a tall meteorological tower or flies a quick 200 m wind-profiling drone 30 minutes before launch, feeding that vertical slice directly into Tempest slashes low-altitude wind error in half right where rockets weathercock most.',
+        technical: 'Launch.observe_tower() wraps observe_radar with sigma = 0.5 m/s on model levels <= 200 m; replayed on 130 h of TTU SWiFT 200 m tower data.',
+        metrics: [
+          '50-150 m layer-mean wind CRPS (30 min): 1.575 -> 0.805 m/s, gain 50.1% [12.8, 72.1] (kit 48.9%)',
+          '60 min lead: gain 37.2% [0.4, 57.3]'
+        ],
+        code: 'tempest_weather_v2/launch.py::observe_tower, new_plan_kit/b67_dp_tower_replay.py'
+      },
+      {
+        tier: 2,
+        id: 'N2 / AV29',
+        subsystem: 'forecast-routing',
+        title: 'Global World-Start Pre-Training + 500 Box Steps',
+        status: 'PASS (GLOBAL STAGE)',
+        headlineMetric: 'Worth ~3 years of local data; -1.9 to -5.1% on 1-yr scarce box',
+        concept: 'Training a forecast error model from scratch in a new region takes years of local history. Pre-training Mode F on 63.6 million global HRES-ERA5 pairs first — like teaching a meteorologist general atmospheric physics worldwide before giving them a 500-step local orientation — cut errors across both boxes and proved worth ~3 full years of local data.',
+        technical: '645k global training rows (7,483 points, no lat/lon) + 500 local box fine-tune steps vs own+500 control.',
+        metrics: [
+          'Pooled 2021+2022 (3 seeds, AV29 PASS): -0.7% to -2.5% vs own+500 (wins 4/4/4 NM/TX, 3/3/4 Denver)',
+          'Data-scarce 1-year box (N2-B PASS): -1.9% to -5.1% vs own1+300 (16/16 intervals < 0)'
+        ],
+        code: 'scripts/il6_build_world.py, new_plan_kit/b19_av29_pooled.py, b5_modeF_scarce.py'
+      },
+
+      // ==================== TIER 3: NEUTRAL / TIED ====================
+      {
+        tier: 3,
+        id: '2026 Final Test',
+        subsystem: 'data-thermo',
+        title: '2026 Jan-Jun Final Test vs. E12 Per-Variable CRPS Tie',
+        status: 'STATISTICAL TIE',
+        headlineMetric: 'All 38 cells tied vs E12; wins on shape, shear & surface',
+        concept: 'On the untouched 2026 Jan-Jun holdout, single-variable CRPS alone could not separate the new pilot system from the earlier E12 baseline in any individual cell. That honest tie proved single-level climatological predictability is near its physical ceiling (~+0.02), and the real gains live in vertical coherence, shear, surface spread, and forecast blending.',
+        technical: 'Run once via scripts/final_test.sh (85,734 ERA5 rows + 290 EPZ / 264 MAF balloons, drivers unknown).',
+        metrics: [
+          'ERA5 skill15: +0.0209 vs E12 +0.0204; Balloons: +0.0187 vs E12 +0.0160 (all 38 cells tie)',
+          '|cov99-0.99|: ERA5 0.0049 (E12 0.0047), Balloons 0.0064 (E12 0.0063)',
+          'vs Earth-GRAM-style Gaussian: +5.6% ERA5 (13/19 cells), +2.2% Balloons (12/19 cells); T 12-18 km negative (-0.030/-0.039)'
+        ],
+        code: 'scripts/final_test.sh, docs/results/FINAL_REPORT.md'
+      },
+      {
+        tier: 3,
+        id: 'IL-3',
+        subsystem: 'gen-loss',
+        title: '8-Seed Ensembles vs. 4-Seed Ensembles',
+        status: 'DISCARDED (NOISE)',
+        headlineMetric: 'ERA5 +0.0001 (noise), Balloons -0.0012 at 2x cost',
+        concept: 'If combining 4 independently trained neural networks smooths out errors, doubling to 8 might seem better — like polling 8 forecasters instead of 4. In reality, 4 members already captured the ensemble benefit, so 8 members doubled runtime and asset size for noise-level changes.',
+        technical: 'configs/generator_il3.toml (8 pooled members vs 4) scored on 2024-25 dev.',
+        metrics: [
+          'ERA5 skill15: +0.0277 -> +0.0278 (inside 0.0006 seed noise); cov99 err 0.0034 -> 0.0031',
+          'Balloons skill15: +0.0083 -> +0.0071 (wrong direction, inside noise); 2x sampling cost'
+        ],
+        code: 'configs/generator_il3.toml, docs/plans/PLAN.md'
+      },
+      {
+        tier: 3,
+        id: 'a1_bootstrap',
+        subsystem: 'launch-flight',
+        title: 'observe() vs. Plain Persistence at TCS / MAF (1-Hour Lead)',
+        status: 'TIE / SLIGHTLY BEHIND',
+        headlineMetric: 'TCS -0.011 m/s (tie); MAF +0.037 m/s (3.9% worse)',
+        concept: 'One hour after an airport reports its 10 m wind, simply predicting "next hour will look like this hour regressed toward climatology" is remarkably hard to beat. Matching exact hours showed observe() ties persistence at TCS and trails slightly at MAF — reminding us that observe() shines for propagating surface obs coherently aloft, not beating 1-hour single-point persistence.',
+        technical: '300 matched hours at TCS and MAF, persistence fitted on 2016-22, date-block bootstrap.',
+        metrics: [
+          'TCS: -0.011 m/s [-0.046, +0.026] (no difference)',
+          'MAF: +0.037 m/s [+0.007, +0.067] (tool 3.9% worse; earlier 7-10% figure was unmatched hours)'
+        ],
+        code: 'docs/results/logs/a1_bootstrap.log, docs/results/FINAL_REPORT.md §12'
+      },
+      {
+        tier: 3,
+        id: 'F-23',
+        subsystem: 'cal-shape',
+        title: 'Order-Statistic vs. Quantile Mismatch Check in spread.fit',
+        status: 'NO CHANGE (NOISE)',
+        headlineMetric: 'Constant +0.002 over-coverage; fix < 0.0005 error move',
+        concept: 'The min and max of 199 draws sit at expected quantile positions 1/200 and 199/200, slightly offset from pooled quantiles. Measuring whether rescaling the outer knots mattered revealed a tiny +0.002 over-coverage whose removal would shift error by less than seed noise.',
+        technical: 'scripts/f23_check.py on 2,500 calibration and 2,500 test rows.',
+        metrics: [
+          'Mean min-max coverage of 199 draws: 0.9920 (fit years), 0.9919 (2024-25)',
+          'Removing +0.002 offset moves mean |cov99-0.99| by < 0.0005 (inside seed spread)'
+        ],
+        code: 'scripts/f23_check.py, tempest/calibrate/spread.py'
+      },
+      {
+        tier: 3,
+        id: 'IL-86',
+        subsystem: 'cal-shape',
+        title: 'Full PIT Recalibration Alone for Climate Generator',
+        status: 'MIXED / KEPT OFF',
+        headlineMetric: 'Tail error -26%, cov err better, but PIT dist & shear KS worse',
+        concept: 'PIT recalibration warps every predicted CDF so historical truth falls uniformly across percentiles — like ironing wrinkles out of a sheet. While it cut tail-rate error by 26% and improved per-level coverage, it slightly worsened out-of-sample PIT distance and nudged shear KS up, failing the "nothing worse" rule.',
+        technical: 'score/diagnose --pit-recal (scripts/il86_fit.py) judged inside the stack before Schaake shuffle.',
+        metrics: [
+          'Improved: per-level cov err 0.0123 -> 0.0101, tail-rate err 2.90 -> 2.13 (-26%), skew 0.112 -> 0.089',
+          'Worsened: PIT distance 0.0372 -> 0.0387 (exceeds 0.0010 tol), shear KS 0.0090 -> 0.0135; skill15 +0.0277 -> +0.0271'
+        ],
+        code: 'tempest/calibrate/pit_recal.py, scripts/il86_fit.py'
+      },
+      {
+        tier: 3,
+        id: 'IL-7a',
+        subsystem: 'data-thermo',
+        title: 'Chronos-2 Foundation Transformer vs. Ridge for Climate Indices',
+        status: 'DISCARDED (TIE / WORSE QBO)',
+        headlineMetric: 'Ties ridge on ONI/WWV, loses on QBO30/50 for 120M params',
+        concept: 'Using a 120-million-parameter foundation time-series transformer (Chronos-2) to forecast monthly climate indices (ONI, WWV, QBO) sounded far more sophisticated than a 6-lag linear ridge model. On 2012-2025 hindcasts, simple ridge tied Chronos-2 on ENSO and beat it decisively on QBO with zero heavy dependencies.',
+        technical: 'scripts/chronos_bakeoff.py, 2012-2025 hindcasts across 1-12 month horizons.',
+        metrics: [
+          'ONI mean CRPS: Ridge 0.342 vs Chronos-2 0.337 (alone) / 0.348 (covariates)',
+          'QBO30: Ridge 4.63 vs Chronos 5.16; QBO50: Ridge 2.75 vs Chronos 2.99-3.06',
+          'WWV: Ridge 4.48e13 vs Chronos 4.36e13 (cov) / 5.79e13 (alone)'
+        ],
+        code: 'scripts/chronos_bakeoff.py, tempest/ingest/index_forecast.py'
+      },
+      {
+        tier: 3,
+        id: 'W1/W5/W6 & V5a/X1',
+        subsystem: 'cal-shape',
+        title: 'Shear-Tail Stretch & Balloon-Correlation Gaussian Copula',
+        status: 'MISS / LINE CLOSED',
+        headlineMetric: 'Whack-a-mole: band-edge overshoot, CRPS +0.35%, Ri<1 excess',
+        concept: 'Trying to push vertical structure even closer to balloons by stretching rough wind components (W1/W5/W6) or swapping in balloon Gaussian-copula ranks (V5a/X1) hit a stubborn trade-off: stretching spilled across band edges into 1-5 km and raised correlation error, while copulas improved seed 0 correlation but cost CRPS or over-generated low-Ri turbulence aloft.',
+        technical: 'b81/b83 shear-stretch variants (f>=1, edge-tapered) and b71/b86 balloon-correlation copula + marginal locking on 800-1800 EPZ/MAF cases.',
+        metrics: [
+          'W1/W5/W6: 1-5 km p99 overshoots to 1.12-1.20; vcorr_err +0.0045 to +0.0052 (limit +0.003)',
+          'V5a: seed 0 err 0.044 (T CRPS +0.35%), seed 1 err 0.058 (u CRPS +0.9%)',
+          'X1 (marginal-locked + T-damping): corr gain only -0.0011/-0.0039, Ri<1 5-12/12-18 km 0.318/0.202 vs 0.196/0.154'
+        ],
+        code: 'new_plan_kit/b81_w1_shear_stretch.py, b71_v1_balloon_templates.py, b86_x1_locked_copula.py'
+      },
+      {
+        tier: 3,
+        id: 'GW-C / HRRR',
+        subsystem: 'launch-flight',
+        title: 'HRRR 3 km vs. ERA5 at Remote USCRN Basin Station',
+        status: 'NO ADVANTAGE (CONTAMINATION)',
+        headlineMetric: 'HRRR assimilates airport ASOS; no edge at remote basin',
+        concept: 'NOAA 3 km HRRR looks much sharper than 25 km ERA5 at airports — but only because HRRR directly ingests airport ASOS measurements (truth contamination). Tested at an independent, unassimilated desert basin station (USCRN Las Cruces 20 N), HRRR showed no advantage over ERA5.',
+        technical: '27,132 common hours at USCRN Las Cruces 20 N (2019-22) + Spaceport America flight-sim HRRR anchor check (variant F).',
+        metrics: [
+          'USCRN vs ERA5 hourly speed correlation: 0.85; past-mode CRPS 0.764 -> ERA5 anchor 0.744',
+          'Flight-sim HRRR anchor (variant F): Prometheus +9.9%, Juno III +4.8% (no clear improvement)'
+        ],
+        code: 'scripts/uscrn_compare.py, docs/HANDOVER_2026-11-09.md'
+      },
+      {
+        tier: 3,
+        id: 'S25 GF2 & GF1',
+        subsystem: 'gen-loss',
+        title: 'Optimizer Grid Sweep & Whole-Profile Loss-Mix Sweep',
+        status: 'KILL (INSIDE NOISE)',
+        headlineMetric: 'All 9 optimizer & 11 loss arms inside seed noise',
+        concept: 'Before testing exotic model families, GF2 swept a 3x3 learning-rate / weight-decay grid and GF1 tested 11 whole-profile loss terms (alternative ways of grading a full weather profile—such as scoring layer-to-layer jumps or weighting storm tails—showing the default recipe already sits in the flat sweet spot). Every arm sat inside training seed noise — confirming the shipped optimizer and loss mix are already at a flat optimum.',
+        technical: '3000-step GPU screen on paired s25 base (lr 3e-4/1e-3/3e-3 x wd 1e-5/1e-4/1e-3; 11 loss arms).',
+        metrics: [
+          'GF2 best cell (lr 1e-3, wd 1e-5): val CRPS -0.00106 vs seed noise 0.00428; lr 3e-3 worse by 0.003-0.004',
+          'GF1 best arm (vario01): composite target 0.9934 vs 1.0000 (gain 0.0066 < noise 0.0087); d_skill15 within -0.0003..+0.0005'
+        ],
+        code: 'tempest/generator/s25_losses.py, docs/results/logs/kit_s25_gf2.log, kit_s25_gf1_screen.log'
+      },
+
+      // ==================== TIER 4: REJECTED / NEGATIVE ====================
+      {
+        tier: 4,
+        id: 'F-14 & IL-97',
+        subsystem: 'data-thermo',
+        title: 'Climate Driver Interactions (ONI x QBO, ONI x Season)',
+        status: 'REJECTED (CATASTROPHIC OVERFIT)',
+        headlineMetric: 'F-14 known skill15 +0.0293 -> -0.0272; Balloons -0.0178',
+        concept: 'Although El Nino (ONI) and stratospheric QBO winds interact physically, 30 training years only contain ~35 independent ENSO/QBO states. Letting a neural slope branch multiply slow-moving indices is like fitting a high-degree curve to 35 coin flips — it memorized training history and collapsed catastrophically on 2024-25.',
+        technical: 'F-14 (p2fint: slope net sees all drivers) and salvage IL-97 (p2fpp: explicit oni*qbo30 / oni*qbo50 linear columns).',
+        metrics: [
+          'F-14 ERA5 skill15: unknown +0.0277 -> +0.0003, known +0.0293 -> -0.0272; Balloons +0.0084 -> -0.0178',
+          'F-14 cov99 error worsened: 0.0034 -> 0.0050',
+          'IL-97 explicit products: ERA5 +0.0277 -> +0.0274, Balloons +0.0084 -> +0.0079, 4 shape metrics worse'
+        ],
+        code: 'docs/logs/AUTOPILOT.md (L59, L105), configs/generator_*.toml (interactions=false)'
+      },
+      {
+        tier: 4,
+        id: 'S25 GF3',
+        subsystem: 'gen-loss',
+        title: 'Rectified Flow Matching Generator (8 Euler Steps)',
+        status: 'KILL',
+        headlineMetric: 'd_skill15 -0.0018 to -0.0107; shape FAIL; 7.9x slower',
+        concept: 'Flow matching learns a multi-step velocity field from noise to a full profile, theoretically capturing the joint vertical density without a Schaake shuffle. Because it trains on velocity MSE rather than a proper scoring rule (CRPS), it lost skill, failed shape checks in every arm, and cost nearly 8x more compute at inference.',
+        technical: 'FlowGenerator (tempest/generator/s25_models.py): F1 (8 Euler steps), F2 (+1000 steps CRPS fine-tune), F3 (no shuffle), 2 seeds.',
+        metrics: [
+          'F1 d_skill15(b): -0.0018 / -0.0029 (floor -0.0009); F2: -0.0072 / -0.0107 + cov99 FAIL',
+          'Shape FAIL in every arm (pit_tv, shear_ks, vcorr_err); Denver -0.09 / -0.10',
+          'Sampling cost: 7.9x one-step Engression MLP'
+        ],
+        code: 'tempest/generator/s25_models.py::FlowGenerator, docs/results/logs/kit_s25_gf3.log'
+      },
+      {
+        tier: 4,
+        id: 'S25 H1',
+        subsystem: 'gen-loss',
+        title: 'Prior-Sample Input + Learned Residual (GRAM-Like Prior)',
+        status: 'KILL',
+        headlineMetric: 'Worse than pure N(0,1) control by -0.0052 / -0.0053',
+        concept: 'Giving the generator a synthetic Earth-GRAM-style AR(1) prior sample and asking it to learn only the residual correction seemed like giving an artist a rough sketch. Instead, the rigid Gaussian sketch fought real non-Gaussian weather structures and scored worse than an identical control fed pure random noise.',
+        technical: 'PriorResidual (s25_models.py) vs N(0,1) noise control h1_noise on 2 seeds.',
+        metrics: [
+          'Prior minus N(0,1) control skill15: -0.0052 / -0.0053 (noise 0.0012)',
+          'vs base d_skill15(b): -0.0033 / -0.0040 (FAIL); shape FAIL (event_cov_gap, kurt_diff); Denver -0.20 / -0.19'
+        ],
+        code: 'tempest/generator/s25_models.py::PriorResidual, docs/results/logs/kit_s25_h1.log'
+      },
+      {
+        tier: 4,
+        id: 'F-7 & F-7b',
+        subsystem: 'data-thermo',
+        title: 'Split Validation Windows (2019-20 & 14-Day Blocks)',
+        status: 'DISCARDED (WORSE)',
+        headlineMetric: 'ERA5 skill15 -0.0034 (F-7) / -0.0023 (F-7b); zero cov gain',
+        concept: 'To eliminate any overlap between early stopping and calibration (both 2021-23), F-7 held out 2019-20 for validation and F-7b held out random 14-day blocks. Losing recent warming years hurt skill noticeably while providing zero coverage benefit — confirming p2f did not overfit its validation window.',
+        technical: 'p2fv (train <= 2018, val 2019-20) and p2fb (10% 14-day blocks <= 2020) vs p2f.',
+        metrics: [
+          'F-7 (p2fv): ERA5 skill15 +0.0277 -> +0.0243 (-0.0034), Balloons +0.0084 -> +0.0070',
+          'F-7b (p2fb): ERA5 skill15 +0.0277 -> +0.0254 (-0.0023), Balloons +0.0084 -> +0.0069'
+        ],
+        code: 'docs/logs/AUTOPILOT.md (L51), scripts/ap_f7c.sh'
+      },
+      {
+        tier: 4,
+        id: 'IL-8 & S25 GT2',
+        subsystem: 'gen-loss',
+        title: 'Height-Token Transformer Generator & Pooled Ensemble',
+        status: 'KILL (SLOW & HURTS SKILL)',
+        headlineMetric: 'Pooled d_skill15 -0.0321 / -0.0286; shape FAIL both seeds',
+        concept: 'Treating the 44 altitudes as self-attention tokens (Chronos-2 style) instead of a flat MLP was first aborted at step 500 for extreme runtime (1,700 s / 500 steps). When a smaller version (IL-8b, d=96) was completed and pooled with MLP members in GT2, the token members dragged ensemble skill down severely.',
+        technical: 'TokenGenerator (tempest/generator/model.py) pooled with base MLP in S25 GT2.',
+        metrics: [
+          'IL-8 initial run: 1,700 s per 500 steps, worse early val 1.29 vs 1.08',
+          'S25 GT2 pooled ensemble: d_skill15(b) -0.0321 (s0) and -0.0286 (s100); shape FAIL both seeds; Denver -0.18 / -0.19'
+        ],
+        code: 'tempest/generator/model.py::TokenGenerator, docs/results/logs/kit_s25_gt2.log'
+      },
+      {
+        tier: 4,
+        id: 'W2 & 26.2',
+        subsystem: 'cal-shape',
+        title: 'W2 u,v Gaussian Copula + Combined Damped Shear Stretch',
+        status: 'MISS / CLOSED',
+        headlineMetric: 'u CRPS +0.41% to +0.9% (s1); Ri<1 aloft overshoots to 0.244',
+        concept: 'Applying balloon Gaussian-copula ranks to u,v wind only avoided the temperature CRPS hit of V5, but repeatedly raised u CRPS on seed 1 and over-generated turbulent Ri<1 layers aloft. Stacking a 12-18 km shear stretch on top (26.2) pushed Ri<1 even further off balloons while erasing the correlation gain.',
+        technical: 'b79_w2_copula_uv.py and b84_combined_copula_stretch.py on 1,800 EPZ+MAF cases x 2 seeds.',
+        metrics: [
+          'W2: seed 0 Ri<1 12-18 km 0.187 (balloons 0.149); seed 1 u CRPS +0.41% to +0.9% (limit 0.3%)',
+          '26.2 combined: Ri<1 12-18 km 0.244 / 0.218 vs 0.154, u CRPS +0.43%, corr gain vanished (-0.0019)'
+        ],
+        code: 'new_plan_kit/b79_w2_copula_uv.py, b84_combined_copula_stretch.py'
+      },
+      {
+        tier: 4,
+        id: 'F-15, F-19, L2-H4',
+        subsystem: 'gen-loss',
+        title: 'Final m=8 Samples & Explicit Percentage-RH-in-Loss',
+        status: 'DISCARDED (WORSE SHAPE/SKILL)',
+        headlineMetric: 'vcorr worse (F-15), preclip worse (F-19), OOM/skill drop (L2-H4)',
+        concept: 'Doubling training samples per row from m=4 to m=8 (F-15) to calm gradient noise and adding an explicit % RH loss (F-19) to sharpen near-saturation humidity both backfired: m=8 hurt vertical correlation, RH-in-loss increased out-of-bounds RH clipping, and combining them (L2-H4) ran out of VRAM at m=6 and lost skill at m=5.',
+        technical: 'p2fm8 (final 1500 steps m=8), p2frh (rh_loss_weight=0.3), and p2fmix (L2-H4).',
+        metrics: [
+          'F-15 (p2fm8): skill flat (+0.0277), vcorr_err worse 0.0764 -> 0.0787 (tol 0.0015)',
+          'F-19 (p2frh): ERA5 +0.0277 -> +0.0276, pre-clip RH rate worse 0.0256 -> 0.0267',
+          'L2-H4 (m=5): ERA5 +0.0277 -> +0.0274 (FAIL), Balloons +0.0084 -> +0.0070'
+        ],
+        code: 'docs/logs/AUTOPILOT.md (L60, L63, L377)'
+      },
+      {
+        tier: 4,
+        id: 'F-10',
+        subsystem: 'forecast-routing',
+        title: 'Trajectory-Aware Balloon Drift First Guess (Mode P)',
+        status: 'REJECTED (WORSE T ALOFT)',
+        headlineMetric: 'T 5-12 km MAE +9.2% WORSE; T 1-5 km +3.5% WORSE',
+        concept: 'Real balloons drift 20-80 km downwind during their 90-minute climb, so reading ERA5 along the drifting flight path sounded more faithful than a vertical column. On 0.25-degree hourly ERA5, stepping across coarse grid boxes added interpolation noise that made 5-12 km temperature 9.2% worse.',
+        technical: 'scripts/f10_check.py (5 m/s rise, launch-profile wind advection, 2,548 soundings 2024-25).',
+        metrics: [
+          'MAE change vs launch-point ERA5: T 0-1 km +0.7%, T 1-5 km +3.5%, T 5-12 km +9.2% (worse)',
+          'u/v within -1.8% to +0.9%, RH within 0.5%'
+        ],
+        code: 'scripts/f10_check.py, models/f10_check.csv'
+      },
+      {
+        tier: 4,
+        id: 'F-11 (Part 2)',
+        subsystem: 'forecast-routing',
+        title: 'Post-2022 Sensor Indicator in Mode P',
+        status: 'DISCARDED',
+        headlineMetric: 'Network CRPS 1.9346 -> 1.9416 (RH 12-18 km +0.082)',
+        concept: 'Adding a binary post_2022 flag to Mode P was meant to let the residual network adapt to the modern radiosonde humidity sensor. Because the hybrid linear station correction (F-11 Part 1) already handled the shift cleanly, the binary flag only added slight error.',
+        technical: 'modeP_post with post_2022 indicator input compared against baseline modeP.pt.',
+        metrics: [
+          'Network + range map CRPS: 1.9346 -> 1.9416 (RH 12-18 km +0.082 worse)',
+          'Hybrid CRPS: 1.8673 -> 1.8692'
+        ],
+        code: 'docs/logs/AUTOPILOT.md (L56)'
+      },
+      {
+        tier: 4,
+        id: 'F-20',
+        subsystem: 'data-thermo',
+        title: 'Station-Blend Training Dataset (Stochastic Voronoi Removal)',
+        status: 'NOT ADOPTED',
+        headlineMetric: 'Balloons +0.0084 -> +0.0077; u 1-5 km seam worse 1.16 -> 1.31',
+        concept: 'Nearest-station assignment between Santa Teresa and Midland created a theoretical boundary near 104.4 W. Rebuilding the entire 8M-row dataset with inverse-distance stochastic station blending failed to improve balloon skill and actually made the u 1-5 km seam ratio worse.',
+        technical: 'build_dataset --station-blend --sidecar (provenance sidecar F-35 kept, blend flag kept OFF).',
+        metrics: [
+          'Balloons skill15: +0.0084 -> +0.0077; ERA5-type: +0.0277 -> +0.0266',
+          '104.4 W seam ratio: u 1-5 km 1.16 -> 1.31 (worse), RH 1-5 km 0.88 -> 0.89'
+        ],
+        code: 'tempest/calibrate/station.py::blend_weights, docs/logs/AUTOPILOT.md (L64)'
+      },
+      {
+        tier: 4,
+        id: 'F-26 & F-25',
+        subsystem: 'launch-flight',
+        title: 'Gust Stability Inputs (F-26) & Soak-Library Wind Matching (F-25)',
+        status: 'DISCARDED (WORSE WIND)',
+        headlineMetric: 'F-25 wind history CRPS 0.960 -> 1.044 m/s; F-26 flat',
+        concept: 'Adding 500 m wind and lapse-rate stability to the gust model (F-26) gave no measurable gain over 10 m wind + hour + season. Meanwhile, forcing the 24-hour pad soak library to match 10 m wind and humidity alongside temperature (F-25) compromised matches and made wind-history CRPS worse.',
+        technical: 'scripts/gust_stab_check.py (F-26) and Library.draw(wind_launch=True) on 300 test rows (F-25).',
+        metrics: [
+          'F-26: CRPS 1.4552 -> 1.4542, MAE 2.018 -> 2.020, cov99 0.985 -> 0.984',
+          'F-25: Wind history CRPS worse: T-6..T-1 h 0.960 -> 1.044 m/s, T-24..T-1 h 0.777 -> 0.798 m/s'
+        ],
+        code: 'tempest/gust/model.py, tempest/output/soak.py, tests/test_soak_match.py'
+      },
+      {
+        tier: 4,
+        id: 'IL-2',
+        subsystem: 'cal-shape',
+        title: 'Seasonal Width Factors Beyond RH & Surface',
+        status: 'REJECTED (WORSE T 5-12 km)',
+        headlineMetric: 'Target T 5-12 km cov99 0.9832 -> 0.9805; event gap worse',
+        concept: 'Applying monthly spread multipliers across every variable was meant to fix summer T 5-12 km under-coverage. Because 2021-23 summers did not show the miss, the table shrank widths instead — worsening both T 5-12 km and the event-coverage gap. Only the RH + surface subset survived as IL-11.',
+        technical: 'score --seasonal applied globally across all 19 bands (fit 2021-23, test 2024-25).',
+        metrics: [
+          'Target cell T 5-12 km cov99 fell 0.9832 -> 0.9805; event-coverage gap worsened',
+          'ERA5 skill15 unchanged (+0.0277 -> +0.0277)'
+        ],
+        code: 'tempest/calibrate/seasonal.py, docs/plans/PLAN.md (L972)'
+      },
+      {
+        tier: 4,
+        id: 'IL-13, IL-66, IL-72',
+        subsystem: 'cal-shape',
+        title: 'Fixed Median Bias Shifts (2021-23, 2011-23, & 2022-23 Balloons)',
+        status: 'DISCARDED (BREAKS COV)',
+        headlineMetric: 'IL-13 RH cov 0.9949 -> 0.9758; IL-66 cov err doubled (0.0072)',
+        concept: 'Shifting ensemble medians by recent historical bias looks like a quick fix for a -0.4 K cold bias, but atmospheric drift fluctuates nonlinearly from year to year and shifting bounded RH columns pushes draws out of bounds — breaking coverage across every variant tested.',
+        technical: 'calibrate/shift.py fitted on 2021-23 (IL-13), 2011-23 (IL-66), and 2022-23 balloons (IL-72).',
+        metrics: [
+          'IL-13: RH 1-5 km cov99 collapsed 0.9949 -> 0.9758',
+          'IL-66: ERA5 skill15 +0.0277 -> +0.0266, cov err doubled 0.0034 -> 0.0072, min band 0.9203',
+          'IL-72 (743 balloons 2022-23): T offset 0.00 K, RH -3.2%, balloons skill15 +0.0084 -> +0.0079'
+        ],
+        code: 'tempest/calibrate/shift.py, docs/plans/PLAN.md (L1023, L1083), AUTOPILOT.md (L229)'
+      },
+      {
+        tier: 4,
+        id: 'P1-d / AV34S25 & IL-5/12',
+        subsystem: 'cal-shape',
+        title: 'Climatology Trust Layer & Earth-GRAM Rare Shear Patches',
+        status: 'KILL / DISCARDED',
+        headlineMetric: 'AV34S25 shape FAIL both seeds; IL-5 inflated 99th shear 4-8%',
+        concept: 'Blending weak generator bands back toward 15-year climatology (Trust Layer) altered distribution shapes and failed shape checks on both seeds of the c4w stack. Injecting rare severe shear patches (Earth-GRAM style) overshot the 99th percentile because the 99.9th target itself shifted 14% between calibration and test years.',
+        technical: 'calibrate/trust.py (P1-d, IL-10, AV34S25) and calibrate/shear_tail.py (IL-5, IL-12).',
+        metrics: [
+          'P1-d: RH 5-12/12-18 km cov99 fell to 0.9747/0.9673; wind 5-18 km skill -0.005 to -0.007',
+          'AV34S25 on c4w: shape FAIL (event_cov_gap, shear_ks) both seeds, s100 gain inside noise',
+          'IL-5: 99th shear inflated 4-8% (17.92 -> 19.3); IL-12 indistinguishable from p2f'
+        ],
+        code: 'tempest/calibrate/trust.py, tempest/calibrate/shear_tail.py'
+      },
+      {
+        tier: 4,
+        id: 'W4',
+        subsystem: 'gen-loss',
+        title: 'Weibull-Space 10 m Wind Head',
+        status: 'DROPPED (PREMISE FAILED)',
+        headlineMetric: 'Tool Weibull k=2.05 already < ERA5 2.34 & ASOS 2.23',
+        concept: 'Because surface wind speeds often follow Weibull curves, training a Weibull-space wind head seemed like the fix for too few calm hours (< 1 m/s). A fast premise check proved the calm shortage lives in ERA5 itself (1.2% vs ASOS 6.1%), and the tool was actually less Gaussian (k=2.05) than ERA5 or ASOS.',
+        technical: 'Premise check scripts/w4_premise_check.py; dropped prior to building.',
+        metrics: [
+          'Calm share: ERA5 1.2% vs ASOS 6.1%',
+          'Weibull shape k: tool 2.05 vs ERA5 2.34 vs ASOS 2.23'
+        ],
+        code: 'scripts/w4_premise_check.py, docs/logs/AUTOPILOT.md (L516)'
+      },
+      {
+        tier: 4,
+        id: 'P1 & P4',
+        subsystem: 'launch-flight',
+        title: 'Difference Assimilation (P1) & Regime-Dependent Spread (P4)',
+        status: 'NEUTRAL / FAIL',
+        headlineMetric: 'P1 equals raw update; P4 spread is a SITE property, not regime',
+        concept: 'Assimilating the difference between a station report and the tool prediction at that station (P1) failed to cancel siting bias because the coarse 25 km grid predicts the exact same value at station and pad. Scaling spread by day/night x boundary-layer depth (P4) failed because wind spread depends on the physical site (airport vs basin), not the meteorological regime.',
+        technical: 'scripts/p4_dynamic_spread.py (past mode + ERA5 anchor, 200 h/set at TCS + MAF).',
+        metrics: [
+          'P1: algebraically neutral (equals raw update)',
+          'P4: FAIL against plain and fixed x1.2 baselines'
+        ],
+        code: 'scripts/p4_dynamic_spread.py, docs/logs/AUTOPILOT.md (L524)'
+      },
+      {
+        tier: 4,
+        id: 'P2',
+        subsystem: 'launch-flight',
+        title: 'Surface Gust as an Aloft-Wind Measurement',
+        status: 'REJECTED (TOO SMALL)',
+        headlineMetric: '-2.3% MAE in mixed air, ~0% at night',
+        concept: 'Afternoon surface gusts mix momentum down from 300-750 m, suggesting a free proxy for low-level wind aloft. Used unconditionally, the signal was far too weak (-2.3% mixed air, ~0% night). Even a later BLH-gated version (AV36, +5.3 to +7.4%) lacked live BLH/gust inputs in the runtime tool.',
+        technical: 'Unconditional gust-to-300-750m wind predictor (P2) and BLH-gated follow-up (AV36/AV38).',
+        metrics: [
+          'P2 unconditional: -2.3% MAE in mixed air, ~0% at night (too small)',
+          'AV38 Denver confirmation missed (DEN +2.01% [-1.99, +5.46] spans 0)'
+        ],
+        code: 'docs/results/FINAL_REPORT.md §10, docs/logs/AUTOPILOT.md (L524)'
+      },
+      {
+        tier: 4,
+        id: 'P7 / IL-168 / SV1',
+        subsystem: 'launch-flight',
+        title: 'Terrain-Based Site Calibration (No Pad Anemometer)',
+        status: 'NEUTRAL / MISS',
+        headlineMetric: 'Terrain adds ~0.5% (P7) / 4% of full fit (SV1)',
+        concept: 'Could static maps — NLCD land roughness z0, topographic position, ridge distance, and elevation offset — predict a launch pad local wind bias without ever installing an anemometer? Leave-one-site-out tests across 8 in-box stations and 280 global stations proved static terrain predicts almost nothing; real on-site readings are irreplaceable.',
+        technical: 'scripts/p7_site_model.py (8 sites) and new_plan_kit/b64_sv_stage1.py (280 stations).',
+        metrics: [
+          'P7 (8 in-box sites): terrain descriptors add ~0.5% over one constant regional factor',
+          'SV stage 1 (280 stations): k0 terrain-only CRPS gain 0.004 [-0.036, 0.032] (4% of full 0.113)'
+        ],
+        code: 'scripts/p7_site_model.py, new_plan_kit/b64_sv_stage1.py'
+      },
+      {
+        tier: 4,
+        id: 'c4w Denver 0-Shot',
+        subsystem: 'gen-loss',
+        title: 'Zero-Shot NM/TX c4w Model Applied in Denver',
+        status: 'FAIL (WORSE T)',
+        headlineMetric: 'Worsens Denver temperature transfer on both training seeds',
+        concept: 'Because c4w improved near-ground wind and humidity inside New Mexico/Texas, it was tested zero-shot in Denver. It degraded temperature transfer across both training seeds — confirming that regional models (or post-hoc X4-R offsets) are essential when crossing climate boundaries.',
+        technical: 'Zero-shot evaluation of generator_80_c4w (2 training seeds) on Denver held-out rows.',
+        metrics: [
+          'FAIL on Denver zero-shot temperature transfer on both seeds',
+          'Led to dedicated Denver models (l3_blocal_c4w / a24den_c4w) and X4-R'
+        ],
+        code: 'docs/results/FINAL_REPORT.md §10, docs/logs/AUTOPILOT.md (L521)'
+      },
+      {
+        tier: 4,
+        id: 'Legacy Denver',
+        subsystem: 'gen-loss',
+        title: 'Previously Shipped Small Denver Model (generator_denver.pt)',
+        status: 'REPLACED (-0.115 SKILL)',
+        headlineMetric: 'Scored -0.115 BELOW climatology on 2024-25',
+        concept: 'Auditing the actual installed Denver bundle (not just offline checkpoints) caught a silent disaster: the small 2016-21 legacy Denver model scored -0.115 below climatology — actively worse than guessing monthly averages. Catching it led to full Denver replacement (+0.017) and an end-to-end export gate (IL-171).',
+        technical: 'scripts/shipped_check.py audit on 2024-25 held-out Denver rows.',
+        metrics: [
+          'Old shipped Denver bundle: -0.115 skill vs climatology',
+          'Replaced by l3_blocal_c4w / a24den_c4w: +0.017 skill (every band improved)'
+        ],
+        code: 'docs/results/FINAL_REPORT.md §11, docs/logs/AUTOPILOT.md (L527, L538)'
+      },
+      {
+        tier: 4,
+        id: 'N4 / N5',
+        subsystem: 'forecast-routing',
+        title: 'Masked Optional-Input Mode F (N4) & Plain All-Lead Net (N5)',
+        status: 'KILL',
+        headlineMetric: 'N4 +1.0 to +2.6% worse; N5 +2.4 to +2.7% worse at 1 d',
+        concept: 'Trying to force one Mode F network to serve two completely different input worlds (zeros + "present" bit for optional ensemble inputs, N4) or span day 1 to climate without analytical variance scaling (N5) degraded short-lead accuracy across every seed. Keep single-purpose trunks and use SIGMA for continuous leads.',
+        technical: 'b5_modeF_mask.py (N4) and b5_modeF_alllead.py (N5) across NM/TX and Denver, 2 seeds.',
+        metrics: [
+          'N4: +1.0 to +1.7% worse with feed, +1.4 to +2.6% worse at leads 1-3 d without feed',
+          'N5: +2.4 to +2.7% worse at 1 d and +0.9 to +1.1% worse at 3 d (exceeded +1% kill bar)'
+        ],
+        code: 'new_plan_kit/b5_modeF_mask.py, new_plan_kit/b5_modeF_alllead.py'
+      },
+      {
+        tier: 4,
+        id: 'UR1 / X2 & b3_rh',
+        subsystem: 'cal-shape',
+        title: 'Uniform RH Stretch & Year-Specific Tail Calibration (TAILCAL)',
+        status: 'KILL / FAIL',
+        headlineMetric: 'RH stretch +5.9% CRPS; TAILCAL factors jump 0.26-0.995/yr',
+        concept: 'Uniformly stretching the whole 12-18 km RH distribution (k=1.95) fixed 99% coverage but ruined the middle (+5.9% CRPS). Fitting outer-5% tail stretch factors per lead day (UR1/X2) looked clean in-sample, but the fitted factors jumped wildly from year to year (0.26 to 0.995) and failed out-of-period.',
+        technical: 'b3_rh_widen.py, b25_ur1_tailcal.py, and b85_x2_pooled_tail.py.',
+        metrics: [
+          'Uniform RH stretch (k=1.95): cov99 0.948 -> 0.991 but CRPS 3.704 -> 3.924 (+5.9%, limit +1.5%)',
+          'UR1 / X2 TAILCAL: factor gap 0.26-0.995 between fit years (limit 0.15); 1 d cov99 still 0.03-0.13 short'
+        ],
+        code: 'new_plan_kit/b3_rh_widen.py, b25_ur1_tailcal.py, b85_x2_pooled_tail.py'
+      },
+      {
+        tier: 4,
+        id: 'AV11',
+        subsystem: 'forecast-routing',
+        title: 'Past-Mode Wind Spread x1.2 at Airports',
+        status: 'KILL',
+        headlineMetric: 'Worse at LRU (+0.024), PEQ (+0.019), ELP (+0.001) & basins',
+        concept: 'Airport past-mode 90% coverage ran low (0.71-0.82), so widening spread by 20% looked tempting. In reality, widening worsened CRPS at half the airports and both USCRN basins — proving the airport shortfall is a location bias, not a spread width defect.',
+        technical: 'Launch(past_wind_spread=1.2) tested across 6 servable airports (b40) and 2 USCRN sites (A2).',
+        metrics: [
+          'Better only at MAF (-0.029 [-0.050, -0.010]); worse at LRU (+0.024), PEQ (+0.019), ELP (+0.001)',
+          'USCRN Las Cruces 0.744 -> 0.750, Monahans 0.604 -> 0.634; default stays 1.0'
+        ],
+        code: 'new_plan_kit/b40_av11_airport_spread.py, tempest_weather_v2/launch.py'
+      },
+      {
+        tier: 4,
+        id: 'N1C4W & AV19S25',
+        subsystem: 'gen-loss',
+        title: 'Cross-Fit Members & Student-t Noise Rebuilt on c4w Base',
+        status: 'KILL ON C4W BASE',
+        headlineMetric: 'Both shape FAIL on c4w; AV19 Denver -0.0103 / -0.0039',
+        concept: 'Two ideas that passed earlier on the older p2f baseline — cross-fitting members (N1) and Student-t noise (AV19) — were rigorously re-tested directly on the shipped c4w stack. Both failed shape checks on both seeds, and Student-t actually worsened Denver — proving gains on older baselines must always be re-verified on the active stack.',
+        technical: 'scripts/gpu_n1c4w.sh and scripts/gpu_av19s25.sh judged against paired s25 base_s0 / base_s100.',
+        metrics: [
+          'N1C4W: shape FAIL both seeds (cov_err_mean, pit_tv, vcorr_err); s100 gain +0.0002 inside noise',
+          'AV19S25: Denver -0.0103 / -0.0039 (worse), NM/TX s100 -0.0015 (FAIL), shape FAIL (kurt_diff, preclip)'
+        ],
+        code: 'scripts/gpu_n1c4w.sh, scripts/gpu_av19s25.sh, docs/results/logs/kit_s25_n1c4w.log'
+      },
+      {
+        tier: 4,
+        id: 'UR6 / E4 & UR11',
+        subsystem: 'data-thermo',
+        title: 'Tropopause-Relative Coordinate (UR6) & 2016-22 RH Refit (UR11)',
+        status: 'KILL',
+        headlineMetric: 'UR6 spread 1.6-2.9x WORSE; UR11 RH CRPS +17.0% WORSE',
+        concept: 'Indexing 12-18 km calibration by distance from the tropopause (UR6/E4) was expected to tighten spread, but instead inflated temperature spread by 1.6-2.9x. Refitting the upper-air RH station line on recent 2016-22 pairs (UR11) to fix post-2020 drying backfired by +17.0% CRPS out of sample.',
+        technical: 'b30_ur6_tropopause.py (50,607 IGRA soundings) and b34_ur11_rh_line.py (4,086 pairs).',
+        metrics: [
+          'UR6: relative-to-tropopause T spread 5-9 K vs 3.0-3.6 K fixed height (ratio 1.6-2.9x; PASS < 0.70)',
+          'UR11: RH 5-18 km CRPS +17.0% worse (12-18 km 3.704 -> 5.030, skill +0.269 -> +0.008)'
+        ],
+        code: 'new_plan_kit/b30_ur6_tropopause.py, new_plan_kit/b34_ur11_rh_line.py'
+      },
+      {
+        tier: 4,
+        id: 'G2-2 & X5',
+        subsystem: 'launch-flight',
+        title: 'Student-t Surprise Widening Port (G2-2) & Ground-Wind Stack (X5)',
+        status: 'OUT / KILL',
+        headlineMetric: 'G2-2 failed port rerun (overshot cov); X5 TCS cov 0.78 < 0.80',
+        concept: 'Widening spread when a live observation surprises the prior (G2-2) passed on an older stack, but on the improved current stack plain observe() already covered surprising days at 0.90 — so t-widening overshot and cost CRPS. Combining site map + two-neighbour merge + gap table (X5) over-narrowed TCS coverage below the 0.80 floor.',
+        technical: 'b3_g22_t_update.py rerun on current defaults and b87_x5_move_respread.py.',
+        metrics: [
+          'G2-2 port rerun: plain already 0.90 cov; t_update overshot to 0.92 and cost +0.0151 CRPS (stays opt-in False)',
+          'X5: TCS CRPS -0.101/-0.093 but coverage dropped to 0.78 on seed 5 (< 0.80 kill line)'
+        ],
+        code: 'tempest_weather_v2/launch.py::_t_widen_factor, new_plan_kit/b87_x5_move_respread.py'
+      }
+    ];
+
+  let activeTier = 'all';
+  let activeSub = 'all';
+  let searchQuery = '';
+  let activeBenchMode = 'modeF';
+  let showNoiseFloor = false;
+
+  const expandedState = new Map();
+  EXPERIMENTS.forEach((exp, idx) => {
+    expandedState.set(idx, exp.tier === 1 && idx < 3);
+  });
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function updateCounts() {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    const subCounts = {
+      all: EXPERIMENTS.length,
+      'data-thermo': 0,
+      'gen-loss': 0,
+      'cal-shape': 0,
+      'forecast-routing': 0,
+      'launch-flight': 0
+    };
+    EXPERIMENTS.forEach(e => {
+      counts[e.tier] = (counts[e.tier] || 0) + 1;
+      if (subCounts[e.subsystem] !== undefined) subCounts[e.subsystem] += 1;
+    });
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(val);
+    };
+    setTxt('count-all', EXPERIMENTS.length);
+    setTxt('count-1', counts[1]);
+    setTxt('count-2', counts[2]);
+    setTxt('count-3', counts[3]);
+    setTxt('count-4', counts[4]);
+    setTxt('totalBadge', EXPERIMENTS.length + ' Logged');
+    Object.keys(subCounts).forEach(k => setTxt('sub-count-' + k, subCounts[k]));
+    return counts;
+  }
+
+  function syncPills() {
+    document.querySelectorAll('#filterBar .exp-filter-pill').forEach(btn => {
+      const active = btn.getAttribute('data-tier') === activeTier;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('is-selected', active);
+    });
+    document.querySelectorAll('#subsystemBar .exp-filter-pill').forEach(btn => {
+      const active = btn.getAttribute('data-sub') === activeSub;
+      btn.setAttribute('aria-pressed', String(active));
+      btn.classList.toggle('is-selected', active);
+    });
+  }
+
+  function renderCards() {
+    const q = searchQuery.trim().toLowerCase();
+    let totalVisible = 0;
+
+    [1, 2, 3, 4].forEach(tierNum => {
+      const secEl = document.getElementById('tier-' + tierNum);
+      const listEl = document.getElementById('tier-' + tierNum + '-cards');
+      if (!secEl || !listEl) return;
+
+      const items = [];
+      EXPERIMENTS.forEach((exp, idx) => {
+        if (exp.tier !== tierNum) return;
+        if (activeTier !== 'all' && String(exp.tier) !== activeTier) return;
+        if (activeSub !== 'all' && exp.subsystem !== activeSub) return;
+        if (q) {
+          const hay = (
+            exp.id + ' ' + exp.title + ' ' + exp.status + ' ' +
+            exp.headlineMetric + ' ' + exp.concept + ' ' +
+            exp.technical + ' ' + exp.metrics.join(' ') + ' ' + exp.code
+          ).toLowerCase();
+          if (!hay.includes(q)) return;
+        }
+        items.push({ exp, idx });
+      });
+
+      totalVisible += items.length;
+      secEl.style.display = items.length ? '' : 'none';
+
+      const st = TIER_STYLES[tierNum];
+      listEl.innerHTML = items.map(({ exp, idx }) => {
+        const isExp = Boolean(expandedState.get(idx));
+        const subLabel = SUBSYSTEM_LABELS[exp.subsystem] || exp.subsystem;
+        const metricsHtml = exp.metrics.map(m => '<li>' + esc(m) + '</li>').join('');
+        return (
+          '<article class="exp-card' + (isExp ? ' is-expanded' : '') + '" data-exp-idx="' + idx + '" style="' + st.border + '">' +
+            '<button type="button" class="exp-card-trigger" aria-expanded="' + String(isExp) + '" data-toggle-idx="' + idx + '">' +
+              '<div>' +
+                '<div class="exp-card-badges">' +
+                  '<span class="exp-id-pill">' + esc(exp.id) + '</span>' +
+                  '<span class="exp-status-pill" style="' + st.statusStyle + '">' + esc(exp.status) + '</span>' +
+                  '<span class="exp-sub-pill">' + esc(subLabel) + '</span>' +
+                '</div>' +
+                '<h3 class="exp-card-title">' + esc(exp.title) + '</h3>' +
+                '<p class="exp-card-metric">' + esc(exp.headlineMetric) + '</p>' +
+              '</div>' +
+              '<span class="exp-chevron" aria-hidden="true">&#9662;</span>' +
+            '</button>' +
+            '<div class="exp-card-body">' +
+              '<div class="exp-concept-box" style="' + st.conceptStyle + '">' +
+                '<span class="exp-detail-label" style="color:' + st.labelColor + ';">Plain-English Intuition</span>' +
+                esc(exp.concept) +
+              '</div>' +
+              '<span class="exp-detail-label" style="color:var(--ink-secondary);">Technical Mechanism</span>' +
+              '<p class="exp-tech-text">' + esc(exp.technical) + '</p>' +
+              '<span class="exp-detail-label" style="color:var(--ink-secondary);">Verified Holdout Metrics</span>' +
+              '<ul class="exp-metrics-list">' + metricsHtml + '</ul>' +
+              '<div class="exp-code-ref"><strong>Code &amp; Config:</strong> ' + esc(exp.code) + '</div>' +
+            '</div>' +
+          '</article>'
+        );
+      }).join('');
+
+      listEl.querySelectorAll('[data-toggle-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-toggle-idx'));
+          const next = !Boolean(expandedState.get(idx));
+          expandedState.set(idx, next);
+          const card = btn.closest('.exp-card');
+          if (card) card.classList.toggle('is-expanded', next);
+          btn.setAttribute('aria-expanded', String(next));
+        });
+      });
+    });
+
+    const counterEl = document.getElementById('visibleCounter');
+    if (counterEl) {
+      counterEl.textContent = 'Showing ' + totalVisible + ' of ' + EXPERIMENTS.length;
+    }
+    const emptyEl = document.getElementById('emptyState');
+    if (emptyEl) {
+      emptyEl.classList.toggle('is-visible', totalVisible === 0);
+    }
+  }
+
+  function renderTierChart(counts) {
+    if (typeof Plotly === 'undefined') return;
+    const tierLabels = [
+      'Tier 1: Major Wins',
+      'Tier 2: Conditional / Opt-In',
+      'Tier 3: Neutral / Tied',
+      'Tier 4: Rejected / Negative'
+    ];
+    const tierIds = ['1', '2', '3', '4'];
+    const data = [{
+      type: 'bar',
+      x: tierLabels,
+      y: [counts[1], counts[2], counts[3], counts[4]],
+      customdata: tierIds,
+      text: [counts[1], counts[2], counts[3], counts[4]].map(v => v + ' trials'),
+      textposition: 'outside',
+      textfont: { color: '#17191c', size: 15, family: 'Inter, sans-serif' },
+      marker: {
+        color: ['#047857', '#1d4ed8', '#b45309', '#b91c1c'],
+        line: { width: 0 }
+      }
+    }];
+    const layout = {
+      paper_bgcolor: '#ffffff',
+      plot_bgcolor: '#ffffff',
+      margin: { l: 64, r: 24, t: 32, b: 64 },
+      yaxis: {
+        title: { text: 'Number of Experiments', font: { color: '#272b30', size: 15 } },
+        gridcolor: '#e4e1d8',
+        zerolinecolor: '#cfc9bc',
+        tickfont: { color: '#525866', size: 15 },
+        range: [0, Math.max(counts[1], counts[2], counts[3], counts[4]) + 6]
+      },
+      xaxis: {
+        tickfont: { color: '#17191c', size: 15 }
+      },
+      font: { family: 'Inter, system-ui, sans-serif', size: 15, color: '#17191c' }
+    };
+    Plotly.newPlot('tierChart', data, layout, { responsive: true, displayModeBar: false }).then(gd => {
+      if (gd && typeof gd.on === 'function') {
+        gd.on('plotly_click', ev => {
+          if (!ev || !ev.points || !ev.points.length) return;
+          const clickedTier = String(ev.points[0].customdata || '');
+          if (!clickedTier) return;
+          activeTier = activeTier === clickedTier ? 'all' : clickedTier;
+          syncPills();
+          renderCards();
+        });
+      }
+    });
+  }
+
+  function renderBenchmarkChart(mode) {
+    activeBenchMode = mode;
+    const noiseWrap = document.getElementById('noiseFloorWrap');
+    if (noiseWrap) noiseWrap.classList.toggle('is-visible', mode === 'final2026');
+    if (typeof Plotly === 'undefined') return;
+
+    const titleEl = document.getElementById('benchTitle');
+    const subEl = document.getElementById('benchSubtitle');
+
+    if (mode === 'modeF') {
+      titleEl.textContent = 'Mode F Lead-Time CRPS Skill (Test Year 2022)';
+      subEl.textContent = 'Forecast-conditioned residual network + 50:50 ridge blend vs. raw ECMWF HRES across 1-day to 7-day forecast lead times.';
+      const leads = ['1 Day', '3 Days', '5 Days', '7 Days'];
+      const data = [
+        {
+          name: 'Raw ECMWF HRES (Deterministic)',
+          x: leads,
+          y: [0.57, 0.34, 0.08, -0.21],
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#b91c1c', width: 2.5, dash: 'dot' },
+          marker: { size: 8 }
+        },
+        {
+          name: 'Mode F Network (IL-77 r1)',
+          x: leads,
+          y: [0.690, 0.537, 0.347, 0.196],
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#1d4ed8', width: 2.5 },
+          marker: { size: 8 }
+        },
+        {
+          name: 'Shipped 50:50 Net + Ridge (NM/TX)',
+          x: leads,
+          y: [0.691, 0.539, 0.350, 0.209],
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#047857', width: 3.2 },
+          marker: { size: 9 }
+        },
+        {
+          name: 'Denver Mode F',
+          x: leads,
+          y: [0.68, 0.57, 0.43, 0.26],
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#b45309', width: 2.5, dash: 'dash' },
+          marker: { size: 8 }
+        }
+      ];
+      const layout = {
+        paper_bgcolor: '#ffffff',
+        plot_bgcolor: '#ffffff',
+        margin: { l: 72, r: 24, t: 20, b: 86 },
+        yaxis: {
+          title: { text: 'CRPS Skill vs. Climatology', font: { color: '#272b30', size: 15 } },
+          gridcolor: '#e4e1d8',
+          zeroline: false,
+          tickfont: { color: '#525866', size: 15 },
+          range: [-0.32, 0.82]
+        },
+        xaxis: {
+          gridcolor: '#f4f2ed',
+          tickfont: { color: '#17191c', size: 15 }
+        },
+        shapes: [{
+          type: 'line',
+          xref: 'paper', x0: 0, x1: 1,
+          yref: 'y', y0: 0, y1: 0,
+          line: { color: '#667085', width: 1.6, dash: 'dash' }
+        }],
+        annotations: [{
+          xref: 'paper', x: 0.01,
+          yref: 'y', y: 0.03,
+          xanchor: 'left', yanchor: 'bottom',
+          text: 'Climatology Baseline (0.00)',
+          showarrow: false,
+          font: { color: '#525866', size: 14, family: 'JetBrains Mono, monospace' },
+          bgcolor: '#fdfcfa',
+          borderpad: 4
+        }],
+        legend: {
+          orientation: 'h',
+          y: -0.24,
+          font: { color: '#272b30', size: 14 }
+        },
+        font: { family: 'Inter, system-ui, sans-serif', size: 15, color: '#17191c' }
+      };
+      Plotly.newPlot('benchmarkChart', data, layout, { responsive: true, displayModeBar: false });
+    } else {
+      titleEl.textContent = '2026 Jan-Jun Untouched Final Test (Drivers Unknown)';
+      subEl.textContent = 'Mean CRPS skill across 19 variable x height cells vs. 15-yr climatology & Gaussian baseline.';
+      const categories = ['ERA5 vs Clim15', 'Balloons vs Clim15', 'ERA5 vs Gaussian', 'Balloons vs Gaussian'];
+      const errSpec = showNoiseFloor
+        ? {
+            type: 'data',
+            array: [0.06, 0.13, 0.06, 0.13],
+            visible: true,
+            color: '#b45309',
+            thickness: 2.2,
+            width: 6
+          }
+        : { visible: false };
+
+      const data = [
+        {
+          name: 'Tempest-ARKNET Final',
+          x: categories,
+          y: [2.09, 1.87, 5.6, 2.2],
+          type: 'bar',
+          text: ['+2.09%', '+1.87%', '+5.6%', '+2.2%'],
+          textposition: 'outside',
+          textfont: { color: '#047857', size: 15 },
+          marker: { color: '#047857' },
+          error_y: errSpec
+        },
+        {
+          name: 'Earlier Baseline (E12)',
+          x: categories,
+          y: [2.04, 1.60, 5.5, 2.0],
+          type: 'bar',
+          text: ['+2.04%', '+1.60%', '+5.5%', '+2.0%'],
+          textposition: 'outside',
+          textfont: { color: '#1d4ed8', size: 15 },
+          marker: { color: '#1d4ed8' },
+          error_y: errSpec
+        }
+      ];
+
+      const shapes = [];
+      const annotations = [];
+      if (showNoiseFloor) {
+        shapes.push(
+          {
+            type: 'rect',
+            xref: 'paper', x0: 0, x1: 1,
+            yref: 'y', y0: 0, y1: 0.13,
+            fillcolor: 'rgba(180, 83, 9, 0.12)',
+            line: { width: 0 }
+          },
+          {
+            type: 'line',
+            xref: 'paper', x0: 0, x1: 1,
+            yref: 'y', y0: 0.13, y1: 0.13,
+            line: { color: '#b45309', width: 1.5, dash: 'dash' }
+          },
+          {
+            type: 'line',
+            xref: 'paper', x0: 0, x1: 1,
+            yref: 'y', y0: 0.06, y1: 0.06,
+            line: { color: '#1d4ed8', width: 1.4, dash: 'dot' }
+          }
+        );
+        annotations.push({
+          xref: 'paper', x: 0.99,
+          yref: 'y', y: 0.35,
+          xanchor: 'right', yanchor: 'bottom',
+          text: 'IL-92 Seed-Noise Floor: ±0.06% ERA5 / ±0.13% Balloons',
+          showarrow: false,
+          font: { color: '#b45309', size: 14, family: 'JetBrains Mono, monospace' },
+          bgcolor: '#fef8ec',
+          bordercolor: '#fde68a',
+          borderpad: 5
+        });
+      }
+
+      const layout = {
+        barmode: 'group',
+        paper_bgcolor: '#ffffff',
+        plot_bgcolor: '#ffffff',
+        margin: { l: 72, r: 24, t: 28, b: 86 },
+        yaxis: {
+          title: { text: 'CRPS Skill (%)', font: { color: '#272b30', size: 15 } },
+          gridcolor: '#e4e1d8',
+          zerolinecolor: '#cfc9bc',
+          tickfont: { color: '#525866', size: 15 },
+          range: [0, 7.2]
+        },
+        xaxis: {
+          tickfont: { color: '#17191c', size: 15 }
+        },
+        shapes: shapes,
+        annotations: annotations,
+        legend: {
+          orientation: 'h',
+          y: -0.24,
+          font: { color: '#272b30', size: 14 }
+        },
+        font: { family: 'Inter, system-ui, sans-serif', size: 15, color: '#17191c' }
+      };
+      Plotly.newPlot('benchmarkChart', data, layout, { responsive: true, displayModeBar: false });
+    }
+  }
+
+  function mount() {
+    document.querySelectorAll('#filterBar .exp-filter-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTier = btn.getAttribute('data-tier') || 'all';
+        syncPills();
+        renderCards();
+      });
+    });
+
+    document.querySelectorAll('#subsystemBar .exp-filter-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeSub = btn.getAttribute('data-sub') || 'all';
+        syncPills();
+        renderCards();
+      });
+    });
+
+    const searchInput = document.getElementById('searchInput');
+    const clearSearch = document.getElementById('clearSearch');
+    if (searchInput && clearSearch) {
+      searchInput.addEventListener('input', () => {
+        searchQuery = searchInput.value;
+        clearSearch.classList.toggle('is-visible', Boolean(searchQuery));
+        renderCards();
+      });
+      clearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        searchQuery = '';
+        clearSearch.classList.remove('is-visible');
+        renderCards();
+      });
+    }
+
+    document.getElementById('expandAllBtn')?.addEventListener('click', () => {
+      EXPERIMENTS.forEach((_, idx) => expandedState.set(idx, true));
+      renderCards();
+    });
+    document.getElementById('collapseAllBtn')?.addEventListener('click', () => {
+      EXPERIMENTS.forEach((_, idx) => expandedState.set(idx, false));
+      renderCards();
+    });
+    document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
+      activeTier = 'all';
+      activeSub = 'all';
+      searchQuery = '';
+      if (searchInput) searchInput.value = '';
+      if (clearSearch) clearSearch.classList.remove('is-visible');
+      syncPills();
+      renderCards();
+    });
+
+    document.getElementById('tabModeF')?.addEventListener('click', () => {
+      document.getElementById('tabModeF')?.classList.add('is-active');
+      document.getElementById('tabModeF')?.setAttribute('aria-pressed', 'true');
+      document.getElementById('tabFinal2026')?.classList.remove('is-active');
+      document.getElementById('tabFinal2026')?.setAttribute('aria-pressed', 'false');
+      renderBenchmarkChart('modeF');
+    });
+    document.getElementById('tabFinal2026')?.addEventListener('click', () => {
+      document.getElementById('tabFinal2026')?.classList.add('is-active');
+      document.getElementById('tabFinal2026')?.setAttribute('aria-pressed', 'true');
+      document.getElementById('tabModeF')?.classList.remove('is-active');
+      document.getElementById('tabModeF')?.setAttribute('aria-pressed', 'false');
+      renderBenchmarkChart('final2026');
+    });
+    document.getElementById('toggleNoiseFloor')?.addEventListener('change', e => {
+      showNoiseFloor = Boolean(e.target.checked);
+      if (activeBenchMode === 'final2026') renderBenchmarkChart('final2026');
+    });
+
+    const counts = updateCounts();
+    syncPills();
+    renderCards();
+    renderTierChart(counts);
+    renderBenchmarkChart('modeF');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
+})();
+</script>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

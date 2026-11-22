@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proper Scoring Rules & Physics-Informed Losses &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="04_losses" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 2 · Section 2.2 · Generative AI Core</p>
+          <h1>Proper Scoring Rules & Physics-Informed Losses</h1>
+          <p class="article-lead">How Tempest-ARKNET avoids MSE ensemble collapse using a five-term strictly proper composite objective: Almost-Fair CRPS (alpha = 0.95), dimension-normalized 179-D Energy Score, vertical step CRPS, 90th-percentile vector shear tails, and 0-300 m rail-exit wind loss.</p>
+          <div class="article-meta"><span>Modules: model.py, train.py, s25_losses.py</span><span>Config: configs/generator_c4w.toml</span><span>Includes Interactive CRPS Sandbox</span></div>
+        </header>
+
+        
+<section id="s2-2-1" class="subsection">
+  <span class="subsection-num">2.2.1</span>
+  <h2>Why MSE collapses atmospheric ensembles</h2>
+
+  <p>
+    A probabilistic atmospheric generator lives or dies by its training objective. Suppose you train a neural network
+    with noise input $\varepsilon$ using ordinary Mean Squared Error (MSE):
+    $\mathbb{E}\big[\|g_\theta(c, \varepsilon) - y\|_2^2\big]$. By elementary calculus, the unique minimizer of expected
+    squared error is the deterministic conditional expectation $\mathbb{E}[y \mid c]$&mdash;completely independent of
+    $\varepsilon$. The optimizer actively learns to <strong>zero out all noise weights</strong>, collapsing every
+    ensemble member onto one smooth, unrealistically calm mean profile that misses wind shear, jet streaks, and
+    turbulence.
+  </p>
+
+  <p>
+    To force the network to output an honest probability distribution rather than a blurred average, Tempest-ARKNET
+    trains its 4-member Engression ensemble (<code>configs/generator_c4w.toml</code>, <code>m = 4</code> parallel
+    draws per row, <code>batch = 4096</code>, forced <code>fp32</code> inside
+    <code>tempest/generator/train.py::score</code>) by minimizing a five-term composite of
+    <strong>strictly proper scoring rules</strong>&mdash;objectives whose unique global optimum is achieved if and only
+    if the generated ensemble distribution equals the true conditional atmospheric distribution:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.1 &middot; Complete Shipped <code>c4w</code> Composite Objective</span>
+    $$\mathcal{L}_{\text{c4w}}(s, y) = \underbrace{\mathcal{L}_{\text{afCRPS}}(s, y)}_{\alpha = 0.95,\;\text{179-D margins}} + \underbrace{\frac{0.1}{\sqrt{179}}\,\mathcal{L}_{\text{ES}}(s, y)}_{\text{joint 179-D coherence}} + \underbrace{0.5\,\mathcal{L}_{\text{afCRPS}}\!\left(\hat{d}_{0:176},\, d^{\text{true}}_{0:176}\right)}_{\text{layer-to-layer jumps}} + \underbrace{1.0\,\mathcal{L}_{\text{shear-tail}}}_{q = 0.9\text{ shear spikes}} + \underbrace{0.5\,\mathcal{L}_{\text{low-wind}}}_{0\text{–}300\text{ m vector + speed}}$$
+    <div class="eq-note">
+      <strong>Why five terms instead of one?</strong> Every term targets a distinct physical failure mode of rocket
+      atmospheres: (1) marginal calibration at every height, (2) cross-altitude and cross-variable coherence, (3) local
+      layer-to-layer wind roughness, (4) extreme 90th-percentile fin-breaking shear spikes, and (5) near-ground
+      0&ndash;300 m rail-exit weathercocking vector accuracy.
+    </div>
+  </div>
+
+  <h3>Why height-to-height step CRPS (<code>step_weight = 0.5</code>) is mandatory</h3>
+  <p>
+    Even though <code>Generator</code> outputs raw targets in telescoping vertical-difference space, the first two loss
+    terms are evaluated <em>after</em> <code>cumsum</code> reconstructs physical levels (<code>phys_std</code>,
+    all 179 coordinates). Cumulative summation acts as a low-pass filter: small errors of opposite sign in adjacent
+    layers cancel out in level space, hiding missing roughness. Empirically, when Tempest-ARKNET was trained on
+    reconstructed physical levels alone, generated profiles exhibited only <strong>1/2 to 1/3 of real atmospheric wind
+    shear</strong> (<code>configs/generator_c4w.toml:8</code>), yielding deceptively smooth columns that under-predicted
+    structural loads.
+  </p>
+
+  <p>
+    Adding <code>step_weight = 0.5</code> evaluates <code>afCRPS</code> directly on the raw normalized vertical-difference
+    slice <code>[0:176]</code> ($4\text{ variables} \times 44\text{ heights} = 176$, excluding the 3 surface scalars at
+    <code>[176:179]</code>), penalizing over-smoothed layer-to-layer jumps in $u, v, T$, and log dewpoint depression
+    <code>lnd</code> directly before integration can hide them.
+  </p>
+</section>
+
+<section id="s2-2-2" class="subsection">
+  <span class="subsection-num">2.2.2</span>
+  <h2>Unbiased finite-sample Fair CRPS</h2>
+
+  <p>
+    For any single scalar coordinate&mdash;say, East-West wind $u$ at 3 km AGL&mdash;the population Continuous Ranked
+    Probability Score (CRPS) compares a predictive distribution $F$ against an observed scalar $y$ via two competing
+    expectations, where $X, X' \stackrel{\text{i.i.d.}}{\sim} F$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.2 &middot; Energy-Form Representation of Population CRPS</span>
+    $$\mathrm{CRPS}(F, y) = \underbrace{\mathbb{E}|X - y|}_{\text{accuracy (fit penalty)}} - \underbrace{\frac{1}{2}\,\mathbb{E}|X - X'|}_{\text{dispersion (spread credit)}}$$
+    <div class="eq-note">
+      <strong>Plain-English intuition:</strong> The first term pulls ensemble members close to the true sounding $y$.
+      The second term pushes distinct ensemble members $X$ and $X'$ apart from each other. Because the spread credit
+      carries a factor of $\frac{1}{2}$, an ensemble cannot lower its score by exploding to infinity (fit penalty grows
+      twice as fast as spread credit once members leave the data cloud), nor can it collapse to a single point (losing
+      all spread credit). Equilibrium occurs <em>precisely</em> when the ensemble spread matches nature&rsquo;s true
+      uncertainty.
+    </div>
+  </div>
+
+  <p>
+    During GPU training, however, we cannot draw infinite samples $X, X'$; we draw a tiny finite ensemble of
+    <strong>$m = 4$ members</strong> per training row. If you naively estimate $\mathbb{E}|X - X'|$ by averaging over
+    all $m^2$ pairs $(i, j)$&mdash;the <strong>plain CRPS</strong> estimator&mdash;you include the $m$ diagonal pairs
+    where $i = j$ and $|s_i - s_i| = 0$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.3 &middot; Plain vs. Unbiased Fair CRPS at Finite Ensemble Size $m$</span>
+    $$\widehat{\mathrm{CRPS}}_{\text{plain}} = \frac{1}{m}\sum_{i=1}^{m}|s_i - y| - \frac{1}{2m^2}\sum_{i=1}^{m}\sum_{j=1}^{m}|s_i - s_j|, \qquad \widehat{\mathrm{CRPS}}_{\text{fair}} = \frac{1}{m}\sum_{i=1}^{m}|s_i - y| - \frac{1}{2m(m-1)}\sum_{i=1}^{m}\sum_{j=1}^{m}|s_i - s_j|$$
+    <div class="eq-note">
+      <strong>Why plain CRPS causes chronic overconfidence at $m = 4$:</strong> There are only $m(m-1) = 12$ distinct
+      off-diagonal pairs out of $m^2 = 16$ total pairs. Dividing by $2m^2$ instead of $2m(m-1)$ silently
+      <strong>discounts the spread reward by $1 - \frac{m-1}{m} = \frac{1}{m} = 25\%$</strong>! Facing a 25% tax on
+      dispersion, the optimizer systematically shrinks ensemble spread below reality, producing overconfident launch
+      envelopes. Replacing $m^2$ with $m(m-1)$ yields the exact unbiased U-statistic (<strong>Fair CRPS</strong>,
+      Ferro 2014) for any $m \ge 2$.
+    </div>
+  </div>
+</section>
+
+<section id="s2-2-3" class="subsection">
+  <span class="subsection-num">2.2.3</span>
+  <h2>The <code>crps_alpha = 0.95</code> stability blend</h2>
+
+  <p>
+    If Fair CRPS ($\alpha = 1$) is mathematically unbiased for every $m \ge 2$, why doesn&rsquo;t Tempest-ARKNET simply
+    train with $\alpha = 1$? Because at small training ensembles ($m = 4$), exact Fair CRPS exhibits a subtle
+    <strong>runaway outlier degeneracy</strong> during stochastic gradient descent.
+  </p>
+
+  <p>
+    Consider what happens to a single member $s_1$ that drifts far above the observation $y$ and the other three
+    members $s_2, s_3, s_4$. Moving $s_1$ upward by $+\Delta$ increases the fit term $\frac{1}{m}\sum |s_i - y|$ by
+    $+\frac{1}{m}\Delta = +\frac{1}{4}\Delta$. Simultaneously, $s_1$ moves $+\Delta$ farther from each of the $(m-1) = 3$
+    other members (counted twice in the double sum, once as $(1, j)$ and once as $(j, 1)$), so the Fair CRPS spread
+    credit $-\frac{1}{2m(m-1)}\sum_{i,j}|s_i - s_j|$ decreases the loss by
+    $-\frac{2(m-1)}{2m(m-1)}\Delta = -\frac{1}{m}\Delta = -\frac{1}{4}\Delta$.
+  </p>
+
+  <p>
+    <strong>The fit penalty and spread credit cancel out to exact zero!</strong> Once a stray sample escapes past the
+    cloud, pure Fair CRPS exerts <em>zero restoring force</em> to pull it back&mdash;opening the door to explosive
+    gradients and outlier blowup. Following ECMWF AIFS-CRPS, Tempest-ARKNET uses the <strong>Almost-Fair CRPS
+    (<code>afcrps</code>)</strong> in <code>tempest/generator/model.py:400&ndash;407</code> with
+    <code>crps_alpha = 0.95</code>:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.4 &middot; Almost-Fair CRPS (<code>afcrps</code>, $\alpha = 0.95$, weight = 1.0)</span>
+    $$\mathcal{L}_{\text{afCRPS}} = \frac{1}{BD}\sum_{b=1}^{B}\sum_{d=1}^{D}\left[\frac{1}{m}\sum_{i=1}^{m} |s_{b,i,d} - y_{b,d}| - \frac{1 - \varepsilon}{2m(m-1)}\sum_{i=1}^{m}\sum_{j=1}^{m} |s_{b,i,d} - s_{b,j,d}|\right], \qquad \varepsilon = \frac{1 - \alpha}{m}$$
+    <div class="eq-note">
+      <strong>Exact arithmetic at $m = 4, \alpha = 0.95$:</strong> $\varepsilon = (1 - 0.95)/4 = 0.0125$, so the spread
+      multiplier is $1 - \varepsilon = 0.9875$. An escaping outlier now pays $+\frac{1}{4}\Delta$ in fit penalty while
+      earning only $-\frac{0.9875}{4}\Delta$ in spread credit&mdash;leaving a gentle, strictly positive net restoring
+      gradient of $+\frac{0.0125}{4}\Delta$ that reels runaway tails back in without re-introducing overconfidence.
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>CRPS Regime</th>
+          <th>$\alpha$</th>
+          <th>Spread Factor $(1 - \varepsilon)$ at $m = 4$</th>
+          <th>Optimization &amp; Calibration Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Plain CRPS</strong></td>
+          <td><code>0.00</code></td>
+          <td><code>0.7500</code></td>
+          <td>Discounts pairwise spread by 25% due to $m$ zero diagonal terms; produces chronic under-dispersion (overconfident ensembles).</td>
+        </tr>
+        <tr>
+          <td><strong>Fair CRPS</strong></td>
+          <td><code>1.00</code></td>
+          <td><code>1.0000</code></td>
+          <td>Unbiased U-statistic, but has zero net restoring slope for an escaping single outlier at finite $m = 4$; risks runaway tail gradients.</td>
+        </tr>
+        <tr>
+          <td><strong>Almost-Fair CRPS (Shipped)</strong></td>
+          <td><code>0.95</code></td>
+          <td><code>0.9875</code></td>
+          <td>Retains 95% of the unbiased finite-$m$ spread correction while preserving a 5% restoring leash on escaping tails; stable across all 6,000 steps in <code>c4w</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s2-2-4" class="subsection">
+  <span class="subsection-num">2.2.4</span>
+  <h2>Multivariate 179-D Energy Score</h2>
+
+  <p>
+    Marginal CRPS averages independently across all $D = 179$ coordinates. A generator could match the exact marginal
+    bell curve of wind at 10 m and wind at 10 km while completely scrambling their vertical correlation&mdash;or
+    pairing a frigid winter temperature column with a humid tropical dewpoint&mdash;and incur zero penalty from
+    <code>afcrps</code>. To enforce physical coherence across all 44 altitudes and all 4 atmospheric variables
+    simultaneously, <code>train.py::score</code> adds the multivariate <strong>unbiased Energy Score</strong>
+    (<code>tempest/generator/model.py:392&ndash;397</code>) over the full standardized 179-D column vector:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.5 &middot; Dimension-Normalized Unbiased 179-D Energy Score (<code>es_weight = 0.1</code>)</span>
+    $$\mathcal{L}_{\text{ES}} = \frac{1}{B}\sum_{b=1}^{B}\left[\frac{1}{m}\sum_{i=1}^{m} \|s_{b,i} - y_b\|_2 - \frac{1}{m(m-1)}\sum_{i &lt; j}\|s_{b,i} - s_{b,j}\|_2\right], \qquad \mathcal{L}_{\text{ES,weighted}} = \frac{w_{\text{ES}}}{\sqrt{D}}\,\mathcal{L}_{\text{ES}}$$
+    <div class="eq-note">
+      <strong>Why divide by $\sqrt{D} = \sqrt{179} \approx 13.38$?</strong> Because each standardized coordinate has unit
+      variance ($\mathrm{std} \approx 1$), the Euclidean norm $\|s_{b,i} - y_b\|_2$ of a $D$-dimensional atmospheric
+      vector grows as $\mathcal{O}(\sqrt{D})$&mdash;roughly $13.4\times$ larger than a 1-D absolute error. Dividing by
+      $\sqrt{D}$ restores $\mathcal{O}(1)$ scale parity with 1-D <code>afcrps</code>, so <code>es_weight = 0.1</code>
+      acts as a true 10% relative weight invariant to the number of vertical grid levels. Note also that the pairwise
+      sum runs over unordered pairs $i &lt; j$ (so the denominator is $m(m-1)$ rather than $2m(m-1)$).
+    </div>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Code Bug B12 &middot; Missing epsilon floor in <code>model.py::energy_score</code></p>
+    <p>
+      In <code>tempest/generator/model.py:395&ndash;396</code>, <code>energy_score()</code> computes
+      <code>(samples - y.unsqueeze(1)).norm(dim=-1)</code> and <code>(samples[:, i] - samples[:, j]).norm(dim=-1)</code>
+      with <strong>no smoothing epsilon</strong>. Because the gradient of $\|x\|_2$ is $x / \|x\|_2$, any coinciding
+      ensemble pair ($s_{b,i} = s_{b,j}$) or exact target match produces $0/0 = \mathrm{NaN}$ in backpropagation.
+      By contrast, the newer Section 25 helper <code>s25_losses.py::_norm</code> (lines 19&ndash;20) explicitly guards
+      against this via <code>torch.sqrt(x.pow(2).sum(-1) + 1e-12)</code>. Updating <code>model.py::energy_score</code>
+      to reuse <code>_norm</code> eliminates this latent gradient singularity.
+    </p>
+  </div>
+
+  <h3>Alternative multivariate proper scores benchmarked in <code>s25_losses.py</code></h3>
+  <p>
+    Before locking in the shipped <code>c4w</code> objective, Tempest-ARKNET evaluated four heavier multivariate
+    scoring rules in <code>tempest/generator/s25_losses.py</code> (all off by default with zero import overhead in
+    production):
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Alternative Loss</th>
+          <th>Mathematical Mechanism</th>
+          <th>Why Shipped <code>c4w</code> Kept Simpler Terms</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>variogram_score</code></td>
+          <td>Order-$p$ vertical variogram ($p = 0.5$) across all $\binom{44}{2} = 946$ height pairs per variable, weighted by $1 / (j - i)$, matching $\mathbb{E}|X_i - X_j|^p$ to truth.</td>
+          <td>Adds $\mathcal{O}(H^2)$ pairwise compute overhead and overlaps heavily with <code>step_weight</code> + post-hoc Schaake Shuffle (<code>shuffle.py</code>).</td>
+        </tr>
+        <tr>
+          <td><code>shear_vec_es</code></td>
+          <td>2-D Energy Score on every layer&rsquo;s normalized $(\Delta u_l, \Delta v_l)$ shear vector (43 layers averaged) to jointly couple zonal and meridional turning.</td>
+          <td>Weights calm and extreme shear identically; <code>step_weight</code> + <code>shear_tail_loss</code> ($q = 0.9$) captures both typical shear and extreme fin-breaking spikes more sharply.</td>
+        </tr>
+        <tr>
+          <td><code>twes</code></td>
+          <td>Threshold-Weighted Energy Score (Allen et al. 2023) on the 0&ndash;18 km $(u, v)$ column gated by smooth sigmoid chaining $v(x) = x \cdot \sigma((\mathrm{maxshear}(x) - \mathrm{thr})/\tau)$.</td>
+          <td>Gating an entire 88-D vector norm on the single column-max shear dilutes local per-layer gradients compared to per-layer <code>shear_tail_loss</code>.</td>
+        </tr>
+        <tr>
+          <td><code>signature2</code></td>
+          <td>Energy Score on depth-2 truncated path signatures of the 5-channel height path $(u, v, T, \mathrm{lnd}, z/z_{\max})$&mdash;capturing total increments (level 1) and signed L&eacute;vy areas / ordering (level 2).</td>
+          <td>Quadratic level-2 cross-terms add gradient variance without beating the simpler physical step + tail-shear + low-wind trio on radiosonde verification.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    <code>s25_losses.py</code> also provides <code>energy_score_beta</code> (generalized exponent $\beta \in (0, 2)$
+    using smooth <code>_norm</code>) and <code>energy_distance</code> (for teacher&ndash;student distillation via
+    <code>distill_teacher</code>).
+  </p>
+</section>
+
+<section id="s2-2-5" class="subsection">
+  <span class="subsection-num">2.2.5</span>
+  <h2>Wind-shear tail loss &amp; excess-std floor</h2>
+
+  <p>
+    Component-wise step CRPS still averages uniformly across all weather days: the calm 90% of hours dominate the
+    minibatch gradient, leaving rare, razor-sharp wind-shear sheets under-resolved. Yet during rocket ascent through
+    Max-Q, it is precisely those <strong>90th-percentile shear spikes</strong>&mdash;sudden jumps in wind speed or
+    direction across a thin vertical layer&mdash;that trigger violent angle-of-attack transients and snap fins.
+  </p>
+
+  <p>
+    Introduced in Phase 2 (<code>p2e</code>/<code>p2f</code>) and shipped in <code>c4w</code> with weight
+    <code>shear_tail_weight = 1.0</code> (<code>tempest/generator/train.py:268&ndash;274, 309&ndash;314</code>),
+    <code>shear_tail_loss</code> computes the physical vector wind-shear magnitude $S_l$ ($\text{m s}^{-1}\,\text{km}^{-1}$)
+    on each of the 43 vertical layers and applies threshold-weighted <code>afCRPS</code> exclusively to the excess
+    above that layer&rsquo;s 90th-percentile training threshold $q_{0.9,l}$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.6 &middot; Threshold-Weighted Vector Shear Tail Loss (<code>q = 0.9</code>, weight = 1.0)</span>
+    $$S_l = \frac{\sqrt{\Delta u_l^2 + \Delta v_l^2}}{\Delta z_{\text{km},l}}, \qquad \mathcal{L}_{\text{shear-tail}} = \mathcal{L}_{\text{afCRPS}}\!\left(\frac{\mathrm{ReLU}(S_l - q_{0.9,l})}{\sigma_{\text{excess},l}}\right)$$
+    <div class="eq-note">
+      <strong>Why normalize by the excess-std floor $\sigma_{\text{excess},l}$?</strong> Raw wind shear in the lowest
+      50 m above the ground is vastly larger in $\text{m s}^{-1}\,\text{km}^{-1}$ than shear at 14 km in the lower
+      stratosphere. Precomputing $\sigma_{\text{excess},l} = \mathrm{std}(\max(S_l^{\text{train}} - q_{0.9,l}, 0))$
+      once from training rows (with a safe positive floor) puts every altitude layer on equal $\mathcal{O}(1)$ footing.
+      And because $g_l(S_l) = \mathrm{ReLU}(S_l - q_{0.9,l}) / \sigma_{\text{excess},l}$ is a fixed, deterministic
+      chaining map applied identically to both generated samples and ground truth, the score remains
+      <strong>strictly proper</strong>&mdash;forcing exact tail frequency and intensity without artificially inflating
+      calm-day shear.
+    </div>
+  </div>
+
+  <h3>Optional multi-scale &amp; thermodynamic physics guards in <code>train.py</code></h3>
+  <p>
+    Three additional physical regularizers exist in <code>train.py</code> (all toggled off in shipped <code>c4w</code>
+    because the five core terms plus post-generation calibration already satisfied radiosonde verification):
+  </p>
+  <ul>
+    <li>
+      <strong><code>stride_loss</code> (<code>step_strides</code>, lines 294&ndash;301):</strong> Replaces single-layer
+      step CRPS with averaged <code>afcrps</code> over sliding window sums of $s$ consecutive layers (e.g.,
+      <code>[1, 2, 4, 8, 16]</code>), each normalized by its training standard deviation.
+    </li>
+    <li>
+      <strong><code>superadiabatic</code> (<code>superadiabatic_weight</code>, lines 303&ndash;307):</strong> Penalizes
+      mean-squared excess lapse rate $\mathrm{ReLU}(-\Delta T / \Delta z_{\text{km}} - 9.8)^2$ above 2 km AGL to
+      discourage convectively unstable dry-adiabatic violations.
+    </li>
+    <li>
+      <strong><code>rh_pct</code> (<code>rh_loss_weight</code>, lines 319&ndash;325):</strong> Reconstructs liquid-water
+      RH (%) from $T$ and <code>lnd</code> for extra CRPS supervision, clamping $T \in [150, 350]\text{ K}$ and
+      $\text{lnd} \le 5.0$ so early training noise cannot hit the Tetens denominator pole at $32.19\text{ K}$.
+    </li>
+  </ul>
+</section>
+
+<section id="s2-2-6" class="subsection">
+  <span class="subsection-num">2.2.6</span>
+  <h2>Low-wind rail-exit vector loss</h2>
+
+  <p>
+    In 6-DOF rocket dispersion studies, the lowest <strong>300 m AGL</strong> accounts for roughly
+    <strong>87% of wind-driven apogee spread</strong>. Immediately after the rocket clears the launch rail, its forward
+    airspeed is still low; any crosswind therefore induces a large aerodynamic angle of attack, causing the fins to
+    <em>weathercock</em> the vehicle into the wind and permanently tilt the rest of the ascent trajectory.
+  </p>
+
+  <p>
+    On the canonical 44-height grid, <code>HEIGHTS &lt;= 300.0</code> selects the <strong>6 lowest levels</strong>
+    (<code>10, 50, 100, 150, 200, 300</code> m AGL). Inside <code>tempest/generator/train.py:327&ndash;338, 351&ndash;352</code>,
+    <code>low_wind_loss</code> rebuilds physical $(u, v)$ on those 6 levels, scales velocities by $3.0\text{ m/s}$ to
+    match $\mathcal{O}(1)$ standardized units, and combines a 12-dimensional stacked vector Energy Score with a 6-level
+    scalar wind-speed <code>afCRPS</code> (shipped weight <code>wind_vec_weight = 0.5</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 2.2.7 &middot; Near-Ground Rail-Exit Vector + Speed Loss (<code>low_top_m = 300 m</code>)</span>
+    $$\mathcal{L}_{\text{low-wind}} = \frac{1}{\sqrt{12}}\,\mathcal{L}_{\text{ES}}\!\left(\frac{\mathbf{V}_{0\text{–}300}}{3.0},\, \frac{\mathbf{V}_{0\text{–}300}^{\text{true}}}{3.0}\right) + \mathcal{L}_{\text{afCRPS}}\!\left(\frac{\sqrt{u_k^2 + v_k^2}}{3.0},\, \frac{\sqrt{(u_k^{\text{true}})^2 + (v_k^{\text{true}})^2}}{3.0}\right)$$
+    <div class="eq-note">
+      <strong>Why include scalar wind speed alongside the stacked $(u, v)$ vector?</strong> Even when marginal $u$ and
+      $v$ are individually calibrated, subtle cross-component covariance errors systematically bias the nonlinear
+      magnitude $\sqrt{u^2 + v^2}$&mdash;the exact quantity governing dynamic pressure and rail-exit weathercocking.
+      In the <code>c4w</code> ablation (<code>configs/generator_c4w.toml:27&ndash;30</code>), turning on <em>only</em>
+      <code>wind_vec_weight = 0.5</code> while holding <code>low_weight = 1.0</code> locked in the 0&ndash;1 km wind
+      gains from the earlier <code>C4b</code> run without incurring the surface-humidity (<code>RH</code>/<code>rh2m</code>)
+      degradation caused by setting <code>low_weight = 3.0</code>.
+    </div>
+  </div>
+
+  <h3>Why one-step Engression + <code>c4w</code> beat eight alternative architectures (<code>s25_models.py</code>)</h3>
+  <p>
+    Every experimental generative family in <code>tempest/generator/s25_models.py</code> implemented the identical
+    <code>forward(cond, m) &rarr; (B, m, 179)</code> contract so downstream calibration and radiosonde verification ran
+    unchanged. None displaced the single-pass 4-block AdaLN MLP:
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Experimental Architecture</th>
+          <th>Core Mechanism</th>
+          <th>Trade-Off vs. Shipped One-Step Engression</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>FlowGenerator</code></td>
+          <td>Conditional rectified flow predicting velocity $v = x_1 - x_0$ with sinusoidal <code>tau_embed</code> and 8-step Euler sampling.</td>
+          <td>8&times; slower inference, breaks simple 1-pass NumPy serving, and MSE velocity matching under-optimizes tail shear.</td>
+        </tr>
+        <tr>
+          <td><code>RefineGenerator</code></td>
+          <td>Frozen 1-step Engression draft blended with noise at $\tau_{\min}$, refined by a <code>FlowGenerator</code> over $[\tau_{\min}, 1]$.</td>
+          <td>Doubles checkpoint size and requires two-stage composition (<code>s25_compose_refine.py</code>) for marginal gains already achieved by fast post-calibration.</td>
+        </tr>
+        <tr>
+          <td><code>RMLGenerator</code></td>
+          <td>Reverse Markov Learning ($K = 3$ cosine noise levels) denoising $x_k \to x_{k-1}$ with full <code>score()</code> on $k=1$.</td>
+          <td>3&times; serving cost and multi-step exposure bias without beating single-step AdaLN Engression.</td>
+        </tr>
+        <tr>
+          <td><code>HARGenerator</code></td>
+          <td>Height-Autoregressive column synthesis bottom-to-top in 7 height blocks (<code>har_blocks</code>).</td>
+          <td>7&times; sequential passes, surface-to-stratosphere error compounding, and loss of top-down jet conditioning at lower levels.</td>
+        </tr>
+        <tr>
+          <td><code>MoEGenerator</code></td>
+          <td><code>ExpertHead</code> ($E = 3$ experts) gated by straight-through softmax on 0&ndash;3 km lapse rate, 5.5 km wind, and season + <code>aux_loss</code>.</td>
+          <td>Adds discrete routing variance; the continuous 512-wide AdaLN trunk already separates convective, stable, and jet regimes smoothly.</td>
+        </tr>
+        <tr>
+          <td><code>EOFGenerator</code></td>
+          <td>Top-$k$ SVD Empirical Orthogonal Functions (95% variance) + parametric AR(1)-in-height residual across 4 altitude bands.</td>
+          <td>Gaussian AR(1) small-scale noise is too smooth for sharp, non-Gaussian shear sheets and temperature inversions.</td>
+        </tr>
+        <tr>
+          <td><code>PriorResidual</code></td>
+          <td>Monthly box-wide AR(1)-in-height statistical prior (GRAM-style) plus learned residual correction.</td>
+          <td>Ties the generator to a coarse monthly prior that blurs local terrain and diurnal structure.</td>
+        </tr>
+        <tr>
+          <td><code>AnalogGenerator</code></td>
+          <td>Brute-force GPU kNN (<code>torch.cdist</code>) over up to 200 MB of thinned training rows ($k = 8$ analogs) + learned band warps.</td>
+          <td>~200 MB checkpoint table, poor serving scaling, and hits <strong>Bug B11</strong> (<code>names.index("year")</code> crashes on <code>--features p2</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s2-2-7" class="subsection">
+  <span class="subsection-num">2.2.7</span>
+  <h2>Interactive lab: CRPS &amp; spread-skill</h2>
+
+  <p>
+    Use the interactive sandbox below to build physical intuition for how finite ensemble size $m$, fairness parameter
+    $\alpha$, spread scaling, and tail stretching move the Continuous Ranked Probability Score and empirical coverage.
+  </p>
+
+  <ul>
+    <li><strong>Compare Plain ($\alpha = 0$) vs. Almost-Fair ($\alpha = 0.95$) at $m = 4$:</strong> Notice how plain CRPS achieves its minimum when the ensemble is artificially narrow (under-dispersed), whereas $\alpha = 0.95$ places the optimum right near unit spread-skill ratio ($\text{SSR} \approx 1.0$).</li>
+    <li><strong>Test tail stretch at $\alpha = 1.0$ vs. $\alpha = 0.95$:</strong> Observe how pure Fair CRPS flattens out on extreme outliers at small $m$, while the 5% restoring leash in <code>crps_alpha = 0.95</code> keeps the loss bowl strictly rising.</li>
+  </ul>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <div>
+        <h3 class="figure-title">Almost-Fair CRPS &amp; Spread-Skill Explorer</h3>
+        <p style="margin:0.35rem 0 0;font-size:0.95rem;color:var(--ink-secondary);">
+          Sweep ensemble size $m$, fairness $\alpha$, spread multiplier, and tail stretch in real time.
+        </p>
+      </div>
+      <button type="button" class="figure-btn" onclick="openColabLab('lab_02')">Run PyTorch Loss Demo in Colab &nearr;</button>
+    </div>
+    <div id="widget-2-crps"></div>
+    <figcaption class="figure-caption">
+      <strong>Interactive Experiment:</strong> Evaluates the exact <code>afcrps</code> formula from
+      <code>tempest/generator/model.py:400&ndash;407</code> against synthetic ground truth draws to illustrate finite-$m$
+      bias, tail leashing, and 90% empirical interval coverage.
+    </figcaption>
+  </figure>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_02')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

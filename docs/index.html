@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overview & Architecture Map &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="assets/site.js"></script>
+  
+</head>
+<body data-page-id="index" data-base="">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="index.html" class="topbar-link">Overview</a>
+      <a href="tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Part 0 · Tempest-ARKNET Technical Monograph (v3)</p>
+          <h1>Overview & Architecture Map</h1>
+          <p class="article-lead">A hybrid physics-and-AI atmospheric vertical-profile generator for 6-DOF rocket Monte Carlo dispersion—from ERA5 & IGRAv2 archives to pure-NumPy pad serving.</p>
+          <div class="article-meta"><span>Commit d081e1c</span><span>44 AGL Levels → 86 km ISA</span><span>30 Modular Add-Ons</span><span>15 Chapters + 4 Colab Labs</span></div>
+        </header>
+
+        
+<style>
+  /* Editorial Page-Specific Components (Warm Paper, Zero Dark Mode) */
+  .ed-two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem;
+    margin: 2.5rem 0;
+  }
+  .ed-panel {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 10px;
+    padding: 2rem 2.25rem;
+    box-shadow: 0 2px 10px rgba(23, 25, 28, 0.03);
+  }
+  .ed-panel-accent {
+    border-top: 3px solid var(--accent);
+  }
+  .ed-panel-warm {
+    border-top: 3px solid var(--accent-warm);
+  }
+  .ed-panel-green {
+    border-top: 3px solid var(--accent-green);
+  }
+  .ed-panel-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .ed-panel h3 {
+    font-family: var(--font-serif);
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink-primary);
+    margin: 0 0 1rem;
+  }
+  .ed-panel p {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    margin: 0 0 1.15rem;
+  }
+  .ed-panel p:last-child {
+    margin-bottom: 0;
+  }
+  .ed-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-surface);
+    color: var(--ink-secondary);
+    white-space: nowrap;
+  }
+  .ed-chip-blue {
+    background: var(--bg-accent-soft);
+    border-color: #bfdbfe;
+    color: var(--accent);
+  }
+  .ed-chip-green {
+    background: var(--bg-success-soft);
+    border-color: #a7f3d0;
+    color: var(--accent-green);
+  }
+  .ed-chip-amber {
+    background: var(--bg-warn-soft);
+    border-color: #fde68a;
+    color: var(--accent-warm);
+  }
+  .ed-chip-red {
+    background: var(--bg-danger-soft);
+    border-color: #fecaca;
+    color: var(--accent-red);
+  }
+
+  /* At-a-Glance Metrics Strip */
+  .metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin: 2.75rem 0;
+  }
+  .metric-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.4rem 1.5rem;
+  }
+  .metric-label {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-secondary);
+    margin-bottom: 0.45rem;
+  }
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--ink-primary);
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+  .metric-desc {
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+    margin: 0;
+  }
+
+  /* Pillar Footer Path */
+  .pillar-files {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-hairline);
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    color: var(--ink-secondary);
+    line-height: 1.55;
+  }
+
+  /* Add-On Registry Controls & Cards */
+  .registry-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 2rem 0 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 10px;
+  }
+  .pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .ed-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.95rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-white);
+    color: var(--ink-body);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .ed-filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ed-filter-btn.is-active {
+    background: var(--bg-accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .registry-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+    padding: 0.85rem 1.25rem;
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: var(--ink-secondary);
+  }
+  .legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: center;
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .addon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 1.35rem;
+    margin: 1.5rem 0 2.5rem;
+  }
+  .addon-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.5rem 1.6rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .addon-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 16px rgba(23, 25, 28, 0.05);
+  }
+  .addon-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .addon-card-title {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ink-primary);
+    margin: 0;
+    line-height: 1.35;
+  }
+  .addon-card-idea {
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: var(--ink-body);
+    margin: 0.65rem 0 0.5rem;
+  }
+  .addon-card-tech {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--ink-secondary);
+    margin: 0;
+  }
+  .addon-card-meta {
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border-hairline);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-secondary);
+    line-height: 1.55;
+  }
+  .addon-card-path {
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  /* 6-Stage Integration Bridge */
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    gap: 1.5rem;
+    margin: 2.5rem 0;
+  }
+  .stage-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .stage-io {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    border-radius: 6px;
+    padding: 0.9rem 1.05rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--ink-body);
+  }
+  .stage-io div {
+    margin-bottom: 0.35rem;
+  }
+  .stage-io div:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Banner Callout */
+  .ledger-banner {
+    margin: 3rem 0;
+    padding: 2.25rem 2.5rem;
+    background: var(--bg-success-soft);
+    border: 1px solid #a7f3d0;
+    border-left: 4px solid var(--accent-green);
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+  }
+  .ledger-banner-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.4rem;
+    border-radius: 6px;
+    background: var(--accent-green);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .ledger-banner-cta:hover {
+    background: #065f46;
+    color: #ffffff;
+  }
+
+  /* Colab Labs Grid */
+  .colab-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.35rem;
+    margin: 2rem 0 1rem;
+  }
+  .colab-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-hairline);
+    border-radius: 8px;
+    padding: 1.65rem 1.85rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .colab-card h4 {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink-primary);
+    margin: 0.35rem 0 0.5rem;
+  }
+  .colab-card p {
+    font-size: 0.96rem;
+    line-height: 1.6;
+    color: var(--ink-secondary);
+    margin: 0;
+  }
+
+  @media (max-width: 960px) {
+    .ed-two-col, .colab-grid {
+      grid-template-columns: 1fr;
+    }
+    .metrics-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 600px) {
+    .metrics-strip {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.1 : SIXTY-SECOND EXECUTIVE SUMMARY                           -->
+<!-- ====================================================================== -->
+<section id="sec-0-1" class="subsection">
+  <span class="subsection-num">0.1</span>
+  <h2>Sixty-second executive summary</h2>
+
+  <p>
+    <strong>Tempest-ARKNET</strong> is a hybrid physics-and-AI atmospheric profile generator engineered for high-power rocket flight simulation and launch-day dispersion analysis. Rather than feeding a 6-DOF trajectory simulator a single idealized atmosphere or one deterministic weather forecast, it generates calibrated ensembles of physically coherent vertical air columns from the launch rail to 86 km—and serves them at the pad with pure NumPy and zero GPU dependencies.
+  </p>
+
+  <div class="ed-two-col">
+    <div class="ed-panel ed-panel-accent">
+      <div class="ed-panel-kicker">
+        <span>1 &middot; In Plain English &amp; Analogy</span>
+        <span class="ed-chip ed-chip-blue">Start Here</span>
+      </div>
+      <h3>400 Realistic Vertical Skies Instead of One Textbook Guess</h3>
+      <p>
+        Planning a rocket flight with a single textbook atmosphere is like planning a cross-country road trip using only the national average speed limit—it ignores headwinds, mountain passes, afternoon heat, and sudden gusts. <strong>Tempest-ARKNET</strong> replaces that single static guess with an ensemble of <strong>400 physically coherent vertical sky columns</strong> tailored to your exact launch pad, altitude, time of day, and forecast lead time.
+      </p>
+      <p>
+        Every generated sky moves together smoothly from the launch rail to 18 km (and blends cleanly into the upper atmosphere up to 86 km): wind speed and direction shift realistically across layers, temperature cools or forms morning inversions naturally, and air density matches the exact weight of the air column overhead. On launch morning, you can nudge those 400 skies to agree with live airport weather reports, pad anemometers, and nearby Doppler radar—without needing a GPU or PyTorch installed.
+      </p>
+    </div>
+
+    <div class="ed-panel ed-panel-warm">
+      <div class="ed-panel-kicker">
+        <span>2 &middot; Technical Summary</span>
+        <span class="ed-chip ed-chip-amber">Commit d081e1c</span>
+      </div>
+      <h3>Hybrid Engression + Hydrostatic Physics + Zero-PyTorch Serving</h3>
+      <p>
+        Offline, Tempest-ARKNET ingests <strong>ERA5</strong> reanalysis, <strong>IGRA2</strong> weather-balloon soundings, <strong>ASOS</strong> surface gusts, and climate indices onto a canonical <strong>44-level AGL</strong> (10 m to 18 km) grid. A 4-member conditional <strong>Engression</strong> neural network (~2.8M parameters per member) trains directly on proper scoring rules (almost-fair CRPS + Energy Score + tail shear + low-altitude vector wind) in vertical-difference and log dewpoint-depression coordinates, then calibrates against balloons with quantile spread maps, a 2-degree-block Schaake shuffle, shear/lapse maps, a vertical-wind <code>w</code>-head, and a heteroscedastic Gumbel gust law.
+      </p>
+      <p>
+        For production, <code>tempest/export_tool.py</code> packs all weights and tables into a standalone pure-NumPy bundle guarded by a <strong>SHA-256</strong> cryptographic fingerprint in <code>manifest.json</code> (fail-closed verification). At query time, <code>tempest_weather_v2.Launch</code> routes across past (Mode P), live forecast (Mode F), and climate (Mode C) regimes, enforces 2-pass hydrostatic thermodynamics, assimilates live observations via soft copulas, and compiles each sky into a 10 m <strong><code>float32</code> LUT</strong> (~0.7 &mu;s scalar lookups) with an 86 km <strong>ISA</strong> upper tail for 6-DOF Monte Carlo flight simulators.
+      </p>
+    </div>
+  </div>
+
+  <div class="metrics-strip">
+    <div class="metric-card">
+      <div class="metric-label">Vertical Grid &amp; Upper Tail</div>
+      <div class="metric-value">44 AGL &rarr; 86 km</div>
+      <p class="metric-desc">12 fine boundary-layer rungs (10&ndash;2,000 m) + 32 upper rungs (2.5&ndash;18 km) + ISA upper tail.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Serving Footprint</div>
+      <div class="metric-value">Pure NumPy</div>
+      <p class="metric-desc">Zero PyTorch dependency at runtime; fail-closed SHA-256 manifest verification on load.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Flight-Sim Lookup Speed</div>
+      <div class="metric-value">~0.7 &mu;s / call</div>
+      <p class="metric-desc">Precomputed 10 m <code>float32</code> LUTs ready for RocketPy, OpenRocket, and 6-DOF loops.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Pilot Corridors</div>
+      <div class="metric-value">NM/TX &amp; Denver</div>
+      <p class="metric-desc">Spaceport America / Midland (377 grid pts) + Denver box, extensible via TOML.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.2 : WHY STANDARD FORECASTS FAIL ROCKETS                      -->
+<!-- ====================================================================== -->
+<section id="sec-0-2" class="subsection">
+  <span class="subsection-num">0.2</span>
+  <h2>Why standard forecasts fail rockets</h2>
+
+  <p>
+    A rocket climbing to 30,000 ft AGL experiences the atmosphere differently from an airliner or a backyard weather station. In roughly thirty seconds of powered flight, it slices through the surface friction layer, morning thermal inversions, mid-tropospheric shear layers, and high-altitude jet streaks—while its stability, weathercocking, and recovery drift integrate every layer along the way. Standard weather forecasts break down for five concrete physical reasons:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Single deterministic forecasts hide variance and collapse wind shear.</strong>
+      An average of two opposite wind regimes predicts calm air, even when both regimes are windy. Training a neural network with mean-squared error (MSE) produces the exact same pathology: blurry, overly smooth vertical profiles that erase sharp upper-air wind-shear cliffs and bimodal jet streaks. Rockets need full joint ensembles trained on proper scoring rules (<code>afCRPS</code> and Energy Score) rather than point averages.
+    </li>
+    <li>
+      <strong>87% of wind-driven apogee spread originates in the lowest 300 m AGL.</strong>
+      As a rocket leaves the launch rail at low airspeed, lateral wind exerts maximum weathercocking torque. Coarse global weather models space their lowest pressure levels hundreds of meters apart and report hourly mean winds—completely hiding the directional terrain roughness ($z_0$), low-level shear, and sudden 10 m gusts that dominate rail-exit dispersion.
+    </li>
+    <li>
+      <strong>Marginal calibration without vertical coherence creates impossible skies.</strong>
+      If you independently adjust the temperature or wind distribution at each altitude to match weather balloons, you scramble the pairing between layers. A profile that grabs a 95th-percentile wind at 1,500 m and a 10th-percentile wind at 1,750 m invents physically impossible shear jumps and violates hydrostatic balance between pressure, temperature, and density.
+    </li>
+    <li>
+      <strong>Bounded relative humidity slams into 0% and 100% walls in desert air.</strong>
+      At desert launch sites like Spaceport America, dry air routinely pushes relative humidity near 0%. Models trained in raw RH% bounce off the boundary and clip flat, distorting lower-tail moisture and virtual temperature $T_v$. Expressing moisture as log dewpoint depression $	ext{lnd} = \ln(1 + \max(T - T_d, 0))$ turns a walled box into a smooth, unbounded coordinate space.
+    </li>
+    <li>
+      <strong>Forecasts age between T-24 h and launch morning, and pads lack GPUs.</strong>
+      A global NWP run from yesterday evening cannot see this morning&rsquo;s valley wind shift or local airport METAR report. Meanwhile, trajectory teams running 1,000-shot Monte Carlo sweeps on field laptops cannot afford a 3 GB PyTorch runtime or slow per-step neural evaluations inside an ODE solver.
+    </li>
+  </ul>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Design Principle: Separate Physics Coordinates, Proper Scoring, and Runtime Serving</p>
+    <p>
+      Tempest-ARKNET solves these five failure modes by attacking each at its root: smooth physics coordinates (<code>44 AGL</code> + vertical differences + <code>dpd</code>), single-step Engression trained on proper scoring rules, balloon-calibrated vertical rank templates (Schaake shuffle + 2-pass hydrostatic integration), launch-morning soft copula assimilation, and a frozen pure-NumPy 10 m <code>float32</code> LUT engine.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.3 : CORE PIPELINE VS. MODULAR ADD-ONS                        -->
+<!-- ====================================================================== -->
+<section id="sec-0-3" class="subsection">
+  <span class="subsection-num">0.3</span>
+  <h2>Core pipeline vs. modular add-ons</h2>
+
+  <p>
+    Every query—whether reconstructing a historical 2022 launch, forecasting next Saturday&rsquo;s window, or sampling July climatology—travels through <strong>four permanent load-bearing pillars</strong>. Optional plug-ins and experimental modules attach cleanly to documented hooks around this backbone without altering its core data contracts or breaking serving reproducibility.
+  </p>
+
+  <div class="ed-two-col">
+    <!-- Pillar 1 -->
+    <article class="ed-panel ed-panel-accent">
+      <div class="ed-panel-kicker">
+        <span>Pillar 1 &middot; Physics Coordinates</span>
+        <a href="pages/01_ingest.html">Chapters 1.1&ndash;1.2 &rarr;</a>
+      </div>
+      <h3>44-Level AGL Grid &amp; Smooth Target Space</h3>
+      <p>
+        <strong>Plain English:</strong> Rather than asking a neural network to predict raw altitude temperatures and humidity percentages that slam into 0% and 100% walls, Pillar 1 stores each column as a base value plus step-by-step vertical changes and expresses dryness on a smooth, unbounded log ruler.
+      </p>
+      <p>
+        <strong>Technical:</strong> Projects ERA5 pressure levels via geopotential-to-geometric height onto 44 canonical AGL levels (<code>10&ndash;18,000 m</code>), converts mixed-phase RH to liquid-water RH, encodes <code>D = 179</code> targets via upward differences (<code>diff.py</code>) and log dewpoint depression <code>lnd = ln(1 + max(T - Td, 0))</code>, and packs <code>C = 13/16</code> climate conditioning features.
+      </p>
+      <div class="pillar-files">
+        tempest/region.py &middot; tempest/profiles/{to_heights,thermo,diff}.py &middot; tempest/generator/features.py
+      </div>
+    </article>
+
+    <!-- Pillar 2 -->
+    <article class="ed-panel ed-panel-accent">
+      <div class="ed-panel-kicker">
+        <span>Pillar 2 &middot; Probabilistic Core</span>
+        <a href="pages/03_engression.html">Chapters 2.1&ndash;2.3 &rarr;</a>
+      </div>
+      <h3>4-Member Engression Generator &amp; Scoring Losses</h3>
+      <p>
+        <strong>Plain English:</strong> Instead of guessing one &ldquo;most likely&rdquo; sky and sprinkling fake noise on top, four independent neural artists each draw plausible whole-column weather scenarios directly from random noise—graded by how well their cloud of scenarios matches real skies and extreme wind-shear cliffs.
+      </p>
+      <p>
+        <strong>Technical:</strong> Four <code>width=512, depth=4</code> AdaLN/FiLM residual MLPs (~2.8M params each) with a linear slope bypass for slow climate drivers (<code>year/gmst, oni, wwv, qbo30, qbo50</code>), trained with EMA (<code>0.999</code>) on <code>afCRPS</code> ($lpha=0.95$) + Energy Score + step CRPS + 90th-percentile shear-tail loss + 0&ndash;300 m vector wind loss.
+      </p>
+      <div class="pillar-files">
+        tempest/generator/{model,train,sample}.py &middot; configs/generator_c4w.toml &middot; tempest/gust/model.py
+      </div>
+    </article>
+
+    <!-- Pillar 3 -->
+    <article class="ed-panel ed-panel-warm">
+      <div class="ed-panel-kicker">
+        <span>Pillar 3 &middot; Balloon Calibration &amp; Physics</span>
+        <a href="pages/06_calibration.html">Chapters 3.1&ndash;3.4 &rarr;</a>
+      </div>
+      <h3>Post-Generation Calibration &amp; Hydrostatic Column</h3>
+      <p>
+        <strong>Plain English:</strong> Raw AI ensembles can be slightly too narrow or slightly jagged between adjacent altitudes. Pillar 3 calibrates ensemble widths against real weather balloons, re-links vertical layers using historical rank templates, shifts air for exact pad elevation, and weighs the column from the ground up so pressure, density, and speed of sound obey physics exactly.
+      </p>
+      <p>
+        <strong>Technical:</strong> Applies 109-knot quantile spread mapping (<code>M_CAL = 199</code>), 2-degree-block Schaake shuffle (<code>uint8 199&times;179</code> templates), shear &amp; lapse-rate quantile maps, <code>to_site</code> elevation adjustment ($e^{-z/1500}$ decay), and 2-pass hypsometric integration with altitude-varying $g(z)$ and virtual temperature $T_v$.
+      </p>
+      <div class="pillar-files">
+        tempest/calibrate/{spread,shuffle,shear_map,lapse_map}.py &middot; tempest_weather/_core.py
+      </div>
+    </article>
+
+    <!-- Pillar 4 -->
+    <article class="ed-panel ed-panel-green">
+      <div class="ed-panel-kicker">
+        <span>Pillar 4 &middot; Production Serving &amp; Sim Bridge</span>
+        <a href="pages/10_serving.html">Chapters 4.0&ndash;6.0 &rarr;</a>
+      </div>
+      <h3>Pure-NumPy Runtime, Launch API &amp; Fast LUT Readers</h3>
+      <p>
+        <strong>Plain English:</strong> Rocket teams should never have to install a 3 GB GPU deep-learning stack just to run a trajectory sweep. Pillar 4 freezes the entire trained system into compact, tamper-checked NumPy files, routes requests across past/forecast/climate automatically, and serves instant altitude lookups directly inside 6-DOF flight simulators.
+      </p>
+      <p>
+        <strong>Technical:</strong> <code>export_tool.py</code> writes SHA-256-verified <code>.npz</code> assets consumed by <code>tempest_weather/engine.py</code> and the immutable <code>tempest_weather_v2.Launch</code> API, compiling uniform 10 m <code>float32</code> LUTs (<code>~0.7 &mu;s</code> scalar lookup, 86 km ISA tail, optional hybrid <code>air="standard"</code>) for joint Vehicle + Atmosphere Monte Carlo.
+      </p>
+      <div class="pillar-files">
+        tempest/export_tool.py &middot; tempest_weather/engine.py &middot; tempest_weather_v2/{launch,readers,montecarlo}.py
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.4 : INTERACTIVE 30-ITEM ADD-ON REGISTRY                      -->
+<!-- ====================================================================== -->
+<section id="sec-0-4" class="subsection">
+  <span class="subsection-num">0.4</span>
+  <h2>Interactive add-on registry (<span id="addon-total-heading">30</span>)</h2>
+
+  <p>
+    Surrounding the 4-pillar backbone are <strong>30 modular add-ons and plug-ins</strong> spanning training, calibration, operational forecasting, and flight-simulation post-processing. Each card leads with its plain-English idea before stating the technical hook and exact repository file path. Use the category pills or the <em>Shipped ON Only</em> toggle to inspect which components run automatically by default.
+  </p>
+
+  <div class="registry-toolbar">
+    <div class="pill-group" id="addon-filters" role="group" aria-label="Filter add-ons by category">
+      <button type="button" data-filter="all" aria-pressed="true" class="ed-filter-btn is-active">
+        All (<span data-cat-count="all">30</span>)
+      </button>
+      <button type="button" data-filter="training" aria-pressed="false" class="ed-filter-btn">
+        Training (<span data-cat-count="training">4</span>)
+      </button>
+      <button type="button" data-filter="calibration" aria-pressed="false" class="ed-filter-btn">
+        Calibration (<span data-cat-count="calibration">10</span>)
+      </button>
+      <button type="button" data-filter="operational" aria-pressed="false" class="ed-filter-btn">
+        Operational (<span data-cat-count="operational">9</span>)
+      </button>
+      <button type="button" data-filter="flight" aria-pressed="false" class="ed-filter-btn">
+        Flight-Sim (<span data-cat-count="flight">7</span>)
+      </button>
+    </div>
+
+    <div class="pill-group" id="addon-status-toggle" role="group" aria-label="Filter add-ons by deployment status">
+      <button type="button" data-status-mode="all" aria-pressed="true" class="ed-filter-btn is-active">
+        All Statuses (<span data-status-count="all">30</span>)
+      </button>
+      <button type="button" data-status-mode="shipped" aria-pressed="false" class="ed-filter-btn">
+        Shipped ON Only (<span data-status-count="shipped">13</span>)
+      </button>
+    </div>
+  </div>
+
+  <div class="registry-legend">
+    <div class="legend-items">
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:var(--bg-success-soft);border-left:3px solid var(--accent-green);"></span>
+        <strong style="color:var(--accent-green);">Shipped ON</strong> (default active)
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:var(--bg-warn-soft);border-left:3px solid var(--accent-warm);"></span>
+        <strong style="color:var(--accent-warm);">Opt-In Flag</strong> (API call or config flag)
+      </span>
+      <span class="legend-item">
+        <span class="legend-swatch" style="background:var(--bg-danger-soft);border-left:3px dashed var(--accent-red);"></span>
+        <strong style="color:var(--accent-red);">Unwired / Experimental</strong> (tested, off in prod)
+      </span>
+    </div>
+    <div id="addon-visible-counter" style="font-family:var(--font-mono);font-size:0.84rem;color:var(--ink-secondary);">
+      Showing 30 of 30 plug-ins
+    </div>
+  </div>
+
+  <div id="addon-grid" class="addon-grid"></div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.5 : HOW EVERYTHING FITS TOGETHER                             -->
+<!-- ====================================================================== -->
+<section id="sec-0-5" class="subsection">
+  <span class="subsection-num">0.5</span>
+  <h2>How everything fits together</h2>
+
+  <p>
+    Trace a complete rocket-weather lifecycle across all six subsystems—from raw global meteorological archives to sub-microsecond 6-DOF flight trajectories. The two architectural blueprints below show first the clean offline-versus-live split, and then the 14-node runtime assembly graph executed when you query a launch window.
+  </p>
+
+  <!-- Mermaid Diagram 1: 8-Node Semantic Overview -->
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <div>
+        <div class="ed-panel-kicker" style="margin-bottom:0.3rem;">Figure 0.1 &middot; 8-Node System Blueprint</div>
+        <h3 class="figure-title">Offline PyTorch Training vs. Live Pure-NumPy Serving</h3>
+      </div>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Fullscreen Zoom &nearr;</button>
+    </div>
+    <div class="mermaid-src">
+flowchart LR
+  classDef src fill:#eff4ff,stroke:#1d4ed8,color:#17191c,stroke-width:2px;
+  classDef neural fill:#f3effe,stroke:#6d28d9,color:#17191c,stroke-width:2px;
+  classDef physics fill:#fef8ec,stroke:#b45309,color:#17191c,stroke-width:2px;
+  classDef ops fill:#ecfdf5,stroke:#047857,color:#17191c,stroke-width:2px;
+
+  subgraph OFF["Offline Training &amp; Export (PyTorch · tempest/)"]
+    N1["1. Multi-Source Archives&lt;br/&gt;ERA5 · IGRA2 · ASOS · Indices"]:::src
+    N2["2. 44-Level AGL Physics&lt;br/&gt;Vertical Diffs &amp; Log-DPD"]:::physics
+    N3["3. 4-Member Engression&lt;br/&gt;afCRPS · ES · Shear &amp; Low-Wind"]:::neural
+    N4["4. Calibration &amp; Export&lt;br/&gt;Spread · Shuffle · SHA-256 .npz"]:::ops
+    N1 --&gt; N2 --&gt; N3 --&gt; N4
+  end
+
+  subgraph LIVE["Live Serving &amp; Flight-Sim (Pure NumPy · tempest_weather/_v2)"]
+    N5["5. Lead-Time Router&lt;br/&gt;Past P · Forecast F · Climate C"]:::ops
+    N6["6. NumPy Engine &amp; Thermo&lt;br/&gt;Site Shift · 2-Pass (p, rho, a)"]:::physics
+    N7["7. Launch-Day Live Obs&lt;br/&gt;METAR · HRRR · NEXRAD VAD"]:::src
+    N8["8. Flight-Sim &amp; Joint MC&lt;br/&gt;10 m float32 LUT · Dryden · Sobol"]:::ops
+    N5 --&gt; N6 --&gt; N8
+    N7 --&gt; N6
+  end
+
+  N4 --&gt; N5
+    </div>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      <strong>Semantic color key:</strong> Blue = meteorological archives &amp; live sensors; Violet = generative neural training; Amber = coordinate transforms &amp; hydrostatic thermodynamics; Green = calibration, routing, SHA-256 export &amp; flight-sim execution. Click <em>Fullscreen Zoom</em> to inspect at high magnification.
+    </figcaption>
+  </figure>
+
+  <!-- 6-Stage End-to-End Integration Bridge -->
+  <div class="stage-grid">
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 1 &middot; Data &amp; Physics</span>
+          <span><a href="pages/01_ingest.html">1.1</a> &middot; <a href="pages/02_thermo.html">1.2</a></span>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Data Ingest &amp; Vertical Physics</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Downloads regional archives and projects pressure-level weather onto the 44-height AGL ladder in smooth vertical-difference and log-dryness coordinates.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> ERA5 13-lvl/sfc, IGRA2 00Z/12Z, ASOS gusts, ONI/QBO/WWV/GMST</div>
+          <div><strong>Out:</strong> <code>D=179</code> targets (44 AGL), <code>C=13/16</code> conditioning vector</div>
+          <div><strong>Plug-Ins:</strong> <code>dpd</code> (Shipped ON), <code>AERSURFACE z0</code> (Shipped ON)</div>
+        </div>
+      </div>
+      <a href="pages/01_ingest.html" style="font-size:0.95rem;font-weight:600;">Read Chapters 1.1 &amp; 1.2 &rarr;</a>
+    </article>
+
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 2 &middot; Generative AI Core</span>
+          <span><a href="pages/03_engression.html">2.1</a> &middot; <a href="pages/04_losses.html">2.2</a> &middot; <a href="pages/05_gusts_w.html">2.3</a></span>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Neural Generator, Losses &amp; Sidecars</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Trains 4 independent Engression members directly on proper scoring rules, paired with a vertical-wind sidecar and a 10 m extreme-gust regression model.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> Conditioning vector <code>c</code> + random noise $z_arepsilon \in \mathbb{R}^{32}$</div>
+          <div><strong>Out:</strong> Raw 4-member $(u,v,T,	ext{lnd})$ ensembles + <code>w(z)</code> + 10 m gusts</div>
+          <div><strong>Plug-Ins:</strong> <code>p2f</code>, <code>c4w</code>, <code>w-Head</code>, <code>Gumbel Gust</code>, <code>s25</code> models</div>
+        </div>
+      </div>
+      <a href="pages/03_engression.html" style="font-size:0.95rem;font-weight:600;">Read Chapters 2.1&ndash;2.3 &rarr;</a>
+    </article>
+
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 3 &middot; Calibration &amp; Ops</span>
+          <span><a href="pages/06_calibration.html">3.1</a> &middot; <a href="pages/07_coherence.html">3.2</a> &middot; <a href="pages/08_routing.html">3.3</a> &middot; <a href="pages/09_scoring_ops.html">3.4</a></span>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Calibration, Routing &amp; Verification</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Routes lead times across Past/Forecast/Climate regimes, aligns spread and vertical rank structure to balloons, and audits skill with fair CRPS &amp; 21-day blocks.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> Raw 199-member pools + IGRA2 soundings + ECMWF IFS leads</div>
+          <div><strong>Out:</strong> Calibrated, vertically coherent profiles across Modes P/F/C</div>
+          <div><strong>Plug-Ins:</strong> <code>spread</code>, <code>shuffle</code>, <code>shear/lapse_map</code>, <code>Mode P/F</code>, <code>SIGMA</code></div>
+        </div>
+      </div>
+      <a href="pages/06_calibration.html" style="font-size:0.95rem;font-weight:600;">Read Chapters 3.1&ndash;3.4 &rarr;</a>
+    </article>
+
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 4 &middot; Serving Engine</span>
+          <a href="pages/10_serving.html">4.0</a>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Pure-NumPy Serving Engine</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Loads SHA-256-verified <code>.npz</code> bundles with zero PyTorch dependency, runs bilinearly allocated forward passes, shifts elevation, and integrates $(p, ho, a)$.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> <code>model.npz</code>, <code>grid.npz</code>, <code>manifest.json</code> + query <code>(lat, lon, when)</code></div>
+          <div><strong>Out:</strong> Hydrostatically consistent 44-lvl ensembles &amp; multi-hour sequences</div>
+          <div><strong>Plug-Ins:</strong> <code>UR5</code> 10 m Markov sequence, <code>EWMA Bias</code>, <code>Station Widening</code></div>
+        </div>
+      </div>
+      <a href="pages/10_serving.html" style="font-size:0.95rem;font-weight:600;">Read Chapter 4.0 &rarr;</a>
+    </article>
+
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 5 &middot; Launch Day &amp; v2</span>
+          <span><a href="pages/11_assimilation.html">5.1</a> &middot; <a href="pages/12_v2_toolkit.html">5.2</a></span>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Launch-Day Observation Assimilation</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Wraps the engine in the immutable <code>Launch</code> API, resolving wall-clock windows and conditioning the ensemble on live pad, airport, HRRR, and radar measurements.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> Prior <code>Launch</code> pool + METAR/IEM, HRRR 3 km, NEXRAD VAD, tower</div>
+          <div><strong>Out:</strong> Conditioned posterior ensemble + NWS aviation/magnetic calcs</div>
+          <div><strong>Plug-Ins:</strong> <code>METAR Obs</code>, <code>HRRR</code>, <code>NEXRAD VAD</code>, <code>Ridge Nowcast</code>, <code>SiteCal</code></div>
+        </div>
+      </div>
+      <a href="pages/11_assimilation.html" style="font-size:0.95rem;font-weight:600;">Read Chapters 5.1 &amp; 5.2 &rarr;</a>
+    </article>
+
+    <article class="stage-card">
+      <div>
+        <div class="ed-panel-kicker">
+          <span>Stage 6 &middot; Flight-Sim &amp; MC</span>
+          <a href="pages/13_flight_mc.html">6.0</a>
+        </div>
+        <h3 style="font-family:var(--font-serif);font-size:1.3rem;margin:0 0 0.65rem;">Flight-Sim LUTs, Turbulence &amp; Joint MC</h3>
+        <p style="font-size:0.98rem;line-height:1.65;margin:0 0 1rem;">
+          Compiles ensembles into sub-microsecond 10 m <code>float32</code> tables, injects Dryden/von K&aacute;rm&aacute;n turbulence + 1-cos gusts, and runs joint vehicle + atmosphere dispersion.
+        </p>
+        <div class="stage-io">
+          <div><strong>In:</strong> Conditioned <code>Launch</code> ensemble + <code>VehiclePriors</code> (drag, mass, impulse)</div>
+          <div><strong>Out:</strong> 10 m LUTs (86 km ISA tail), apogee/landing ellipses, Sobol attribution</div>
+          <div><strong>Plug-Ins:</strong> <code>Dryden/K&aacute;rm&aacute;n</code>, <code>2D Acoustics</code>, <code>Avionics</code>, <code>Thermals</code>, <code>Joint MC</code></div>
+        </div>
+      </div>
+      <a href="pages/13_flight_mc.html" style="font-size:0.95rem;font-weight:600;">Read Chapter 6.0 &rarr;</a>
+    </article>
+  </div>
+
+  <!-- Mermaid Diagram 2: 14-Node End-to-End Assembly Graph -->
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <div>
+        <div class="ed-panel-kicker" style="margin-bottom:0.3rem;">Figure 0.2 &middot; 14-Node Runtime Assembly Graph</div>
+        <h3 class="figure-title">From User Launch Query to Joint 6-DOF Apogee Dispersion</h3>
+      </div>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Fullscreen Zoom &nearr;</button>
+    </div>
+    <div class="mermaid-src">
+flowchart TD
+  classDef src fill:#eff4ff,stroke:#1d4ed8,color:#17191c,stroke-width:2px;
+  classDef neural fill:#f3effe,stroke:#6d28d9,color:#17191c,stroke-width:2px;
+  classDef physics fill:#fef8ec,stroke:#b45309,color:#17191c,stroke-width:2px;
+  classDef ops fill:#ecfdf5,stroke:#047857,color:#17191c,stroke-width:2px;
+
+  subgraph SG1["1. Request &amp; Lead-Time Routing"]
+    M1["1. User Query&lt;br/&gt;lat, lon, Window, elev"]:::ops
+    M2["2. Lead-Time Router&lt;br/&gt;modes.py / router.py"]:::ops
+    M1 --&gt; M2
+  end
+
+  subgraph SG2["2. Regime Generators"]
+    M3["3. Mode P (Past &lt;= -6 d)&lt;br/&gt;ERA5 + Residual Net"]:::neural
+    M4["4. Mode F (0.75-7.5 d)&lt;br/&gt;ECMWF IFS + 50:50 Ridge"]:::neural
+    M5["5. Mode C (Climate / AI)&lt;br/&gt;4-Member NumPy Engression"]:::neural
+  end
+
+  subgraph SG3["3. Calibration &amp; Column Physics"]
+    M6["6. Calibration Stack&lt;br/&gt;spread · shuffle · shear · lapse"]:::ops
+    M7["7. Site Shift &amp; 2-Pass Thermo&lt;br/&gt;p, rho, a across 44 AGL"]:::physics
+    M8["8. Sidecars &amp; Sequences&lt;br/&gt;w-Head · Gumbel Gust · UR5"]:::physics
+    M6 --&gt; M7 --&gt; M8
+  end
+
+  subgraph SG4["4. Launch-Day Assimilation"]
+    M9["9. Live Sensor Feeds&lt;br/&gt;METAR · HRRR · NEXRAD VAD · Tower"]:::src
+    M10["10. Soft Copula Assimilation&lt;br/&gt;obs.py + Student-t stats.py"]:::physics
+    M9 --&gt; M10
+  end
+
+  subgraph SG5["5. Flight-Sim &amp; Joint Dispersion"]
+    M11["11. 10 m float32 LUT Reader&lt;br/&gt;~0.7 us + 86 km ISA Tail"]:::ops
+    M12["12. Turbulence &amp; Gusts&lt;br/&gt;Dryden / von Karman + 1-cos"]:::physics
+    M13["13. Acoustics &amp; Avionics&lt;br/&gt;Snell Rays + Baro / Radio"]:::physics
+    M14["14. Joint Vehicle + Atmo MC&lt;br/&gt;LHS/Sobol + Variance Attribution"]:::ops
+    M11 --&gt; M12 --&gt; M14
+    M11 --&gt; M13 --&gt; M14
+  end
+
+  M2 --&gt; M3 --&gt; M6
+  M2 --&gt; M4 --&gt; M6
+  M2 --&gt; M5 --&gt; M6
+  M8 --&gt; M10 --&gt; M11
+    </div>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      <strong>End-to-end execution order:</strong> Every user query enters the lead-time router, branches to Mode P, F, or C, passes through the fixed calibration and hydrostatic stack, optionally assimilates live launch-day sensors, and compiles into 10 m <code>float32</code> lookup tables for 6-DOF flight simulation.
+    </figcaption>
+  </figure>
+
+  <div class="ledger-banner">
+    <div style="max-width:62ch;">
+      <div class="ed-panel-kicker" style="color:var(--accent-green);margin-bottom:0.4rem;">
+        <span>Empirical Evidence &amp; Ablation Ledger &middot; 1991&ndash;2026 Verified</span>
+      </div>
+      <h3 style="font-family:var(--font-serif);font-size:1.5rem;margin:0 0 0.6rem;color:var(--ink-primary);">
+        Which Add-Ons Actually Improved CRPS, Wind Shear &amp; 99% Coverage?
+      </h3>
+      <p style="font-size:1rem;line-height:1.65;margin:0;color:var(--ink-body);">
+        Every shipped default and rejected experiment—graded against the <code>IL-92</code> seed-noise yardstick, 21-day block bootstrap, and the untouched 2026 Jan&ndash;Jun holdout—is documented in full in the Ranked Experiments Ledger.
+      </p>
+    </div>
+    <a href="tests/experiments.html" class="ledger-banner-cta">Explore All 60 Ranked Experiments &rarr;</a>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- SECTION 0.6 : COMPLETE 15-CHAPTER READING ROADMAP & COLAB LABS         -->
+<!-- ====================================================================== -->
+<section id="sec-0-6" class="subsection">
+  <span class="subsection-num">0.6</span>
+  <h2>Reading roadmap &amp; Colab labs</h2>
+
+  <p>
+    The monograph is organized into <strong>15 standalone chapters</strong> (14 technical chapters plus the 60-experiment empirical ledger), designed to be read sequentially from raw data ingest to 6-DOF Monte Carlo dispersion—or jumped into directly by subsystem.
+  </p>
+
+  <div class="chapter-grid">
+    <a class="chapter-card" href="pages/01_ingest.html">
+      <span class="chapter-card-kicker">Chapter 1.1 &middot; Data &amp; Physics</span>
+      <h3 class="chapter-card-title">Data ingest &amp; alignment</h3>
+      <p class="chapter-card-desc">ERA5 reanalysis, IGRAv2 radiosonde ground truth, live NWP feeds, climate indices (ONI, QBO, WWV), feature schemas, and leakage guards.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/02_thermo.html">
+      <span class="chapter-card-kicker">Chapter 1.2 &middot; Data &amp; Physics</span>
+      <h3 class="chapter-card-title">Thermodynamics &amp; 44-level grid</h3>
+      <p class="chapter-card-desc">The 44-level AGL ladder, geopotential-to-geometric altitude, log dewpoint depression, virtual temperature, 2-pass hypsometric integration, and the D=179 state vector.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/03_engression.html">
+      <span class="chapter-card-kicker">Chapter 2.1 &middot; Generative AI Core</span>
+      <h3 class="chapter-card-title">Engression neural backbone</h3>
+      <p class="chapter-card-desc">Why single-step Engression beats diffusion here, pre-additive noise theory, AdaLN/FiLM conditioning, zero-init residual blocks, and the linear climate-trend bypass.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/04_losses.html">
+      <span class="chapter-card-kicker">Chapter 2.2 &middot; Generative AI Core</span>
+      <h3 class="chapter-card-title">Proper scoring rules &amp; losses</h3>
+      <p class="chapter-card-desc">Why MSE collapses ensembles, unbiased Fair CRPS, the crps_alpha=0.95 blend, 179-D Energy Score, wind-shear tail loss, and low-wind rail-exit vector loss.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/05_gusts_w.html">
+      <span class="chapter-card-kicker">Chapter 2.3 &middot; Generative AI Core</span>
+      <h3 class="chapter-card-title">Wind gusts, thermals &amp; vertical W</h3>
+      <p class="chapter-card-desc">Heteroscedastic Gumbel gust laws, convective velocity scale w*, CAPE, boundary-layer mixing height, bulk Richardson number, and w-head coupling.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/06_calibration.html">
+      <span class="chapter-card-kicker">Chapter 3.1 &middot; Calibration &amp; Ops</span>
+      <h3 class="chapter-card-title">Balloon station calibration</h3>
+      <p class="chapter-card-desc">Standardized M_CAL=199 quantile grids, additive bias and multiplicative spread mapping, harmonic modulation, conformalized quantile wrappers, and site elevation shifts.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/07_coherence.html">
+      <span class="chapter-card-kicker">Chapter 3.2 &middot; Calibration &amp; Ops</span>
+      <h3 class="chapter-card-title">Vertical coherence &amp; spatial maps</h3>
+      <p class="chapter-card-desc">How marginal calibration breaks wind shear, Schaake Shuffle rank-template restoration with a worked 3&times;2 example, ERA5 template libraries, and spatial kriging.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/08_routing.html">
+      <span class="chapter-card-kicker">Chapter 3.3 &middot; Calibration &amp; Ops</span>
+      <h3 class="chapter-card-title">Lead-time routing &amp; forecast modes</h3>
+      <p class="chapter-card-desc">Past (Mode P), Forecast (Mode F), and Climate (Mode C) routing from 0 h to 16 d+, smooth NWP crossfading, UR5 10 m wind sequences, and offline fallbacks.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/09_scoring_ops.html">
+      <span class="chapter-card-kicker">Chapter 3.4 &middot; Calibration &amp; Ops</span>
+      <h3 class="chapter-card-title">Verification, scoring &amp; operations</h3>
+      <p class="chapter-card-desc">Strict 1991&ndash;2026 temporal holdout, CRPS, Energy &amp; Variogram scores, PIT histograms, Spread-Skill Ratio, Brier Skill Score, and drift promotion gates.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/10_serving.html">
+      <span class="chapter-card-kicker">Chapter 4.0 &middot; Serving Engine</span>
+      <h3 class="chapter-card-title">Pure-NumPy serving engine</h3>
+      <p class="chapter-card-desc">Zero-PyTorch pad deployment, SHA-256 verified .npz export, float32 parity, the public API (describe, sample, couple), ~20 ms latency budgets, and edge cases.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/11_assimilation.html">
+      <span class="chapter-card-kicker">Chapter 5.1 &middot; Launch Day &amp; v2</span>
+      <h3 class="chapter-card-title">Launch-day observation assimilation</h3>
+      <p class="chapter-card-desc">Closing the launch-morning information gap with live METAR, ASOS, pad towers, pibals, exponential lead decay (tau_h=6.3 h), 5 km own-station radius, and NEXRAD VAD.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/12_v2_toolkit.html">
+      <span class="chapter-card-kicker">Chapter 5.2 &middot; Launch Day &amp; v2</span>
+      <h3 class="chapter-card-title">v2 engineering toolkit &amp; copulas</h3>
+      <p class="chapter-card-desc">Launch &amp; Window ergonomics, aviation calculators (DA, crosswind, Mach), AERSURFACE z0, Gaussian vs. Student-t copula tail dependence, and Python 3.12 PEP 701.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/13_flight_mc.html">
+      <span class="chapter-card-kicker">Chapter 6.0 &middot; Flight-Sim &amp; MC</span>
+      <h3 class="chapter-card-title">Flight-sim readers, Dryden &amp; MC</h3>
+      <p class="chapter-card-desc">Sub-microsecond 10 m float32 LUT readers, MIL-HDBK-1797 Dryden turbulence, exact AR(2) stepping, 2D Snell acoustics, avionics altimetry, and joint Sobol Monte Carlo.</p>
+    </a>
+
+    <a class="chapter-card" href="pages/14_bugs_guardrails.html">
+      <span class="chapter-card-kicker">Chapter 7.0 &middot; Reference &amp; Guardrails</span>
+      <h3 class="chapter-card-title">Confirmed bugs (B1&ndash;B14) &amp; guardrails</h3>
+      <p class="chapter-card-desc">Verified audit of 14 codebase bugs across training, calibration, serving, v2 assimilation, and flight-sim modules, plus the Python 3.12 compatibility checklist.</p>
+    </a>
+
+    <a class="chapter-card" href="tests/experiments.html" style="border-left:4px solid var(--accent-green);">
+      <span class="chapter-card-kicker" style="color:var(--accent-green);">Ledger &middot; 60 Ranked Experiments</span>
+      <h3 class="chapter-card-title">Ranked experiments ledger (60)</h3>
+      <p class="chapter-card-desc">All 60 empirical trials strictly ranked Tier 1 (13) &rarr; Tier 2 (12) &rarr; Tier 3 (9) &rarr; Tier 4 (26) with interactive Plotly benchmarks and IL-92 seed-noise floor.</p>
+    </a>
+  </div>
+
+  <h3>Interactive Google Colab Companion Labs</h3>
+  <p>
+    Want to run the equations live? Four self-contained Google Colab notebooks mirror the monograph&rsquo;s four core stages—each pre-wired to run in-browser with zero local setup.
+  </p>
+
+  <div class="colab-grid">
+    <div class="colab-card">
+      <div>
+        <span class="ed-chip ed-chip-blue">Colab Lab 01</span>
+        <h4>Thermodynamics &amp; 44-Level Vertical Grid</h4>
+        <p>Explore geopotential-to-geometric height conversion, log dewpoint depression (<code>dpd</code>), virtual temperature, and 2-pass hypsometric pressure integration.</p>
+      </div>
+      <div>
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_01')">Launch Lab 1 in Colab &nearr;</button>
+      </div>
+    </div>
+
+    <div class="colab-card">
+      <div>
+        <span class="ed-chip ed-chip-blue">Colab Lab 02</span>
+        <h4>Engression Backbone &amp; Proper Scoring Rules</h4>
+        <p>Train a compact Engression MLP on bimodal wind regimes and compare MSE collapse against Fair CRPS, Energy Score, and shear-tail losses.</p>
+      </div>
+      <div>
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_02')">Launch Lab 2 in Colab &nearr;</button>
+      </div>
+    </div>
+
+    <div class="colab-card">
+      <div>
+        <span class="ed-chip ed-chip-blue">Colab Lab 03</span>
+        <h4>Balloon Calibration, Routing &amp; Student-t Copulas</h4>
+        <p>Run quantile spread calibration, restore vertical shear with the Schaake Shuffle, and compare Gaussian vs. Student-t tail dependence.</p>
+      </div>
+      <div>
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')">Launch Lab 3 in Colab &nearr;</button>
+      </div>
+    </div>
+
+    <div class="colab-card">
+      <div>
+        <span class="ed-chip ed-chip-blue">Colab Lab 04</span>
+        <h4>Launch-Day Assimilation &amp; 6-DOF Flight Monte Carlo</h4>
+        <p>Condition a prior ensemble on live METAR &amp; NEXRAD VAD winds, compile 10 m <code>float32</code> LUTs, and compute apogee dispersion &amp; variance attribution.</p>
+      </div>
+      <div>
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_04')">Launch Lab 4 in Colab &nearr;</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function initIndexAddons() {
+  const ADDONS_REGISTRY = [
+        // Training Add-Ons (4)
+        { name: "dpd (Log Dewpoint Depression)", cat: "training", status: "Shipped ON", intuition: "Measures how far desert air is from forming dew on a smooth stretched ruler instead of cramming humidity against 0% and 100% walls.", problem: "Eliminates RH boundary pile-up in dry air.", plugs: "Target encoding (--rh-target dpd)", path: "tempest/generator/sample.py" },
+        { name: "p2f (Shear-Tail Loss)", cat: "training", status: "Shipped ON", intuition: "Acts like a coach grading extra harshly on sudden upper-air wind-speed cliffs that bend rockets off course.", problem: "Sharpens top-10% (q=0.9) vertical wind shear.", plugs: "Training loss (shear_tail_weight=1.0)", path: "tempest/generator/train.py" },
+        { name: "c4w (Low-Wind Vector Loss)", cat: "training", status: "Shipped ON", intuition: "Pays special attention to wind right above the launch rail, where a slow-moving rocket weathercocks most easily.", problem: "Improves <300 m wind direction & speed accuracy.", plugs: "Training loss (wind_vec_weight=0.5)", path: "configs/generator_c4w.toml" },
+        { name: "x4r / s25 Experimental Architectures", cat: "training", status: "Opt-In Flag", intuition: "A test bench of alternative AI blueprints—from flow matching to expert mixtures—benchmarked against the core model.", problem: "Tests Flow, Refine, RML, HAR, MoE, EOF & twES losses.", plugs: "Generator factory & s25 configs", path: "tempest/generator/s25_models.py" },
+
+        // Calibration Plug-Ins (10)
+        { name: "spread (Quantile Spread Map)", cat: "calibration", status: "Shipped ON", intuition: "Stretches or tightens the ensemble's outer wings so a '1-in-20' wind forecast actually happens 1 in 20 times.", problem: "Fixes under/over-dispersed spread over 109 knots.", plugs: "Post-generation calibration step 1", path: "tempest/calibrate/spread.py" },
+        { name: "shuffle (Schaake Shuffle / ECC)", cat: "calibration", status: "Shipped ON", intuition: "Re-deals the calibrated values to mirror real historical sky patterns so wind at 2 km and 5 km stay naturally linked.", problem: "Restores cross-variable & vertical rank structure.", plugs: "Post-spread rank template (199x179)", path: "tempest/calibrate/shuffle.py" },
+        { name: "shear_map (Vertical Shear Map)", cat: "calibration", status: "Shipped ON", intuition: "Fine-tunes the wind-speed step between adjacent altitude rungs to match real weather balloon flights.", problem: "Aligns layer-wise shear with IGRA2 radiosondes.", plugs: "Post-shuffle shear calibration", path: "tempest/calibrate/shear_map.py" },
+        { name: "lapse_map (Lapse-Rate Map)", cat: "calibration", status: "Shipped ON", intuition: "Makes sure temperature cools (or inverts on cold mornings) at realistic rates as you climb.", problem: "Calibrates vertical temperature lapse rates.", plugs: "Post-shuffle thermal calibration", path: "tempest/calibrate/lapse_map.py" },
+        { name: "pit_recal (PIT Recalibration)", cat: "calibration", status: "Opt-In Flag", intuition: "Checks whether real weather lands evenly across all ensemble ranks and irons out any remaining lumps.", problem: "Flattens residual PIT rank histograms.", plugs: "Optional step after spread map", path: "tempest/calibrate/pit_recal.py" },
+        { name: "seasonal (Seasonal Width Scale)", cat: "calibration", status: "Opt-In Flag", intuition: "Lets summer monsoon storms and winter jet streams each have their own tailored uncertainty width.", problem: "Adjusts ensemble spread by season (RH & surface).", plugs: "Post-spread seasonal scaling", path: "tempest/calibrate/seasonal.py" },
+        { name: "trust (Climatology Trust Blend)", cat: "calibration", status: "Opt-In Flag", intuition: "Humbly leans back on historical climate averages whenever the AI enters unfamiliar territory.", problem: "Blends output with ClimPool where skill drops.", plugs: "Post-calibration blend stage", path: "tempest/calibrate/trust.py" },
+        { name: "joint (Joint 99% Band Scale)", cat: "calibration", status: "Opt-In Flag", intuition: "Ensures that when you look at the whole altitude column at once, extreme 99% envelopes still hold true.", problem: "Calibrates joint multi-level 99% band coverage.", plugs: "Final calibration scaling stage", path: "tempest/calibrate/joint.py" },
+        { name: "Tropopause Q-Map (tropo.py)", cat: "calibration", status: "Unwired / Experimental", intuition: "Aligns upper-air calibration to the actual height of the jet-stream lid (tropopause) instead of a fixed kilometre mark.", problem: "Tropopause-relative quantile mapping in z - z_t bins.", plugs: "tempest/calibrate/tropo.py (unwired)", path: "tempest/calibrate/tropo.py" },
+        { name: "Far-Tail Stretch (tailcal.py)", cat: "calibration", status: "Unwired / Experimental", intuition: "Gently pulls only the outermost 10% storm outliers without touching the calm middle 90% of the forecast.", problem: "Per-lead outer-tail stretch beyond 90% interval.", plugs: "tempest/forecast/tailcal.py (unwired)", path: "tempest/forecast/tailcal.py" },
+
+        // Operational Forecast & Assimilation Plug-Ins (9)
+        { name: "Mode P (Past ERA5 Residual)", cat: "operational", status: "Shipped ON", intuition: "Replays what actually happened on a past launch date while still accounting for tiny balloon-vs-archive differences.", problem: "Reconstructs historical dates (<= -6 d) with uncertainty.", plugs: "Lead-time router (Mode P)", path: "tempest/forecast/modeP.py" },
+        { name: "Mode F + Ridge (ECMWF IFS)", cat: "operational", status: "Shipped ON", intuition: "Takes Europe's flagship 7-day weather forecast and wraps it in a realistic cloud of possible forecast errors.", problem: "Live 0.75-7.5 d ECMWF IFS + calibrated residual spread.", plugs: "Lead-time router (Mode F)", path: "tempest/forecast/modeF.py" },
+        { name: "SIGMA (Lead-as-Noise Model)", cat: "operational", status: "Opt-In Flag", intuition: "Gradually fades trust in a deterministic forecast as launch day gets farther away, smoothly adding calibrated noise.", problem: "Lead-dependent slope beta & noise scale s.", plugs: "Forecast calibration layer", path: "tempest/forecast/sigma.py" },
+        { name: "UR5 (10 m Wind Sequence)", cat: "operational", status: "Shipped ON", intuition: "Remembers whether the morning started calm or gusty so hour-by-hour wind sequences don't flicker unrealistically.", problem: "Calm/windy 2-regime Markov chain for 10 m wind.", plugs: "OPTIONS.ur5_sequence", path: "tempest_weather/ur5.py" },
+        { name: "METAR / IEM Surface Obs", cat: "operational", status: "Opt-In Flag", intuition: "Reads live airport weather reports to pull your morning ensemble into agreement with what's actually blowing outside.", problem: "Assimilates surface wind, temp, dewpoint & altimeter.", plugs: "Launch.observe() / obs.py", path: "tempest_weather_v2/obs.py" },
+        { name: "HRRR 3 km Wind Anchor", cat: "operational", status: "Opt-In Flag", intuition: "Uses NOAA's high-resolution 3 km rapid-refresh weather map to pin down local valley and desert surface winds.", problem: "Anchors launch-day 10 m wind from NOAA HRRR.", plugs: "Launch.observe_hrrr()", path: "tempest_weather_v2/hrrr.py" },
+        { name: "NEXRAD VAD Radar Profile", cat: "operational", status: "Opt-In Flag", intuition: "Listens to nearby Doppler weather radar to see real winds 500 m to 2 km overhead without launching a balloon.", problem: "Assimilates Doppler wind profiles (500-2000 m AGL).", plugs: "Launch.observe_radar()", path: "tempest_weather_v2/radar.py" },
+        { name: "Ridge Nowcast", cat: "operational", status: "Opt-In Flag", intuition: "Projects the last few hours of pad sensor trends forward a short step into your upcoming launch window.", problem: "Short-horizon surface trend projection (1-6 h).", plugs: "Launch.observe_nowcast()", path: "tempest_weather_v2/nowcast.py" },
+        { name: "AERSURFACE Directional z0", cat: "operational", status: "Shipped ON", intuition: "Knows that wind blowing over flat desert lakebed moves faster near the ground than wind crossing trees or buildings.", problem: "Direction-dependent terrain roughness length z0.", plugs: "Launch site roughness lookup", path: "tempest_weather_v2/roughness.py" },
+
+        // Flight-Sim Plug-Ins (7)
+        { name: "w-Head (Vertical Wind)", cat: "flight", status: "Shipped ON", intuition: "Adds rising thermals and sinking downdrafts so parachute descent time reflects real desert air currents.", problem: "Generates vertically coherent w(z) profiles.", plugs: "Engine post-generation output", path: "tempest/output/whead.py" },
+        { name: "Heteroscedastic Gumbel Gust", cat: "flight", status: "Shipped ON", intuition: "Adds sudden, brief launch-rail wind spikes that an hourly average wind speed completely hides.", problem: "Samples extreme 10 m gusts fitted via ASOS MLE.", plugs: "Engine surface gust layer", path: "tempest/gust/model.py" },
+        { name: "Dryden / von Karman Turbulence", cat: "flight", status: "Opt-In Flag", intuition: "Adds continuous, bumpy mid-air chop and sharp 1-cos gusts that shake rocket fins during ascent.", problem: "Synthesizes CAT/BL turbulence & discrete gusts.", plugs: "Flight-sim time/altitude loop", path: "tempest_weather/flight/dryden.py" },
+        { name: "2D Acoustic Ray Tracer", cat: "flight", status: "Opt-In Flag", intuition: "Traces how wind and temperature layers bend rocket roar back down to spectators and microphones.", problem: "Snell acoustic ray tracing through wind/temp ducts.", plugs: "Flight-sim post-processing", path: "tempest_weather/flight/acoustics.py" },
+        { name: "Avionics (Baro / Radio)", cat: "flight", status: "Opt-In Flag", intuition: "Predicts how non-standard air pressure fools barometric altimeters and how humidity bends telemetry radio beams.", problem: "Barometric altitude error & radio refractivity.", plugs: "Flight-sim avionics analysis", path: "tempest_weather/flight/avionics.py" },
+        { name: "Thermals (Lenschow w_sigma)", cat: "flight", status: "Unwired / Experimental", intuition: "Models rising desert thermal updrafts and sinking downdrafts on sunny afternoons when the ground heats up.", problem: "Convective velocity scale w* and skewed vertical turbulence.", plugs: "tempest/output/thermals.py (unwired)", path: "tempest/output/thermals.py" },
+        { name: "Joint Vehicle + Atmo MC", cat: "flight", status: "Opt-In Flag", intuition: "Varies rocket thrust, drag, and weight alongside the 400 skies so you see which uncertainty really drives landing risk.", problem: "LHS/Sobol MC, importance sampling & Sobol indices.", plugs: "montecarlo.run() / run_importance()", path: "tempest_weather_v2/montecarlo.py" }
+      ];
+
+  let activeCategory = "all";
+  let statusMode = "all";
+
+  function esc(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function statusStyle(status) {
+    if (status === "Shipped ON") {
+      return {
+        chipClass: "ed-chip ed-chip-green",
+        borderCss: "border-left: 4px solid var(--accent-green);"
+      };
+    }
+    if (status === "Opt-In Flag") {
+      return {
+        chipClass: "ed-chip ed-chip-amber",
+        borderCss: "border-left: 4px solid var(--accent-warm);"
+      };
+    }
+    return {
+      chipClass: "ed-chip ed-chip-red",
+      borderCss: "border-left: 4px dashed var(--accent-red);"
+    };
+  }
+
+  function updateDynamicCounts() {
+    const headingEl = document.getElementById("addon-total-heading");
+    if (headingEl) headingEl.textContent = String(ADDONS_REGISTRY.length);
+
+    const shippedTotal = ADDONS_REGISTRY.filter(a => a.status === "Shipped ON").length;
+    const allStatusEl = document.querySelector('[data-status-count="all"]');
+    const shippedStatusEl = document.querySelector('[data-status-count="shipped"]');
+    if (allStatusEl) allStatusEl.textContent = String(ADDONS_REGISTRY.length);
+    if (shippedStatusEl) shippedStatusEl.textContent = String(shippedTotal);
+
+    const statusPool = statusMode === "shipped"
+      ? ADDONS_REGISTRY.filter(a => a.status === "Shipped ON")
+      : ADDONS_REGISTRY;
+
+    ["all", "training", "calibration", "operational", "flight"].forEach(cat => {
+      const el = document.querySelector('[data-cat-count="' + cat + '"]');
+      if (!el) return;
+      const n = cat === "all"
+        ? statusPool.length
+        : statusPool.filter(a => a.cat === cat).length;
+      el.textContent = String(n);
+    });
+  }
+
+  function renderAddonGrid() {
+    const grid = document.getElementById("addon-grid");
+    if (!grid) return;
+
+    const filtered = ADDONS_REGISTRY.filter(a => {
+      if (statusMode === "shipped" && a.status !== "Shipped ON") return false;
+      if (activeCategory !== "all" && a.cat !== activeCategory) return false;
+      return true;
+    });
+
+    const counterEl = document.getElementById("addon-visible-counter");
+    if (counterEl) {
+      counterEl.textContent = "Showing " + filtered.length + " of " + ADDONS_REGISTRY.length + " plug-ins";
+    }
+
+    if (!filtered.length) {
+      grid.innerHTML = '<div style="grid-column:1 / -1;padding:2rem;text-align:center;background:var(--bg-white);border:1px solid var(--border-hairline);border-radius:8px;color:var(--ink-secondary);">No plug-ins match the active category and status filters.</div>';
+      return;
+    }
+
+    grid.innerHTML = filtered.map(a => {
+      const st = statusStyle(a.status);
+      return (
+        '<article class="addon-card" style="' + st.borderCss + '">' +
+          '<div>' +
+            '<div class="addon-card-head">' +
+              '<h4 class="addon-card-title">' + esc(a.name) + '</h4>' +
+              '<span class="' + st.chipClass + '">' + esc(a.status) + '</span>' +
+            '</div>' +
+            '<p class="addon-card-idea"><strong>Idea:</strong> ' + esc(a.intuition) + '</p>' +
+            '<p class="addon-card-tech"><strong>Tech:</strong> ' + esc(a.problem) + '</p>' +
+          '</div>' +
+          '<div class="addon-card-meta">' +
+            '<div><strong>Plugs in:</strong> ' + esc(a.plugs) + '</div>' +
+            '<div class="addon-card-path" title="' + esc(a.path) + '">' + esc(a.path) + '</div>' +
+          '</div>' +
+        '</article>'
+      );
+    }).join("");
+  }
+
+  function syncButtons() {
+    document.querySelectorAll("#addon-filters .ed-filter-btn").forEach(btn => {
+      const active = btn.getAttribute("data-filter") === activeCategory;
+      btn.setAttribute("aria-pressed", String(active));
+      btn.classList.toggle("is-active", active);
+    });
+    document.querySelectorAll("#addon-status-toggle .ed-filter-btn").forEach(btn => {
+      const active = btn.getAttribute("data-status-mode") === statusMode;
+      btn.setAttribute("aria-pressed", String(active));
+      btn.classList.toggle("is-active", active);
+    });
+  }
+
+  function mount() {
+    document.querySelectorAll("#addon-filters .ed-filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeCategory = btn.getAttribute("data-filter") || "all";
+        syncButtons();
+        renderAddonGrid();
+      });
+    });
+    document.querySelectorAll("#addon-status-toggle .ed-filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        statusMode = btn.getAttribute("data-status-mode") || "all";
+        syncButtons();
+        updateDynamicCounts();
+        renderAddonGrid();
+      });
+    });
+    updateDynamicCounts();
+    syncButtons();
+    renderAddonGrid();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount);
+  } else {
+    mount();
+  }
+})();
+</script>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_01')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

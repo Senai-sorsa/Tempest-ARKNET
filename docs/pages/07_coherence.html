@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3.2 Vertical Coherence &amp; Spatial Maps &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="07_coherence" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 3 · Calibration &amp; Ops · Chapter 3.2</p>
+          <h1>3.2 Vertical Coherence &amp; Spatial Maps</h1>
+          <p class="article-lead">Restoring cross-altitude rank correlation via ERA5 &lt; 2021 Schaake Shuffle templates, sharpening fine-scale vector wind shear and lapse rates with level-0 pinned high-pass maps, and allocating whole 199-member columns smoothly across terrain-aware launch-pad grids.</p>
+          <div class="article-meta"><span>Modules: shuffle.py, shear_map.py, lapse_map.py, shear_tail.py, joint.py, tropo.py, api.py</span><span>Shipped ON: shuffle.py, shear_map.py &amp; lapse_map.py (L21b)</span><span>Interactive Widget 4 · Colab Lab 3</span></div>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 3.2.1 How marginal calibration destroys wind shear                     -->
+<!-- ====================================================================== -->
+<section id="s3-2-1" class="subsection">
+  <span class="subsection-num">3.2.1</span>
+  <h2>How Marginal Calibration Destroys Wind Shear</h2>
+
+  <p>
+    Marginal calibration—spread mapping, PIT recalibration, and seasonal width scaling from Chapter 3.1—guarantees that every single altitude column has the right probability distribution when inspected in isolation. A 6-DOF rocket, however, does not fly through 44 independent lottery draws; it ascends through a <em>continuous vertical column</em> where wind speed at 1 km is tightly coupled to wind speed at 1.25 km and 2 km. If marginal post-processing re-sorts columns independently or pairs member #17's high-wind draw at 1 km with a calm draw at 2 km, it invents a fictitious wind-shear cliff ($\Delta\mathbf{u}/\Delta z$) that spikes aerodynamic angle-of-attack, bends the airframe, and corrupts Monte Carlo apogee and landing dispersion.
+  </p>
+  <p>
+    Tempest-ARKNET restores physical column structure through a strictly ordered sequence of rank-preserving and high-pass post-processing maps, followed by optional rare-shear tail patching, simultaneous 44-height safety envelopes, and an unwired tropopause-relative quantile map:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.2.1 — Ordered Vertical Coherence Restoration Pipeline</span>
+    $$\underbrace{\text{Marginal Calib}}_{\text{spread / PIT / seasonal}} \;\longrightarrow\; \underbrace{\text{Schaake Shuffle}}_{\texttt{shuffle.py}\text{ (Shipped ON)}} \;\longrightarrow\; \underbrace{\text{Shear Map}}_{\texttt{shear\_map.py}\text{ (Shipped ON)}} \;\longrightarrow\; \underbrace{\text{Lapse Map}}_{\texttt{lapse\_map.py}\text{ (Shipped ON)}} \;\longrightarrow\; \underbrace{\text{Joint 99\% Band}}_{\texttt{joint.py}\text{ (Output-Only)}}$$
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Production Status</th>
+          <th>Operating Space</th>
+          <th>Preserves Marginals?</th>
+          <th>Primary Verified Effect</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>shuffle.py</code></td>
+          <td><strong>Shipped ON</strong></td>
+          <td>Column ranks across all 179 coords</td>
+          <td>Exact (CRPS &Delta; = 0.000)</td>
+          <td>Cuts vertical correlation error <strong>0.08 &rarr; 0.03</strong></td>
+        </tr>
+        <tr>
+          <td><code>shear_map.py</code></td>
+          <td><strong>Shipped ON</strong></td>
+          <td>Vector shear $\|\Delta \mathbf{u}\|/\Delta z$ (4 bands)</td>
+          <td>High-pass + level-0 pinned</td>
+          <td>Cuts balloon shear KS <strong>0.044 &rarr; 0.010</strong></td>
+        </tr>
+        <tr>
+          <td><code>lapse_map.py</code></td>
+          <td><strong>Shipped ON</strong> (<code>L21b</code>)</td>
+          <td>Lapse rate $-\Delta T/\Delta z$ (4 bands)</td>
+          <td>High-pass + level-0 pinned</td>
+          <td>Cuts steep layers (&gt;9.8 K/km) <strong>33.8% &rarr; 23.6%</strong> (ERA5 21.9%)</td>
+        </tr>
+        <tr>
+          <td><code>shear_tail.py</code></td>
+          <td>Opt-In</td>
+          <td>AR(1) wind patch ($\rho = 0.6$, $p = 0.05$)</td>
+          <td>95% of profiles untouched</td>
+          <td>Closes 6–20% 99.9th-percentile shear deficit</td>
+        </tr>
+        <tr>
+          <td><code>joint.py</code></td>
+          <td>Output-Only</td>
+          <td>Whole-profile 44-height envelope</td>
+          <td>Exact (samples untouched)</td>
+          <td>Lifts 44-height joint coverage <strong>85–93% &rarr; 99%</strong></td>
+        </tr>
+        <tr>
+          <td><code>tropo.py</code></td>
+          <td>Unwired (<code>UR6</code>)</td>
+          <td>WMO 1957 relative height $z - z_t$</td>
+          <td>Re-maps inside &plusmn;4 km bins</td>
+          <td>Sharpens migrating tropopause &amp; jet kink (future)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.2 Schaake Shuffle rank-template restoration                        -->
+<!-- ====================================================================== -->
+<section id="s3-2-2" class="subsection">
+  <span class="subsection-num">3.2.2</span>
+  <h2>Schaake Shuffle Rank-Template Restoration</h2>
+
+  <p>
+    The <strong>Schaake shuffle</strong>—also known as <strong>Ensemble Copula Coupling (ECC)</strong>, implemented in <code>tempest/calibrate/shuffle.py</code> (<code>IL-82</code> / <code>IL-83</code> / <code>IL-95</code> / <code>IL-161</code>)—solves a deceptively clean problem: <em>keep every single column's calibrated numbers bit-for-bit identical, and change only which ensemble member at altitude $z_1$ gets paired with which member at altitude $z_2$ (and across $u, v, T, \text{RH}$ and surface variables).</em>
+  </p>
+  <p>
+    Operating on Tempest-ARKNET's full <code>(N, 199, 179)</code> calibrated ensemble tensor, <code>shuffle.apply(x, template, w=1.0)</code> extracts the column-wise rank order $r_t$ of $m = 199$ real historical training profiles and assigns the sorted calibrated values of <code>x</code> into those exact rank slots via <code>np.take_along_axis</code>. When a fractional blend weight $w &lt; 1.0$ is supplied (<code>IL-161</code>), <code>apply()</code> linearly blends the historical template ranks with the neural network's own native rank order $r_x$ and re-ranks stably (<code>kind="stable"</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.2.2 — Pure &amp; Blended Schaake Shuffle Operator</span>
+    $$r_t = \operatorname{rank}_m(\text{template}), \qquad r_x = \operatorname{rank}_m(x), \qquad r_{\text{blend}} = \operatorname{rank}_m^{\text{stable}}\!\big(w \cdot r_t + (1 - w) \cdot r_x\big)$$
+    $$x^{\text{shuf}}_{n, i, d} = x^{\text{sorted}}_{n,\, r_{\text{blend}}(n, i, d),\, d} \qquad (w = 1 \implies \text{pure Schaake shuffle};\; w = 0 \implies \text{network copula})$$
+    <p class="eq-note">
+      <strong>Exact Marginal Invariance:</strong> Because $r_{\text{blend}}(n, \cdot, d)$ is a bijection (permutation) of $\{0, \dots, m - 1\}$ along the ensemble-member axis $m$ for every row $n$ and coordinate $d \in \{0, \dots, 178\}$, the unordered multiset of values in column $d$ is strictly unchanged. Every per-height quantile, median, coverage interval, PIT rank, and per-column CRPS changes by <strong>exactly 0.000</strong>—while cross-altitude correlation error drops from <strong>0.08 &rarr; 0.03</strong>.
+    </p>
+  </div>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 3.2.1 — How <code>shuffle.apply()</code> Fuses Calibrated Marginals with Historical Copulas</h3>
+    </div>
+    <pre class="mermaid-src">
+flowchart LR
+  X["Calibrated Marginals&lt;br/&gt;x: (N, 199, 179)"] --&gt; XS["Sort Each Column&lt;br/&gt;x_sorted = sort(x, axis=1)"]
+  X --&gt; RX["Network Native Ranks&lt;br/&gt;r_x = argsort(argsort(x))"]
+  T["ERA5 &lt; 2021 Template&lt;br/&gt;uint8 (199, 179)"] --&gt; RT["Historical Rank Order&lt;br/&gt;r_t = argsort(argsort(T))"]
+  RX --&gt; BL["Stable Rank Blend&lt;br/&gt;r = rank(w·r_t + (1-w)·r_x)"]
+  RT --&gt; BL
+  XS --&gt; OUT["take_along_axis(x_sorted, r)&lt;br/&gt;Exact Marginals + Real Shear"]
+  BL --&gt; OUT
+    </pre>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      By separating marginal values (<code>x_sorted</code>) from inter-altitude pairing (<code>r_blend</code>), the Schaake shuffle restores physical wind-turning and thermal stratification without disturbing calibrated univariate quantiles.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.3 Worked 3x2 Schaake Shuffle example                               -->
+<!-- ====================================================================== -->
+<section id="s3-2-3" class="subsection">
+  <span class="subsection-num">3.2.3</span>
+  <h2>Worked 3&times;2 Schaake Shuffle Example</h2>
+
+  <p>
+    Before running the shuffle on a 199-member &times; 179-coordinate tensor, walk through a concrete 3-member &times; 2-altitude example by hand. Suppose marginal calibration has already produced exact calibrated wind speeds at 1 km (<code>{2, 8, 14} m/s</code>) and 2 km (<code>{5, 11, 18} m/s</code>). Three historical profiles from the same month, 2-hour solar bin, and $2^\circ$ geographic cell show positively correlated winds across 1 km and 2 km, giving the rank template <code>(low, low), (mid, mid), (high, high)</code> = rank indices <code>(0, 0), (1, 1), (2, 2)</code>.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Unshuffled Pairing (1 km, 2 km)</th>
+          <th>Implied Shear $\Delta u / \Delta z$</th>
+          <th>Template Ranks $(r_{1\text{km}}, r_{2\text{km}})$</th>
+          <th>Schaake-Shuffled (1 km, 2 km)</th>
+          <th>Restored Shear $\Delta u / \Delta z$</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Member 1</strong></td>
+          <td><code>(14 m/s, 5 m/s)</code></td>
+          <td>&minus;9.0 m/s/km (fake cliff)</td>
+          <td><code>(low, low) = (0, 0)</code></td>
+          <td><code>(2 m/s, 5 m/s)</code></td>
+          <td><strong>+3.0 m/s/km</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Member 2</strong></td>
+          <td><code>(8 m/s, 11 m/s)</code></td>
+          <td>+3.0 m/s/km</td>
+          <td><code>(mid, mid) = (1, 1)</code></td>
+          <td><code>(8 m/s, 11 m/s)</code></td>
+          <td><strong>+3.0 m/s/km</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Member 3</strong></td>
+          <td><code>(2 m/s, 18 m/s)</code></td>
+          <td>+16.0 m/s/km (fake cliff)</td>
+          <td><code>(high, high) = (2, 2)</code></td>
+          <td><code>(14 m/s, 18 m/s)</code></td>
+          <td><strong>+4.0 m/s/km</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Column Multiset</strong></td>
+          <td>1 km: <code>{2, 8, 14}</code> &middot; 2 km: <code>{5, 11, 18}</code></td>
+          <td>Range: &minus;9.0 to +16.0</td>
+          <td>Exact bijection</td>
+          <td>1 km: <code>{2, 8, 14}</code> &middot; 2 km: <code>{5, 11, 18}</code></td>
+          <td><strong>Range: +3.0 to +4.0</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Verifying the Exact NumPy Indexing Step by Step</h3>
+  <ol>
+    <li><strong>Sort each column independently:</strong> <code>x_sorted = np.sort(x, axis=1)</code> gives column 1 km = <code>[2, 8, 14]</code> and column 2 km = <code>[5, 11, 18]</code>.</li>
+    <li><strong>Extract template rank slots:</strong> <code>r_t = np.argsort(np.argsort(template, axis=1), axis=1)</code> yields rank index <code>0</code> for Member 1 at both heights, <code>1</code> for Member 2, and <code>2</code> for Member 3.</li>
+    <li><strong>Scatter sorted values into rank slots:</strong> <code>np.take_along_axis(x_sorted, r_t, axis=1)</code> places <code>x_sorted[0] = (2, 5)</code> into Member 1, <code>(8, 11)</code> into Member 2, and <code>(14, 18)</code> into Member 3.</li>
+  </ol>
+
+  <div class="callout callout-win">
+    <p class="callout-title">Why Marginal CRPS Changes by Exactly Zero</p>
+    <p>
+      Inspect the bottom row of the worked table. At 1 km, both ensembles contain the exact multiset <code>{2, 8, 14}</code>; at 2 km, both contain <code>{5, 11, 18}</code>. Every univariate score—CRPS, median, 5–95% half-width, 99% coverage, and PIT rank—is symmetric with respect to member permutation, so univariate error moves by <strong>0.000</strong> while the fake &minus;9 and +16 m/s/km shear cliffs collapse immediately into realistic +3 to +4 m/s/km gradients.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.4 ERA5 < 2021 template library & fallback                          -->
+<!-- ====================================================================== -->
+<section id="s3-2-4" class="subsection">
+  <span class="subsection-num">3.2.4</span>
+  <h2>ERA5 &lt; 2021 Template Library &amp; Fallback Hierarchy</h2>
+
+  <p>
+    A Schaake shuffle is only as honest as its dependence templates. To guarantee zero test-set or validation-set leakage, <code>group_template()</code> in <code>tempest/calibrate/shuffle.py:39–55</code> draws its $m = 199$ dependence templates exclusively from <strong>historical ERA5 training-year profiles strictly before the holdout boundary (<code>year &lt; before_year</code>, i.e., ERA5 &lt; 2021 for the 1991–2020 training archive)</strong>. Neither the <code>2021–2023</code> calibration years nor the <code>2024–2025</code> test years ever enter the template library.
+  </p>
+
+  <h3>Compact <code>uint8[199 &times; 179]</code> Export Packing &amp; Multi-Set Cycling (<code>G3</code>)</h3>
+  <p>
+    Because the calibration block size is fixed at <code>M_CAL = 199</code>, every rank index lies in <code>0..198</code>—fitting cleanly inside a single unsigned byte (<code>uint8</code>, max 255). During production export (<code>tempest/export_tool.py:143</code>), templates are pre-ranked and stored as <code>(n_cells, 144, 199, 179)</code> <code>uint8</code> arrays spanning <strong>12 calendar months &times; 12 two-hour solar bins = 144 temporal bins</strong>, slashing disk and memory footprint by <strong>4&times;</strong> compared to <code>float32</code>. When a user requests large Monte Carlo draws ($N \gg 199$), exporting with <code>--post-template-sets K</code> (<code>G3</code>) stores $K$ independent ERA5 &lt; 2021 template realizations per cell and cycles each 199-member block $g$ through template set $g \bmod K$ so large launch campaigns never repeat a single copula.
+  </p>
+
+  <h3>Spatial Cell Blocking &amp; Graceful Fallback Hierarchy</h3>
+  <p>
+    Storing a separate template for every $0.25^\circ$ grid point bloats exported assets, whereas pooling the entire domain erases terrain-specific wind-turning regimes (such as mountain-valley vs. high-plains boundary layers). <code>shuffle.py</code> therefore implements a clean three-tier spatial resolution hierarchy:
+  </p>
+  <ol>
+    <li><strong>$2^\circ$ Geographic Cell Blocks (Shipped Default, <code>--post-cell 8</code>, <code>IL-95</code>):</strong> Groups $8 \times 8$ adjacent $0.25^\circ$ grid points into $2^\circ \times 2^\circ$ blocks. <code>grid_n_lon(cond)</code> (<code>shuffle.py:31–36</code>) dynamically counts longitudes per latitude row—fixing bug <code>L3-35</code>, where a hard-wired <code>n_lon = 29</code> from the $13 \times 29$ West Texas pilot box sliced the $9 \times 9$ Denver evaluation grid into mixed latitude strips.</li>
+    <li><strong>Per-Point Fallback on Irregular Grids (<code>grid_n_lon == 0</code>):</strong> If the dataset coordinates do not form a complete regular lat–lon rectangle, <code>grid_n_lon()</code> returns <code>0</code>, <code>--template-cell</code> is ignored with a diagnostic message, and <code>group_template()</code> falls back automatically to per-grid-point templates.</li>
+    <li><strong>Domain-Pooled Temporal Fallback (<code>--pooled</code>, <code>IL-94</code>):</strong> Collapses keys to <code>keys % 144</code> (month &times; 2-hour solar bin only) when ultra-compact assets or sparse regional archives are required.</li>
+  </ol>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Documented Edge Case: <code>cell_keys()</code> Stride <code>* 100</code> Overflow (<code>shuffle.py:28</code>)</p>
+    <p>
+      <code>cell_keys()</code> packs 2-D block coordinates into a single integer key using a stride of <code>100</code>:
+    </p>
+    <pre><code>((pid // n_lon // cell) * 100 + (pid % n_lon) // cell) * 144 + k_ % 144</code></pre>
+    <p>
+      Because <code>export_tool.py:141</code> unpacks block coordinates via <code>lat_i, lon_i = cells // 100, cells % 100</code>, any continental or global $0.25^\circ$ grid containing <strong>100 or more longitude cells</strong> (<code>n_lon // cell &gt;= 100</code>, e.g., global $0.25^\circ$ with <code>cell &le; 14</code>) overflows <code>lon_i</code> into <code>lat_i</code>, silently colliding templates across adjacent latitude rows.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.5 Spatial kriging & terrain-aware maps                             -->
+<!-- ====================================================================== -->
+<section id="s3-2-5" class="subsection">
+  <span class="subsection-num">3.2.5</span>
+  <h2>Spatial Interpolation &amp; Terrain-Aware Launch-Pad Maps</h2>
+
+  <p>
+    Rocket launch pads almost never sit exactly on a $0.25^\circ$ ERA5 grid vertex. A tempting shortcut is to apply spatial kriging or bilinear linear averaging directly to the generated atmospheric state vectors across the four surrounding grid points. For probabilistic ensembles, however, <strong>linearly averaging two atmospheric profiles destroys physical realism</strong>: averaging two independent wind profiles shrinks ensemble variance by up to 50%, damps fine-scale wind shear, and blurs sharp boundary-layer inversions.
+  </p>
+
+  <h3>Unbiased Bilinear Mixture Allocation in <code>M_CAL = 199</code> Blocks</h3>
+  <p>
+    Rather than averaging profiles across space, the serving engine (<code>tempest_weather/api.py:378–391, 511–534</code>) constructs a <strong>spatial probability mixture of whole, physically intact columns</strong>:
+  </p>
+  <ol>
+    <li><strong>4-Corner Bilinear Weights:</strong> <code>_core.bilinear(g["lat"], g["lon"], lat, lon)</code> identifies the four grid vertices enclosing the launch pad $(\phi, \lambda)$ and computes their exact bilinear weights $(w_1, w_2, w_3, w_4)$ summing to 1.</li>
+    <li><strong>Whole-Block Systematic Allocation (<code>_blend_rows</code>):</strong> Because <code>spread.py</code> and <code>shuffle.py</code> require exact <code>M_CAL = 199</code> calibration blocks, each block of 199 atmospheres is assigned to one of the four surrounding grid points. To eliminate the old largest-remainder bias—which served <code>0.97 / 0.03</code> instead of <code>0.845 / 0.115</code> at Spaceport America and consistently shortchanged the northeast corner when slicing the final partial block—<code>_blend_rows()</code> (Audit 2026-11-14) allocates $\lfloor w_j \cdot G \rfloor$ guaranteed blocks per vertex, distributes remaining blocks via unbiased systematic sampling proportional to fractional remainders, and shuffles block order so any sliced partial block is unbiased in expectation.</li>
+    <li><strong>Terrain-Aware Elevation Alignment:</strong> Each block runs through the neural generator, <code>spread.py</code>, $2^\circ$-cell Schaake shuffle, and shear/lapse maps at its native grid-point elevation <code>g["elev"][row_pt]</code>. Only after vertical coherence is complete does <code>_core.site_shift()</code> (<code>to_site</code> from Section 3.1.6) shift temperature, hypsometric surface pressure, and dewpoint-conserving relative humidity onto the target pad elevation (user-supplied <code>elevation</code>, or bilinear terrain elevation $\sum_j w_j\,z_{\text{grid},j}$ when omitted), followed by exact hydrostatic density and speed-of-sound reconstruction via <code>_core.thermo_column()</code>.</li>
+  </ol>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Spatial Kriging vs. Whole-Column Bilinear Mixtures</p>
+    <p>
+      Where continuous deterministic fields are needed—such as interpolating mean terrain elevation or computing smooth station-correction weights $w_s$ via inverse-squared cosine-latitude distance in <code>station.py</code> (F-20)—spatial weighting works smoothly. For stochastic vertical profiles, however, allocating whole <code>M_CAL = 199</code> blocks by bilinear weights guarantees that every single Monte Carlo draw retains authentic single-column shear, inversions, and calibrated spread while the ensemble's spatial expectation tracks the exact pad coordinates.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.6 Shear, lapse-rate & tail correction maps                         -->
+<!-- ====================================================================== -->
+<section id="s3-2-6" class="subsection">
+  <span class="subsection-num">3.2.6</span>
+  <h2>Shear, Lapse-Rate, Tail &amp; Joint Envelope Maps</h2>
+
+  <p>
+    Even after the Schaake shuffle restores cross-height rank correlation, fine-scale vertical derivatives—vector wind shear between adjacent grid levels and environmental temperature lapse rates—can remain subtly mis-calibrated in the upper tails. Tempest-ARKNET applies two shipped high-pass derivative maps (<code>shear_map.py</code> and <code>lapse_map.py</code>) plus three specialized companion modules (<code>shear_tail.py</code>, <code>joint.py</code>, and <code>tropo.py</code>).
+  </p>
+
+  <h3>1. Shear-Space Quantile Map (<code>tempest/calibrate/shear_map.py</code> — Shipped ON)</h3>
+  <p>
+    <code>shear_map.py</code> (<code>IL-58</code> / <code>IL-89</code> / <code>IL-91</code>) operates directly in <strong>vector wind-shear space</strong> across the 43 layers separating the 44 AGL grid heights. Layers are grouped into 4 altitude bands by upper-layer height <code>MID = HEIGHTS[1:]</code> against <code>EDGES = [0, 1000, 5000, 12000, 18001]</code> m (0–1, 1–5, 5–12, and 12–18 km; or 7 bands <code>EDGES7</code> via <code>--groups 7</code>). On a 400-point shear grid per band (<code>GRID = 400</code>), <code>fit()</code> solves for a multiplicative gain curve $g_b(s) \in [0.5, 3.0]$ across 55 upper-tail quantiles (<code>0.50..0.99</code> plus <code>0.995, 0.997, 0.998, 0.999, 0.9995</code>; or 103 levels from <code>0.02</code> with <code>--full</code>) using <strong>3 damped iterative passes</strong> (<code>passes = 3</code>, <code>damp = 0.8</code>) to compensate for downstream high-pass attenuation:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.2.3 — Vector Shear Quantile Gain, Monotonicity &amp; Level-0 High-Pass Filter</span>
+    $$\Delta \mathbf{u}_k = \begin{pmatrix} u_{k+1} - u_k \\ v_{k+1} - v_k \end{pmatrix}, \qquad \Delta z_k = \frac{z_{k+1} - z_k}{1000}\;[\text{km}], \qquad s_k = \frac{\|\Delta \mathbf{u}_k\|_2}{\Delta z_k}\;\left[\frac{\text{m/s}}{\text{km}}\right]$$
+    $$g_b^{(t+1)}(q_{\text{ref},j}) = g_b^{(t)}(q_{\text{ref},j}) \cdot \left(\frac{q_{\text{truth},j}}{\max(q_{\text{cur},j}^{(t)},\, 10^{-9})}\right)^{0.8}, \qquad \tilde{g}_b(s_i) = \frac{\max_{r \le i}\!\big(\operatorname{clip}(g_b(s_r),\, 0.5,\, 3.0)\cdot s_r\big)}{\max(s_i,\, 10^{-9})}$$
+    $$\mathbf{r} = \boldsymbol{\delta} - \operatorname{MA}_9(\boldsymbol{\delta}), \qquad \mathbf{r}^{\text{pin}} = \mathbf{r} - \mathbf{r}_{:,0}, \qquad \mathbf{u}^{\text{new}} = \mathbf{u} + \mathbf{r}^{\text{pin}}$$
+    <p class="eq-note">
+      Simply integrating scaled jumps $\delta_k = \sum_{j=0}^{k-1} \Delta\mathbf{u}_j(\tilde{g}_b(s_j) - 1)$ up the column would drift upper-level mean winds. Subtracting a 9-level moving average (<code>uniform_filter1d(delta, SMOOTH=9, mode="nearest")</code>, or opt-in physical-metre Gaussian <code>smooth_m</code> from <code>IL-137</code>) keeps only fine-scale roughness, while subtracting $\mathbf{r}_{:,0}$ ("Gemini bug 5" fix at <code>shear_map.py:62</code>) pins the 10 m pad wind strictly to its pre-map value. On radiosonde verification, this slashes vector-shear Kolmogorov–Smirnov distance from <strong>0.044 &rarr; 0.010</strong>.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B14 — Band-Edge Inequality Mismatch (<code>sonde.py:265</code> vs. <code>shear_map.py:27</code>)</p>
+    <p>
+      All three band-based calibrators (<code>shear_map.py:27</code>, <code>lapse_map.py:23</code>, and <code>shear_tail.py:58</code>) assign layers using <code>np.digitize(MID, [1000, 5000, 12000])</code>—<strong>left-closed, right-open</strong> intervals <code>[lo, hi)</code>—so <code>MID = 1000</code> enters band 1 (1–5 km). By contrast, <code>tempest/scoring/sonde.py:265</code> evaluates <code>--shear-table</code> using <code>(mid &gt; lo) &amp; (mid &lt;= hi)</code> (<strong>left-open, right-closed</strong> <code>(lo, hi]</code>), placing <code>MID = 1000</code> in band 0 (0–1 km). Three exact grid boundaries—the layers ending at <strong>1,000 m</strong>, <strong>5,000 m</strong>, and <strong>12,000 m</strong>—are therefore calibrated in the upper band but scored in the lower band. Note also the climate-tail caveat in <code>shear_map.py:10</code>: calibration years 2021–2023 exhibit a heavier 1–5 km 99.9th-percentile shear than 2024–2025 (<strong>29.2 vs. 25.7 m/s/km</strong>).
+    </p>
+  </div>
+
+  <h3>2. Lapse-Rate Quantile Map (<code>tempest/calibrate/lapse_map.py</code> — Shipped ON, <code>L21b</code>)</h3>
+  <p>
+    <code>lapse_map.py</code> (<code>IL-162</code>) is the exact thermal twin of <code>shear_map.py</code>, fitted immediately <strong>after</strong> the Schaake shuffle and shear map. Because environmental lapse rates $L_k = -(T_{k+1} - T_k)/\Delta z_k$ can be negative inside temperature inversions, <code>fit()</code> updates its 55 upper-tail quantile knots <code>(xk, yk)</code> <em>additively</em> over 3 damped passes (<code>damp = 0.8</code>) while keeping $f_b(L) = L$ below the band median $x_{k,0}$ and continuing with <strong>slope 1</strong> above $x_{k,-1}$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.2.4 — Additive Lapse-Rate Quantile Map (Preserving Real Desert Superadiabatic Layers)</span>
+    $$L_k = -\frac{T_{k+1} - T_k}{\Delta z_k}\;\left[\frac{\text{K}}{\text{km}}\right], \qquad y_k^{(t+1)} = \max\!\Big(x_{k,0},\; \operatorname{cummax}\!\big(y_k^{(t)} + 0.8\,(q_{\text{truth}} - q_{\text{cur}}^{(t)})\big)\Big)$$
+    $$f_b(L) = \begin{cases} L, &amp; L \le x_{k,0}\;\text{(inversions &amp; stable layers untouched)} \\ \operatorname{interp}(L;\, x_k, y_k), &amp; x_{k,0} &lt; L \le x_{k,-1} \\ y_{k,-1} + (L - x_{k,-1}), &amp; L &gt; x_{k,-1}\;\text{(slope-1 tail continuation)} \end{cases}$$
+    <p class="eq-note">
+      A hard dry-adiabatic clamp ($L \le 9.8\text{ K/km}$) would erase real physics: hot desert afternoons at Spaceport America and Midland routinely sustain genuine superadiabatic surface layers below 1 km. Matching the empirical quantile curve with slope-1 continuation and applying the same <code>SMOOTH = 9</code> high-pass filter + level-0 pin cuts steep layers (&gt;9.8 K/km) from <strong>33.8% &rarr; 23.6%</strong> (closely tracking ERA5's <strong>21.9%</strong>) without altering pad temperature or hydrostatic density.
+    </p>
+  </div>
+
+  <h3>3. Companion Extensions: Rare Shear Patches, Joint 99% Band &amp; Tropopause Q-Map</h3>
+  <ul>
+    <li>
+      <strong>Rare Shear Patches (<code>tempest/calibrate/shear_tail.py</code> — Opt-In, <code>IL-5</code>):</strong> Inspired by Earth-GRAM 2026 &sect;2.12.2 ("patchy severe turbulence"), targets a 6–20% residual deficit at the 99.9th-percentile neighbor shear. A Bernoulli mask selects only $p = 0.05$ of ensemble members—leaving <strong>95% completely untouched</strong>—and adds a 2-component unit-variance AR(1)-in-height perturbation ($\rho = 0.6$) scaled by piecewise-linear $\sigma(z)$ across knots <code>[500, 3000, 8500, 15000.5]</code> m, with each band amplitude $\sigma_b \in [0, 8.0]\text{ m/s}$ fitted via 14-iteration bisection (<code>--only-bands</code> pins unwanted bands to 0).
+    </li>
+    <li>
+      <strong>Joint Simultaneous 99% Band (<code>tempest/calibrate/joint.py</code> — Output-Only):</strong> While $m = 199$ calibrated members provide 99% pointwise coverage at any single height, simultaneous containment across <strong>all 44 altitudes together</strong> drops to <strong>85–93%</strong>. <code>joint.py</code> solves for one scalar multiplier $s_v \in [1.0, 8.0]$ per variable $v \in \{u, v, T, \text{RH}\}$ (for both <code>known</code> and <code>unknown</code> driver modes) via 25-iteration bisection (precision $7 / 2^{25} \approx 2.1 \times 10^{-7}$) and outputs <code>band99_joint_lo/hi</code> <em>without ever stretching the underlying ensemble samples</em>, fail-closed verified against both <code>model_sha</code> and <code>calib_sha</code>.
+    </li>
+    <li>
+      <strong>Tropopause-Relative Quantile Map (<code>tempest/calibrate/tropo.py</code> — Unwired, <code>UR6</code>):</strong> Fixed-AGL calibration blurs the migrating tropopause kink and co-located jet maximum (which move 4–6 km seasonally). <code>tropo.py</code> implements the exact <strong>WMO (1957) lapse-rate tropopause</strong> detector ($L \le 2.0\text{ K/km}$ sustained over 2 km inside $[5, 20]$ km, with coldest-level fallback) and fits <code>nq = 99</code> quantile knots inside 16 relative-height bins of 500 m spanning $\Delta z_{\text{rel}} = z - z_t \in [-4000, +4000]$ m (requiring <code>min_n = 200</code> pairs per bin, constant end-offset continuation beyond outer knots).
+    </li>
+  </ul>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.2.5 — AR(1) Rare Shear Patch, Joint 44-Height Multiplier &amp; WMO 1957 Tropopause</span>
+    $$z_{c,j} = 0.6\,z_{c,j-1} + \sqrt{1 - 0.6^2}\,\varepsilon_{c,j}, \qquad \Delta u_j = \sigma(z_j)\,z_{u,j}, \qquad \Delta v_j = \sigma(z_j)\,z_{v,j}$$
+    $$s_v^\star = \inf\!\left\{s \in [1, 8] \;:\; \frac{1}{N}\sum_{n=1}^{N} \mathbf{1}\!\left[\forall k \in \{0, \dots, 43\},\;\; \text{lo}_{n,k}(s) \le y_{n,k} \le \text{hi}_{n,k}(s)\right] \ge 0.99\right\}$$
+    $$z_t = \min\!\left\{z_i \in [5, 20]\text{ km} \;:\; -\frac{T_{i+1} - T_i}{\Delta z_i} \le 2.0\;\frac{\text{K}}{\text{km}} \;\;\land\;\; \forall z_j \in (z_i,\, z_i + 2\text{ km}],\;\; \frac{T_i - T_j}{(z_j - z_i)/1000} \le 2.0\;\frac{\text{K}}{\text{km}}\right\}$$
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.2.7 Interactive lab: Schaake Shuffle sandbox                         -->
+<!-- ====================================================================== -->
+<section id="s3-2-7" class="subsection">
+  <span class="subsection-num">3.2.7</span>
+  <h2>Interactive Lab: Schaake Shuffle Sandbox</h2>
+
+  <p>
+    Use the interactive sandbox below to compare an unshuffled ensemble against pure and blended Schaake-shuffled profiles in real time. Watch how the vertical wind profiles untangle from jagged synthetic shear cliffs into smooth, physically coherent boundary-layer and jet-stream structures while every single altitude's marginal distribution and CRPS remain mathematically invariant.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Interactive Widget 4 — Schaake Shuffle &amp; Vertical Wind-Shear Restoration</h3>
+      <button type="button" class="figure-btn" onclick="openColabLab('lab_03')">Open Colab Lab 3 &nearr;</button>
+    </div>
+
+    <div id="widget-4-schaake"></div>
+
+    <figcaption class="figure-caption">
+      Adjust the blend weight $w \in [0, 1]$ and toggle between unshuffled random pairings and ERA5 &lt; 2021 rank-template pairings. Observe that the marginal wind quantiles at every individual height level do not move, while extreme synthetic vector-shear spikes collapse immediately.
+    </figcaption>
+  </figure>
+
+  <h3>Suggested Experiments to Try</h3>
+  <ol>
+    <li><strong>Verify exact marginal invariance:</strong> Switch between Unshuffled ($w = 0$) and Pure Schaake Shuffle ($w = 1$) and confirm that the 5th, 50th, and 95th percentile envelopes at every height level remain identical while the individual spaghetti trajectories stop crossing wildly between adjacent altitudes.</li>
+    <li><strong>Inspect intermediate blending (<code>IL-161</code>):</strong> Sweep $w$ smoothly from $0.0 \to 0.5 \to 1.0$ to see how stable rank blending transitions continuously between the neural generator's native copula and the historical ERA5 &lt; 2021 rank template.</li>
+    <li><strong>Continue in Colab Lab 3:</strong> Launch <a href="javascript:void(0)" onclick="openColabLab('lab_03')">Notebook 3 (<code>lab_03_calibration_routing_and_copula.ipynb</code>)</a> to run <code>shuffle.apply()</code>, <code>shear_map.fit()</code>, <code>lapse_map.fit()</code>, and <code>joint.fit_scale()</code> directly on synthetic 199-member ensembles and inspect full vertical shear spectra.</li>
+  </ol>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

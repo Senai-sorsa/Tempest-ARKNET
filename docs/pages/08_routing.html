@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3.3 Lead-Time Routing & Forecast Modes &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  
+</head>
+<body data-page-id="08_routing" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 3 · Calibration &amp; Ops · Chapter 3.3</p>
+          <h1>3.3 Lead-Time Routing & Forecast Modes</h1>
+          <p class="article-lead">Routing every launch timestamp smoothly across six lead-time regimes with raised-cosine Bernoulli whole-profile mixing, past-date ERA5 balloon-residual replay (Mode P), live 50:50 IFS neural-and-Ridge forecasts (Mode F), multi-model near-term ensembles, and the UR5 climate wind-sequence post-processor.</p>
+          <div class="article-meta"><span>Modules: router.py, modes.py, modeP.py, modeF.py, sigma.py, tailcal.py, scenarios.py, nearterm/ensemble.py, ur5.py</span><span>Shipped ON: Mode P, Mode F (50:50 Net+Ridge), Mode C &amp; OPTIONS['ur5_sequence']</span><span>Companion: Colab Lab 3</span></div>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 3.3.1 Three operational modes: Climate, Forecast, Launch               -->
+<!-- ====================================================================== -->
+<section id="s3-3-1" class="subsection">
+  <span class="subsection-num">3.3.1</span>
+  <h2>Three Operational Modes: Climate, Forecast, Launch</h2>
+
+  <p>
+    A single atmospheric model cannot serve every point on a launch campaign's timeline equally well. A flight reconstructed two months after launch has a completed global ERA5 reanalysis archive sitting on disk; a launch scheduled three days from now has a sharp live ECMWF IFS numerical weather forecast; a launch two hours away has live pad anemometers and pibal soundings; and a launch planned nine months ahead lives entirely in climate-conditioned generative space. Tempest-ARKNET resolves this span by organizing inference around three primary operational pillars&mdash;<strong>Climate</strong> (<code>Mode C</code> / <code>"ai"</code>), <strong>Forecast &amp; Historical Replay</strong> (<code>Mode F</code> / <code>"forecast"</code>, <code>Mode P</code> / <code>"past"</code>, and medium-range <code>F2</code>/<code>M</code>), and <strong>Launch-Day Assimilation</strong> (pad observations fused into the near-term ensemble in <code>tempest_weather_v2</code>)&mdash;all coordinated by a single deterministic lead-time router.
+  </p>
+
+  <p>
+    Every query enters the router with a target location and timestamp <code>(lat, lon, valid_time)</code> and computes the signed lead time $\text{lead} = t_{\text{valid}} - t_{\text{now}}$ in days. Regardless of which backend serves the query, every path emits the exact same canonical 44-level AGL state tensor ($u, v, T, \mathrm{RH}$ across 44 heights plus surface $t_{2\text{m}}, p_{\text{sfc}}, \mathrm{rh}_{2\text{m}}$, totaling $D = 179$ physical dimensions) alongside explicit mode, source, and quality metadata flags. Downstream 6-DOF rocket simulators therefore never need mode-specific parsing code.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 3.3.1 — Lead-Time Router, Forecast Modes &amp; Near-Term Ensemble Dispatch</h3>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Fullscreen Zoom &#x26F6;</button>
+    </div>
+
+    <pre class="mermaid-src">
+flowchart LR
+  classDef router fill:#eff4ff,stroke:#1d4ed8,color:#17191c,stroke-width:1.8px;
+  classDef shipped fill:#ecfdf5,stroke:#047857,color:#17191c,stroke-width:1.8px;
+  classDef nearterm fill:#fef8ec,stroke:#b45309,color:#17191c,stroke-width:1.8px;
+  classDef optin fill:#f5f3ff,stroke:#6d28d9,color:#17191c,stroke-width:1.8px;
+  classDef killed fill:#fef2f2,stroke:#b91c1c,color:#17191c,stroke-width:1.8px;
+
+  REQ["Query: (lat, lon, valid_time)&lt;br/&gt;lead = valid_time - now"]:::router
+  RTR["router.py / modes.py&lt;br/&gt;Cosine Ramps + Bernoulli mix()"]:::router
+  MODEP["Mode P (lead &lt;= -6 d)&lt;br/&gt;ERA5 + Residual Net + F-11a / F-12"]:::shipped
+  MODEF["Mode F (0.75-7.5 d, 02-20 h)&lt;br/&gt;IFS 0.25 deg + Net/Ridge 50:50"]:::shipped
+  NEAR["nearterm/ensemble.py&lt;br/&gt;WeatherNext 2 (64) + IFS (51)"]:::nearterm
+  MODEC["Mode M / C (&gt; 15 d / Fallback)&lt;br/&gt;Engression Climate + UR5 Sequence"]:::shipped
+  SIGMA["sigma.py (Opt-In --sigma)&lt;br/&gt;Lead-as-Noise + ENS Clip"]:::optin
+  TAIL["tailcal.py (Unwired / Killed)&lt;br/&gt;Outer-10% Stretch (UR1 / X2)"]:::killed
+  OUT["Calibrated 44-Lvl AGL Pool&lt;br/&gt;u, v, T, RH + Surface (179 dims)"]:::shipped
+  SCEN["scenarios.py&lt;br/&gt;Whole-Profile Percentile Picker"]:::router
+
+  REQ --&gt; RTR
+  RTR --&gt; MODEP
+  RTR --&gt; MODEF
+  RTR --&gt; NEAR
+  RTR --&gt; MODEC
+  MODEF -. "opt-in" .-&gt; SIGMA
+  SIGMA -. "killed" .-&gt; TAIL
+  MODEP --&gt; OUT
+  MODEF --&gt; OUT
+  NEAR --&gt; OUT
+  MODEC --&gt; OUT
+  OUT --&gt; SCEN
+    </pre>
+    <div class="mermaid-render"></div>
+
+    <figcaption class="figure-caption">
+      End-to-end dispatch across <code>tempest/forecast/router.py</code>, <code>tempest_weather/modes.py</code>, and <code>tempest/nearterm/ensemble.py</code>. Blue nodes denote routing and scenario selection; emerald nodes denote production-shipped ON paths; amber denotes raw multi-model near-term ingest; violet denotes opt-in research candidates (<code>--sigma</code>); and crimson denotes rejected experiments (<code>tailcal.py</code>).
+    </figcaption>
+  </figure>
+
+  <h3>Whole-Profile Scenario Selection (<code>tempest/forecast/scenarios.py</code>)</h3>
+  <p>
+    Once the router produces an $m$-member calibrated ensemble pool, aerospace teams frequently ask for a compact set of deterministic mission cases&mdash;such as the 1st, 25th, 50th, 75th, and 99th percentile wind or drift atmospheres&mdash;for rapid trajectory design checks. Taking component-wise percentiles across altitude levels would synthesize an unphysical composite column that never occurs in nature. <code>scenarios(samples, outcome_fn, pcts=(1, 25, 50, 75, 99), weights=None)</code> enforces a strict <strong>whole-profile rule</strong>: it evaluates any scalar flight metric <code>outcome_fn(samples)</code> (such as 0&ndash;3 km mean wind, parachute drift, or landing distance), computes exact or weighted target percentiles $t_p$, and selects the <em>actual individual ensemble member</em> closest to each target via $\arg\min_i |o_i - t_p|$. Every returned scenario is therefore a complete, hydrostatically and vertically coherent atmosphere.
+  </p>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Core Architectural Invariant — Never Average Independent Columns</p>
+    <p>
+      Both <code>router.mix()</code> at regime boundaries and <code>scenarios()</code> at mission export obey the same physical law: <strong>never linearly average two distinct atmospheric profiles</strong>. Averaging a column with a 10 km jet streak and a column with a 13 km jet streak creates a phantom double-humped jet and collapses ensemble variance by up to 50%. Every transition and scenario selection operates strictly on whole, intact columns.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.3.2 Lead-time horizon regimes (0h to 16d+)                           -->
+<!-- ====================================================================== -->
+<section id="s3-3-2" class="subsection">
+  <span class="subsection-num">3.3.2</span>
+  <h2>Lead-Time Horizon Regimes (Past, 0 h to 16 d+, and Climate)</h2>
+
+  <p>
+    <code>tempest/forecast/router.py</code> partitions the continuous timeline from deep historical dates through multi-year future planning into <strong>six contiguous regimes</strong> defined in <code>router.DEFAULTS</code>. Before any dispatch occurs, <code>router.check(s)</code> validates strict monotonicity of all regime boundaries (<code>p_days &lt; p0_days &lt; f_days &lt; f2_days &lt; m_days</code>) and strictly positive hand-over widths (<code>end &gt; start</code>). In production serving (<code>tempest_weather/modes.py</code>), any regime whose external data feed is unavailable gracefully falls back to the always-on climate generator (<code>"ai"</code>) and appends an explicit <code>fallback-mode</code> quality flag.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Regime</th>
+          <th>Lead Window (days)</th>
+          <th>Runtime Mode (<code>modes.py</code>)</th>
+          <th>Primary Data Source &amp; Blending Behavior</th>
+          <th>Production Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>P</strong></td>
+          <td>$\text{lead} \le -6$</td>
+          <td><code>past</code></td>
+          <td>Historical ERA5 reanalysis (~6-day release lag) + Mode P balloon-residual Engression net + F-11a / F-12 / GW-F refinements.</td>
+          <td><strong>Shipped ON</strong> (when ERA5 store configured)</td>
+        </tr>
+        <tr>
+          <td><strong>P0</strong></td>
+          <td>$(-6,\; 0]$</td>
+          <td><code>recent</code></td>
+          <td>Recent past prior to ERA5 finalization; intended for newest operational analyses or launch-day observation assimilation in <code>tempest_weather_v2</code>.</td>
+          <td>Fallback &rarr; <code>ai</code> (flagged)</td>
+        </tr>
+        <tr>
+          <td><strong>F</strong></td>
+          <td>$(0,\; 7]$</td>
+          <td><code>week</code> &rarr; <code>forecast</code></td>
+          <td>Live ECMWF IFS 0.25&deg; via Open-Meteo + Mode F error network &amp; 50:50 Ridge mixture (active within tested <code>0.75&ndash;7.5 d</code> &amp; <code>02&ndash;20 h</code> solar).</td>
+          <td><strong>Shipped ON</strong> (tested window)</td>
+        </tr>
+        <tr>
+          <td><strong>F2</strong></td>
+          <td>$(7,\; 15]$</td>
+          <td><code>medium</code></td>
+          <td>Medium-range multi-model ensemble (<code>nearterm/ensemble.py</code>); <code>ensemble_weight</code> tapers smoothly $1 \to 0$ across <code>ens_blend = (10, 15)</code>.</td>
+          <td>Logged / Fallback &rarr; <code>ai</code></td>
+        </tr>
+        <tr>
+          <td><strong>M</strong></td>
+          <td>$(15,\; 46]$</td>
+          <td><code>medium</code></td>
+          <td>Sub-seasonal weeks 3&ndash;6 hand-over (<code>ecmwf_ec46</code> research); <code>climate_weight</code> rises smoothly $0 \to 1$ across <code>m_blend = (35, 46)</code>.</td>
+          <td>Research / Fallback &rarr; <code>ai</code></td>
+        </tr>
+        <tr>
+          <td><strong>C</strong></td>
+          <td>$\text{lead} &gt; 46$</td>
+          <td><code>ai</code></td>
+          <td>Full climate-conditioned 4-member Engression generator driven by forecasted ONI, WWV, QBO30, QBO50, and GMST indices (+ UR5 for sequences).</td>
+          <td><strong>Shipped ON</strong> (always available)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mode P — Past-Date ERA5 Replay &amp; Balloon-Residual Network (<code>modeP.py</code>)</h3>
+  <p>
+    When reconstructing a historical launch ($\text{lead} \le -6\text{ d}$), ERA5 already provides an hourly 3D reanalysis of the atmosphere&mdash;yet a $0.25^\circ$ grid cell is systematically smoother than the actual air column a rocket or radiosonde traverses. <code>tempest/forecast/modeP.py</code> treats ERA5 as the deterministic first guess and trains a compact CRPS-minimizing Engression residual network on ~40,000 paired IGRA2 00Z/12Z soundings at Santa Teresa (<code>EPZ</code>) and Midland (<code>MAF</code>) to generate the full $D = 4 \times 44 = 176$ balloon-minus-ERA5 residual vector:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.1 — Mode P Balloon-Residual Target &amp; Stochastic Replay</span>
+    $$y_{\text{res}} = x_{\text{obs}} - x_{\text{ERA5}} \in \mathbb{R}^{176}, \qquad \hat{x}^{(i)} = \mathrm{clip}_{\text{RH}\in[0,100]}\!\left(x_{\text{ERA5}} + f_\theta(c,\; z_\varepsilon^{(i)})\right)$$
+    <p class="eq-note">
+      <code>cond_matrix()</code> packs 180 conditioning features: <code>[station, sin(doy), cos(doy), hour12, era_0..era_175]</code>. Two optional extensions live in <code>modeP.py</code>: (1) <strong>1-hour ERA5 tendency</strong> (<code>COND_NAMES_TEND</code>, +176 dims adding <code>ERA5(t + 1 h) - ERA5(t)</code> to capture atmospheric drift during a balloon's ~90-minute ascent), and (2) the <strong><code>post2022</code> sensor indicator</strong> (<code>COND_NAMES_POST</code>, evaluated in F-11 Part 2 and discarded once the <code>F-11a</code> station hybrid cleanly resolved the upper-tropospheric humidity offset). After sampling in blocks of <code>M_CAL = 199</code>, <code>fit_calibration()</code> applies a pooled 2021&ndash;2023 spread-calibration table across 16 groups (4 variables &times; 4 height bands: <code>0&ndash;1, 1&ndash;5, 5&ndash;12, 12&ndash;18 km</code>).
+    </p>
+  </div>
+
+  <h3>Three Shipped Mode P Refinements (<code>_past_phys</code> &amp; <code>_anchor_to_era5</code>)</h3>
+  <p>
+    Production past-date serving in <code>tempest_weather/api.py</code> augments the base Mode P residual network with three verified physical refinements, all shipped enabled by default:
+  </p>
+
+  <ul>
+    <li>
+      <strong>F-12 Joint Empirical Surface Residual Pool (<code>modep_sfc</code>):</strong> Originally <code>_past_phys</code> left surface pressure <code>sp</code> with zero spread (<code>np.full</code>) and shifted <code>t2m</code>/<code>rh2m</code> using the 10 m profile residual. F-12 draws a complete empirical <code>(t2m, sp, rh2m)</code> balloon-minus-ERA5 residual row matched by <code>station &times; season &times; launch hour</code>. On 2024&ndash;2025 00Z soundings (1,416 sondes), this cut <code>t2m</code> CRPS from <code>1.16 &rarr; 0.68 K</code>, <code>sp</code> CRPS from <code>48.8 &rarr; 25.9 Pa</code>, and <code>rh2m</code> CRPS from <code>3.75 &rarr; 2.92%</code>, achieving 99% coverages of <code>0.991 / 0.994 / 0.999</code>.
+    </li>
+    <li>
+      <strong>F-11a Upper-Air RH Station-Correction Override (<code>A["sta"]</code>):</strong> Because Mode P trained on 1991&ndash;2017 inherited pre-2022 radiosonde dry biases in the upper troposphere, all 13 columns of <code>RH</code> spanning <code>12&ndash;18 km</code> (where linear station correction beat the neural net on 2021&ndash;2023) are overridden with $a_g + b_g\,\text{ERA5}$ plus a moisture-tercile residual draw keyed by 5&ndash;13 km mean RH. This lowers 12&ndash;18 km RH CRPS from <code>4.76 &rarr; 3.70</code> and restores mean upper-tropospheric RH from <code>4.9% &rarr; 10.9%</code> at modern sensor levels.
+    </li>
+    <li>
+      <strong>GW-F Near-Ground Wind Anchor (<code>_anchor_to_era5</code>):</strong> Re-centers the median of near-ground $(u, v)$ onto the ERA5 10 m wind with weight $w \in [0, 1]$ while keeping <code>ANCHOR_SPREAD = 1.0</code> (narrowing spread hurt 99% coverage), tapering linearly to zero at <code>ANCHOR_TOP_M = 300 m</code>:
+    </li>
+  </ul>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.2 — Linear 300 m Near-Ground Wind Anchor Taper (GW-F)</span>
+    $$\tau(z) = \mathrm{clip}\!\left(1 - \frac{z - 10}{300 - 10},\; 0,\; 1\right)$$
+    <p class="eq-note">
+      Enabled by default in <code>Launch(past_era5_anchor=True)</code>, reducing 10 m wind-speed CRPS by <strong>&minus;5%</strong> at Truth or Consequences (TCS) and <strong>&minus;11%</strong> at Midland (MAF) without introducing a boundary-layer shear cliff.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.3.3 Smooth crossfading between HRRR, GFS & IFS                       -->
+<!-- ====================================================================== -->
+<section id="s3-3-3" class="subsection">
+  <span class="subsection-num">3.3.3</span>
+  <h2>Smooth Crossfading, Mode F (IFS + Ridge) &amp; SIGMA Scaling</h2>
+
+  <p>
+    Think of lead-time regime hand-overs like a DJ crossfading two tracks at different tempos. A hard cut from a sharp 7-day numerical weather forecast directly to a broad seasonal climate ensemble at midnight on Day 15 produces an unphysical step jump in predicted wind median and 90% dispersion between adjacent hours. <code>tempest/forecast/router.py</code> eliminates seam jumps using a $C^1$-smooth raised cosine ramp with zero derivative at both endpoints across both transition windows (<code>ens_blend = (10.0, 15.0)</code> and <code>m_blend = (35.0, 46.0)</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.3 — Raised Cosine Hand-Over Weights (router.py)</span>
+    $$r(x;\, a, b) = 0.5 - 0.5\cos\!\left(\pi \cdot \mathrm{clip}\!\left(\frac{x - a}{b - a},\; 0,\; 1\right)\right)$$
+    $$w_{\text{ens}}(\text{lead}) = 1 - r(\text{lead};\; 10.0,\; 15.0), \qquad w_{\text{clim}}(\text{lead}) = \begin{cases} 0 &amp; \text{lead} \le 15.0 \\ r(\text{lead};\; 35.0,\; 46.0) &amp; \text{lead} &gt; 15.0 \end{cases}$$
+    <p class="eq-note">
+      At $\text{lead} \le 10\text{ d}$, $w_{\text{ens}} = 1$ (100% live ensemble); at $12.5\text{ d}$, $w_{\text{ens}} = 0.5$; at $\ge 15\text{ d}$, $w_{\text{ens}} = 0$. Similarly, $w_{\text{clim}}$ stays $0$ through Day 35 and climbs smoothly to $1.0$ at Day 46.
+    </p>
+  </div>
+
+  <p>
+    Rather than averaging profiles, <code>router.mix(rng, forecast_samples, other_samples, w_other)</code> (<code>router.py:65&ndash;76</code>) draws an independent Bernoulli coin flip per ensemble member&mdash;<code>pick = rng.random(m) &lt; w_other</code>&mdash;and copies entire rows <code>out[pick] = other_samples[pick]</code>. Mathematically, this realizes the exact mixture distribution $(1 - w)P_{\text{fcst}} + w P_{\text{other}}$: every individual trajectory preserves its intact tropopause break, boundary-layer inversion, and jet shear, and total variance never collapses at $w = 0.5$ (whereas linear averaging cuts variance in half: $\mathrm{Var}(0.5 X + 0.5 Y) = 0.5 \sigma^2$).
+  </p>
+
+  <h3>Mode F — Live ECMWF IFS 0.25&deg; Forecasts &amp; Boundary-Layer Reconstruction</h3>
+  <p>
+    For upcoming launches between <strong>0.75 and 7.5 days</strong> ahead and local solar hours <strong>02&ndash;20 h</strong> (<code>FORECAST_LEAD = (0.75, 7.5)</code>, <code>FORECAST_SOLAR = (2.0, 20.0)</code>), <code>tempest/forecast/modeF.py</code> fetches live ECMWF IFS 0.25&deg; pressure-level and surface fields via Open-Meteo (with offline training against WeatherBench2 archived HRES runs <code>wb2_hres</code> at 00Z and <code>wb2_hres_v2</code> at 00Z+12Z). <code>lead_bin()</code> maps continuous leads into four tested buckets: <code>&lt; 2 d &rarr; 1</code>, <code>2&ndash;4 d &rarr; 3</code>, <code>4&ndash;6 d &rarr; 5</code>, and <code>6&ndash;7.5 d &rarr; 7</code> (with <code>&gt; 7.5 d &rarr; 0</code> unused).
+  </p>
+  <p>
+    Because archived HRES pressure-level files omit both 100 m wind (<code>u100, v100</code>) and 2 m dewpoint (<code>d2m</code>) needed by <code>profiles_from_levels()</code>, <code>boundary_inputs()</code> and <code>fit_boundary_layer()</code> reconstruct both anchors from the lowest pressure level strictly above ground (<code>agl &gt; 0</code>):
+  </p>
+
+  <ul>
+    <li>
+      <strong>100 m Wind Ratio by Stability Regime:</strong> Computes the near-surface lapse rate $\Gamma_{\text{low}} = (T_{2\text{m}} - T_{\text{low}}) / \max(z_{\text{low,km}},\, 0.05)$ and bins it across <code>LAPSE_BINS = [0.0, 4.0, 7.0, 9.0]</code> K/km into five stability classes: <em>inversion</em> (&lt;0), <em>stable</em> (0&ndash;4), <em>neutral</em> (4&ndash;7), <em>unstable</em> (7&ndash;9), and <em>super-adiabatic</em> (&gt;9 K/km). Each bin applies its ERA5 training-year median ratio $|u_{100}|/|u_{10}|$ (for $|u_{10}| &gt; 1\text{ m/s}$; fallback <code>1.4</code>, matching a neutral log-law with $z_0 \approx 0.1\text{ m}$).
+    </li>
+    <li>
+      <strong>2 m Dewpoint Depression Regression:</strong> Converts specific humidity $q$ to relative humidity via IFS mixed-phase <code>rh_from_q()</code>, computes the lowest-level dewpoint depression $\text{DPD}_{\text{low}} = T_{\text{low}} - T_{d,\text{low}}$, and maps it linearly to 2 m:
+    </li>
+  </ul>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.4 — Boundary-Layer 2 m Dewpoint Anchor Regression</span>
+    $$T_{d,2\text{m}} = T_{2\text{m}} - \mathrm{clip}\!\left(a_{\text{dpd}} + b_{\text{dpd}}\,\text{DPD}_{\text{low}},\; 0,\; 60\right)$$
+    <p class="eq-note">
+      Default fallback (<code>DEFAULT_BL</code>): $a_{\text{dpd}} = 0.0$, $b_{\text{dpd}} = 1.0$.
+    </p>
+  </div>
+
+  <h3>50:50 Schaake-Shuffled Error Network &amp; Per-Lead Ridge Mixture ($\lambda = 200$)</h3>
+  <p>
+    At runtime (<code>api._forecast_phys</code>), Mode F combines two complementary forecast-error models via a <strong>50:50 Bernoulli whole-profile mixture</strong> (<code>use = rng.random(n) &lt; 0.5</code>, tagged <code>forecast-mixture:network-and-ridge-50-50</code>):
+  </p>
+  <ol>
+    <li>
+      <strong>Neural Residual Path + Schaake Shuffle (<code>modef_tpl</code>):</strong> A regularized Engression network (<code>coarse=4</code>, sampling every 4th altitude level of the forecast input to prevent overfitting) generates residual profiles, applies the spread range map, and Schaake-shuffles each column against <strong>1,500 real historical forecast-error templates</strong> per lead (<code>modef_tpl/L{1,3,5,7}</code>, stored in <code>float16</code>) to restore realistic vertical and cross-variable error correlation.
+    </li>
+    <li>
+      <strong>Standardized Per-Lead Ridge + Empirical Residual Pool (<code>modef_ridge</code>):</strong> For each lead $L \in \{1, 3, 5, 7\}$, <code>export_tool.py</code> solves $W_L = (Z^\top Z + 200\,I)^{-1} Z^\top O$ on standardized HRES inputs ($\lambda = 200$) and pairs predictions with a 3,000-row empirical residual pool. Any missing underground input level is imputed to $\mu$ so no Ridge row ever propagates <code>NaN</code>.
+    </li>
+  </ol>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Model Variant (Test Year 2022)</th>
+          <th>Day 1 Skill</th>
+          <th>Day 3 Skill</th>
+          <th>Day 5 Skill</th>
+          <th>Day 7 Skill</th>
+          <th>Verification Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Raw ECMWF HRES (deterministic)</td>
+          <td><code>0.570</code></td>
+          <td><code>0.340</code></td>
+          <td><code>0.080</code></td>
+          <td><code>&minus;0.210</code></td>
+          <td>Worse than climatology by Day 7 due to zero uncertainty spread.</td>
+        </tr>
+        <tr>
+          <td>Mode F Network + Range Map only</td>
+          <td><code>0.686</code></td>
+          <td><code>0.534</code></td>
+          <td><code>0.343</code></td>
+          <td><code>0.194</code></td>
+          <td>Day 7 <code>cov99</code> error = <code>0.0082</code>; median MAE = <code>5.10</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Shipped 50:50 Net + Ridge ($\lambda = 200$)</strong></td>
+          <td><strong><code>0.691</code></strong></td>
+          <td><strong><code>0.539</code></strong></td>
+          <td><strong><code>0.350</code></strong></td>
+          <td><strong><code>0.209</code></strong></td>
+          <td><strong>+0.005 to +0.015</strong> skill gain; Day 7 <code>cov99</code> err &rarr; <code>0.0037</code>; MAE &rarr; <code>5.01</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Gotcha — Western-Hemisphere <code>lon - 360</code> Alignment &amp; Opt-In <code>IL-14</code> Ensemble Features</p>
+    <p>
+      In <code>modeF.py:78</code> and <code>modeF.py:129</code>, grid alignment computes <code>h.longitude.values[None, :] - 360.0 - pn[:, None]</code> to match WeatherBench2's $[0, 360)^\circ\text{ E}$ longitudes against the ERA5 store's $[-180, 180)^\circ$ convention. This works cleanly across West Texas, New Mexico, and Denver ($-108^\circ$ to $-101^\circ$), but <strong>will trip the grid-match assertion in the Eastern Hemisphere</strong> unless wrapped modulo 360 before differencing. Separately, passing <code>ens_features</code> into <code>atmosphere_set()</code> activates the opt-in <code>modefens</code> network (<code>IL-14</code>), appending 24 IFS-ensemble <code>(mean, sd)</code> summary features (<code>u10, v10, t2m</code> plus <code>u, v, T</code> at <code>500 / 700 / 850 hPa</code>) for a <strong>1.9&ndash;3.1% CRPS reduction</strong> across 1&ndash;7 day leads on test year 2022 (flagged <code>forecast-ifs-ensemble-features</code>).
+    </p>
+  </div>
+
+  <h3>SIGMA Lead-as-Noise Scaling (<code>sigma.py</code>) &amp; Killed Far-Tail Stretch (<code>tailcal.py</code>)</h3>
+  <p>
+    In standard Mode F, the raw residual target <code>obs - hres</code> expands dramatically from Day 1 to Day 9, forcing one network to span wildly different error scales. The opt-in research candidate <code>tempest/forecast/sigma.py</code> (<code>--sigma</code>) reframes lead time as a known signal-decay and noise-scale schedule so the neural generator $F$ always predicts a standardized $O(1)$ target <code>(obs - base) / s</code> across every lead day $d \in \{1, \dots, 10\}$ and column $c \in \{1, \dots, 176\}$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.5 — SIGMA Lead-as-Noise Decomposition &amp; NEST Width Allocation</span>
+    $$\text{member}_{d,c} = \mu_{\text{clim}} + \beta_{d,c}\!\left(\text{hres} - \mu_{\text{clim}}\right) + s_{d,c}\,F, \qquad s_{d,c} = s_{\text{rel},d,c}\,\sigma_{\text{clim},m,c}\,\gamma_{\text{ens}}$$
+    $$w_d = \frac{\text{width}}{4}\,\mathrm{rint}\!\left(4 - 3\,\frac{s_d - s_{\min}}{s_{\max} - s_{\min}}\right)$$
+    <p class="eq-note">
+      Climatology $\mu_{\text{clim}}$ and $\sigma_{\text{clim}}$ are leak-free (<code>year &lt;= 2020</code>); $\beta_{d,c} \in [0, 1.2]$ and $s_{\text{rel},d,c} \ge 0.05$ (<code>S_FLOOR = 0.05</code>) are tabled directly per lead day because Stage 1 showed 2-parameter exponential decay curves had the wrong shape. Under UR2 Stage-5 spread scaling (<code>ens_scale=True</code>), $\gamma_{\text{ens}}$ scales $s_{d,c}$ by each row's IFS ensemble spread relative to its fit-row median, clipped strictly to <code>ENS_CLIP = (0.8, 1.5)</code> (mapping <code>&lt; 500 m</code> &rarr; surface, <code>500 m&ndash;2.5 km</code> &rarr; 700 hPa, <code>&gt; 2.5 km</code> &rarr; 500 hPa, skipping underground 850 hPa; RH keeps factor <code>1.0</code>). On the UR15 third-period (2023&ndash;2024) test, SIGMA held within +0.5% at Days 1&ndash;7 and beat binned Mode F by <strong>6.9&ndash;8.2% at Day 9</strong> in both pilot boxes (remaining an opt-in candidate), whereas NEST width quantization failed 99% coverage.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Unwired / Killed Experiment — Far-Tail Stretch (<code>tempest/forecast/tailcal.py</code>, UR1 &amp; X2)</p>
+    <p>
+      <code>tailcal.py</code> was engineered to repair under-covering 99% ranges without touching the inner 90% core or Schaake rank order. Using order statistics $q_{05}, q_{95}$ ($k = 10$ for $m = 199$), it applied a strictly increasing outer-10% multiplier $x' = q_{05} - f_{\text{lo}}(q_{05} - x)$ for $x &lt; q_{05}$ and $x' = q_{95} + f_{\text{hi}}(x - q_{95})$ for $x &gt; q_{95}$ ($f \in [0.60, 3.00]$, step $0.02$, 1-2-1 lead-smoothed to hit <code>TARGET = 0.005</code> per side). Despite clean monotone math, <strong>UR1 (<code>b25</code>) and X2 (<code>b85</code>) killed it</strong>: cross-year optimal stretch factors drifted by <strong>0.38&ndash;0.995</strong> across single validation years and still drifted by <strong>0.26&ndash;0.77</strong> when pooling two full years (2021+2022 tested on 2023&ndash;2024)&mdash;failing the pre-set stability gate of $\le 0.15$. Fitting extreme 0.5% tail multipliers on 1&ndash;2 years of weather overfits rare synoptic storms rather than generalizing.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.3.4 Near-term NWP ensemble ingestion                                 -->
+<!-- ====================================================================== -->
+<section id="s3-3-4" class="subsection">
+  <span class="subsection-num">3.3.4</span>
+  <h2>Near-Term Multi-Model NWP Ensemble Ingestion</h2>
+
+  <p>
+    To feed medium-range regime <code>F2</code> (Days 7&ndash;15) and operational forecast verification, <code>tempest/nearterm/ensemble.py</code> ingests daily-logged gzipped Open-Meteo snapshots (<code>read_logged()</code>) from two independent global ensemble systems: <strong>Google WeatherNext 2 (64 members)</strong> and <strong>ECMWF IFS 0.25&deg; (51 members)</strong>. Together they form a 115-member raw multi-model pool projected onto the exact canonical 44-height AGL grid&mdash;arrays of shape <code>(M, T, 44)</code> for <code>u, v, T, RH</code> plus <code>(M, T)</code> surface fields <code>t2m, sp, rh2m</code>&mdash;using pure physics interpolation with zero statistical post-processing.
+  </p>
+
+  <h3>Vertical Projection, Underground Masking &amp; Log-Wind Anchoring</h3>
+  <p>
+    Every snapshot parses 13 standard pressure levels (<code>LEVELS = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]</code> hPa), converts temperatures to Kelvin and pressure to Pascals, decomposes wind speed/direction via meteorological vectorization $(u, v) = (-s\sin\theta,\, -s\cos\theta)$, and converts mixed-phase relative humidity to liquid-water RH via <code>liquid_rh()</code>. Member keys are sorted by <code>_members()</code> with key <code>(k != var, k)</code> so the unperturbed control member is always index <code>0</code>, followed by <code>*_member01..N</code> (returning <code>None</code> if a variable is absent or all-null).
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.6 — Underground Pressure-Level Mask (ensemble.py:65)</span>
+    $$\text{above} = \bigl(p &lt; p_{\text{sfc}} - 500\text{ Pa}\bigr) \;\wedge\; \bigl(z_{\text{AGL}} &gt; 0\bigr), \qquad z_{\text{AGL}} = \mathrm{geometric\_height}(\Phi_{\text{gh}} \cdot g_0) - z_{\text{elev}}$$
+    <p class="eq-note">
+      Every level at or below terrain elevation&mdash;or within 5 hPa of surface pressure&mdash;is masked out before vertical interpolation. Because Open-Meteo ensemble feeds omit a 100 m wind anchor, <code>LOG_TO_FIRST_LEVEL = True</code> (<strong>AU-15 fix</strong>) interpolates wind in $\ln(z)$ all the way from the 10 m surface anchor to the first valid above-ground pressure level rather than switching to linear above 100 m, preventing an artificial boundary-layer kink. Temperature and RH prepend the 2 m surface anchor before calling <code>interp_columns()</code>.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B5 — Underground 1000 hPa RH Fallback for WeatherNext 2 (<code>tempest/nearterm/ensemble.py:70</code>)</p>
+    <p>
+      Open-Meteo does <strong>not</strong> serve <code>relative_humidity_2m</code> for Google WeatherNext 2, so <code>rh2m</code> evaluates to <code>None</code>. Line 70 falls back to:
+    </p>
+    <pre><code>rh_anchor = rh2m if rh2m is not None else np.where(np.isfinite(rh[..., :1].squeeze(-1)), np.clip(rh[..., 0], 0, 100), np.nan)</code></pre>
+    <p>
+      Because <code>LEVELS[0] = 1000 hPa</code>, indexing <code>rh[..., 0]</code> reads the <strong>1000 hPa</strong> field&mdash;which lies hundreds of metres <strong>underground</strong> at high-elevation launch sites such as Spaceport America (~1,400 m MSL, $p_{\text{sfc}} \approx 860\text{ hPa}$) and Denver (~1,600 m MSL, $p_{\text{sfc}} \approx 840\text{ hPa}$). Even though line 65 masks 1000 hPa out of <code>agl</code>, line 70 reads the unmasked <code>rh</code> array and injects subterranean humidity into both <code>rh2m</code> and the lowest boundary-layer anchor.
+    </p>
+    <p>
+      <strong>Clean fix:</strong> When <code>rh2m is None</code>, locate the lowest real atmospheric level via <code>first_valid = np.argmax(above, axis=-1)</code> and gather <code>np.take_along_axis(rh, first_valid[..., None], axis=-1).squeeze(-1)</code> (masked by <code>above.any(-1)</code>).
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.3.5 UR5 climate wind-sequence post-processor                         -->
+<!-- ====================================================================== -->
+<section id="s3-3-5" class="subsection">
+  <span class="subsection-num">3.3.5</span>
+  <h2>UR5 Climate Wind-Sequence Post-Processor (<code>ur5.py</code> &amp; <code>OPTIONS["ur5_sequence"]</code>)</h2>
+
+  <p>
+    Single-hour climate ensembles are calibrated to match marginal wind distributions, yet launch-window planning requires <strong>multi-hour coherent sequences</strong> (e.g., 3-to-6-hour holds across a launch morning via <code>api.atmosphere_sequence()</code>). In multi-hour climate sequences, two subtle artifacts appeared in earlier evaluations: (1) the tool's 10 m wind speed distribution drifted slightly from ERA5 across specific diurnal hours, and (2) standard Gaussian temporal lag coupling underestimated the strong persistence difference between calm nocturnal inversions and windy mixed-layer afternoons.
+  </p>
+
+  <p>
+    The <strong>UR5 / WD1 post-processor</strong> (<code>tempest_weather/ur5.py</code>, passed in <code>b29 UR5 + b40 spread refit</code> on 2026-11-15 and ported to serving in <code>tempest_weather/api.py:28, 60&ndash;61, 650&ndash;659</code>) fixes both issues cleanly. It is governed by <code>OPTIONS["ur5_sequence"] = True</code> (<code>api.py:28</code>, <strong>Shipped ON by default</strong>) and activates automatically whenever <code>atmosphere_sequence()</code> runs in pure climate mode (<code>all(i["mode"] == "ai" for _, i in sets)</code>) and the asset bundle includes <code>post/ur5_*</code> (exported via <code>export_tool.py --post-ur5</code>). Crucially, it runs <em>only</em> inside <code>atmosphere_sequence()</code>&mdash;never inside single-timestamp <code>_post_process()</code>.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 3.3.2 — UR5 / WD1 Climate-Sequence 10 m Wind &amp; 300 m Vertical Taper Pipeline</h3>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Fullscreen Zoom &#x26F6;</button>
+    </div>
+
+    <pre class="mermaid-src">
+flowchart LR
+  classDef stage fill:#eff4ff,stroke:#1d4ed8,color:#17191c,stroke-width:1.8px;
+  classDef guard fill:#ecfdf5,stroke:#047857,color:#17191c,stroke-width:1.8px;
+  classDef warn fill:#fef8ec,stroke:#b45309,color:#17191c,stroke-width:1.8px;
+
+  IN["Coherent Climate Sequence&lt;br/&gt;all(mode == 'ai') &amp; post/ur5"]:::stage
+  QMAP["1. 100-Knot Speed Quantile Map&lt;br/&gt;fit_map / apply_map (dir kept)"]:::stage
+  SCL["2. Mean-Centered Spread Scale&lt;br/&gt;u, v scaled by s_u, s_v (b40)"]:::stage
+  CHN["3. Two-Regime Rank Chain&lt;br/&gt;rho_calm vs rho_windy ^ gap"]:::guard
+  ANC["4. Anchored Noise (anchor=True)&lt;br/&gt;Speed-only swap; keeps member dir"]:::guard
+  TAP["5. Linear 300 m Fade (api.py:654)&lt;br/&gt;Preserves 10-50 m shear"]:::warn
+  OUT["Updated u, v + Thermo Refresh&lt;br/&gt;flag: sequence-10m-wind:ur5-wd1"]:::guard
+
+  IN --&gt; QMAP --&gt; SCL --&gt; CHN --&gt; ANC --&gt; TAP --&gt; OUT
+    </pre>
+    <div class="mermaid-render"></div>
+
+    <figcaption class="figure-caption">
+      Exact five-step execution path of <code>OPTIONS["ur5_sequence"] = True</code> in <code>tempest_weather/api.py:650&ndash;659</code> and <code>tempest_weather/ur5.py</code>. Only <code>post/ur5_*</code> table cells marked <code>ok == True</code> are transformed; missing cells or gaps &gt; 6 h leave the hour untouched and restart the Markov chain.
+    </figcaption>
+  </figure>
+
+  <h3>Exact Mathematics of the Four <code>ur5.py</code> Stages &amp; the <code>anchor=True</code> Shear Discovery</h3>
+  <p>
+    At the nearest table grid point $p = \arg\min_k \big(( \text{lat}_k - \text{lat})^2 + (\text{lon}_k - \text{lon})^2\big)$ and each hour's <code>(month, UTC hour)</code> cell where <code>T["ok"][p, m, h]</code> is true, <code>ur5.apply()</code> executes three core operations before <code>api.py</code> fades the delta vertically:
+  </p>
+
+  <ol>
+    <li>
+      <strong>Direction-Preserving 100-Knot Speed Quantile Map (<code>fit_map</code> / <code>apply_map</code>):</strong> Maps the tool's 10 m speed $s = \sqrt{u^2 + v^2}$ onto ERA5 1991&ndash;2005 speed quantiles tabulated at 100 knots <code>QS = np.linspace(0.005, 0.995, 100)</code> (monotonized via <code>np.maximum.accumulate(xt + np.arange(100) * 1e-9)</code>, linear interpolation between knots, flat beyond). Scaling both components by $k = \operatorname{interp}(s, x_t, x_e) / \max(s, 10^{-6})$ preserves every member's exact wind direction.
+    </li>
+    <li>
+      <strong>Component-Wise Spread Rescaling (<code>scale</code>, b40 refit):</strong> Rescales $u$ and $v$ around their hourly ensemble means using the fitted global pair $(s_u, s_v)$: $u' = \bar{u} + s_u(u - \bar{u})$ and $v' = \bar{v} + s_v(v - \bar{v})$.
+    </li>
+    <li>
+      <strong>Two-Regime Gaussian Rank Chain (<code>regime_rho</code> &amp; <code>apply</code>):</strong> Converts hourly 10 m speeds $w_t$ into normal scores $z_t = \Phi^{-1}\!\big((\operatorname{rank}(w_t) + 0.5)/n\big)$. Between consecutive valid hours separated by $0 &lt; \Delta t \le 6\text{ h}$, the persistence correlation depends on whether the previous hour was calmer or windier than the ERA5 median $m_{p,m,h}$, decayed exponentially across multi-hour gaps:
+    </li>
+  </ol>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.3.7 — Two-Regime Rank Chain, Anchored Noise &amp; 300 m Vertical Taper</span>
+    $$\rho_i = \begin{cases} \rho_{\text{calm}}^{\Delta t} &amp; w_{t-1, i} &lt; \mathrm{med}_{t-1} \\ \rho_{\text{windy}}^{\Delta t} &amp; w_{t-1, i} \ge \mathrm{med}_{t-1} \end{cases}, \qquad z_t = \rho \odot z_{t-1} + \sqrt{1 - \rho^2} \odot e_t$$
+    $$e_t^{\text{anchor}} = \frac{c_t - r(c_t, z_{t-1})\,z_{t-1}}{\max\!\big(\operatorname{std}(c_t - r z_{t-1}),\; 10^{-9}\big)}, \qquad \Delta u(z) = (u_{10}^{\text{ur5}} - u_{10})\,\mathrm{clip}\!\left(1 - \frac{z - z_0}{300 - z_0},\; 0,\; 1\right)$$
+    <p class="eq-note">
+      Here $c_t$ is each member's own current-hour 10 m speed normal score and $r = \operatorname{corr}(c_t, z_{t-1})$. In production (<code>anchor=True</code>, <code>api.py:653</code>), using the orthogonalized residual $e_t^{\text{anchor}}$ instead of fresh Gaussian noise preserves the exact target lag correlation $\rho$ while minimizing member movement&mdash;and updating <em>speed only</em> keeps each member's original 10 m wind direction aligned with the column above it. Finally, <code>api.py:654&ndash;657</code> tapers the 10 m adjustment linearly to zero at 300 m AGL, refreshes hydrostatic pressure/density/sound speed via <code>_core.thermo_column()</code>, and appends <code>"sequence-10m-wind:ur5-wd1"</code> to <code>info["quality"]</code>.
+    </p>
+  </div>
+
+  <div class="callout callout-win">
+    <p class="callout-title">Why <code>anchor=True</code> &amp; the 300 m Taper Were Essential (Experiment <code>b89</code>)</p>
+    <p>
+      In early integration testing (<code>b89</code>), blindly permuting only the 10 m wind vector with random chain noise (<code>anchor=False</code>) detached each member's surface wind direction from its 50 m and 100 m winds above&mdash;catastrophically spiking median 10&ndash;50 m wind shear from <strong>18 m/s/km to 115 m/s/km</strong>. Switching to <code>anchor=True</code> (orthogonalized member rank noise + direction-preserving speed scaling) and fading the 10 m delta linearly out to 300 m completely eliminated the shear explosion while preserving exact hourly marginal speed sets and two-regime temporal persistence.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.3.6 Graceful degradation & offline fallbacks                         -->
+<!-- ====================================================================== -->
+<section id="s3-3-6" class="subsection">
+  <span class="subsection-num">3.3.6</span>
+  <h2>Graceful Degradation, Feature Flags &amp; Offline Fallbacks</h2>
+
+  <p>
+    Launch pads in West Texas and New Mexico routinely experience spotty cellular backhaul, upstream Open-Meteo rate limits, or missing pressure levels over high terrain. Tempest-ARKNET is engineered so that no transient network outage or edge-case elevation can ever crash a flight-dispersion run or silently emit unflagged degraded data. Every fallback follows a strict <strong>degrade-and-tag</strong> contract: the engine steps down to the highest-fidelity locally verifiable backend and records an explicit machine-readable token in <code>info["quality"]</code>.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Failure / Edge Condition</th>
+          <th>Fallback Mechanism</th>
+          <th>Code Location &amp; Flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Live IFS forecast unreachable or outside <code>0.75&ndash;7.5 d</code> / <code>02&ndash;20 h</code> solar window</td>
+          <td>Seamless fallback to local pure-NumPy Climate Mode C (<code>"ai"</code>) generator (zero network dependency).</td>
+          <td><code>tempest_weather/modes.py</code> &middot; <code>fallback-mode</code></td>
+        </tr>
+        <tr>
+          <td>Terrain &gt; ~2.6 km pushes upper AGL grid above 50 hPa forecast ceiling</td>
+          <td><code>_fill_forecast_top()</code> extends top heights via constant/isothermal fill so the Mode F network never sees <code>NaN</code>.</td>
+          <td><code>api.py:28</code> &middot; <code>OPTIONS["forecast_fill_top"] = True</code></td>
+        </tr>
+        <tr>
+          <td>Missing underground level in Mode F Ridge input features</td>
+          <td>Imputes missing standardized input slots to training mean $\mu$ before multiplying by $W_L$.</td>
+          <td><code>api.py::_forecast_phys</code> &middot; <code>modef_ridge</code></td>
+        </tr>
+        <tr>
+          <td>Unfitted boundary-layer regression or sparse lapse bin</td>
+          <td>Falls back to <code>DEFAULT_BL</code>: neutral log-law ratio <code>1.4</code> for 100 m wind, $a_{\text{dpd}} = 0.0,\, b_{\text{dpd}} = 1.0$.</td>
+          <td><code>tempest/forecast/modeF.py</code> &middot; <code>DEFAULT_BL</code></td>
+        </tr>
+        <tr>
+          <td>Unfitted <code>(month, UTC hour)</code> cell or gap &gt; 6 h in UR5 sequence</td>
+          <td>Leaves that hour's 10 m wind untouched and cleanly restarts the two-regime Markov chain at the next valid hour.</td>
+          <td><code>tempest_weather/ur5.py:70&ndash;71</code></td>
+        </tr>
+        <tr>
+          <td>Partial last <code>M_CAL = 199</code> sample block when <code>n</code> is not a multiple of 199</td>
+          <td><code>_cut()</code> permutes members inside every block before slicing <code>[:n]</code> so partial blocks are unbiased random subsets.</td>
+          <td><code>api.py:28, 33&ndash;39</code> &middot; <code>OPTIONS["permute_blocks"] = True</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Production <code>OPTIONS</code> Audit Switches (<code>tempest_weather/api.py:28</code>)</h3>
+  <p>
+    All seven runtime switches in <code>api.OPTIONS</code> ship <code>True</code> by default so production serving always uses the audited, bug-fixed paths while still permitting bit-for-bit A/B regression diffs against legacy behavior: <code>permute_blocks</code> (IL-139 unbiased partial-block slicing), <code>forecast_single_shift</code> (AU-2 unified <code>elev - z_grid</code> shift for forecast and past rows), <code>forecast_grid_elevation</code> (AU-3 requesting Open-Meteo surface fields at grid elevation), <code>forecast_fill_top</code> (isothermal above-50 hPa ceiling fill), <code>unbiased_blend</code> (2026-11-14 audit fix for bilinear grid blending), <code>ur5_sequence</code> (WD1 10 m climate-sequence wind map + regime chain), and <code>gust_speed_switch</code> (gust parameterization speed-regime switch).
+  </p>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Hands-On Verification in Colab Lab 3</p>
+    <p>
+      To experiment directly with cosine crossfading, Bernoulli whole-profile mixing, Mode P/F residuals, and the UR5 two-regime wind chain, launch <a href="javascript:void(0)" onclick="openColabLab('lab_03')">Colab Lab 3 (<code>lab_03_calibration_routing_and_copula.ipynb</code>)</a> from the right-hand rail.
+    </p>
+  </div>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

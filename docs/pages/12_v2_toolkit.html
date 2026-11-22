@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5.2 v2 Engineering Toolkit &amp; Copulas &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="12_v2_toolkit" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 5 &middot; Launch Day &amp; v2</p>
+          <h1>5.2 v2 Engineering Toolkit &amp; Copulas</h1>
+          <p class="article-lead">Inside tempest_weather_v2: immutable Launch/Window ergonomics, the 4-tier bare-earth elevation cascade, vectorized aviation calculators, EPA AERSURFACE roughness and log-law shear, Kendall-tau / PSD-projected Student-t copulas, and Python 3.12 PEP 701 lazy imports.</p>
+          <div class="article-meta"><span>Modules: launch.py &middot; timeutil.py &middot; elevation.py &middot; weather_calc.py &middot; roughness.py &middot; sitecal.py &middot; stats.py</span><span>Interactive Widget 6 + Colab Lab 3</span></div>
+        </header>
+
+        <!-- ====================================================================== -->
+<!-- 5.2.1 Launch & Window high-level ergonomics                            -->
+<!-- ====================================================================== -->
+<section id="s5-2-1" class="subsection">
+  <span class="subsection-num">5.2.1</span>
+  <h2><code>Launch</code> &amp; <code>Window</code> High-Level Ergonomics</h2>
+
+  <p>
+    Beneath the launch-day observation assimilation hooks of Chapter 5.1 sits the operational engineering layer of <code>tempest_weather_v2/</code>: an immutable scenario API (<code>launch.py</code>), human wall-clock launch windows with solar-hour gating (<code>timeutil.py</code>), a four-tier bare-earth elevation cascade (<code>elevation.py</code>), crash-safe atomic storage and retrying HTTP (<code>_files.py</code>, <code>_net.py</code>), vectorized aviation calculators (<code>weather_calc.py</code>), directional EPA AERSURFACE roughness and pad-anemometer calibration (<code>roughness.py</code>, <code>sitecal.py</code>), and an exact conditional Student-$t$ copula (<code>stats.py</code>) that keeps extreme winds locked together across altitude when a Gaussian copula lets them drift apart.
+  </p>
+
+  <h3>Freeze-on-Init Immutability &amp; Scenario Branching</h3>
+  <p>
+    On launch morning, a flight-dynamics team rarely runs a single query. They compare a baseline 09:00 MDT forecast against a 13:00 MDT slip, branch a copy conditioned on a pad anemometer reading, test an alternative HRRR anchor, and export both US customary (RASAero / OpenRocket) and SI (6-DOF Python) datasets. If a <code>Launch</code> object were mutable, conditioning one branch or switching <code>units</code> in place would silently contaminate every downstream comparison sharing that reference.
+  </p>
+  <p>
+    At the final lines of <code>Launch.__init__()</code> (<code>launch.py:153&ndash;158</code>), the instance sets <code>self._frozen = True</code>. From that point on, <code>__setattr__</code> rejects every external attribute write with an explicit <code>AttributeError</code>, permitting internal writes solely to five lazy-cache slots: <code>_pool</code>, <code>_engine</code>, <code>_resolved</code>, <code>_elev</code>, and <code>_flags</code>. Every modifier&mdash;<code>.with_(...)</code>, <code>.observe(...)</code>, <code>.observe_hrrr()</code>, <code>.observe_radar()</code>, <code>.calibrate_site()</code>, and <code>.launch_week()</code>&mdash;constructs and returns a <strong>brand-new <code>Launch</code> instance</strong> with its own fresh cache, so scenario trees never cross-contaminate.
+  </p>
+  <p>
+    The atmospheric ensemble (<code>n=1024</code> by default) is never generated during construction; <code>_ensure_pool()</code> builds it lazily on the first call to <code>weather()</code>, <code>distribution()</code>, <code>couple()</code>, or <code>atmospheres()</code> and caches it on the instance. Meanwhile, <code>Launch.domain()</code> checks whether the site sits inside a trained region box, within <code>EDGE_DEG = 0.25&deg;</code> (~25 km) of the boundary, or more than <code>EDGE_DZ_M = 500.0 m</code> from the interpolated ERA5 grid height, and reports the L3-28 Dissimilarity Index (<code>di</code> / <code>di_threshold</code>) in standardized 3D unit-sphere plus elevation space (for instance, Denver scores 21&ndash;36 against the NM/TX grid threshold of 2.5).
+  </p>
+
+  <h3>Wall-Clock <code>Window</code>: 5-Minute UTC Cells &amp; Solar-Hour Gating</h3>
+  <p>
+    Unlike the core <code>tempest_weather</code> engine&mdash;which treats naive timestamps as local mean solar time&mdash;<code>timeutil.py::Window</code> accepts human <strong>local wall-clock times</strong> in the site's IANA time zone (loaded from <code>data/sites.toml</code>, passed explicitly via <code>tz=</code>, or inferred via <code>sites.guess_tz()</code> longitude bands, which automatically appends the provenance flag <code>"time-zone-guessed-from-position"</code>). <code>Window.resolve()</code> discretizes every requested interval into <strong>5-minute UTC cells</strong> (<code>STEP_MIN = 5</code>):
+  </p>
+  <ul>
+    <li><strong>Single instant:</strong> <code>Window("2027-06-16 10:00")</code> resolves to 1 cell (<code>kind="single"</code>).</li>
+    <li><strong>Uniform range:</strong> <code>"2027-06-16 09:00-13:00"</code> or a 2-tuple <code>(earliest, latest)</code> assigns equal probability weight across all surviving 5-minute cells.</li>
+    <li><strong>Triangular peak:</strong> A 3-tuple <code>(most_likely, earliest, latest)</code> or keyword <code>earliest=</code>/<code>latest=</code> assigns linear ramp weights peaking at the mode (with a non-zero endpoint floor of <code>1e-6</code>).</li>
+    <li><strong>Multi-range &amp; exclusions:</strong> A list of ranges with optional <code>weights</code> (defaulting to each range's duration in minutes) plus daily or single-date blackout intervals such as <code>exclude=["12:00-14:00"]</code>.</li>
+    <li><strong>Solar-hour cut:</strong> Each cell's mean solar hour is evaluated as $\text{sh} = (\text{utc\_hour} + \text{lon}/15.0) \bmod 24$; cells outside <code>[SOLAR_LO, SOLAR_HI)</code> (default <code>06&ndash;21 h</code>, or the serving asset manifest's <code>solar_hours</code> for all-hours bundles) are dropped. <code>ResolvedWindow</code> records <code>cut_share</code> (fraction trimmed) and per-day <code>day_share</code>, raising <code>WindowError</code> if zero valid cells survive.</li>
+    <li><strong>Independent vs. coupled hold hours:</strong> <code>_ensure_pool_raw()</code> groups sampled UTC instants by hour and flags <code>"window-hours-independent"</code>; for hold-time slip Monte Carlo where the same synoptic weather system evolves across consecutive hours, call <code>launch.sequence(offsets=(0, 1, 2, 3))</code> instead.</li>
+  </ul>
+
+  <h3>Precedence &amp; 4-Tier Bare-Earth Elevation Cascade</h3>
+  <p>
+    Surface pressure shifts by roughly <code>~12 Pa/m</code> at launch-pad altitudes, so using a coarse 25 km ERA5 grid-cell elevation instead of true bare-earth pad height introduces immediate barometric and density-altitude error. <code>Launch.elevation_info()</code> resolves pad elevation through a strict precedence chain: explicit user <code>elevation=</code> &rarr; built-in or user <code>sites.toml</code> (e.g., <code>spaceport_america</code> at <code>1400.6 m</code> / <code>7.9&deg; E</code>, <code>midland</code> at <code>875.0 m</code> / <code>5.6&deg; E</code>) &rarr; the four-tier <code>elevation.lookup()</code> cascade, cached per coordinate rounded to <code>1e-5&deg;</code> (~1 m) in <code>&lt;cache&gt;/elevation.json</code>.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 5.2.1 &mdash; 4-Tier Bare-Earth Elevation Cascade &amp; Fallback Logic</h3>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Zoom Diagram &nearr;</button>
+    </div>
+    <pre class="mermaid-src">
+flowchart LR
+  REQ["Launch(lat, lon)&lt;br/&gt;No user elev or sites.toml"]:::src
+  CACHE["elevation.json Cache&lt;br/&gt;Key: lat,lon @ 1e-5 deg (~1 m)"]:::store
+  T1["Tier 1: usgs-3dep&lt;br/&gt;USGS EPQS bare-earth (~1-10 m)&lt;br/&gt;CONUS 24-50N, 125-66W"]:::tier
+  T2["Tier 2: opentopodata-ned10m&lt;br/&gt;USGS NED 1/3 arc-sec (~10 m)&lt;br/&gt;1 call/s, 1000/day quota"]:::tier
+  T3["Tier 3: open-meteo-glo90&lt;br/&gt;Copernicus GLO-90 (90 m)&lt;br/&gt;Worldwide surface model"]:::tier
+  T4["Tier 4: offline-dem&lt;br/&gt;Local dem.npz / TEMPEST_DEM&lt;br/&gt;Bilinear grid interpolation"]:::offline
+  FALL["Fallback: model-grid&lt;br/&gt;Flag: elevation-from-model-grid"]:::warn
+  VER["Optional verify=True&lt;br/&gt;Cross-check 2nd source (tol 15 m)"]:::ok
+
+  REQ --&gt; CACHE
+  CACHE -- "miss" --&gt; T1
+  T1 -- "fail / outside US" --&gt; T2
+  T2 -- "fail / quota" --&gt; T3
+  T3 -- "fail / offline" --&gt; T4
+  T4 -- "missing / outside" --&gt; FALL
+  T1 -- "hit" --&gt; VER
+  T2 -- "hit" --&gt; VER
+  T3 -- "hit" --&gt; VER
+
+  classDef src fill:#eff4ff,stroke:#1d4ed8,stroke-width:2px,color:#17191c
+  classDef store fill:#fef8ec,stroke:#b45309,stroke-width:2px,color:#17191c
+  classDef tier fill:#ecfdf5,stroke:#047857,stroke-width:2px,color:#17191c
+  classDef offline fill:#f4f2ed,stroke:#525866,stroke-width:2px,color:#17191c
+  classDef warn fill:#fef2f2,stroke:#b91c1c,stroke-width:2px,color:#17191c
+  classDef ok fill:#eff4ff,stroke:#1d4ed8,stroke-width:2px,color:#17191c
+    </pre>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      Orthometric height resolution in <code>launch.py::elevation_info()</code> and <code>elevation.py::lookup()</code>. Online tiers respect per-service rate limits and air-gapped <code>TEMPEST_OFFLINE=1</code> execution before falling back to local bilinear DEMs or the ERA5 model grid.
+    </figcaption>
+  </figure>
+
+  <h3>Crash-Safe Storage, Retrying HTTP &amp; Hash-Stamped <code>.tempest</code> Archives</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Layer &amp; Module</th>
+          <th>Mechanism &amp; Guarantees</th>
+          <th>Operational Failure Mode Prevented</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>_files.py</code><br/><code>atomic_write</code></td>
+          <td>Writes bytes to <code>&lt;path&gt;.tmp.&lt;pid&gt;</code>, invokes <code>f.flush()</code> + <code>os.fsync(f.fileno())</code>, then atomically swaps via <code>os.replace()</code>. Cross-process <code>file_lock()</code> uses <code>msvcrt.locking</code> (Windows) or <code>fcntl.flock</code> (POSIX).</td>
+          <td>Eliminates half-written JSON caches during power loss or Ctrl+C, and prevents parallel Monte Carlo workers from clobbering shared cache files.</td>
+        </tr>
+        <tr>
+          <td><code>_files.py</code><br/><code>cache_put / get</code></td>
+          <td>Stores payload at <code>&lt;path&gt;</code> and hex digest at <code>&lt;path&gt;.sha256</code> (written last). On mismatch or truncation, <code>cache_get()</code> and <code>read_json()</code> delete the corrupt entry and return a miss.</td>
+          <td>Self-healing cache: a damaged elevation or API cache file never wedges future runs; the caller transparently refetches.</td>
+        </tr>
+        <tr>
+          <td><code>_net.py</code><br/><code>fetch / download</code></td>
+          <td>Stdlib <code>urllib</code> layer: 5 s connect / 15 s read budget, up to 3 retries with exponential backoff <code>(1, 2, 4) s</code> &plusmn;25% jitter on network errors, HTTP 429 (honoring <code>Retry-After</code>), and 5xx (never retrying other 4xx); per-service <code>RATE_LIMITS</code>; strict <code>TEMPEST_OFFLINE=1</code> raising <code>OfflineError</code> before socket creation; HTTP <code>Range</code> resumable downloads (<code>&lt;dest&gt;.partial</code> + SHA-256 verification).</td>
+          <td>Prevents rate-limit bans on Open Topo Data and IEM, guarantees air-gapped offline execution, and survives flaky desert cellular links.</td>
+        </tr>
+        <tr>
+          <td><code>launch.py</code><br/><code>save / load</code></td>
+          <td><code>Launch.save(path)</code> writes an uncompressed <code>.npz</code> archive (<code>.tempest</code>, <code>FORMAT_VERSION = 1</code>) via an open file handle (avoiding NumPy's automatic <code>.npz</code> suffix), stamping <code>meta["sha256"] = _arrays_sha(arrays)</code> over sorted names, dtypes, shapes, and raw bytes. <code>Launch.load()</code> opens with <code>allow_pickle=False</code> and rejects hash mismatches or newer format versions.</td>
+          <td>Reproducible launch-day archival: teams can freeze an exact conditioned ensemble before flight and audit every number post-flight.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B8 &mdash; Silent 100 m &rarr; 10 m Wind Alias (<code>names.py:37&ndash;38</code>)</p>
+    <p>
+      In <code>tempest_weather_v2/names.py:37&ndash;38</code>, the legacy v1 alias dictionary maps both 10 m and 100 m wind keys to the exact same surface variable:
+    </p>
+    <pre><code>ALIASES = {..., "wind_speed@10": "wind_10m", "wind_speed@100": "wind_10m", ...}</code></pre>
+    <p>
+      Any script migrating from v1 coded names that calls <code>launch.distribution("wind_speed@100")</code> or <code>launch.couple(["wind_speed@100", ...])</code> <strong>silently receives 10 m pad anemometer wind</strong> instead of 100 m AGL wind (which is typically 30&ndash;60% faster in a stable morning boundary layer). Until patched, use <code>launch.ground_wind_profile()</code> or index <code>HEIGHTS[2] = 100.0 m</code> directly from <code>launch.atmospheres()</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.2 Aviation calculators (DA, crosswind, Mach)                       -->
+<!-- ====================================================================== -->
+<section id="s5-2-2" class="subsection">
+  <span class="subsection-num">5.2.2</span>
+  <h2>Aviation Calculators: Density Altitude, Crosswind &amp; Mach</h2>
+
+  <p>
+    Rocket flight simulators and launch-range safety officers speak aviation and ballistics quantities&mdash;altimeter setting, mean sea-level pressure, density altitude, rail crosswind/headwind, local Mach number, magnetic declination, and drift-equivalent uniform wind&mdash;not raw model-grid geopotential profiles. <code>tempest_weather_v2/weather_calc.py</code> implements the core conversions in vectorized pure NumPy over the sample axis using exact International Standard Atmosphere (ISA) constants: $g_0 = 9.80665\text{ m/s}^2$, $R_d = 287.05287\text{ J/(kg}\cdot\text{K)}$, $L_{\text{std}} = 0.0065\text{ K/m}$, $T_0 = 288.15\text{ K}$, $P_0 = 1013.25\text{ hPa}$, and $\rho_0 = 1.225\text{ kg/m}^3$.
+  </p>
+
+  <h3>1. NWS Altimeter Setting, Exact Inverse &amp; MSLP</h3>
+  <p>
+    When an airport METAR broadcasts <code>A3012</code> (<code>30.12 inHg</code>), it is <strong>not</strong> reporting raw barometric pressure at the runway. It reports the <strong>NWS altimeter setting</strong> $A$: the sea-level pressure that, reduced upward through a fixed 15&deg;C standard atmosphere to field elevation $h$ (m MSL), reproduces station pressure $p$ (hPa). By contrast, synoptic <strong>Mean Sea-Level Pressure (MSLP)</strong> reduces station pressure using the <em>actual</em> local pad temperature $T_s$ (K) and standard-lapse mean column temperature $\bar{T} = T_s + \tfrac{1}{2}L_{\text{std}}h$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.1 &mdash; NWS Altimeter Setting, Exact Inverse &amp; Hypsometric MSLP (<code>weather_calc.py:17&ndash;35</code>)</span>
+    $$N = 0.190284, \qquad k = \frac{P_0^N L_{\text{std}}}{T_0}$$
+    $$A = (p - 0.3)\left(1 + \frac{k\,h}{(p - 0.3)^N}\right)^{1/N}, \qquad p = \left(A^N - k\,h\right)^{1/N} + 0.3$$
+    $$p_{\text{MSLP}} = p_s \exp\!\left(\frac{g_0\,h}{R_d\left(T_s + \tfrac{1}{2}L_{\text{std}}\,h\right)}\right)$$
+    <p class="eq-note">
+      <strong>Why the <code>0.3 hPa</code> offset?</strong> The official NWS/ASOS formula subtracts <code>0.3 hPa</code> (~8&ndash;9 ft) before reduction to account for historical cockpit-to-runway instrument height. Including the matching <code>+ 0.3</code> in <code>station_pressure_hpa()</code> makes the pair algebraically exact inverses, ensuring <code>launch.observe(altimeter="30.12 inHg")</code> introduces zero systematic bias into pad air density. On a hot 35&deg;C afternoon at Spaceport America (<code>h = 1400.6 m</code>), MSLP sits several hPa <em>below</em> the altimeter setting for the exact same pad pressure; separating <code>station_pressure</code>, <code>pressure</code> (altimeter), and <code>mslp</code> prevents feeding sea-level METAR pressure into a simulator expecting raw pad pressure.
+    </p>
+  </div>
+
+  <h3>2. Density Altitude $h_d$</h3>
+  <p>
+    <strong>Density altitude</strong> (<code>density_altitude_m(rho)</code>) is the altitude in the ISA troposphere (valid to 11 km) where standard air density matches the actual moist air density $\rho = p_s / (R_d T_v)$ at the pad:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.2 &mdash; Tropospheric Density Altitude (<code>weather_calc.py:38&ndash;42</code>)</span>
+    $$\beta = \frac{g_0}{R_d L_{\text{std}}} - 1 \approx 4.25588, \qquad h_d = \frac{T_0}{L_{\text{std}}}\left[1 - \left(\frac{\rho}{\rho_0}\right)^{1/\beta}\right]$$
+    <p class="eq-note">
+      <strong>Flight-dynamics impact:</strong> Aerodynamic normal force and drag scale directly with $\rho$. On a hot June morning at Spaceport America (4,595 ft geometric elevation), density altitude routinely exceeds <strong>7,500&ndash;8,200 ft</strong> ($\rho \approx 0.96\text{ kg/m}^3$): rocket fins generate ~22% less corrective moment leaving the launch rail (lowering rail-exit stability margin), ascent drag drops (pushing apogee higher), and parachute terminal velocity increases as $\rho^{-1/2}$.
+    </p>
+  </div>
+
+  <h3>3. Crosswind, Headwind &amp; IGRF-13 Magnetic Declination</h3>
+  <p>
+    Launch crews align rails into the wind using either true azimuth $\psi_{\text{true}}$ or a handheld magnetic compass reading $\psi_{\text{mag}}$, where $\psi_{\text{true}} = (\psi_{\text{mag}} + \delta) \bmod 360^\circ$. Because weather models report $(u, v)$ relative to true north, <code>weather_calc.py::wind_from_deg(u, v)</code> computes meteorological wind-FROM direction $\theta_{\text{from}} = (\operatorname{atan2}(-u, -v) + 360^\circ) \bmod 360^\circ$, while <code>declination_deg(lat, lon, year=2026.0)</code> embeds the degree-4 International Geomagnetic Reference Field (IGRF-13, epoch <code>2020.0</code>) Gauss coefficients $(g_n^m, h_n^m)$ and secular variation $(\dot{g}_n^m, \dot{h}_n^m)$, converts WGS84 geodetic latitude $\phi$ to geocentric colatitude $\theta = \frac{\pi}{2} - \arctan((1 - 6.694380\times 10^{-3})\tan\phi)$, and evaluates Schmidt semi-normalized Legendre functions via <code>_schmidt()</code>:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.3 &mdash; Degree-4 IGRF-13 Declination &amp; Rail Headwind / Crosswind Decomposition</span>
+    $$B_{\text{north}} = \sum_{n=1}^{4}\sum_{m=0}^{n}\big(g_n^m(t)\cos m\lambda + h_n^m(t)\sin m\lambda\big)\frac{dP_n^m}{d\theta}, \qquad B_{\text{east}} = \frac{1}{\sin\theta}\sum_{n=1}^{4}\sum_{m=0}^{n} m\big(g_n^m(t)\sin m\lambda - h_n^m(t)\cos m\lambda\big)P_n^m(\cos\theta)$$
+    $$\delta = \operatorname{atan2}(B_{\text{east}},\, B_{\text{north}}), \qquad \Delta\psi = \theta_{\text{from}} - (\psi_{\text{mag}} + \delta)$$
+    $$V_{\text{head}} = \|\mathbf{V}\|\cos(\Delta\psi), \qquad V_{\text{cross}} = \|\mathbf{V}\|\sin(\Delta\psi)$$
+    <p class="eq-note">
+      <strong>Rail-alignment intuition:</strong> At degree 4, <code>declination_deg()</code> is accurate to <code>~1&ndash;3&deg;</code> over CONUS with zero external tables, while built-in sites in <code>sites.toml</code> store exact pad values (<code>7.9&deg; E</code> at Spaceport America). Neglecting an 8&deg; declination offset when angling a rail into a 10 m/s wind injects a $10\sin(8^\circ) \approx 1.39\text{ m/s}$ unanticipated crosswind right off the rail and rotates the entire weathercocking and drift corridor by 8&deg;.
+    </p>
+  </div>
+
+  <h3>4. Local Speed of Sound, Mach Number &amp; Drift-Equivalent Wind</h3>
+  <p>
+    High-power rockets routinely cross the transonic regime ($0.8 \le M \le 1.2$) between 1.5 km and 5 km AGL, where wave drag spikes sharply and center-of-pressure shifts govern aeroelastic fin flutter. Because temperature drops roughly $6.5\text{ K/km}$ through the troposphere, the local speed of sound $a(z)$ is not a constant sea-level number&mdash;it falls from ~349 m/s on a 30&deg;C desert pad to ~295 m/s near the tropopause:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.4 &mdash; Moist-Air Speed of Sound, Local Mach Number &amp; Drift-Equivalent Uniform Wind</span>
+    $$a(z) = \sqrt{\gamma\,R_d\,T_v(z)}, \qquad M(z) = \frac{V_{\text{TAS}}(z)}{a(z)} \qquad (\gamma = 1.400,\; T_v = T(1 + 0.608\,q))$$
+    $$\bar{\mathbf{V}}_{\text{drift}} = \frac{\sum_{k} w(z_k)\,\mathbf{V}(z_k)}{\sum_{k} w(z_k)}, \qquad w(z) = \begin{cases} 1 / v_{\text{drogue}}, &amp; z &gt; z_{\text{main}} \\ 1 / v_{\text{main}}, &amp; z \le z_{\text{main}} \end{cases}$$
+    <p class="eq-note">
+      <strong>Descent-time drift weighting (<code>weather_calc.py:65&ndash;74</code>):</strong> Single-wind simulators ask for one uniform wind vector, but a plain altitude average is physically wrong for dual-deployment rockets. <code>drift_wind()</code> interpolates $(u, v)$ onto a <code>10 m</code> grid up to <code>apogee_m = 10,000 ft (3,048 m)</code> with <code>main_m = 1,000 ft (304.8 m)</code>, <code>v_drogue = 75 ft/s (22.86 m/s)</code>, and <code>v_main = 20 ft/s (6.10 m/s)</code>. Because the rocket spends 120 s under drogue and 50 s under main, the bottom 10% of the column receives <strong>29.4% of the total drift weight</strong>, while vector averaging properly cancels opposing upper- and lower-level winds. <code>weather_calc.py</code> also provides <code>dew_point_k()</code> (Magnus $a = 17.62, b = 243.12$), <code>max_shear()</code>, and <code>upper_wind_max()</code> (jet-stream peak above 5 km AGL).
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.3 AERSURFACE roughness length & log-law                            -->
+<!-- ====================================================================== -->
+<section id="s5-2-3" class="subsection">
+  <span class="subsection-num">5.2.3</span>
+  <h2>AERSURFACE Roughness Length, Log-Law &amp; MCP Site Calibration</h2>
+
+  <p>
+    A 0.25&deg; (~25 km) reanalysis cell smooths away local pad exposure: shelterbelts to the north, open alkali playa to the south, or a recessed desert basin can bias 10 m pad wind speed by 20&ndash;35% and alter near-surface turbulence intensity. <code>tempest_weather_v2</code> attacks microclimate exposure from two complementary angles: <strong>land-cover physics</strong> via directional roughness length $z_0$ (<code>roughness.py</code>) and <strong>empirical anemometer calibration</strong> via Measure-Correlate-Predict and launch-week EWMA (<code>sitecal.py</code>, <code>launch.py</code>).
+  </p>
+
+  <h3>1. EPA AERSURFACE Directional Roughness &amp; Log-<code>uint8</code> Packing</h3>
+  <p>
+    Rather than querying a slow remote GIS server at runtime, <code>roughness.py::build_sector_map()</code> precomputes directional roughness offline from a regular NLCD land-cover raster. For every grid cell, every <strong>30&deg; upwind sector</strong> ($s \in \{0, \dots, 11\}$, centered on $30s^\circ$ wind-FROM bearing), and all <strong>4 meteorological seasons</strong> (<code>0=DJF</code>, <code>1=MAM</code>, <code>2=JJA</code>, <code>3=SON</code>), it computes the <strong>$1/d$-weighted geometric mean</strong> of $z_0$ over a <strong>1 km upwind fetch</strong> ($0 &lt; d \le 1000\text{ m}$):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.5 &mdash; EPA AERSURFACE Upwind Sector Mean &amp; Log-<code>uint8</code> Encoding (<code>roughness.py:41&ndash;84</code>)</span>
+    $$z_0(s, \text{season}) = \exp\!\left(\frac{\displaystyle\sum_{i \in \mathcal{S}_s,\, 0 &lt; d_i \le 1000\text{ m}} \frac{1}{d_i}\,\ln z_{0,i}}{\displaystyle\sum_{i \in \mathcal{S}_s,\, 0 &lt; d_i \le 1000\text{ m}} \frac{1}{d_i}}\right)$$
+    $$\text{code} = \operatorname{clip}\!\left(\operatorname{round}\!\left(64\log_{10}\frac{\max(z_0,\, 10^{-4})}{10^{-4}}\right),\, 0,\, 255\right) \in \{0,\dots,255\}, \qquad z_0 = 10^{-4}\cdot 10^{\,\text{code}/64}$$
+    <p class="eq-note">
+      <strong>Compression without physical loss:</strong> Roughness spans four orders of magnitude&mdash;from <code>0.0005 m</code> (open water) and <code>0.003 m</code> (barren playa) up to <code>1.2 m</code> (summer deciduous forest) in the bundled Davenport&ndash;Wieringa stand-in table <code>data/z0_table.csv</code>. Packing the <code>(4, 12, ny, nx)</code> tensor into log-coded <code>uint8</code> spans <code>1e-4 m</code> to <code>~9.65 m</code> at a uniform <strong>3.66% step size</strong> (&plusmn;1.8% max quantization error)&mdash;far tighter than land-cover table uncertainty&mdash;at one-quarter the memory of <code>float32</code>. At query time, <code>Launch._z0_samples()</code> looks up each ensemble member's <em>own</em> 10 m wind direction and month; if no <code>z0_sectors.npz</code> covers the pad, it falls back cleanly to <code>Z0_DEFAULT = 0.03 m</code> (open grassland) and appends <code>"z0-default-0.03"</code>.
+    </p>
+  </div>
+
+  <h3>2. Logarithmic Wind Profile (Log-Law) &amp; Boundary-Layer Shear</h3>
+  <p>
+    Once $z_0$ is known for each member's upwind fetch, Monin&ndash;Obukhov similarity theory links the surface friction velocity $u_*$, aerodynamic roughness length $z_0$, and mean horizontal wind speed $U(z)$ across the atmospheric surface layer ($z \lesssim 50\text{&ndash;}100\text{ m}$):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.6 &mdash; Neutral &amp; Diabatic Logarithmic Wind Profile (Log-Law)</span>
+    $$U(z) = \frac{u_*}{\kappa}\left[\ln\!\left(\frac{z}{z_0}\right) - \Psi_m\!\left(\frac{z}{L}\right)\right] \qquad (\kappa \approx 0.40)$$
+    $$\text{Neutral height transfer } (L \to \infty): \qquad \frac{U(z_2)}{U(z_1)} = \frac{\ln(z_2 / z_0)}{\ln(z_1 / z_0)}$$
+    <p class="eq-note">
+      <strong>Practical pad translation:</strong> Over open desert playa ($z_0 = 0.005\text{ m}$), a 2 m tripod anemometer reads $\ln(2/0.005)/\ln(10/0.005) \approx 78.8\%$ of the standard 10 m mast wind; over shrubland or trees ($z_0 = 0.30\text{ m}$), the exact same 2 m sensor reads only $54.1\%$ of the 10 m wind. In <code>tempest_weather_v2</code>, per-sample $z_0$ from <code>launch.z0()</code> feeds directly into Dryden boundary-layer turbulence intensity, while <code>launch.ground_wind_profile()</code> reports the 0&ndash;200 m AGL percentiles, Weibull shape/scale parameters, and calm share (&lt;0.5 m/s)&mdash;the exact layer that drives rocket apogee and weathercocking most strongly after pad air density.
+    </p>
+  </div>
+
+  <h3>3. Measure-Correlate-Predict (<code>sitecal.py</code>) &amp; 7-Day <code>launch_week()</code> EWMA</h3>
+  <p>
+    Borrowing the wind-energy industry's Measure-Correlate-Predict (MCP) workflow, <code>sitecal.fit_site()</code> calibrates 10 m speeds against at least <code>100</code> paired hourly pad-anemometer readings. When applied via <code>launch.calibrate_site(cal)</code>, <code>_apply_site_cal()</code> rescales wind speed while preserving direction, <strong>tapers the correction factor linearly to <code>1.0</code> by 300 m AGL</strong> (since a pad mast carries no information about free-atmosphere winds aloft), and immediately re-evaluates the 10 m gust law (<code>_regust()</code>).
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Calibration Mode</th>
+          <th>Mathematical Form</th>
+          <th>Empirical Validation (USCRN / ASOS)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>method="ratio"</code></td>
+          <td>Single scalar $f = \bar{v}_{\text{site}} / \bar{v}_{\text{ref}}$ applied across all hours.</td>
+          <td>USCRN basin vs. ERA5 (1-month campaign): MAE drops <strong>0.97 &rarr; 0.77 m/s</strong> (&minus;21%).</td>
+        </tr>
+        <tr>
+          <td><code>method="hourly"</code><br/>(default)</td>
+          <td>24 per-hour ratios $f_h$ (requiring <code>min_per_hour=20</code>, else global ratio), capturing diurnal sheltering &amp; drainage flows.</td>
+          <td><strong>&minus;25% error from 1 month of pad data</strong>: MAE <strong>0.97 &rarr; 0.73 m/s</strong> (1 mo) and <strong>0.70 m/s</strong> (6 mo).</td>
+        </tr>
+        <tr>
+          <td><code>method="quantile"</code></td>
+          <td>99-knot (<code>0.01..0.99</code>) rank-preserving quantile map with linear upper-tail extrapolation beyond $q_{0.99}$.</td>
+          <td>Best on upper extremes: 90th-percentile bias drops to <strong>&minus;0.03 m/s</strong> vs. &minus;0.40 m/s for linear scaling.</td>
+        </tr>
+        <tr>
+          <td><code>site_cal="auto"</code><br/><code>IL-207b</code> (TCS)</td>
+          <td>Applies <code>tcs_speed_factor()</code> (6 local-hour-block &times; cool/warm factors, <code>0.985&ndash;1.29</code>) only within <code>OWN_STATION_KM = 5.0 km</code> of TCS ASOS; <code>None</code> elsewhere.</td>
+          <td>Corrects TCS airport calm bias (+1.44 m/s warm afternoons): CRPS <strong>&minus;0.075..&minus;0.079</strong>, 90% coverage <strong>0.81 &rarr; 0.86</strong>.</td>
+        </tr>
+        <tr>
+          <td><code>launch.launch_week()</code><br/>7-day EWMA</td>
+          <td>Starts at the pad's <code>"auto"</code> factor (<code>1.0</code> away from TCS) and steps oldest-day-first over <code>LAUNCH_WEEK_DAYS = 7</code> preceding calendar days with $\alpha = 1/30$: $f \leftarrow f + \tfrac{1}{30}(r_d - f)$, where $r_d = \bar{v}_{\text{meas},d}/\bar{v}_{\text{tool},d}$ (<code>n=200</code> per reference day).</td>
+          <td>Built for competition week (09 / 13 / 17 local readings) with no month-long archive. Conservative $\alpha = 1/30$ avoids chasing synoptic noise: CRPS <strong>1.464 &rarr; 1.437</strong> at MAF, <strong>&minus;0.023</strong> at TCS.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.4 Gaussian vs. Student-t copula theory                             -->
+<!-- ====================================================================== -->
+<section id="s5-2-4" class="subsection">
+  <span class="subsection-num">5.2.4</span>
+  <h2>Gaussian vs. Student-$t$ Copula Theory</h2>
+
+  <p>
+    Before modeling joint variables, <code>stats.py::fit_best()</code> fits six univariate families (<code>normal</code>, <code>lognormal</code>, <code>weibull</code>, <code>gumbel</code>, <code>beta</code>, <code>student_t</code>) by Kolmogorov&ndash;Smirnov distance plus a tail check at the 1st, 5th, 95th, and 99th percentiles (<code>tol = 0.25</code> of the 5&ndash;95% range), deliberately preferring an unbounded family over a bounded <code>beta</code> whenever KS is within <code>0.01</code> so 1-in-1000 storms never receive zero probability. Real rocket launches, however, fail on <strong>joint</strong> extremes&mdash;such as a hot low-density pad paired with violent upper-level wind shear. That is the domain of <code>stats.py::Coupled</code>.
+  </p>
+
+  <h3>1. Sklar's Theorem &amp; the 2-Step Copula Mental Model</h3>
+  <p>
+    By <strong>Sklar's theorem</strong>, any continuous multivariate cumulative distribution $F(y_1, \dots, y_D)$ can be decomposed uniquely into its univariate marginals $F_1, \dots, F_D$ and a copula $C : [0,1]^D \to [0,1]$ governing their dependence: $F(y_1, \dots, y_D) = C(F_1(y_1), \dots, F_D(y_D))$. Every parametric copula in <code>stats.py</code> executes the same two-step recipe:
+  </p>
+  <ol>
+    <li><strong>Convert to 0&ndash;100% percentile ranks:</strong> Replace every raw physical value with its empirical plotting-position rank $u_{ij} = (\operatorname{rank}_{ij} + 0.5) / n \in (0, 1)$. Units, skewness, and physical bounds vanish: a 98th-percentile pad wind speed and a 98th-percentile upper-level shear now speak the exact same unitless language&mdash;<em>&ldquo;how extreme is today compared to all other days?&rdquo;</em></li>
+    <li><strong>Link percentiles in latent space &amp; invert:</strong> Map the uniform ranks into latent space via $x_j = \Phi^{-1}(u_j)$ (Gaussian) or $x_j = t_\nu^{-1}(u_j)$ (Student-$t$), correlate them with a positive-definite correlation matrix $\Sigma$, draw correlated latent samples, and invert back through each variable's exact empirical quantile table via <code>_to_data()</code>.</li>
+  </ol>
+
+  <h3>2. Tail Dependence: &ldquo;Fair-Weather Friends&rdquo; vs. Storm-Locked Extremes</h3>
+  <p>
+    The choice of latent curve in Step 2 is not cosmetic&mdash;it governs whether co-occurring extremes stay locked together or silently break apart in the 1-in-100 tail. Asymptotic upper and lower tail dependence are defined as $\lambda_U = \lim_{q \to 1^-} P(U_2 &gt; q \mid U_1 &gt; q)$ and $\lambda_L = \lim_{q \to 0^+} P(U_2 \le q \mid U_1 \le q)$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.7 &mdash; Asymptotic Tail Dependence: Gaussian vs. Student-$t$ Copula</span>
+    $$\text{Gaussian Copula } (\rho &lt; 1): \qquad \lambda_U = \lambda_L = 0$$
+    $$\text{Student-}t\text{ Copula } (\nu &lt; \infty): \qquad \lambda_U = \lambda_L = 2\,t_{\nu+1}\!\left(-\sqrt{\frac{(\nu + 1)(1 - \rho)}{1 + \rho}}\right) &gt; 0$$
+    <p class="eq-note">
+      <strong>Physical mechanism (<code>stats.py:265</code>):</strong> Even with strong correlation $\rho = 0.7$, Gaussian density contours pinch inward at the corners; in a 1-in-100 storm, conditional correlation fades toward zero, making Gaussian variables <em>&ldquo;fair-weather friends.&rdquo;</em> In a Student-$t$ copula, every dimension shares a single random radial divisor $\sqrt{W/\nu}$ with $W \sim \chi^2_\nu$ (<code>t = z / sqrt(chisquare(nu) / nu)</code>). Whenever a small draw of $W$ strikes, <em>all</em> coordinates blow up into their tails simultaneously: for $\rho = 0.7$ and $\nu = 3$, $\lambda_U = \lambda_L \approx 0.44$, keeping extreme surface winds and aloft shear locked together.
+    </p>
+  </div>
+
+  <h3>3. Exact Conditional Student-$t$ Update (<code>Coupled.condition()</code>)</h3>
+  <p>
+    When <code>coupled.condition(obs)</code> pins $d_{\text{obs}}$ observed columns (e.g., a launch-morning pad wind or temperature) to latent $t$-scores $x_o = t_\nu^{-1}(u_{\text{obs}})$, the unobserved columns $x_u$ follow an <strong>exact conditional multivariate Student-$t$ distribution</strong> (<code>stats.py:295&ndash;317</code>) whose degrees of freedom and scale matrix both update:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.8 &mdash; Exact Conditional Multivariate Student-$t$ Posterior (<code>stats.py:295&ndash;317</code>)</span>
+    $$\mu_{u|o} = \Sigma_{uo}\Sigma_{oo}^{-1} x_o, \qquad \nu' = \nu + d_{\text{obs}}$$
+    $$\Sigma_{u|o}' = \frac{\nu + x_o^\top \Sigma_{oo}^{-1} x_o}{\nu'}\left(\Sigma_{uu} - \Sigma_{uo}\Sigma_{oo}^{-1}\Sigma_{ou}\right)$$
+    <p class="eq-note">
+      <strong>Mahalanobis surprise inflation:</strong> Look closely at the prefactor $\frac{\nu + x_o^\top \Sigma_{oo}^{-1} x_o}{\nu'}$. On a typical day ($x_o^\top \Sigma_{oo}^{-1} x_o \approx d_{\text{obs}}$), the prefactor sits near $1.0$, matching standard Gaussian Schur-complement shrinkage $\Sigma_{uu} - \Sigma_{uo}\Sigma_{oo}^{-1}\Sigma_{ou}$. During an extreme frontal passage ($x_o^\top \Sigma_{oo}^{-1} x_o \gg d_{\text{obs}}$), the Mahalanobis surprise <em>inflates</em> $\Sigma_{u|o}'$ above the Gaussian Schur complement&mdash;automatically widening conditional aloft uncertainty when the pad sensor reports an unusual regime, whereas a Gaussian copula shrinks conditional variance by a fixed constant no matter how shocking the observation is.
+    </p>
+  </div>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Architectural Contrast &mdash; Why Gaussian Works for Temporal Persistence (Part 4) Yet Fails for Vertical Shear (<code>W2</code>)</p>
+    <ul>
+      <li><strong>Smooth hour-to-hour persistence (<code>tempest_weather/coherence.py</code>):</strong> Synoptic air masses advect continuously over 1&ndash;6 hour hold windows. Rank changes between $t$ and $t + 1\text{ h}$ are smooth and rarely exhibit simultaneous discontinuous tail jumps across independent variables, so a Gaussian copula (paired with the UR5 10 m regime Markov chain) preserves temporal trajectories accurately.</li>
+      <li><strong>Sharp vertical balloon shear (<code>W2</code>):</strong> Vertical soundings slice through discrete physical layers&mdash;nocturnal low-level jets, dryline inversions, and tropopause jet streaks&mdash;where adjacent altitudes undergo co-occurring extreme wind jumps. A Gaussian copula breaks those joint tails apart and under-predicts violent shear corridors; <code>method="t_copula"</code> (alongside <code>whole_sample</code> kernel-weighted resampling at width <code>0.3 sd</code>) keeps extremes coupled while still supporting smooth <code>.condition()</code> and <code>.adjust()</code> stress shifts.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.5 Kendall-tau inversion & PSD projection                           -->
+<!-- ====================================================================== -->
+<section id="s5-2-5" class="subsection">
+  <span class="subsection-num">5.2.5</span>
+  <h2>Kendall-$\tau$ Inversion, Low-Rank Compression &amp; PSD Projection</h2>
+
+  <p>
+    Estimating the latent correlation matrix $\Sigma \in \mathbb{R}^{D \times D}$ and tail parameter $\nu$ reliably in pure NumPy&mdash;with zero SciPy dependency&mdash;requires careful linear algebra. Two complementary rank-based estimators exist for elliptical copulas, and both can produce non-positive-semidefinite matrices in finite samples or under low-rank truncation unless projected cleanly onto the correlation manifold.
+  </p>
+
+  <h3>1. Normal-Score Correlation vs. Kendall-$\tau$ Inversion</h3>
+  <p>
+    For any elliptical copula (both Gaussian and Student-$t$ with arbitrary $\nu &gt; 0$), the pairwise rank concordance statistic <strong>Kendall's $\tau_{ij}$</strong> satisfies the exact <strong>Lindskog&ndash;McNeil&ndash;Schmock identity</strong> independent of $\nu$ and invariant under any strictly increasing marginal transformation:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.9 &mdash; Kendall-$\tau$ Inversion vs. Normal-Score Empirical Correlation</span>
+    $$\tau_{ij} = \frac{2}{n(n - 1)}\sum_{1 \le a &lt; b \le n} \operatorname{sgn}\!\big((y_{a,i} - y_{b,i})(y_{a,j} - y_{b,j})\big), \qquad \rho^{\text{Kendall}}_{ij} = \sin\!\left(\frac{\pi}{2}\,\tau_{ij}\right)$$
+    $$\text{Fast } O(n D^2)\text{ path in \texttt{stats.py:184--187}:} \qquad z_{aj} = \Phi^{-1}\!\left(\frac{\operatorname{rank}_{aj} + 0.5}{n}\right), \qquad C = \operatorname{Corr}(Z)$$
+    <p class="eq-note">
+      <strong>Why both matter:</strong> Kendall-$\tau$ inversion $\rho_{ij} = \sin(\tfrac{\pi}{2}\tau_{ij})$ is completely immune to marginal tail heaviness and requires no parametric quantile map, making it the gold standard for robust pairwise correlation audits in heavy-tailed atmospheric data; however, pairwise inversion operates entry-by-entry and frequently yields a symmetric matrix $C$ with small negative eigenvalues ($\lambda_{\min} &lt; 0$). In production, <code>Coupled.__init__()</code> uses vectorized normal-score correlation (avoiding $O(n^2)$ concordance loops at $n = 1024$) and then passes $C$ through the exact same spectral PSD projection required by Kendall-$\tau$ matrices.
+    </p>
+  </div>
+
+  <h3>2. Spectral Eigenvalue Clamping &amp; Unit-Diagonal Renormalization (<code>Coupled._fix()</code>)</h3>
+  <p>
+    Because <code>_draw_copula()</code> and <code>_draw_conditional()</code> factorize $\Sigma$ with <code>np.linalg.cholesky()</code>, even a single eigenvalue of $-10^{-12}$ from numerical roundoff, pairwise Kendall-$\tau$ inversion, or low-rank truncation would trigger a fatal <code>LinAlgError</code>. <code>Coupled._fix(c)</code> (<code>stats.py:196&ndash;202</code>) projects any symmetric candidate matrix onto the strictly positive-definite correlation cone in four exact steps:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.10 &mdash; Spectral PSD Projection &amp; Low-Rank Factor Compression (<code>stats.py:196&ndash;216</code>)</span>
+    $$C_{\text{sym}} = \frac{1}{2}(C + C^\top), \qquad \operatorname{diag}(C_{\text{sym}}) \leftarrow \mathbf{1}, \qquad C_{\text{sym}} = V \operatorname{diag}(\lambda_1, \dots, \lambda_D) V^\top$$
+    $$\tilde{C} = V \operatorname{diag}\!\big(\max(\lambda_1, 10^{-8}), \dots, \max(\lambda_D, 10^{-8})\big) V^\top, \qquad \hat{\Sigma}_{ij} = \frac{\tilde{C}_{ij}}{\sqrt{\tilde{C}_{ii}\,\tilde{C}_{jj}}}$$
+    $$\text{Low-rank } (\texttt{t\_copula}): \qquad C_{\text{LR}} = \sum_{m=1}^{k} \lambda_{(m)} \mathbf{v}_{(m)}\mathbf{v}_{(m)}^\top, \quad \operatorname{diag}(C_{\text{LR}}) \leftarrow \mathbf{1}, \quad \Sigma_{\text{LR}} = \operatorname{\_fix}(C_{\text{LR}})$$
+    <p class="eq-note">
+      <strong>Variance-preserving top-$k$ truncation:</strong> Setting <code>k="auto"</code> calls <code>_auto_k()</code> to pick the fewest eigenmodes explaining <code>95%</code> of total correlation variance (otherwise defaulting to <code>min(D, 6)</code>). Restoring the diagonal to <code>1.0</code> after rank-$k$ truncation is equivalent to adding an isotropic idiosyncratic variance $1 - \sum_{m=1}^k \lambda_{(m)} v_{im}^2$ to each variable, and the final <code>_fix()</code> guarantees strict positive definiteness ($\lambda_{\min} \ge 10^{-8}$) before adding a tiny <code>1e-10 * I</code> Cholesky guard during sampling.
+    </p>
+  </div>
+
+  <h3>3. Pure-NumPy Profile Log-Likelihood Estimation of $\nu$ (<code>_fit_nu()</code>)</h3>
+  <p>
+    Rather than pulling in SciPy just to evaluate the Student-$t$ CDF and quantile function, <code>stats.py:153&ndash;165</code> builds a 24,001-point trapezoidal lookup table <code>_t_table(nu, half=60.0, n=24001)</code> using only <code>math.lgamma</code> and <code>np.cumsum</code>. <code>_fit_nu()</code> (<code>stats.py:218&ndash;233</code>) then maximizes the exact Student-$t$ <strong>copula log-likelihood</strong>&mdash;the multivariate Student-$t$ log-density minus the sum of univariate Student-$t$ log-densities&mdash;across the 10-point grid $\nu \in \{2.5, 3, 4, 5, 6, 8, 12, 20, 40, 100\}$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.2.11 &mdash; Student-$t$ Copula Profile Log-Likelihood (<code>stats.py:161&ndash;164, 218&ndash;233</code>)</span>
+    $$\ell_c(\nu) = \sum_{i=1}^{n} \left[\log f_{t_D}(\mathbf{x}_i \mid \Sigma_{\text{LR}}, \nu) - \sum_{j=1}^{D} \log f_{t_1}(x_{ij} \mid \nu)\right], \qquad \mathbf{x}_i = t_\nu^{-1}(\mathbf{u}_i)$$
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.6 Lazy imports & Python 3.12 PEP 701 note                          -->
+<!-- ====================================================================== -->
+<section id="s5-2-6" class="subsection">
+  <span class="subsection-num">5.2.6</span>
+  <h2>Lazy Package Imports &amp; Python 3.12 PEP 701 Requirement</h2>
+
+  <p>
+    Because <code>tempest_weather_v2</code> serves both heavy Monte Carlo launch scripts and lightweight pad-side utilities (elevation lookup, METAR parsing, aviation math, or unit conversion), its package entry point is engineered to stay instantaneous to import and strictly free of PyTorch or SciPy dependencies.
+  </p>
+
+  <h3>1. Module-Level Lazy <code>__getattr__</code> (PEP 562) in <code>__init__.py</code></h3>
+  <p>
+    Instead of eagerly executing <code>from tempest_weather_v2.launch import Launch, Window, AtmosphereSet, Launches</code> at package import time&mdash;which would pull in the serving engine, site tables, and network modules even when a caller only needs <code>weather_calc.density_altitude_m()</code>&mdash;<code>tempest_weather_v2/__init__.py:12&ndash;16</code> uses Python's PEP 562 module-level <code>__getattr__</code> hook:
+  </p>
+
+  <pre><code># tempest_weather_v2/__init__.py (lines 12-16)
+def __getattr__(name):  # lazy: importing the package must stay cheap and must not need the model assets
+    if name in ("Launch", "Window", "AtmosphereSet", "Launches"):
+        from tempest_weather_v2 import launch
+        return getattr(launch, name)
+    raise AttributeError(f"module 'tempest_weather_v2' has no attribute {name!r}")</code></pre>
+
+  <p>
+    This guarantees two operational invariants: (1) <code>import tempest_weather_v2</code> completes in milliseconds with zero disk I/O and zero requirement that neural model <code>.npz</code> assets be downloaded yet; and (2) submodules such as <code>weather_calc</code>, <code>roughness</code>, <code>stats</code>, <code>timeutil</code>, and <code>elevation</code> can be imported and unit-tested completely standalone in pure NumPy + Python stdlib.
+  </p>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Runtime Requirement &mdash; Python &ge; 3.12 (PEP 701) at <code>launch.py:684</code></p>
+    <p>
+      The moment <code>Launch</code> is accessed via lazy <code>__getattr__</code> (or <code>tempest_weather_v2.launch</code> is imported directly), Python compiles <code>Launch.observe_latest()</code>. Line <code>684</code> nests double-quoted string literals directly inside a double-quoted f-string expression:
+    </p>
+    <pre><code>raise LookupError(f"no usable METAR in the {hours} h before launch from the nearest stations ({near}; tried {tried or 'none'}{"; rejected for impossible values: " + ", ".join(rejected) if rejected else ""}). Pass the report yourself with observe_metar(text).")</code></pre>
+    <p>
+      Reusing the outer quote delimiter inside an f-string expression was legalized by <strong>PEP 701 in Python 3.12</strong>. On Python 3.11 or earlier, <code>import tempest_weather_v2</code> itself succeeds (thanks to lazy <code>__getattr__</code>!), but the very first <code>from tempest_weather_v2 import Launch</code> immediately raises a compile-time <code>SyntaxError</code>&mdash;hard-enforcing <code>pyproject.toml</code>'s <code>requires-python = "&gt;=3.12"</code> floor.
+    </p>
+  </div>
+
+  <h3>2. Dependency &amp; Runtime Footprint Summary</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subsystem</th>
+          <th>Runtime Dependencies</th>
+          <th>Avoided Heavy Dependencies</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>weather_calc.py</code>, <code>stats.py</code>, <code>roughness.py</code></td>
+          <td><code>numpy</code> + Python stdlib (<code>math.lgamma</code>, <code>csv</code>)</td>
+          <td>Zero <code>scipy</code> (custom 24,001-pt Student-$t$ table &amp; normal inverse CDF)</td>
+        </tr>
+        <tr>
+          <td><code>_files.py</code>, <code>_net.py</code>, <code>timeutil.py</code></td>
+          <td>Python stdlib (<code>urllib</code>, <code>hashlib</code>, <code>zoneinfo</code>, <code>fcntl</code>/<code>msvcrt</code>)</td>
+          <td>Zero <code>requests</code>, <code>pytz</code>, or <code>filelock</code></td>
+        </tr>
+        <tr>
+          <td><code>launch.py</code> &amp; serving bridge</td>
+          <td><code>tempest_weather</code> pure-NumPy engine + Python &ge; 3.12</td>
+          <td>Zero <code>torch</code> / CUDA runtime required on launch-day laptops</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.2.7 Interactive lab: Gaussian vs. Student-t copula                   -->
+<!-- ====================================================================== -->
+<section id="s5-2-7" class="subsection">
+  <span class="subsection-num">5.2.7</span>
+  <h2>Interactive Lab: Gaussian vs. Student-$t$ Copula</h2>
+
+  <p>
+    Use the interactive sandbox below to compare a Gaussian copula ($\lambda_U = \lambda_L = 0$) side by side against a heavy-tailed Student-$t$ copula ($\nu \in [2.5, 40]$) on joint surface wind and upper-level wind shear. Sweep $\rho$, $\nu$, and the observed launch-morning percentile to watch how tail dependence and Mahalanobis variance inflation behave in real time.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Interactive Widget 6 &mdash; Gaussian vs. Student-$t$ Conditional Copula Tail Explorer</h3>
+      <button type="button" class="figure-btn" onclick="openColabLab('lab_03')">Open Colab Lab 3 &nearr;</button>
+    </div>
+
+    <div id="widget-6-copula"></div>
+
+    <figcaption class="figure-caption">
+      Compare unconditional joint scatter contours and conditional posterior distributions for a Gaussian copula vs. a Student-$t$ copula. Notice how lowering $\nu$ locks extreme upper-right corner events together ($\lambda_U &gt; 0$) and widens conditional spread when conditioning on an extreme surface observation.
+    </figcaption>
+  </figure>
+
+  <h3>Suggested Experiments to Try</h3>
+  <ol>
+    <li><strong>Watch &ldquo;fair-weather friends&rdquo; decouple:</strong> Set $\rho = 0.70$ and compare $\nu = 3$ against the Gaussian copula. Inspect the top-right 95th-percentile quadrant: the Student-$t$ copula clusters simultaneous extreme wind and shear events tightly into the corner, while the Gaussian cloud pinches away from the corner.</li>
+    <li><strong>Trigger Mahalanobis variance inflation:</strong> Condition on a typical 50th-percentile surface wind and note that Gaussian and Student-$t$ conditional spreads nearly match. Now drag the observed surface reading to the 98th percentile: the Gaussian conditional spread stays rigidly constant while the Student-$t$ prefactor $(\nu + x_o^\top \Sigma_{oo}^{-1} x_o)/(\nu + 1)$ visibly widens the aloft posterior.</li>
+    <li><strong>Continue in Colab Lab 3:</strong> Launch <a href="javascript:void(0)" onclick="openColabLab('lab_03')">Notebook 3 (<code>lab_03_calibration_routing_and_copula.ipynb</code>)</a> to run <code>Coupled(..., method="t_copula")</code>, inspect <code>_fit_nu()</code> profile log-likelihood curves, and compare Kendall-$\tau$ inversion against normal-score correlation on multi-level wind profiles.</li>
+  </ol>
+</section>
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

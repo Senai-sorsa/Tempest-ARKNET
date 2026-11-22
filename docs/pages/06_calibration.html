@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3.1 Balloon Station Calibration &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  
+</head>
+<body data-page-id="06_calibration" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 3 · Calibration &amp; Ops · Chapter 3.1</p>
+          <h1>3.1 Balloon Station Calibration</h1>
+          <p class="article-lead">Bridging smooth 0.25&deg; ERA5 reanalysis grids to real IGRA2 radiosonde ascents, calibrating 99% outer safety bounds across 109 standardized quantile knots at M_CAL = 199, and shifting columns onto launch-pad terrain with exact dewpoint conservation.</p>
+          <div class="article-meta"><span>Modules: station.py, spread.py, pit_recal.py, seasonal.py, debias.py, trust.py, shift.py, sample.py</span><span>Shipped ON: station.py (Training) &amp; spread.py (Serving, M_CAL = 199)</span><span>Companion: Colab Lab 3</span></div>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 3.1.1 Why ERA5-trained models need balloon truth                       -->
+<!-- ====================================================================== -->
+<section id="s3-1-1" class="subsection">
+  <span class="subsection-num">3.1.1</span>
+  <h2>Why ERA5-Trained Models Need Balloon Truth</h2>
+
+  <p>
+    Raw atmospheric reanalysis grids are smoother than the real sky, and even a properly scored Engression neural network can slightly mis-calibrate its outer 99% safety bounds or drift under regional bias. Tempest-ARKNET addresses marginal fidelity through a modular calibration stack spanning <strong>pre-training target correction</strong> (<code>tempest/calibrate/station.py</code>) and <strong>post-generation ensemble calibration</strong> (<code>spread.py</code>, <code>pit_recal.py</code>, <code>seasonal.py</code>, <code>debias.py</code>, <code>trust.py</code>, and <code>shift.py</code>). Only two layers—balloon station correction in training and standardized spread calibration at inference—ship enabled by default; the remaining five are opt-in diagnostic flags retained for targeted ablations and regional transfer.
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Pipeline Stage</th>
+          <th>Default Status</th>
+          <th>Primary Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>tempest/calibrate/station.py</code></td>
+          <td>Pre-training targets</td>
+          <td><strong>Shipped ON</strong> (Training)</td>
+          <td>Corrects smooth 0.25&deg; ERA5 grid profiles toward real IGRA2 00Z/12Z weather balloons.</td>
+        </tr>
+        <tr>
+          <td><code>tempest/calibrate/spread.py</code></td>
+          <td>Post-generation (Step 1)</td>
+          <td><strong>Shipped ON</strong> (Serving)</td>
+          <td>109-quantile standardized range &amp; tail calibration (<code>M_CAL = 199</code>).</td>
+        </tr>
+        <tr>
+          <td><code>tempest/calibrate/pit_recal.py</code></td>
+          <td>Post-generation</td>
+          <td>Opt-In (<code>--pit-recal</code>)</td>
+          <td>Full-CDF shape correction via 201-point inverse empirical PIT map.</td>
+        </tr>
+        <tr>
+          <td><code>tempest/calibrate/seasonal.py</code></td>
+          <td>Post-generation</td>
+          <td>Opt-In (<code>--seasonal</code>)</td>
+          <td>Per-month 99%-coverage width multiplier smoothed circularly over 3 months.</td>
+        </tr>
+        <tr>
+          <td><code>tempest/scoring/debias.py</code></td>
+          <td>Post-generation</td>
+          <td>Opt-In (<code>--debias</code>)</td>
+          <td>Empirical-Bayes mean-error subtraction per point &times; month &times; 4-hour bin.</td>
+        </tr>
+        <tr>
+          <td><code>tempest/calibrate/trust.py</code></td>
+          <td>Post-generation</td>
+          <td>Opt-In (<code>--trust</code>)</td>
+          <td>Rank-preserving blend toward 15-year climatology quantiles + second-pass re-spread.</td>
+        </tr>
+        <tr>
+          <td><code>tempest/calibrate/shift.py</code></td>
+          <td>Post-generation</td>
+          <td>Opt-In (<code>--shift</code>)</td>
+          <td>Additive median-residual shift (annual or circular 3-month smoothed).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>ERA5's Two Structural Blind Spots for Rocket Flight</h3>
+  <p>
+    ERA5 reanalysis is an extraordinary global meteorological baseline, but it suffers from two structural blind spots when driving a 6-DOF rocket trajectory simulation: first, it averages atmospheric state across a $0.25^\circ$ grid box (~25 km) rather than a point launch pad; second, its 13 vertical pressure levels act as a low-pass filter that smears out sharp nocturnal temperature inversions, thin jet-stream wind-shear layers, and narrow dry or moist filaments. Real <strong>IGRA2 radiosondes</strong>—weather balloons launched at nominal <code>00Z</code> and <code>12Z</code> from Santa Teresa, New Mexico and Midland, Texas in the West Texas / New Mexico pilot box—measure those fine-scale jumps directly.
+  </p>
+  <p>
+    An early prototype attempted to quantile-map each vertical height step independently (<code>station.py:13–14</code>). Individual layer jumps matched the balloon histograms, yet whole-profile spread exploded by <strong>20–140%</strong> because ERA5's smooth vertical steps are positively correlated across altitude and systematically add up. <code>station.py</code> solves this cleanly by combining a per-height linear bias/gain map with <strong>one complete, real leftover residual profile</strong> drawn from a moisture-matched balloon pool—preserving the exact vertical covariance of real balloon shear and inversions by construction.
+  </p>
+
+  <h3>Balloon-to-ERA5 Pairing, QC &amp; Group Indexing</h3>
+  <p>
+    For each station configured in <code>configs/region.toml</code>, <code>read_igra()</code> parses <code>00Z</code> and <code>12Z</code> soundings containing at least 3 levels, converts geopotential height to geometric altitude above ground level via <code>geometric_height(gph * G0) - geometric_height(gph[0] * G0)</code>, and interpolates onto the canonical 44-level <code>HEIGHTS</code> ladder. Any vertical gap wider than <code>MAX_GAP = 2000.0</code> m is left as <code>NaN</code> rather than linearly bridged. An opt-in CLI guard (<code>--launch-tol 30.0</code>, bug fix <code>AU-13</code>) drops soundings whose lowest reported altitude deviates by more than 30 m from the station's listed launch elevation—cleanly filtering out 1991–1995 Santa Teresa records actually launched from the older El Paso site roughly 60 m lower. Fit years default to <code>1991–2020</code> so that <code>2021–2025</code> (<code>--check-to 2025</code>) remains an honest out-of-sample check.
+  </p>
+  <p>
+    Every matched balloon–ERA5 pair is assigned to a discrete group combining station index $s$, meteorological season $\text{season}(m) = (m \bmod 12) \mathbin{//} 3 \in \{0\text{ DJF},\, 1\text{ MAM},\, 2\text{ JJA},\, 3\text{ SON}\}$, and synoptic launch class $\text{hour\_class} \in \{0\text{ (00Z)},\, 1\text{ (12Z)}\}$ (<code>station.py:37–39, 187–189</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.1 — Discrete Station–Season–Synoptic Group Index</span>
+    $$g = (\text{station} \times 4 + \text{season}) \times 2 + \text{hour\_class} \;\in\; \{0, 1, \dots, 8 S - 1\}$$
+    <p class="eq-note">
+      For the two pilot-box IGRA2 stations (Santa Teresa NM and Midland TX, $S = 2$), this yields $2 \times 4 \times 2 = 16$ distinct correction groups.
+    </p>
+  </div>
+
+  <h3>Per-Height Linear Fit, Whittaker Smoothing &amp; Moisture-Tercile Residual Pool</h3>
+  <p>
+    Within each group $g$, profile variable $i \in \{u, v, T, \text{RH}\}$, and altitude level $k \in \{0, \dots, 43\}$, <code>fit()</code> computes ordinary least squares in <code>float64</code> whenever at least 50 finite pairs exist (<code>ok.sum() &gt;= 50</code>; sparser heights fall back to the identity $a_{g,i,k} = 0,\, b_{g,i,k} = 1$). Because independent level-by-level slopes can jitter slightly across adjacent heights, <code>station.py:108–115, 146–150</code> provides an optional <strong>Whittaker curvature smoother</strong> (<code>--ridge</code> $\lambda &gt; 0$, default <code>0.0</code>) that penalizes second vertical differences $D_2 \in \mathbb{R}^{42 \times 44}$ (<code>np.diff(np.eye(n), 2, axis=0)</code>) and immediately refits the intercept vector so the exact sample mean is conserved at every height:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.2 — Per-Height OLS Gain/Bias &amp; Whittaker Curvature Ridge</span>
+    $$b_{g,i,k} = \frac{\operatorname{Cov}(E_{g,i,k},\, O_{g,i,k})}{\max\!\big(\operatorname{Var}(E_{g,i,k}),\; 10^{-9}\big)}, \qquad a_{g,i,k} = \bar{O}_{g,i,k} - b_{g,i,k}\,\bar{E}_{g,i,k}$$
+    $$(I + \lambda D_2^\top D_2)\,z = b_{g,i}, \qquad a_{g,i}^{\text{smooth}} = \bar{O}_{g,i} - z \odot \bar{E}_{g,i}$$
+    <p class="eq-note">
+      <code>fit()</code> also supports passing pre-fitted linear tables via <code>ab=(a, b)</code> (<code>AU-5</code>), which freezes the regression slopes and refills only the residual pool from held-out years the linear fit never saw.
+    </p>
+  </div>
+
+  <p>
+    The complete-profile residuals $R = O - (a_g + b_g E)$—retaining only soundings where all $4 \times 44$ entries are finite and requiring at least 50 profiles per group—carry the sub-grid shear and thermal inversions that ERA5 misses. Crucially, balloon-versus-ERA5 humidity scatter is substantially larger in moist mid- and upper-tropospheric air than in dry subsiding air. Rather than drawing from a single undifferentiated pool, <code>station.py:103–105, 155–162</code> scores every ERA5 profile by its mean 5–13 km relative humidity and partitions each group into three moisture terciles (<code>cuts[g] = np.quantile(wet, [1/3, 2/3])</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.3 — Moisture-Tercile Residual Conditioning</span>
+    $$\overline{\mathrm{RH}}_{5\text{--}13\text{ km}}(E) = \frac{1}{|H_{5\text{--}13}|}\sum_{z \in [5000,\, 13000]\text{ m}} \mathrm{RH}_{E}(z), \qquad j = \mathbf{1}\big[\overline{\mathrm{RH}} &gt; c_{g,0}\big] + \mathbf{1}\big[\overline{\mathrm{RH}} &gt; c_{g,1}\big] \in \{0, 1, 2\}$$
+    <p class="eq-note">
+      Each tercile stores up to <code>pool_max = 3000</code> randomly permuted complete residual profiles (falling back to the full group pool $R$ if a tercile holds fewer than 50 profiles). At correction time (<code>apply()</code>), each ERA5 row selects its tercile $j$, draws one whole residual profile $R_{g,j,\text{draw}}$, forms $\hat{O} = a_g + b_g E + R_{g,j,\text{draw}}$, clips RH to $[0, 100]\%$, and converts back to difference view (<code>to_diff</code>). On the 2023–2025 held-out check, moisture-tercile conditioning reduced 9–18 km RH CRPS by <strong>8%</strong> while keeping all other variables equal or slightly better.
+    </p>
+  </div>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Documented Tail Shortcut in Resampled Residuals (station.py:168–169)</p>
+    <p>
+      Because fine-scale residuals are resampled empirically from 1991–2020 balloon ascents, corrected sub-grid perturbations never exceed the most extreme residual recorded during those 30 fit years. Extrapolating beyond historical balloon residuals would require parametric Generalized Pareto Distribution (GPD) tails.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.2 M_CAL = 199 quantile grid standardization                        -->
+<!-- ====================================================================== -->
+<section id="s3-1-2" class="subsection">
+  <span class="subsection-num">3.1.2</span>
+  <h2><code>M_CAL = 199</code> Quantile Grid Standardization</h2>
+
+  <p>
+    Training the Engression generator with almost-fair CRPS ($\alpha = 0.95$) and $m = 4$ members per optimization step concentrates gradient signal in the bulk of the predictive distribution (roughly the 10th to 90th percentiles). For rocket 6-DOF Monte Carlo dispersion and range-safety containment, however, launch go/no-go gates live in the <strong>99% outer envelope</strong> (0.5th to 99.5th percentiles). Even modest finite-sample under-dispersion or asymmetric tail skew in the raw neural ensemble causes nominal 99% intervals to capture only 96–98% of real atmospheric outcomes.
+  </p>
+  <p>
+    <code>tempest/calibrate/spread.py</code>—the sole post-generation marginal calibrator shipped enabled by default—fixes this on a held-out validation year never seen during training (optionally multi-year via <code>--from-year</code> and <code>--drawn-drivers</code> to absorb unknown climate-driver uncertainty). It fits a <strong>strictly monotone quantile map in standardized residual space</strong>. Because the map is monotone along every column, each ensemble member retains its exact rank within its row, preserving cross-altitude and cross-variable dependence (Ensemble Copula Coupling) while calibrating both dispersion and left/right tail skew.
+  </p>
+
+  <h3>Robust Row-Wise Standardization &amp; Half-Width Floor</h3>
+  <p>
+    For each calibration row $n$ and physical output column $d \in \{1, \dots, 179\}$, <code>_standardise()</code> (<code>spread.py:26–31</code>) evaluates the 5%, 50%, and 95% empirical quantiles across the $m$ ensemble members in <code>float64</code>, defines an adaptively floored half-width $\mathrm{hw}_{n,d}$, and rescales both the ensemble draws $x$ and the observed truth $y$ into dimensionless half-width units:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.4 — Floored 5–95% Half-Width Standardization</span>
+    $$\mathrm{hw}_{n,d} = \max\!\left(\frac{q_{0.95}(x_{n,\cdot,d}) - q_{0.05}(x_{n,\cdot,d})}{2},\; 0.1\,\operatorname{med}_{n'}(\mathrm{hw}_{n',d}) + 10^{-6}\right)$$
+    $$z_{n,i,d} = \frac{x_{n,i,d} - \mathrm{med}_{n,d}}{\mathrm{hw}_{n,d}}, \qquad u_{n,d} = \frac{y_{n,d} - \mathrm{med}_{n,d}}{\mathrm{hw}_{n,d}}$$
+    <p class="eq-note">
+      The adaptive floor $0.1\,\operatorname{med}(\mathrm{hw}) + 10^{-6}$ is vital for bounded variables like relative humidity: on arid desert afternoons or inside saturated cloud decks, RH clipped at 0% or 100% can collapse a row's raw 5–95% spread to zero, which would otherwise send $z$ and $u$ to $\pm 10^6$. During fitting (default <code>--rows 30000</code>), <code>parts()</code> retains <code>keep = 20</code> random ensemble members per row for $z$ alongside all $N$ truth rows for $u$, keeping memory compact while densely populating both sample and truth tails.
+    </p>
+  </div>
+
+  <h3>109 Tail-Dense Quantile Knots &amp; Outer-4-Knot Extrapolation</h3>
+  <p>
+    If the raw generator were already perfectly calibrated, $z$ and $u$ would share an identical distribution. <code>table()</code> tabulates empirical quantiles $a = q_z$ and $b = q_u$ at <strong>109 tail-dense probability levels</strong> (<code>spread.py:23</code>) engineered to give high resolution in the 0.05%–0.75% and 99.25%–99.95% outer tails where range-safety bounds reside:
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Quantile Region</th>
+          <th>Knot Count</th>
+          <th>Exact Probability Levels (<code>LEVELS</code>)</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Lower Tail</strong></td>
+          <td>5 knots</td>
+          <td><code>0.0005, 0.001, 0.0025, 0.005, 0.0075</code></td>
+          <td>Anchors extreme cold/dry/negative-wind safety bounds and outer slope $s_{\text{lo}}$.</td>
+        </tr>
+        <tr>
+          <td><strong>Interior Body</strong></td>
+          <td>99 knots</td>
+          <td><code>0.01, 0.02, &hellip;, 0.99</code> (step <code>0.01</code>)</td>
+          <td>Corrects bulk spread, shoulder asymmetry, and median-to-98% dispersion.</td>
+        </tr>
+        <tr>
+          <td><strong>Upper Tail</strong></td>
+          <td>5 knots</td>
+          <td><code>0.9925, 0.995, 0.9975, 0.999, 0.9995</code></td>
+          <td>Anchors extreme jet-wind/heat safety bounds and outer slope $s_{\text{hi}}$.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    At inference time, <code>apply()</code> guarantees strictly increasing source knots via <code>a = np.maximum.accumulate(a + np.arange(len(a)) * 1e-9)</code>, maps interior draws with piecewise linear interpolation <code>np.interp(z, a, b)</code>, and extends extreme draws outside $[a_0, a_{-1}]$ using <strong>outer-4-knot linear slopes</strong> spanning indices <code>0..4</code> ($0.0005 \to 0.0075$) and <code>-5..-1</code> ($0.9925 \to 0.9995$) so noisy single-step tail slopes cannot blow up:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.5 — Piecewise Linear Quantile Map with Outer-4-Knot Tail Extrapolation</span>
+    $$s_{\text{lo}} = \frac{b_4 - b_0}{\max(a_4 - a_0,\, 10^{-9})}, \qquad s_{\text{hi}} = \frac{b_{-1} - b_{-5}}{\max(a_{-1} - a_{-5},\, 10^{-9})}$$
+    $$\tilde{z} = \begin{cases} b_0 + (z - a_0)\,s_{\text{lo}}, &amp; z &lt; a_0 \\ \operatorname{interp}(z;\, a, b), &amp; a_0 \le z \le a_{-1} \\ b_{-1} + (z - a_{-1})\,s_{\text{hi}}, &amp; z &gt; a_{-1} \end{cases}, \qquad x' = \mathrm{clip\_ranges}\!\big(\mathrm{med} + \tilde{z}\cdot\mathrm{hw}\big)$$
+  </div>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Strict <code>M_CAL = 199</code> Parity &amp; Fail-Closed SHA-256 Checkpoint Binding</p>
+    <p>
+      The empirical 5–95% half-width $\mathrm{hw}$ of a finite ensemble shrinks slightly at small $m$ and converges at large $m$. Applying a calibration table fitted at $m = 199$ to a 50-member or 500-member draw would silently mis-scale every output. Consequently, <code>spread.apply()</code> (<code>spread.py:64–65</code>) raises <code>ValueError</code> on any $m$ mismatch, and the NumPy serving engine (<code>tempest_weather/engine.py</code>) always generates in exact <code>M_CAL = 199</code> blocks before slicing to the caller's requested ensemble size. In addition, every <code>.calib.npz</code> file records <code>model_sha = hashlib.file_digest(f, "sha256").hexdigest()[:16]</code> (<code>spread.py:81–94</code>); <code>spread.load(path, model)</code> aborts immediately with <code>SystemExit</code> on any hash mismatch, making stale checkpoint pairing impossible.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.3 Additive bias & multiplicative spread correction                 -->
+<!-- ====================================================================== -->
+<section id="s3-1-3" class="subsection">
+  <span class="subsection-num">3.1.3</span>
+  <h2>Additive Bias &amp; Multiplicative Spread Correction</h2>
+
+  <p>
+    A crucial geometric distinction separates <code>spread.py</code> from additive bias correctors: because <code>spread.py</code> rescales deviations <em>around each row's median</em> ($\mathrm{med}_{n,d}$), a multiplicative or standardized spread map cannot eliminate a systematic location offset where the entire ensemble sits consistently too cold, too warm, or too westerly. During improvement loops and cross-region stress tests, Tempest-ARKNET implemented two dedicated opt-in additive correctors—<code>shift.py</code> for global/monthly median residuals and <code>debias.py</code> for fine-grained Empirical-Bayes location–time mean errors—to test whether explicit location correction improves held-out skill.
+  </p>
+
+  <h3>1. Median Bias Shift (<code>tempest/calibrate/shift.py</code> — Opt-In, <code>--shift</code>)</h3>
+  <p>
+    Early pilot generators exhibited a persistent <strong>0.36–0.46 K cold bias</strong> across 0–12 km (<code>PLAN P3-5</code>). <code>shift.py</code> (<code>IL-13</code> &amp; Loop 2 <code>H6</code>) computes the median residual across calibration rows—optionally shrunk toward zero by <code>--shrink</code> ($\lambda_{\text{shrink}}$), restricted to chosen <code>--vars</code>, or fitted <code>--by-month</code> as a <code>(12, D)</code> table smoothed circularly over 3 months via <code>seasonal.smooth_months</code>—and adds that constant offset uniformly across all $m$ ensemble members:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.6 — Shrunk Additive Median Shift</span>
+    $$\Delta_d = (1 - \lambda_{\text{shrink}})\,\operatorname{med}_{n}\!\big(y_{n,d} - \operatorname{med}_i(x_{n,i,d})\big), \qquad x'_{n,i,d} = \mathrm{clip\_ranges}\!\big(x_{n,i,d} + \Delta_d\big)$$
+    <p class="eq-note">
+      <code>shift.py</code> deliberately omits exponential recency weighting (<code>--halflife-years</code>) to prevent test-year leakage. Because a flat 2021–2023 offset cannot track multi-year global warming trends, it remained opt-in while secular trends are handled directly by the generator's linear <code>year</code> / <code>gmst</code> bypass head.
+    </p>
+  </div>
+
+  <h3>2. Empirical-Bayes Climatology Debias (<code>tempest/scoring/debias.py</code> — Opt-In, <code>--debias</code>)</h3>
+  <p>
+    When evaluating the NM/TX-trained <code>p2f</code> generator out-of-region at Denver, <strong>77% of 0–1 km $u$-wind MSE</strong> came from a $+7.8\text{ m/s}$ mean bias that climatology conditioning features alone could not remove (<code>LOOP3 L3-34</code>). <code>debias.py</code> attacks site-specific mean errors while enforcing strict anti-leakage hygiene: <code>debias.py:105–106</code> hard-rejects any calibration row with <code>year &gt;= 2024</code> and verifies exact grid-point identity via <code>check_points()</code>.
+  </p>
+  <p>
+    Defining row mean error $e = \bar{x} - y$, rows are grouped by <code>(point, month, 4-hour bin)</code> $g$ (<code>NB = 6</code> bins/day) nested inside <code>(point, month)</code> $pm$. Empirical-Bayes shrinkage with prior weight <code>K = 10.0</code> automatically pulls sparsely populated 4-hour bins back toward the more stable monthly mean error $\bar{e}_{pm}$:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.7 — Empirical-Bayes Hierarchical Shrinkage &amp; RH Logit Debias</span>
+    $$\delta_g = \bar{e}_{pm} + \frac{n_g}{n_g + K}\big(\bar{e}_g - \bar{e}_{pm}\big), \qquad K = 10.0$$
+    $$z = \ln\!\left(\frac{p}{1 - p}\right), \quad p = \frac{\mathrm{clip}(\mathrm{RH},\, 0.5,\, 99.5)}{100}, \qquad \mathrm{RH}' = \frac{100}{1 + \exp\!\big(-(z - \delta_g)\big)}$$
+    <p class="eq-note">
+      <strong>RH Logit Space (<code>--rh-logit</code>, <code>IL-142</code>):</strong> Subtracting $\delta_g$ linearly in physical %RH space crushes the dry lower tail into 0%. Fitting and subtracting humidity bias (all 44 RH levels plus <code>rh2m</code>) in clipped logit coordinates guarantees shifted humidities remain smoothly inside $(0, 100)\%$ with zero boundary pile-up.
+    </p>
+  </div>
+
+  <p>
+    <strong>Why both additive modules stayed opt-in:</strong> In-region production models (such as <code>c4w</code>) already achieve small mean bias without site-locked lookup tables, whereas <code>debias.py</code> requires at least 3 historical calibration years at every exact grid point and a full refit for any new launch region. True cross-region generalization is architecturally cleaner in SAMOS anomaly target space (<code>L3-8</code>).
+  </p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.4 Seasonal & diurnal harmonic modulation                           -->
+<!-- ====================================================================== -->
+<section id="s3-1-4" class="subsection">
+  <span class="subsection-num">3.1.4</span>
+  <h2>Seasonal &amp; Diurnal Harmonic Modulation</h2>
+
+  <p>
+    Atmospheric dispersion is strongly non-stationary across both the annual cycle and the 24-hour solar clock: winter jet streams drive deep synoptic wind variance across 5–14 km, whereas summer afternoons at Spaceport America and Midland produce intense convective boundary-layer growth and sharp diurnal heating near the surface. Whenever calibration parameters vary by season or time of day, abrupt step boundaries—such as jumping between May and June tables or flipping instantaneously between 00Z and 12Z balloon regimes—introduce artificial discontinuities into launch-window studies. Tempest-ARKNET resolves these boundaries with smooth circular and harmonic transitions.
+  </p>
+
+  <h3>1. Circularly Smoothed Seasonal Width Scaling (<code>tempest/calibrate/seasonal.py</code> — Opt-In, <code>--seasonal</code>)</h3>
+  <p>
+    Diagnostic stress tables revealed one systematic seasonal pocket where a single annual <code>spread.py</code> map fell short: <strong>summer temperature at 5–12 km</strong>, whose nominal 99% range held only ~96% of real outcomes across all hours of the day (<code>IL-2</code>). For each calendar month $m \in \{1, \dots, 12\}$ holding at least 150 calibration rows and each variable &times; height band, <code>fit_scale()</code> executes <strong>30 iterations of bisection</strong> on $s \in [S_{\min}, S_{\max}] = [0.85, 1.6]$ to find the smallest width multiplier whose widened 199-member min–max envelope achieves at least 99% pooled coverage. The 12 monthly factors are then passed through a <strong>circular 3-month moving average</strong> (<code>smooth_months</code>) wrapping December into January so month transitions remain continuous:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.8 — Monthly 99%-Coverage Bisection &amp; Circular 3-Month Smoothing</span>
+    $$\mathrm{Cov}(s) = \operatorname{mean}\!\Big(\mathbf{1}\big[y \ge \mathrm{med} - s(\mathrm{med} - \mathrm{lo})\;\land\; y \le \mathrm{med} + s(\mathrm{hi} - \mathrm{med})\big]\Big) \ge 0.99, \qquad s \in [0.85,\, 1.6]$$
+    $$\tilde{s}_{m} = \frac{s_{(m - 1) \bmod 12} + s_m + s_{(m + 1) \bmod 12}}{3}, \qquad x' = \mathrm{clip\_ranges}\!\big(\mathrm{med} + \tilde{s}_{m,d}\,(x - \mathrm{med})\big)$$
+    <p class="eq-note">
+      Scaling linearly about the row median preserves member ranks so joint copula geometry and CRPS barely move; <code>restrict(table, variables)</code> also allows restricting seasonal widening to targeted variables (e.g., <code>RH</code> and <code>rh2m</code>). It remained opt-in because fitting 12 monthly factors across only 3 calibration years (2021–2023) risks chasing a single anomalous summer and mildly over-dispersing adjacent months on unseen years.
+    </p>
+  </div>
+
+  <h3>2. Diurnal Solar Modulation: Hard Switch vs. Soft Cosine Ramp (<code>station.py</code>, F-20)</h3>
+  <p>
+    Because IGRA2 radiosondes launch only twice daily—<code>00Z</code> ($\approx$ 17:00 local solar time) and <code>12Z</code> ($\approx$ 05:00 local solar time in West Texas / New Mexico)—two launch classes must represent all 24 hours of the diurnal cycle. <code>station.py</code> supports two assignment modes:
+  </p>
+  <ul>
+    <li><strong>Hard Assignment (<code>blend=False</code>, Default, <code>station.py:219–220</code>):</strong> Selects the single nearest balloon station by Euclidean $(\Delta\phi)^2 + (\Delta\lambda)^2$ and flips launch class instantaneously at 11:00 and 23:00 local solar time (<code>hc = (sh &gt;= 23) | (sh &lt; 11)</code>). Fast and deterministic, but creates a geographic seam near 104.4&deg; W and an abrupt step at 11:00/23:00 solar time.</li>
+    <li><strong>Soft Stochastic Draw (<code>blend=True</code>, <code>F-20</code>, <code>station.py:196–217</code>):</strong> Computes inverse-squared cosine-latitude station weights $w_s$ and a smooth half-cosine diurnal probability ramp $p_{12}(h_{\text{sol}})$ from 1 at 05:00 to 0 at 17:00 solar time, then <strong>stochastically draws one coherent station and one launch class per row</strong> ($s \sim w$, $\text{hc} \sim \text{Bernoulli}(p_{12})$). Neighbouring rows transition seamlessly across space and solar hour without ever averaging two correction tables inside a single atmospheric column.</li>
+  </ul>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.9 — Inverse-Squared Cosine-Latitude Weights &amp; Smooth Diurnal Cosine Ramp</span>
+    $$w_s = \frac{\big[\max\!\big((\phi - \phi_s)^2 + ((\lambda - \lambda_s)\cos\phi)^2,\, 10^{-6}\big)\big]^{-1}}{\sum_{s'} \big[\max\!\big((\phi - \phi_{s'})^2 + ((\lambda - \lambda_{s'})\cos\phi)^2,\, 10^{-6}\big)\big]^{-1}}, \qquad p_{12}(h_{\text{sol}}) = \begin{cases} 1, &amp; h_{\text{sol}} \le 5 \\ \tfrac{1}{2} + \tfrac{1}{2}\cos\!\left(\pi\,\dfrac{h_{\text{sol}} - 5}{12}\right), &amp; 5 &lt; h_{\text{sol}} &lt; 17 \\ 0, &amp; h_{\text{sol}} \ge 17 \end{cases}$$
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.5 Conformalized quantile safety wrappers                           -->
+<!-- ====================================================================== -->
+<section id="s3-1-5" class="subsection">
+  <span class="subsection-num">3.1.5</span>
+  <h2>Conformalized Quantile Safety Wrappers</h2>
+
+  <p>
+    Range-safety envelopes require more than low average error: they require calibrated finite-sample coverage guarantees that hold without assuming Gaussianity. Tempest-ARKNET's calibration suite approaches this from three complementary angles: finite-sample exchangeable order statistics at <code>M_CAL = 199</code> (where the ensemble minimum and maximum naturally bracket $1 - \frac{2}{199 + 1} = 99.0\%$ of exchangeable outcomes), full-CDF Probability Integral Transform (PIT) recalibration (<code>pit_recal.py</code>), and rank-preserving climatology trust blending with a mandatory second-pass conformal re-spread (<code>trust.py</code>).
+  </p>
+
+  <h3>Reading a PIT Histogram &amp; Full-Shape PIT Recalibration (<code>pit_recal.py</code> — Opt-In)</h3>
+  <p>
+    The <strong>Probability Integral Transform (PIT)</strong> asks a single diagnostic question for every forecast and observation: <em>"At what percentile inside our ensemble did the real atmosphere land?"</em> If a 199-member ensemble is probabilistically honest, the truth is statistically exchangeable with any ensemble member, so PIT ranks should be uniformly distributed on $[0, 1]$:
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>PIT Histogram Shape</th>
+          <th>Probabilistic Diagnosis</th>
+          <th>Operational Consequence for Rocket Monte Carlo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Flat (Uniform)</strong></td>
+          <td>Honest ($G(u) = u$)</td>
+          <td>Stated probabilities match empirical frequencies everywhere from median to 99% outer safety bounds.</td>
+        </tr>
+        <tr>
+          <td><strong>U-Shaped (Edge Spikes)</strong></td>
+          <td>Overconfident (Under-dispersed)</td>
+          <td>Ensemble spread is too narrow; real launch-day winds and temperatures repeatedly fall outside the ensemble min–max.</td>
+        </tr>
+        <tr>
+          <td><strong>Dome / Hump (Center Bulge)</strong></td>
+          <td>Underconfident (Over-dispersed)</td>
+          <td>Ensemble spread is too wide; wastes sharpness and triggers unnecessary false-alarm no-go range calls.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Because bounded fields like relative humidity clipped at 0% or 100% frequently produce exact ties ($x_{n,i,d} = y_{n,d}$), <code>pit_values()</code> (<code>pit_recal.py:13–16</code>) breaks ties uniformly at random rather than piling artificial mass onto 0 or 1. For each variable &times; height-band group $g$, <code>fit()</code> tabulates the empirical PIT CDF $G_g(u)$ on a <strong>201-point uniform grid</strong> (<code>np.linspace(0.0, 1.0, 201)</code>, step $0.005$), enforces monotonicity, and inverts $G_g(F(x)) = \ell_i$ by replacing each sorted member at nominal mid-quantile $\ell_i = \frac{i + 0.5}{m}$ with the ensemble's own quantile at warped level $\ell'_i = G_g^{-1}(\ell_i)$ (<code>pit_recal.py:39–51</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.10 — Randomized PIT &amp; 201-Point Inverse-CDF Recalibration</span>
+    $$\mathrm{PIT}_{n,d} = \frac{1}{m}\sum_{i=1}^{m}\mathbf{1}\big[x_{n,i,d} &lt; y_{n,d}\big] + U_{n,d}\cdot\frac{1}{m}\sum_{i=1}^{m}\mathbf{1}\big[x_{n,i,d} = y_{n,d}\big], \qquad U_{n,d} \sim \mathrm{Uniform}(0, 1)$$
+    $$\ell'_i = G_g^{-1}\!\left(\frac{i + 0.5}{m}\right), \qquad \mathrm{pos}_i = \mathrm{clip}\!\big(\ell'_i\,m - 0.5,\; 0,\; m - 1\big), \qquad x^{\text{recal}}_{(i)} = (1 - w_i)\,x_{(i_0)} + w_i\,x_{(i_1)}$$
+    $$x_{\text{res}} = x_{\text{sorted}} + \mathrm{damp}\cdot\big(x^{\text{recal}} - x_{\text{sorted}}\big)$$
+    <p class="eq-note">
+      Here $i_0 = \lfloor \mathrm{pos}_i \rfloor$, $i_1 = \min(i_0 + 1,\, m - 1)$, and $w_i = \mathrm{pos}_i - i_0$. Because $\mathrm{pos}_i$ is clamped inside $[0, m - 1]$, PIT recalibration only reshapes the <em>interior</em> of the sample range and cannot extrapolate outside $[x_{(0)}, x_{(m-1)}]$. Since <code>IL-140</code> (2026-11-08), <code>keep_order=True</code> is the default so <code>apply()</code> scatters recalibrated values back into each column's original member rank order via <code>argsort(argsort(x, axis=1), axis=1)</code>, preserving cross-altitude coupling. Because <code>spread.py</code> already anchors 109 quantiles and can extrapolate tails, <code>pit_recal.py</code> remained opt-in (<code>IL-46</code> / <code>IL-85</code>).
+    </p>
+  </div>
+
+  <h3>Climatology Trust Blend &amp; Second-Pass Conformal Re-Spread (<code>trust.py</code> — Opt-In)</h3>
+  <p>
+    For multi-year climate queries where ENSO and QBO drivers are unknown, certain altitude bands exhibit near-zero CRPS skill over a recent 15-year climatology (<code>ClimPool</code>, grouped by <code>grid point &times; month &times; 2-hour solar bin</code>, falling back to all earlier years if a 15-year cell is empty). On calibration years, <code>trust.py</code> (<code>IL-10</code> &amp; <code>IL-141</code>) grid-searches $w_c \in \mathrm{linspace}(0, 1, 21)$ (step $0.05$) per variable &times; height band to minimize CRPS—with optional <code>--min-gain</code> gating, <code>--skip</code> coverage safeguards, and Gaussian vertical weight smoothing (<code>--smooth-w-m</code>, <code>IL-141</code>) to eliminate step artifacts across the 1, 5, and 12 km band boundaries:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.11 — Rank-Preserving Climatology Trust Blend</span>
+    $$x'_{n,i,c} = w_c\,x_{n,i,c} + (1 - w_c)\,Q_{\text{clim15}}\!\big(r(x_{n,i,c})\big), \qquad r \in \{0, \dots, m - 1\}$$
+    <p class="eq-note">
+      <strong>Mandatory Second-Pass Re-Spread (<code>trust.py:208–217</code>):</strong> Convexly averaging two distributions strictly shrinks variance and erodes 99% outer coverage. <code>trust.py</code> therefore fits a follow-up <code>spread.py</code> quantile map <code>(qz, qu)</code> on the blended ensemble and applies it automatically inside <code>apply_full()</code> (unless <code>--no-second-map</code> is passed). It remained opt-in because leaning on a static 15-year archive lags multi-decadal warming trends on unseen test years and requires shipping a full <code>ClimPool</code> archive.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.6 Elevation shifting (to_site) & dewpoint conservation             -->
+<!-- ====================================================================== -->
+<section id="s3-1-6" class="subsection">
+  <span class="subsection-num">3.1.6</span>
+  <h2>Elevation Shifting (<code>to_site</code>) &amp; Dewpoint Conservation</h2>
+
+  <p>
+    An ERA5 $0.25^\circ$ grid cell represents mean terrain elevation over roughly 625 km&sup2;—which in mountainous West Texas and New Mexico can differ from a specific launch pad or radiosonde release point by 100 to 400 metres. Training the neural network directly on raw surface pressure would force it to spend capacity re-learning ~10,000 Pa of static terrain elevation differences across the pilot box rather than ~500 Pa of dynamic weather variability. Instead, Tempest-ARKNET subtracts the standard-atmosphere pressure offset <code>standard_pressure(z)</code> during training, generates profiles at the native ERA5 grid-point elevation $z_{\text{grid}}$, and finally shifts every completed atmospheric column onto the exact launch-pad elevation $z_{\text{site}}$ via <code>to_site(phys, z_grid, z_site)</code> (<code>tempest/generator/sample.py:81–103</code>, mirrored in <code>_core.site_shift()</code> in the serving engine).
+  </p>
+
+  <h3>Hypsometric Pressure Shift &amp; Exponentially Fading Temperature Adjustment</h3>
+  <p>
+    Let $\Delta z = z_{\text{site}} - z_{\text{grid}}$ denote the elevation difference (positive when the launch pad sits higher than the ERA5 grid cell). Surface temperature $T_{2\text{m}}$ adjusts along the standard tropospheric lapse rate $\Gamma = 0.0065\text{ K/m}$, and surface pressure $p_s$ adjusts via the exact hypsometric equation evaluated at the layer-mean temperature $T_{2\text{m}} - \frac{1}{2}\Gamma\Delta z$. Above the surface, shifting the entire 18 km temperature profile rigidly would falsely cool or warm the stratosphere; conversely, shifting only $T_{2\text{m}}$ would create an unphysical temperature cliff between 2 m and 10 m AGL. <code>to_site()</code> resolves both constraints by multiplying the temperature shift by an exponential decay weight $w(z) = \exp(-z / H_{\text{shift}})$ with scale height <code>SHIFT_SCALE = 1500.0</code> m:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.12 — Hypsometric Pressure Shift &amp; Height-Fading Temperature Profile</span>
+    $$p_s^{\text{site}} = p_s^{\text{grid}} \exp\!\left(-\frac{g_0\,\Delta z}{R_d\,(T_{2\text{m}} - \tfrac{1}{2}\Gamma\,\Delta z)}\right), \qquad T_{2\text{m}}^{\text{site}} = T_{2\text{m}} - \Gamma\,\Delta z$$
+    $$T^{\text{site}}(z_k) = T^{\text{grid}}(z_k) - \Gamma\,\Delta z \cdot \exp\!\left(-\frac{z_k}{1500.0\text{ m}}\right), \qquad k \in \{0, \dots, 43\}$$
+    <p class="eq-note">
+      Constants from <code>tempest/generator/sample.py:72–90</code>: $g_0 = 9.80665\text{ m/s}^2$, $R_d = 287.05\text{ J/(kg}\cdot\text{K)}$, $\Gamma = 0.0065\text{ K/m}$, and $H_{\text{shift}} = 1500.0\text{ m}$. At $z_0 = 10\text{ m}$, $w(10) = 0.9934$, seamlessly matching the 2 m surface shift; by $z = 6000\text{ m}$, $w(6000) = 0.0183$, leaving the free troposphere and stratosphere untouched.
+    </p>
+  </div>
+
+  <h3>Dewpoint Conservation &amp; the <code>AU-9</code> Fix</h3>
+  <p>
+    When an air parcel's temperature changes across a terrain offset without adding or removing water vapor, its actual vapor pressure $e = \frac{\mathrm{RH}}{100}\,e_s(T)$—and therefore its dewpoint temperature $T_d$—remains constant while relative humidity adjusts inversely with saturation vapor pressure $e_s(T)$. <code>to_site()</code> enforces exact dewpoint conservation at both 2 m and all 44 profile levels using the ECMWF saturation vapor pressure formula <code>_es(T)</code> (<code>sample.py:77–78, 96–101</code>):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 3.1.13 — Dewpoint-Conserving Relative Humidity Update (AU-9)</span>
+    $$e_s(T) = 611.21 \exp\!\left(\frac{17.502\,(T - 273.16)}{T - 32.19}\right)$$
+    $$\mathrm{RH}^{\text{site}}(z_k) = \mathrm{clip}\!\left(\mathrm{RH}^{\text{grid}}(z_k)\,\frac{e_s\!\big(T^{\text{grid}}(z_k)\big)}{e_s\!\big(T^{\text{site}}(z_k)\big)},\; 0,\; 100\right)$$
+  </div>
+
+  <div class="callout callout-win">
+    <p class="callout-title">Audit Fix AU-9: Eliminating Double-Faded Humidity Aloft (<code>RH_SHIFT_BLEND = False</code>)</p>
+    <p>
+      An earlier revision blended the dewpoint-conserved humidity back toward $\mathrm{RH}^{\text{grid}}$ using a second factor of $w(z)$: <code>kept * w + rh_old * (1 - w)</code>. Because $T^{\text{site}}(z_k)$ already embeds the exponential decay $w(z)$, multiplying by $w(z)$ a second time applied an unintended $w(z)^2$ attenuation and under-adjusted humidity between 500 m and 3 km AGL. Setting <code>RH_SHIFT_BLEND = False</code> (<code>sample.py:74, 97–98</code>) ensures the fade acts strictly through temperature so dewpoint is conserved cleanly at every altitude.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 3.1.7 Preventing overfitting on sparse stations                        -->
+<!-- ====================================================================== -->
+<section id="s3-1-7" class="subsection">
+  <span class="subsection-num">3.1.7</span>
+  <h2>Preventing Overfitting on Sparse Stations &amp; Canonical Stack Order</h2>
+
+  <p>
+    Calibration layers have far fewer independent years of data than a global reanalysis archive: the pilot box contains only two IGRA2 radiosonde stations, and the held-out post-generation calibration window spans at most three years (<code>2021–2023</code>) so that <code>2024–2025</code> remains an uncontaminated test period. Without aggressive regularization and fail-closed verification, post-processing can easily memorize calibration-year weather anomalies and degrade out-of-sample launch forecasts.
+  </p>
+
+  <h3>Multi-Layer Anti-Overfitting &amp; Anti-Leakage Guardrails</h3>
+  <ul>
+    <li><strong>Minimum Sample Floors:</strong> Every calibrator falls back cleanly to the identity map when data are sparse—<code>ok.sum() &gt;= 50</code> finite pairs per group &times; height in <code>station.py</code> (and $\ge 50$ complete profiles per moisture tercile), $\ge 150$ calibration rows per calendar month in <code>seasonal.py</code>, and <code>min_n = 200</code> finite pairs per 500 m bin in <code>tropo.py</code>.</li>
+    <li><strong>Vertical &amp; Hierarchical Regularization:</strong> <code>station.py</code> offers Whittaker second-difference ridge smoothing ($\lambda D_2^\top D_2$) across the 44 vertical slopes; <code>debias.py</code> shrinks thin 4-hour bins toward the monthly mean with prior weight $K = 10.0$; <code>seasonal.py</code> and monthly <code>shift.py</code> smooth parameters circularly over 3-month windows; and <code>trust.py</code> smooths blend weights vertically with a physical-metre Gaussian kernel (<code>--smooth-w-m</code>).</li>
+    <li><strong>Strict Temporal Partitioning &amp; Hash Binding:</strong> <code>station.py</code> fits exclusively on <code>1991–2020</code>; post-generation tables fit on <code>2021–2023</code> (with <code>debias.py:105–106</code> hard-rejecting <code>year &gt;= 2024</code>); and every exported calibration file embeds the 16-character SHA-256 prefix of its parent generator checkpoint (and parent spread table where applicable) so mismatched artifacts abort immediately.</li>
+  </ul>
+
+  <h3>Exact Post-Generation Stack Order: <code>score.py</code> vs. Confirmed Bug B4 in <code>sonde.py</code></h3>
+  <p>
+    Post-generation calibration operators do <strong>not</strong> commute. Debiasing must precede trust blending so blend weights optimize over unbiased errors; trust blending must precede the Schaake shuffle and shear/lapse maps so those joint operators repair vertical structure; and rare-shear tail patching (<code>shear_tail</code>) must execute <em>last</em> so injected extreme turbulence patches are not compressed back down by <code>shear_map</code>.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 3.1.1 — Canonical 10-Step Post-Generation Calibration Order (<code>score.py:268–355</code>)</h3>
+      <button type="button" class="figure-btn" onclick="openColabLab('lab_03')">Run Stack in Colab Lab 3 &nearr;</button>
+    </div>
+    <pre class="mermaid-src">
+flowchart LR
+  S1["1. spread.apply&lt;br/&gt;Shipped ON · M_CAL=199"] --&gt; S2["2. pit_recal.apply&lt;br/&gt;Opt-in"]
+  S2 --&gt; S3["3. seasonal.apply&lt;br/&gt;Opt-in"]
+  S3 --&gt; S4["4. debias.apply&lt;br/&gt;Opt-in (pre-trust)"]
+  S4 --&gt; S5["5. trust.apply_full&lt;br/&gt;Opt-in (pre-shuffle)"]
+  S5 --&gt; S6["6. shuffle.apply&lt;br/&gt;Shipped ON (Schaake)"]
+  S6 --&gt; S7["7. shear_map.apply&lt;br/&gt;Shipped ON"]
+  S7 --&gt; S8["8. lapse_map.apply&lt;br/&gt;Shipped ON (L21b)"]
+  S8 --&gt; S9["9. shift.apply&lt;br/&gt;Opt-in (month=mon_s)"]
+  S9 --&gt; S10["10. shear_tail.apply&lt;br/&gt;Opt-in (must run LAST)"]
+    </pre>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      Exact execution sequence in <code>tempest/scoring/score.py</code> (lines 268–355). Marginal operators (steps 1–5) execute before joint vertical coherence restoration (steps 6–8), followed by uniform median shift (step 9) and rare-event shear tail injection (step 10).
+    </figcaption>
+  </figure>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Code Bug B4 — Inverted Pipeline &amp; Runtime Crash in <code>tempest/scoring/sonde.py</code> (lines 123–158)</p>
+    <p>
+      Comparing <code>score.py</code> against the radiosonde scoring harness <code>tempest/scoring/sonde.py</code> exposes both a non-commutative ordering bug and a hard runtime crash:
+    </p>
+    <ul>
+      <li><strong>Runtime <code>TypeError</code> Crash (<code>sonde.py:140</code> vs. <code>shift.py:23</code>):</strong> <code>sonde.py</code> calls <code>shift_mod.apply(_sh, x)</code> without passing <code>month=mo</code>, leaving <code>month=None</code>. Evaluating any <code>--by-month</code> <code>(12, D)</code> shift table immediately crashes at <code>np.asarray(month, int) - 1</code>.</li>
+      <li><strong>Inverted Operator Order:</strong> <code>sonde.py</code> runs <code>shear_tail.apply</code> (line 144) <em>before</em> <code>shear_map.apply</code> (line 148)—causing injected 99.9th-percentile shear patches to be remapped—places <code>seasonal.apply</code> (line 152) after shear mapping, and executes <code>trust.apply_full</code> <strong>last</strong> (line 158), breaking the vertical joint shape that <code>shear_map</code> just repaired.</li>
+      <li><strong>Omitted Stages:</strong> <code>sonde.py</code> omits <code>pit_recal</code>, <code>debias</code>, <code>shuffle</code>, and <code>lapse_map</code> from its <code>post</code> pipeline altogether.</li>
+    </ul>
+  </div>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

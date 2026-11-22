@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5.1 Launch-Day Observation Assimilation &mdash; Tempest-ARKNET Monograph</title>
+
+  <!-- Editorial Typography: Source Serif 4 + Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <!-- Editorial Design System -->
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- Mermaid v11: Editorial Light Theme with Large Legible 16px+ Typography -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        background: '#ffffff',
+        primaryColor: '#eff4ff',
+        primaryTextColor: '#17191c',
+        primaryBorderColor: '#1d4ed8',
+        secondaryColor: '#f4f2ed',
+        secondaryTextColor: '#17191c',
+        secondaryBorderColor: '#9ca3af',
+        tertiaryColor: '#fef8ec',
+        tertiaryTextColor: '#17191c',
+        tertiaryBorderColor: '#b45309',
+        lineColor: '#4b5563',
+        textColor: '#17191c',
+        mainBkg: '#eff4ff',
+        nodeBorder: '#1d4ed8',
+        clusterBkg: '#faf9f6',
+        clusterBorder: '#cfc9bc',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        fontSize: '17px'
+      },
+      flowchart: {
+        curve: 'basis',
+        nodeSpacing: 52,
+        rankSpacing: 64,
+        padding: 20,
+        htmlLabels: true
+      }
+    });
+
+    async function renderHiddenMermaidBlocks() {
+      const sources = document.querySelectorAll('.mermaid-src');
+      let idx = 0;
+      for (const srcEl of sources) {
+        const code = (srcEl.textContent || '').trim();
+        const card = srcEl.closest('.figure-stage, figure, section') || srcEl.parentElement;
+        const target = card ? card.querySelector('.mermaid-render') : null;
+        if (!code || !target) continue;
+        try {
+          const { svg } = await mermaid.render(`mmd-ed-${idx++}`, code);
+          target.innerHTML = svg;
+          const svgEl = target.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+          }
+        } catch (err) {
+          target.innerHTML = `<pre style="color:#b91c1c;font-size:0.9rem;">Mermaid render error: ${err.message}</pre>`;
+        }
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderHiddenMermaidBlocks);
+    } else {
+      renderHiddenMermaidBlocks();
+    }
+  </script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="11_assimilation" data-base="../">
+
+  <div class="reading-progress-track">
+    <div id="reading-progress-fill" class="reading-progress-fill"></div>
+  </div>
+
+  <!-- Clean Editorial Top Bar -->
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.9rem;">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+        <span class="topbar-subtitle">Technical Monograph</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-primary" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <!-- Left Expandable Chapter & Subsection Navigation -->
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and subsections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <!-- Main Editorial Content -->
+    <main class="site-main">
+      <article class="article-container">
+        <header class="article-header">
+          <p class="page-kicker">Stage 5 · Launch Day & v2 · Chapter 5.1</p>
+          <h1>5.1 Launch-Day Observation Assimilation</h1>
+          <p class="article-lead">Weighting imperfect launch-morning METAR, HRRR, NEXRAD VAD radar, pad tower, and NOW2 ridge nowcast readings via soft Gaussian Bayesian assimilation, direction-preserving normal-score speed updates, Student-t surprise widening, and physical safety guards.</p>
+          <div class="article-meta"><span>Modules: obs.py, metar.py, hrrr.py, radar.py, nowcast.py, persistence.py, launch.py</span><span>Constants: TAU_H = 6.3 h · OWN_STATION_KM = 5.0 km · VAD_SIGMA_MS = 3.0 m/s</span><span>Interactive Widget 3 · Colab Lab 4</span></div>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 5.1.1 The launch-morning information gap                               -->
+<!-- ====================================================================== -->
+<section id="s5-1-1" class="subsection">
+  <span class="subsection-num">5.1.1</span>
+  <h2>The Launch-Morning Information Gap</h2>
+
+  <p>
+    Before launch morning, Tempest-ARKNET's climate generator and ECMWF/GFS forecast ensembles describe what the atmosphere <em>could</em> do across a synoptic window. Once the rocket rolls onto the pad, however, real measurements begin arriving: an automated airport METAR from 45 km across the basin, a 3 km HRRR surface analysis, a NEXRAD Doppler radar wind profile overhead, a 200 m anemometer mast or tethered drone sounding, or a 6-hour multi-station trend history. Between the last global NWP initialization cycle and T-0, local boundary-layer winds, thermal inversions, and dryline surges evolve on timescales that coarse global grids cannot resolve.
+  </p>
+  <p>
+    Yet none of those live readings is a noiseless copy of the exact air column above the launch rail at ignition. A field observation is imperfect not merely because of anemometer electronics, but because it was measured <em>earlier in time</em> ($\Delta t$), <em>somewhere else horizontally</em> ($d$), or at a <em>different terrain elevation</em> ($\Delta z$). If a launch-day workflow naively pins the pad wind to a 2-hour-old airport METAR 45 km away, it discards real mesoscale uncertainty and collapses the Monte Carlo landing dispersion cone into dangerous false confidence. Conversely, ignoring live readings throws away genuine skill when a real wind ramp is already underway.
+  </p>
+
+  <div class="callout callout-why">
+    <p class="callout-title">Core Mental Model &mdash; Blending Two Imprecise Measurements</p>
+    <p>
+      Every assimilation call in <code>tempest_weather_v2</code> treats launch-day conditioning as <strong>blending two imprecise measurements</strong> of the true pad atmosphere at T-0: the unconditioned ensemble prior $(\mu_{\text{prior}}, \sigma_{\text{prior}})$ and a noisy, aged, or displaced observation $y_{\text{obs}}$. Rather than hard-pinning the ensemble, <code>obs.py</code> computes a dimensionless <strong>effective regression gain</strong> $r \in [0.02, 1.0]$ representing the fraction of the observed anomaly that genuinely transfers to the pad at launch time, then converts $r$ into an equivalent observation standard deviation $\sigma_{\text{obs}}$ so the Gaussian copula in <code>TempestFlightSimEngine.conditioned(..., soft=True)</code> blends both sources strictly by inverse-variance precision.
+    </p>
+  </div>
+
+  <p>
+    The architecture diagram below traces all five live observation pipelines from raw external ingestion through physical bounds checking (<code>OBS_LIMITS</code>), empirical gain and noise conversion, soft Gaussian copula conditioning, non-Gaussian speed-space rescaling, optional Student-$t$ surprise widening, measured-wind gust re-evaluation, and HRRR post-anchoring into the final stratified Latin Hypercube launch pool.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Figure 5.1.1 &mdash; Launch-Day Observation Ingestion, Gain Weighting &amp; Posterior Conditioning</h3>
+      <button type="button" class="figure-btn" onclick="openMermaidZoom(this)">Fullscreen Zoom &#x2922;</button>
+    </div>
+    <pre class="mermaid-src">
+flowchart LR
+  classDef src fill:#eff4ff,stroke:#1d4ed8,color:#17191c,stroke-width:2px;
+  classDef guard fill:#fef2f2,stroke:#b91c1c,color:#17191c,stroke-width:2px;
+  classDef gain fill:#fef8ec,stroke:#b45309,color:#17191c,stroke-width:2px;
+  classDef core fill:#ecfdf5,stroke:#047857,color:#17191c,stroke-width:2px;
+  classDef post fill:#f4f2ed,stroke:#525866,color:#17191c,stroke-width:2px;
+
+  METAR["METAR / IEM&lt;br/&gt;metar.py + obs.py"]:::src
+  HRRR["HRRR 3 km 10 m Wind&lt;br/&gt;hrrr.py (Open-Meteo)"]:::src
+  VAD["NEXRAD Level III NVW&lt;br/&gt;radar.py (500-2000 m)"]:::src
+  TWR["Pad Tower / Drone&lt;br/&gt;observe_tower (&le; 200 m)"]:::src
+  NOW["NOW2 Ridge Nowcast&lt;br/&gt;nowcast.py (1/2/3/6 h)"]:::src
+
+  CHK["OBS_LIMITS Gate&lt;br/&gt;Physical Bounds Check"]:::guard
+  GAIN["obs.effective_gain()&lt;br/&gt;Own-Pad vs Day/Night Rep"]:::gain
+  SIG["observation_sigma()&lt;br/&gt;sigma_obs = s*sqrt(1/r - 1)"]:::gain
+  ENG["Soft Gaussian Copula&lt;br/&gt;engine.conditioned(soft=True)"]:::core
+  SPD["_speed_space_update()&lt;br/&gt;Normal-Score Taper &le; 300 m"]:::post
+  TWID["_t_widen_factor()&lt;br/&gt;Student-t Surprise (nu=8)"]:::post
+  GUST["_regust(measured=True)&lt;br/&gt;+ 4-Sigma Typo Flag"]:::core
+  HAPP["_apply_hrrr()&lt;br/&gt;Median Shift + 0.8x Spread"]:::post
+  POOL["Conditioned Launch Pool&lt;br/&gt;n Stratified LHS Profiles"]:::core
+
+  METAR --&gt; CHK
+  NOW --&gt; CHK
+  CHK --&gt; GAIN
+  GAIN --&gt; SIG
+  VAD --&gt; ENG
+  TWR --&gt; ENG
+  SIG --&gt; ENG
+  ENG --&gt; SPD
+  SPD --&gt; TWID
+  TWID --&gt; GUST
+  GUST --&gt; POOL
+  HRRR --&gt; HAPP
+  HAPP --&gt; POOL
+    </pre>
+    <div class="mermaid-render"></div>
+    <figcaption class="figure-caption">
+      <strong>Pipeline color key:</strong> Blue = five live observation sources; Rose = hard physical bounds rejection guard (<code>OBS_LIMITS</code>); Amber = empirical representativeness gain and inverse-variance noise conversion; Green = soft Gaussian copula conditioning, measured gust refresh, and final stratified LHS pool; Neutral slate = non-Gaussian speed-space rescaling, opt-in Student-$t$ surprise widening, and HRRR surface post-anchoring.
+    </figcaption>
+  </figure>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Observation Source</th>
+          <th>Altitude / Horizon</th>
+          <th>Noise &amp; Weighting Law</th>
+          <th>Verified Skill &amp; Operational Caveat</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>METAR / IEM</strong> (<code>metar.py</code>, <code>obs.py</code>)</td>
+          <td>10 m wind, 2 m $T$, altimeter; $\le 6\text{ h}$ old</td>
+          <td>Own-pad $e^{-\Delta t/6.3}$ or Day/Night <code>REP_TABLE</code> + <code>_speed_space_update</code></td>
+          <td>Skips <code>VRB</code> winds; speed-space lifts 90% coverage to <strong>0.81 (TCS) / 0.91 (MAF)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>HRRR 3 km</strong> (<code>hrrr.py</code>)</td>
+          <td>10 m wind tapering to 300 m; up to +2 d</td>
+          <td><code>HRRR_WEIGHT = 1.0</code>, <code>SPREAD_SCALE = 0.8</code></td>
+          <td><strong>Caveat (B16):</strong> 0.839 vs 0.841 ERA5 at unassimilated USCRN Las Cruces</td>
+        </tr>
+        <tr>
+          <td><strong>NEXRAD VAD</strong> (<code>radar.py</code>)</td>
+          <td>500, 1000, 1500, 2000 m AGL; $\le 45\text{ min}$</td>
+          <td><code>VAD_SIGMA_MS = 3.0 m/s</code> (MetPy Level III)</td>
+          <td><strong>+31.3% CRPS at 2.5&ndash;5 km</strong>, cov 0.93&ndash;0.94 (co-located EPZ); distant radar unmeasured</td>
+        </tr>
+        <tr>
+          <td><strong>Pad Tower / Drone</strong> (<code>observe_tower</code>)</td>
+          <td>Canonical model heights $\le 200\text{ m}$ AGL</td>
+          <td><code>sigma_ms = 0.5 m/s</code> via <code>observe_radar</code></td>
+          <td><strong>&minus;49% CRPS</strong> on 50&ndash;150 m wind at 30-min lead (SWiFT 200 m tower, <code>b67</code>)</td>
+        </tr>
+        <tr>
+          <td><strong>NOW2 Nowcast</strong> (<code>nowcast.py</code>)</td>
+          <td>10 m wind at exact 1 / 2 / 3 / 6 h leads</td>
+          <td>31-feature day/night ridge; back-solved gain $g$</td>
+          <td><strong>+7.0% to +8.5% CRPS</strong> vs single <code>observe()</code> across all 9 stations, cov 0.908</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.2 Live METAR, ASOS, pad & pibal feeds                              -->
+<!-- ====================================================================== -->
+<section id="s5-1-2" class="subsection">
+  <span class="subsection-num">5.1.2</span>
+  <h2>Live METAR, ASOS, Pad Tower, HRRR &amp; Nowcast Feeds</h2>
+
+  <p>
+    Tempest-ARKNET separates <em>fetching and parsing</em> from <em>statistical weighting</em> so that offline range tests, historical replay benchmarks, and live pad operations execute the exact same conditioning math. Four surface and boundary-layer pipelines feed launch-morning data into <code>Launch</code> (with upper-air NEXRAD VAD radar covered separately in Section 5.1.6).
+  </p>
+
+  <h3>1. METAR / SPECI Offline Parser &amp; Live IEM Fetch (<code>metar.py</code> + <code>obs.py</code>)</h3>
+  <p>
+    <code>tempest_weather_v2/metar.py</code> is a zero-dependency standard-library parser that converts raw aviation METAR/SPECI strings (for example, <code>KTCS 241553Z 19002KT 10SM CLR 23/12 A3012 RMK AO2</code>) into immutable <code>Metar</code> records. Everything after the <code>RMK</code> token is discarded before group extraction so automated remarks (such as peak wind or sea-level pressure codes) never collide with primary wind or temperature groups.
+  </p>
+  <ul>
+    <li><strong>Wind units &amp; gusts:</strong> Parses knots (<code>KT</code>, multiplied by $0.514444\text{ m/s}$), meters per second (<code>MPS</code>), and kilometers per hour (<code>KMH</code>, divided by $3.6$), optional gusts (<code>Ggg</code>), and calm winds (<code>00000KT</code>). Variable-direction winds (<code>VRB</code>) are deliberately omitted from <code>observation_kwargs()</code> because a scalar speed without a bearing cannot condition Cartesian $(u, v)$; the <code>dddVddd</code> directional-spread token is preserved for display only.</li>
+    <li><strong>Thermodynamics &amp; altimetry:</strong> Handles <code>M</code>-prefixed negative temperatures and dewpoints, US altimeter settings (<code>A####</code> in hundredths of inHg $\times 33.8639\text{ hPa}$), and international QNH (<code>Q####</code> hPa).</li>
+    <li><strong>Automated IEM retrieval &amp; anti-leakage guard:</strong> <code>Launch.observe_latest(max_km=150.0, hours=6, k=3)</code> queries the keyless Iowa Environmental Mesonet (<code>IEM_URL</code>) through rate-limited <code>_net.fetch(..., service="iem")</code> across the $k = 3$ nearest ASOS stations, clamps the query window cutoff to <code>min(t0, now)</code> so future reports never leak during historical replays, converts sea-level altimeter readings back to pad station pressure via <code>weather_calc.station_pressure_hpa()</code>, and skips any station whose report violates <code>OBS_LIMITS</code>.</li>
+  </ul>
+
+  <h3>2. HRRR 3 km 10 m Wind Anchor (<code>hrrr.py</code> + <code>Launch.observe_hrrr()</code>)</h3>
+  <p>
+    <code>hrrr.fetch_wind()</code> retrieves NOAA's 3 km CONUS High-Resolution Rapid Refresh 10 m wind (<code>ncep_hrrr_conus</code>) from Open-Meteo's keyless archive (for dates older than 2 days, stitching the near-analysis opening hours of each run) or live forecast API (up to +2 days ahead). Inside <code>Launch._apply_hrrr()</code>, every ensemble member's near-surface $(u, v)$ is shifted toward HRRR's 10 m value using <code>HRRR_WEIGHT = 1.0</code> (fitted 0.98 $u$ / 1.00 $v$ on 2021&ndash;2023) and compressed in spread by <code>SPREAD_SCALE = 0.8</code>, with both adjustments tapering linearly to zero at <code>TAPER_TOP_M = 300.0 m</code> before re-evaluating 10 m gusts.
+  </p>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Critical Validation Caveat &mdash; HRRR Airport-Assimilation Bias (B16)</p>
+    <p>
+      On 240 airport ASOS cases at <code>TCS</code> and <code>MAF</code> (2024&ndash;2025), HRRR appeared dramatically superior: CRPS <strong>1.04</strong> vs. 1.17 for past mode and 1.98 for climate mode (0.76 combined), with correlation <strong>0.873 vs. 0.737</strong> for ERA5 at TCS. <strong>However, HRRR directly assimilates airport ASOS stations.</strong> When evaluated independently against an unassimilated desert basin station (<strong>USCRN Las Cruces 20 N</strong>, <code>scripts/hrrr_vs_uscrn.py</code>, 2026-11-08), HRRR showed <strong>zero advantage over ERA5: correlation 0.839 vs. 0.841</strong>. At remote desert launch pads lacking a co-located ASOS sensor, expect no near-analysis gain over ERA5&mdash;and multi-hour forecast lead skill remains unmeasured (explicitly flagged in <code>Launch.trust</code>).
+    </p>
+  </div>
+
+  <h3>3. Pad Tower, Drone &amp; Pibal Mast Soundings (<code>Launch.observe_tower()</code>)</h3>
+  <p>
+    The lowest 200 m above the launch rail governs rocket weathercocking, rail-exit angle of attack, and apogee scatter. <code>Launch.observe_tower(heights_agl_m, u, v, sigma_ms=0.5)</code> accepts a local anemometer mast, tethered balloon, pibal, or multirotor drone wind profile, converts the AGL heights to ASL using the pad elevation, and delegates directly to <code>observe_radar()</code> across all canonical model heights $\le 200\text{ m}$ (<code>10, 50, 100, 150, 200 m</code> AGL) with tight local sensor uncertainty <code>sigma_ms = 0.5 m/s</code>. Validated on the Texas Tech SWiFT 200 m meteorological tower (kit <code>b67</code> PASS), layering <code>observe_tower()</code> on top of the same tower's 10 m <code>observe()</code> reduced 50&ndash;150 m wind CRPS by <strong>&minus;49%</strong> at 30-minute lead.
+  </p>
+
+  <h3>4. NOW2 Multi-Station Ridge Nowcast (<code>nowcast.py</code> + <code>Launch.observe_nowcast()</code>)</h3>
+  <p>
+    A single latest METAR snapshot cannot tell whether a synoptic wind ramp is accelerating or subsiding. <code>nowcast.py</code> predicts 10 m $(u, v)$ at exact leads <code>LEADS = (1, 2, 3, 6)</code> hours (explicitly refusing unmeasured intermediate leads) for any of the 9 regional ASOS stations in <code>obs.STATIONS</code> using a <strong>31-feature ridge regression</strong> on month &times; UTC-hour standardized anomalies: <strong>6 own hourly $(u, v)$ lags</strong> (12 features) plus <strong>3 lags from each of the 3 nearest neighbor stations</strong> (18 features) plus an intercept (1 feature), with separate day (<code>0</code>) and night (<code>1</code>) weight matrices <code>B</code> of shape <code>(31, 2)</code> and predictive residual standard deviations <code>S</code> stored in <code>data/nowcast.npz</code>.
+  </p>
+  <p>
+    To route the ridge prediction seamlessly through <code>Launch.observe()</code>, <code>nowcast.predict()</code> converts the mean normalized residual variance $\bar{s}_{\text{pred}}^2$ into an equivalent soft-observation gain $g = \text{clip}(1 - \bar{s}_{\text{pred}}^2,\, 0.02,\, 1.0)$. When the target station sits within 5 km of the pad, <code>observe_nowcast()</code> back-solves the virtual reading and equivalent report age $\Delta t_{\text{eq}} = -6.3 \ln(g)$ so the standard Gaussian update lands on the exact nowcast median and variance. Tested on 2015&ndash;2017 across all 9 stations, NOW2 beat single-reading <code>observe()</code> at every station by <strong>+8.3% (+1 h), +8.5% (+2 h), +8.2% (+3 h), and +7.0% (+6 h) CRPS</strong> with <strong>0.908</strong> 90% coverage.
+  </p>
+
+  <h3>5. Two-Tier Physical Safety Guards (<code>OBS_LIMITS</code> &amp; $&gt; 4\sigma$ Outlier Policy)</h3>
+  <p>
+    Before any reading enters the Gaussian copula, <code>Launch._check_observation()</code> (<code>launch.py:618&ndash;640</code>) enforces a strict <strong>Tier 1 hard physical gate</strong>, raising <code>ValueError</code> on non-finite values, negative ages or distances, or readings outside Earth-surface physical bounds (catching unit mix-ups such as knots entered as m/s, Fahrenheit entered as Celsius, or broken sensor sentinels):
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Observation Variable</th>
+          <th>Allowed Physical Range (<code>OBS_LIMITS</code>)</th>
+          <th>Failure Mode Caught</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>wind_10m</code></td>
+          <td><code>0.0</code> to <code>100.0 m/s</code></td>
+          <td>Negative speeds, sentinel codes (999), unit blowups</td>
+        </tr>
+        <tr>
+          <td><code>wind_from_deg</code></td>
+          <td><code>0.0</code> to <code>360.0 deg</code></td>
+          <td>Unwrapped angles or invalid bearing flags</td>
+        </tr>
+        <tr>
+          <td><code>temperature</code></td>
+          <td><code>&minus;90.0</code> to <code>60.0 &deg;C</code></td>
+          <td>Kelvin (298) or Fahrenheit (95&deg;F) accidentally passed as &deg;C</td>
+        </tr>
+        <tr>
+          <td><code>station_pressure</code></td>
+          <td><code>300.0</code> to <code>1100.0 hPa</code></td>
+          <td>Pascals (101325) or inHg (29.92) passed instead of hPa</td>
+        </tr>
+        <tr>
+          <td><code>altimeter</code></td>
+          <td><code>850.0</code> to <code>1100.0 hPa</code></td>
+          <td>Unconverted US altimeter (30.12 inHg) or corrupted pressure</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Tier 2 &mdash; $&gt; 4\sigma$ Outlier Flagging (Keep as Real Weather, Never Silently Drop)</p>
+    <p>
+      Inside <code>_conditioned_pool()</code> (<code>launch.py:474&ndash;482</code>), any measurement that clears <code>OBS_LIMITS</code> yet deviates from the prior median by more than <strong>$4\sigma$</strong> ($|y - \text{med}| / \sigma_{\text{prior}} &gt; 4.0$) is <strong>kept as real weather</strong>&mdash;because real cold fronts, drylines, and convective outflows genuinely live past $4\sigma$&mdash;while appending an explicit audit warning to <code>Launch.trust</code>:
+    </p>
+    <pre><code>observation-far-outside-the-prior-&lt;vars&gt;-kept-as-real-check-for-a-typo</code></pre>
+    <p>
+      This prevents silent suppression of hazardous launch-day extremes while alerting the range safety officer if a plausible-looking decimal typo (such as typing <code>35 m/s</code> instead of <code>3.5 m/s</code>) slipped inside <code>OBS_LIMITS</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.3 Exponential lead-time decay (tau_h = 6.3 h)                      -->
+<!-- ====================================================================== -->
+<section id="s5-1-3" class="subsection">
+  <span class="subsection-num">5.1.3</span>
+  <h2>Exponential Lead-Time Decay (<code>TAU_H = 6.3 h</code>)</h2>
+
+  <p>
+    When an anemometer sits directly on or beside the launch rail (horizontal distance $d &lt; 5.0\text{ km}$, governed by <code>OWN_STATION_KM = 5.0</code>), spatial representativeness error vanishes. The sole reason the reading is an imperfect predictor of T-0 winds is <strong>temporal decorrelation</strong>: turbulent eddies advect downstream, daytime mixing deepens, and mesoscale pressure gradients shift between the measurement timestamp and ignition.
+  </p>
+  <p>
+    In <code>tempest_weather_v2/obs.py</code>, own-pad skill decays exponentially with report age $\Delta t \ge 0$ (hours) using the empirically fitted e-folding timescale <code>TAU_H = 6.3</code> hours and a hard numerical floor of <code>0.02</code>:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.1 &mdash; Own-Pad Persistence Gain Law (<code>obs.persistence_gain</code>, $d &lt; 5.0\text{ km}$)</span>
+    $$r_{\text{own}}(\Delta t) = \max\!\left(\exp\!\left(-\frac{\max(\Delta t,\, 0)}{6.3}\right),\; 0.02\right), \qquad \texttt{TAU\_H} = 6.3\text{ h}$$
+    <p class="eq-note">
+      <strong>Empirical Calibration (Benchmark GW-1):</strong> Across same-station ASOS persistence pairs, benchmark <code>GW-1</code> measured an anomaly regression gain of <strong>0.80 ($u$) / 0.88 ($v$)</strong> at $\Delta t = 1\text{ h}$ and <strong>0.63 ($u$) / 0.66 ($v$)</strong> at $\Delta t = 3\text{ h}$. The single-parameter exponential with $\tau_h = 6.3\text{ h}$ reproduces this decay tightly, giving $e^{-1/6.3} = \mathbf{0.853}$ at 1 h and $e^{-3/6.3} = \mathbf{0.621}$ at 3 h, while reaching the <code>0.02</code> floor at $\Delta t = -6.3 \ln(0.02) \approx \mathbf{24.6\text{ h}}$.
+    </p>
+  </div>
+
+  <p>
+    Because the Gaussian copula converts gain $r$ into equivalent observation noise $\sigma_{\text{obs}}/\sigma_{\text{prior}} = \sqrt{1/r - 1}$ and shrinks posterior standard deviation to $\sigma_{\text{post}}/\sigma_{\text{prior}} = \sqrt{1 - r}$ (derived in Section 5.1.5), the 6.3-hour decay constant maps directly onto intuitive launch-countdown behavior:
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Report Age $\Delta t$</th>
+          <th>Persistence Gain $r_{\text{own}}(\Delta t)$</th>
+          <th>Noise Ratio $\sigma_{\text{obs}} / \sigma_{\text{prior}}$</th>
+          <th>Posterior Spread $\sigma_{\text{post}} / \sigma_{\text{prior}}$</th>
+          <th>Operational Interpretation at the Pad</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>0.0 h</strong> (live)</td>
+          <td><code>1.000</code></td>
+          <td><code>0.001</code> (floor)</td>
+          <td><code>~0.001</code></td>
+          <td>Exact lock on live pad reading; variance collapses at 10 m</td>
+        </tr>
+        <tr>
+          <td><strong>0.5 h</strong></td>
+          <td><code>0.924</code></td>
+          <td><code>0.287</code></td>
+          <td><code>0.276</code></td>
+          <td>High-precision anchor; 92% of anomaly transfers to T-0</td>
+        </tr>
+        <tr>
+          <td><strong>1.0 h</strong></td>
+          <td><code>0.853</code></td>
+          <td><code>0.415</code></td>
+          <td><code>0.383</code></td>
+          <td>Strong skill (matches GW-1 0.80&ndash;0.88); spread cut by 62%</td>
+        </tr>
+        <tr>
+          <td><strong>2.0 h</strong></td>
+          <td><code>0.728</code></td>
+          <td><code>0.611</code></td>
+          <td><code>0.522</code></td>
+          <td>Moderate anchor; roughly half the prior spread remains</td>
+        </tr>
+        <tr>
+          <td><strong>3.0 h</strong></td>
+          <td><code>0.621</code></td>
+          <td><code>0.781</code></td>
+          <td><code>0.615</code></td>
+          <td>Matches GW-1 0.63&ndash;0.66; prior carries 38% of median weight</td>
+        </tr>
+        <tr>
+          <td><strong>4.37 h</strong> (half-life)</td>
+          <td><code>0.500</code></td>
+          <td><code>1.000</code></td>
+          <td><code>0.707</code></td>
+          <td>Equal precision: median lands halfway between prior &amp; obs</td>
+        </tr>
+        <tr>
+          <td><strong>6.0 h</strong></td>
+          <td><code>0.386</code></td>
+          <td><code>1.262</code></td>
+          <td><code>0.784</code></td>
+          <td>Stale report; ensemble prior dominates the posterior</td>
+        </tr>
+        <tr>
+          <td><strong>&ge; 24.6 h</strong></td>
+          <td><code>0.020</code> (floor)</td>
+          <td><code>7.000</code></td>
+          <td><code>0.990</code></td>
+          <td>Negligible precision; prior left virtually untouched</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Upper-Air Persistence Reference (<code>persistence.py</code> &amp; the NASA Shuttle Upper Bound)</h3>
+  <p>
+    Surface persistence at 10 m decays far faster than synoptic winds aloft. For height-by-height persistence diagnostics&mdash;modeled on NASA's Space Shuttle &ldquo;wind in-persistence&rdquo; operational concept&mdash;<code>tempest_weather_v2/persistence.py</code> reads a precomputed ERA5 lag-correlation table (<code>models/coherence_lagcorr.npz</code>, shaped <code>4 seasons &times; 13 lags (0&ndash;12 h) &times; 176 columns</code>) and computes the expected RMS wind-change spread over lag $\Delta t$ as:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.2 &mdash; Lag-Correlation Wind-Change Standard Deviation (<code>persistence.py</code>)</span>
+    $$\operatorname{sd}_{\text{change}}(z, \Delta t) = \sqrt{2\,\big(1 - \rho_{\text{ERA5}}(z, \Delta t)\big)}$$
+  </div>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Why <code>persistence.py</code> Is Strictly an Upper Bound on Persistence</p>
+    <p>
+      In ERA5, 3-hour lag correlation remains remarkably high aloft&mdash;<strong>0.90&ndash;0.94 at 2 km</strong> and <strong>0.96&ndash;0.97 at 10 km</strong> compared to <strong>0.76&ndash;0.87 at 10 m</strong>. However, $0.25^\circ$ (~28 km) ERA5 reanalysis smooths out mesoscale gravity waves and thin wind-shear laminae shorter than ~1.3 km vertically. Historical NASA Shuttle paired Jimsphere balloon releases demonstrated that those fine-scale features decorrelate within <strong>90 minutes</strong>. Consequently, <code>persistence.py</code> documents an optimistic <em>large-scale upper bound</em> on upper-air persistence, not a guarantee against sub-grid wind-shear drift between pre-launch soundings.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.4 Own-station radius (5.0 km) & representativeness                 -->
+<!-- ====================================================================== -->
+<section id="s5-1-4" class="subsection">
+  <span class="subsection-num">5.1.4</span>
+  <h2>Own-Station Radius (<code>5.0 km</code>) &amp; Cross-Station Representativeness</h2>
+
+  <p>
+    Most amateur, collegiate (IREC), and commercial desert launch sites do not sit directly on an FAA ASOS runway. Spaceport America, for instance, sits roughly 45 km southeast of Truth or Consequences Municipal Airport (<code>TCS</code>) across desert basin terrain. Once a weather station lies at or beyond <code>OWN_STATION_KM = 5.0 km</code> from the pad, horizontal separation $d$, terrain elevation difference $|\Delta z|$, and atmospheric boundary-layer stability dominate the error budget far more than a 30-minute timestamp lag.
+  </p>
+  <p>
+    To quantify how much signal survives across space, elevation, and time, Tempest-ARKNET fits a leave-one-station-out (LOSO) regression (<code>scripts/obs_loso.py</code>, 2015&ndash;2022) on month &times; UTC-hour wind anomalies across <strong>9 southern New Mexico and West Texas ASOS stations</strong>: <code>TCS</code> (Truth or Consequences, 1479 m), <code>ONM</code> (Socorro, 1486 m), <code>LRU</code> (Las Cruces, 1357 m), <code>ELP</code> (El Paso, 1206 m), <code>ALM</code> (Alamogordo, 1304 m), <code>MAF</code> (Midland, 872 m), <code>FST</code> (Fort Stockton, 920 m), <code>PEQ</code> (Pecos, 790 m), and <code>ABQ</code> (Albuquerque, 1619 m).
+  </p>
+
+  <h3>Day &ldquo;Communicating Room&rdquo; vs. Night Cold-Pool Inversion</h3>
+  <p>
+    The LOSO study uncovered a sharp physical bifurcation between convective daytime mixing and stable nocturnal inversions, encoded via the piecewise-linear solar weight <code>obs.night_weight(solar_hour)</code>:
+  </p>
+  <ul>
+    <li><strong>Daytime well-mixed &ldquo;communicating room&rdquo; ($w_n = 0$, solar 08&ndash;17 h):</strong> Solar heating drives deep convective thermals that couple the entire basin vertically and horizontally. Even a station 50 km away retains a base gain of <strong>0.62</strong>, vertical decoupling decays slowly with elevation scale <code>REP_DZ["day"] = 1317.0 m</code>, and cross-station reports remain flat for 2 hours before decaying slowly beyond 6 hours (<code>TAU_X["day"] = 27.0 h</code>).</li>
+    <li><strong>Nighttime isolated cold-pool inversion ($w_n = 1$, solar 20&ndash;05 h):</strong> Radiative cooling traps shallow, decoupled drainage pools inside local arroyos and valley floors. Base gain drops to <strong>0.48</strong> at 50 km and <strong>0.18</strong> at 500 km, elevation coupling tightens to <code>REP_DZ["night"] = 919.0 m</code>, and reports stale more than twice as fast beyond 6 hours (<code>TAU_X["night"] = 12.0 h</code>).</li>
+    <li><strong>Dawn &amp; dusk linear transitions:</strong> Between solar 05&ndash;08 h, $w_n = (8 - h)/3$ ramps smoothly from $1 \to 0$; between solar 17&ndash;20 h, $w_n = (h - 17)/3$ ramps smoothly from $0 \to 1$.</li>
+  </ul>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.3 &mdash; Unified Effective Gain Dispatch (<code>obs.effective_gain</code>)</span>
+    $$r_{\text{eff}}(\Delta t, d, \Delta z, w_n) = \begin{cases} \max\!\left(e^{-\Delta t / 6.3},\; 0.02\right) &amp; \text{if } d &lt; 5.0\text{ km (own pad)} \\[6pt] \max\!\left(r_{\text{dist}}(d, w_n)\cdot \exp\!\left(-\dfrac{|\Delta z|}{H_{\text{dn}}(w_n)}\right)\cdot f_{\text{age}}(\Delta t, w_n),\; 0.02\right) &amp; \text{if } d \ge 5.0\text{ km (off-site)} \end{cases}$$
+    $$H_{\text{dn}}(w_n) = (1 - w_n)\,1317.0 + w_n\,919.0\;\text{m}, \qquad f_{\text{age}}(\Delta t &gt; 6) = f_{\text{age}}(6)\cdot \exp\!\left(-\frac{\Delta t - 6}{\tau_{x,\text{regime}}}\right)$$
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Stability Regime</th>
+          <th>Distance Gain $r_{\text{dist}}(d)$ (0 / 50 / 150 / 275 / 500 km)</th>
+          <th>Elevation Scale <code>REP_DZ</code></th>
+          <th>Age Factor $f_{\text{age}}$ (0 / 1 / 2 / 3 / 6 h)</th>
+          <th>Tail Decay <code>TAU_X</code> ($&gt; 6\text{ h}$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Day</strong> (solar 08&ndash;17 h, $w_n = 0$)</td>
+          <td><code>0.66 &middot; 0.62 &middot; 0.46 &middot; 0.36 &middot; 0.32</code></td>
+          <td><code>1317.0 m</code></td>
+          <td><code>1.00 &middot; 1.00 &middot; 1.00 &middot; 0.97 &middot; 0.81</code></td>
+          <td><code>27.0 h</code></td>
+        </tr>
+        <tr>
+          <td><strong>Night</strong> (solar 20&ndash;05 h, $w_n = 1$)</td>
+          <td><code>0.52 &middot; 0.48 &middot; 0.31 &middot; 0.20 &middot; 0.18</code></td>
+          <td><code>919.0 m</code></td>
+          <td><code>1.00 &middot; 0.98 &middot; 0.92 &middot; 0.83 &middot; 0.60</code></td>
+          <td><code>12.0 h</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-win">
+    <p class="callout-title">Worked Example &mdash; Spaceport America Assimilating a 1-Hour-Old <code>TCS</code> METAR</p>
+    <p>
+      Consider Spaceport America assimilating a 1-hour-old METAR from <code>TCS</code> ($d = 45\text{ km} \ge 5.0\text{ km}$, $|\Delta z| = 70\text{ m}$):
+    </p>
+    <ul>
+      <li><strong>Late morning (11:00 solar, $w_n = 0$):</strong> Linear interpolation on <code>REP_TABLE["day"]</code> gives $r_{\text{dist}}(45) = 0.624$; elevation attenuation gives $e^{-70/1317} = 0.948$; 1-hour age factor is $1.00$. Total gain $r = \mathbf{0.592}$, yielding $\sigma_{\text{obs}} = 0.83\,\sigma_{\text{prior}}$ and pulling the pad median 59% of the way toward the <code>TCS</code> anomaly.</li>
+      <li><strong>Pre-dawn (02:00 solar, $w_n = 1$):</strong> Nighttime interpolation gives $r_{\text{dist}}(45) = 0.484$; elevation attenuation tightens to $e^{-70/919} = 0.927$; 1-hour age factor is $0.98$. Total gain drops to $r = \mathbf{0.440}$, increasing equivalent observation noise to $\sigma_{\text{obs}} = 1.13\,\sigma_{\text{prior}}$ so the decoupled cold-pool airport reading cannot falsely hijack the pad ensemble.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.5 Kalman / Bayesian posterior ensemble update                      -->
+<!-- ====================================================================== -->
+<section id="s5-1-5" class="subsection">
+  <span class="subsection-num">5.1.5</span>
+  <h2>Kalman / Bayesian Posterior Ensemble Update</h2>
+
+  <p>
+    Once <code>obs.effective_gain()</code> determines how much weight $r$ an observation deserves, Tempest-ARKNET executes a four-stage Bayesian conditioning stack inside <code>Launch._conditioned_pool()</code>: (1) gain-to-sigma conversion and multivariate Gaussian copula Kalman update, (2) non-Gaussian 10 m speed-space rescaling, (3) optional Student-$t$ surprise widening, and (4) measured-wind gust re-evaluation.
+  </p>
+
+  <h3>1. Converting Gain $r$ to Sensor Noise $\sigma_{\text{obs}}$ &amp; Multivariate Schur Complement</h3>
+  <p>
+    In a 1D conjugate Gaussian update, blending a prior $\mathcal{N}(\mu_{\text{prior}}, \sigma_{\text{prior}}^2)$ with a noisy measurement $\mathcal{N}(y_{\text{obs}}, \sigma_{\text{obs}}^2)$ shifts the posterior mean by the scalar Kalman gain $r = \sigma_{\text{prior}}^2 / (\sigma_{\text{prior}}^2 + \sigma_{\text{obs}}^2)$. Inverting this identity for $\sigma_{\text{obs}}$ yields <code>obs.observation_sigma(prior_sd, gain)</code> (clamped to $r \in [0.02, 1.0]$ and floored at $10^{-3}\max(\sigma_{\text{prior}}, 10^{-6})$ for numerical stability):
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.4 &mdash; Equivalent Observation Noise &amp; Posterior Moments (<code>obs.observation_sigma</code>)</span>
+    $$\sigma_{\text{obs}} = \sigma_{\text{prior}}\sqrt{\frac{1}{r} - 1}, \qquad \mu_{\text{post}} = (1 - r)\,\mu_{\text{prior}} + r\,y_{\text{obs}}, \qquad \sigma_{\text{post}} = \sigma_{\text{prior}}\sqrt{1 - r}$$
+    <p class="eq-note">
+      <strong>Three Calibration Regimes:</strong>
+      (i) <strong>Noiseless lock ($r \to 1 \implies \sigma_{\text{obs}} \to 10^{-3}\sigma_{\text{prior}}$):</strong> a fresh pad reading pins the observed level and propagates the update vertically through the prior correlation matrix;
+      (ii) <strong>Midpoint calibration ($r = 0.5 \implies \sigma_{\text{obs}} = \sigma_{\text{prior}}$):</strong> both sources carry equal precision, placing $\mu_{\text{post}}$ halfway between prior and observation and shrinking spread to $0.707\,\sigma_{\text{prior}}$;
+      (iii) <strong>Prior untouched ($r \to 0.02 \implies \sigma_{\text{obs}} = 7.0\,\sigma_{\text{prior}}$):</strong> stale or remote nighttime readings contribute negligible precision, leaving the unconditioned ensemble virtually unchanged.
+    </p>
+  </div>
+
+  <p>
+    In the full $P$-dimensional vertical profile state, <code>Launch._conditioned_pool()</code> passes these per-variable sigmas into <code>base.engine().conditioned(eng_obs, sensor_sigma=sig, soft=sig is not None, inflate_decay_m=INFLATE_DECAY_M)</code>, which computes the multivariate Kalman gain matrix $\mathbf{K} = \mathbf{C}_{\text{all}, o}(\mathbf{C}_{oo} + \mathbf{R})^{-1}$ and Schur-complement posterior covariance $\mathbf{S}_{\text{post}} = \mathbf{C} - \mathbf{K}\mathbf{C}_{\text{all}, o}^\top$ in normal-score copula space. Posterior ensemble members are drawn via 16-dimensional stratified Latin Hypercube Sampling (<code>latin_hypercube(n, 16)</code>) for low-discrepancy variance reduction, followed immediately by a mandatory gust-law refresh (<code>_regust(..., measured=MEASURED_GUST_LAW)</code>), which switches from the model-wind gust parameterization to the gust law fitted on <em>measured</em> anemometer winds&mdash;cutting validation gust CRPS from <strong>0.93 &rarr; 0.51</strong> overall and from <strong>12.95 &rarr; 1.40</strong> above 16 m/s.
+  </p>
+
+  <h3>2. Speed-Space Normal-Score Update (<code>OBS_SPEED_SPACE = True</code>)</h3>
+  <p>
+    Conditioning on Cartesian wind components $(u_{10}, v_{10})$ inside a Gaussian copula accurately updates wind direction and upper-air shear, but it systematically distorts <strong>scalar wind speed</strong> $s = \sqrt{u^2 + v^2}$ near the ground. Because surface wind speed is strictly non-negative and Weibull-skewed, independent Gaussian shrinkage on $u$ and $v$ compresses speed tails too aggressively&mdash;leaving 90% speed prediction intervals under-covered (only <strong>74% at TCS</strong> and <strong>85% at MAF</strong> in component-only ablation tests).
+  </p>
+  <p>
+    For every <strong>soft observation</strong> (whenever <code>age_hours</code>, <code>distance_km</code>, or <code>elevation_diff_m</code> is supplied), <code>_speed_space_update()</code> runs right after the Gaussian copula step and rescales the conditioned wind vectors inside the prior pool's own empirical normal-score space:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.5 &mdash; Normal-Score Speed Update &amp; Direction-Preserving Vector Taper (<code>launch.py::_speed_space_update</code>)</span>
+    $$z_{\text{obs}} = \Phi^{-1}\!\big(F_{\text{prior}}(s_{\text{obs}})\big), \qquad z_i \sim \mathcal{N}\!\big(\rho\, z_{\text{obs}},\; 1 - \rho^2\big), \qquad s_{\text{target}, i} = F_{\text{prior}}^{-1}\!\big(\Phi(z_i)\big)$$
+    $$\rho = \begin{cases} \min\!\left(0.72^{\Delta t},\; 0.97\right) &amp; \text{if } d &lt; 5.0\text{ km (own pad)} \\ \min\!\left(r_{\text{report}},\; 0.72^{\Delta t},\; 0.97\right) &amp; \text{if } d \ge 5.0\text{ km (off-site, } \texttt{NEIGHBOUR\_RHO\_FROM\_GAIN = True}\text{)} \end{cases}$$
+    $$k_i = \frac{s_{\text{target}, i}}{\max(s_{0, i},\; 0.05)}, \qquad \operatorname{fac}_i(z) = 1 + (k_i - 1)\,\operatorname{clip}\!\left(1 - \frac{z - 10}{300 - 10},\; 0,\; 1\right), \qquad (u_i', v_i') = \operatorname{fac}_i(z)\,(u_i, v_i)$$
+    <p class="eq-note">
+      <strong>Bit-for-Bit Direction Preservation:</strong> The $n$ stratified target speeds $s_{\text{target}}$ are rank-matched to the conditioned samples' 10 m speeds $s_0 = \sqrt{u_0^2 + v_0^2}$, and the positive ratio $k_i$ tapers linearly to $1.0$ from $10\text{ m}$ up to <code>SPEED_TOP_M = 300.0 m</code>. Because <em>both</em> $u_i$ and $v_i$ are multiplied by the exact same positive scalar $\operatorname{fac}_i(z)$, wind bearing $\operatorname{atan2}(-u_i, -v_i)$ is preserved bit-for-bit at every altitude while temperature, pressure, humidity, and upper-air winds above 300 m remain untouched. Exact pinned observations (no age/distance/elevation metadata) bypass this step.
+    </p>
+  </div>
+
+  <div class="callout callout-win">
+    <p class="callout-title">Empirical Verification on ASOS 2023&ndash;2025 Holdout (<code>w6_observe_eval.py</code>)</p>
+    <ul>
+      <li><strong>Own-station persistence (300 h/station):</strong> Using <code>SPEED_RHO_PER_HOUR = 0.72</code> (fitted 0.67 at TCS and 0.76 at MAF on 2015&ndash;2022) improved CRPS from <strong>1.148 &rarr; 1.140</strong> (TCS) and <strong>1.016 &rarr; 0.987</strong> (MAF), lifting 90% coverage from <strong>0.74 &rarr; 0.81</strong> (TCS) and <strong>0.85 &rarr; 0.91</strong> (MAF).</li>
+      <li><strong>Off-site neighbor cap (<code>NEIGHBOUR_RHO_FROM_GAIN = True</code>):</strong> Capping $\rho = \min(r_{\text{report}}, \rho_{\text{age}})$ for stations $\ge 5\text{ km}$ away lifted 90% coverage by <strong>+0.07 to +0.15</strong> and lowered CRPS in <strong>13 of 14</strong> cross-station benchmark runs.</li>
+    </ul>
+  </div>
+
+  <h3>3. Student-$t$ Surprise Widening (<code>_t_widen_factor</code>, Opt-In <code>t_update = False</code>)</h3>
+  <p>
+    A well-known limitation of Gaussian Bayesian updating is that posterior variance depends <em>only</em> on sensor noise and prior covariance&mdash;never on <strong>how surprising the observation is</strong>. Whether a pad thermometer reads $1\sigma$ or $4\sigma$ away from the prior median, a Gaussian update shrinks posterior spread by the exact same factor. In reality, a $4\sigma$ anomaly signals an abnormal synoptic regime (a dryline surge, frontal passage, or thunderstorm outflow) where unmeasured upper-air winds are substantially less predictable.
+  </p>
+  <p>
+    When a user opts in with <code>observe(..., t_update=True)</code>, <code>_t_widen_factor()</code> evaluates the standardized Mahalanobis surprise $D^2$ across up to $k \le 10$ observed scalars using heavy-tailed Student-$t$ degrees of freedom <code>T_NU = 8.0</code>:
+  </p>
+
+  <div class="eq-block">
+    <span class="eq-label">Equation 5.1.6 &mdash; Student-$t$ Mahalanobis Surprise Multiplier (<code>launch.py::_t_widen_factor</code>)</span>
+    $$D^2 = \sum_{j=1}^{k} \frac{\big(y_j - \mu_{\text{prior}, j}\big)^2}{\sigma_{\text{prior}, j}^2 + \sigma_{\text{obs}, j}^2}, \qquad f_t = \operatorname{clip}\!\left(\sqrt{\frac{\nu + D^2}{\nu + k}},\; 1.0,\; 2.0\right) \qquad (\nu = 8.0)$$
+    <p class="eq-note">
+      <strong>Safety-Margin Behavior:</strong> For an ordinary $1\sigma$ reading ($D^2 \approx k$), $f_t \approx 1.0$, and clipping to $[1.0, 2.0]$ guarantees it <em>never</em> narrows dispersion margins. For a single $4\sigma$ reading ($k = 1, D^2 = 16$), $f_t = \sqrt{(8 + 16)/(8 + 1)} = \sqrt{24/9} \approx \mathbf{1.63\times}$, expanding dispersion by 63% and emitting the audit flag <code>t-widened-x1.63</code>. <code>_conditioned_pool()</code> scales departures around the posterior mean (<code>m + t_fac * (s[k] - m)</code>) on <code>u</code>, <code>v</code>, and <code>t2m</code> only&mdash;leaving $T$, $p$, and $\text{RH}$ columns unwidened so hydrostatic density $\rho$ and sound speed $a$ remain consistent without re-integration. It stays <strong>opt-in (off by default)</strong> because the 2026-11-20 port rerun did not reproduce the earlier validation gain.
+    </p>
+  </div>
+
+  <h3>4. Confirmed Code Bugs in Observation Assimilation (B2, B3, B9, B10)</h3>
+  <p>
+    Code audits of <code>tempest_weather_v2</code> and <code>tempest_weather/flight/engine.py</code> confirmed four active defects in the assimilation pathway that operators and downstream flight-simulation pipelines must account for until patched:
+  </p>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B2 &mdash; <code>Launch.engine()</code> Strips <code>_obs=None</code> (<code>tempest_weather_v2/launch.py:1076</code>)</p>
+    <pre><code>pool = self._ensure_pool() if not self._obs else Launch.with_(self, _obs=None)._ensure_pool()</code></pre>
+    <p>
+      Calling <code>launch.observe(...).engine()</code> explicitly discards <code>self._obs</code> and builds <code>TempestFlightSimEngine</code> from the <em>unconditioned</em> prior pool. Any downstream Sobol sampler or 6-DOF flight simulator reading from <code>.engine()</code> silently ignores all launch-day METAR, radar, tower, and nowcast measurements, whereas <code>.atmospheres()</code> and <code>.weather()</code> correctly return the conditioned pool.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B3 &mdash; <code>condition_on_observations()</code> Overwrites <code>S</code> on <code>soft=True</code> &amp; Drops <code>localize_m</code> (<code>tempest_weather/flight/engine.py:146&ndash;155, 164</code>)</p>
+    <pre><code>if inflate_decay_m:
+    ...
+    S = S * f[:, None] * f[None, :]
+    scale = 1.0
+if soft:
+    ...
+    un, mu, S = np.arange(P), g_all @ y, self.corr - g_all @ C_all.T   # overwrites S; scale stays 1.0!</code></pre>
+    <p>
+      When <code>soft=True</code> (used by every weighted <code>Launch.observe()</code> call), line 155 completely overwrites <code>S</code> with the raw Schur complement over all $P$ columns. If <code>inflate_decay_m</code> is also set, the distance-fading variance inflation applied on line 150 is silently discarded <em>and</em> <code>scale</code> stays reset to <code>1.0</code>, stripping both <code>inflate</code> and <code>inflate_decay_m</code>. Separately, the non-mutating wrapper <code>conditioned()</code> on line 164 omits <code>localize_m</code> from its parameter list, making Gaspari-Cohn vertical localization unreachable through <code>Launch</code>.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B9 &mdash; <code>radar._get()</code> Bypasses <code>_net.fetch()</code> (<code>tempest_weather_v2/radar.py:38&ndash;40</code>)</p>
+    <pre><code>def _get(url, timeout=60):
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return r.read()</code></pre>
+    <p>
+      Unlike <code>obs.py</code> and <code>hrrr.py</code>, which route all HTTP traffic through <code>tempest_weather_v2._net</code>, <code>radar._get()</code> invokes <code>urllib.request.urlopen</code> directly. Consequently, <code>observe_radar()</code> ignores <code>TEMPEST_OFFLINE</code> / <code>offline=True</code>, skips retry backoff on transient AWS S3 errors, and bypasses rate-limit controls.
+    </p>
+  </div>
+
+  <div class="callout callout-bug">
+    <p class="callout-title">Confirmed Bug B10 &mdash; Offline <code>None</code> Elevation Crash &amp; 6-Hour-Only <code>Launch.stale()</code> (<code>tempest_weather_v2/launch.py:588, 613, 1128</code>)</p>
+    <pre><code>elev = float(self.elevation_info()[0])                  # launch.py:588 (observe_radar) &amp; :613 (observe_tower)
+return (now - self.created).total_seconds() &gt; 6 * 3600  # launch.py:1133 (Launch.stale)</code></pre>
+    <p>
+      When <code>Launch(..., offline=True)</code> is constructed for raw <code>(lat, lon)</code> coordinates without an explicit <code>elevation=</code> argument, <code>elevation_info()</code> falls back to <code>(None, "model-grid", ...)</code>. Both <code>observe_radar()</code> and <code>observe_tower()</code> immediately cast <code>float(None)</code>, raising <code>TypeError</code> even when an offline profile dictionary or tower array is supplied directly. Separately, <code>Launch.stale()</code> checks only whether <strong>6 hours</strong> have elapsed since object creation, contradicting its docstring's claim that it detects when wall-clock time has crossed a climate/forecast mode boundary.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.6 NEXRAD VAD radar wind profile assimilation                       -->
+<!-- ====================================================================== -->
+<section id="s5-1-6" class="subsection">
+  <span class="subsection-num">5.1.6</span>
+  <h2>NEXRAD VAD Radar Wind Profile Assimilation</h2>
+
+  <p>
+    Surface anemometers and airport METARs constrain only the lowest tens of meters of the boundary layer; they carry minimal correlation with upper-air jet streaks at 5&ndash;15 km where high-power rockets reach apogee and deploy drogue chutes. Waiting for a twice-daily 00Z/12Z NWS radiosonde leaves up to a 12-hour blind spot on launch morning.
+  </p>
+  <p>
+    <code>tempest_weather_v2/radar.py</code> closes this upper-air gap by assimilating public <strong>NEXRAD Level III Velocity Azimuth Display (<code>NVW</code>)</strong> wind profiles&mdash;each WSR-88D Doppler radar's own volume-scan wind retrieval updated every 5&ndash;10 minutes up to ~10 km. Each <code>NVW</code> file is ~9 KB and fetched keyless from the Unidata AWS S3 archive (<code>unidata-nexrad-level3</code>) within a strict recency window of <code>max_age_min = 45</code> minutes prior to launch time.
+  </p>
+
+  <h3>Decoding Pipeline &amp; Regional WSR-88D Network</h3>
+  <p>
+    <code>radar.parse_nvw()</code> decodes the binary Level III product using <code>metpy.io.Level3File</code> (raising a clear <code>ImportError</code> if MetPy is not installed), extracts numeric rows from the <code>'VAD Algorithm Output'</code> tabular pages, converts altitude from hundreds of feet ($\times 30.48\text{ m}$) ASL to pad AGL, and sorts the profile monotonically in height. <code>Launch.observe_radar()</code> then linearly interpolates $(u, v)$ onto <strong>four canonical conditioning levels: 500, 1000, 1500, and 2000 m AGL</strong> with uniform sensor noise <code>VAD_SIGMA_MS = 3.0 m/s</code>&mdash;matching the empirically measured 2.9&ndash;3.2 m/s radar-minus-radiosonde vector wind error (<code>scripts/p3_vad_vs_balloon.py</code>).
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>WSR-88D Site ID</th>
+          <th>Approximate Region Served</th>
+          <th>Latitude (&deg;N)</th>
+          <th>Longitude (&deg;W)</th>
+          <th>Ground Elevation (m ASL)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>EPZ</code></td>
+          <td>El Paso / Southern Rio Grande (validation anchor)</td>
+          <td><code>31.873</code></td>
+          <td><code>&minus;106.698</code></td>
+          <td><code>1252.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>HDX</code></td>
+          <td>Holloman AFB / White Sands / Spaceport America</td>
+          <td><code>33.077</code></td>
+          <td><code>&minus;106.120</code></td>
+          <td><code>1287.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>MAF</code></td>
+          <td>Midland / Odessa / West Texas Permian Basin</td>
+          <td><code>31.943</code></td>
+          <td><code>&minus;102.189</code></td>
+          <td><code>874.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>FDX</code></td>
+          <td>Cannon AFB / Eastern New Mexico Plains</td>
+          <td><code>34.634</code></td>
+          <td><code>&minus;103.619</code></td>
+          <td><code>1417.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>ABX</code></td>
+          <td>Albuquerque / Central New Mexico</td>
+          <td><code>35.150</code></td>
+          <td><code>&minus;106.824</code></td>
+          <td><code>1789.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>FTG</code></td>
+          <td>Denver / Front Range Colorado</td>
+          <td><code>39.787</code></td>
+          <td><code>&minus;104.546</code></td>
+          <td><code>1675.0 m</code></td>
+        </tr>
+        <tr>
+          <td><code>PUX</code></td>
+          <td>Pueblo / Southern Colorado Plains</td>
+          <td><code>38.459</code></td>
+          <td><code>&minus;104.181</code></td>
+          <td><code>1600.0 m</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Upward Covariance Propagation &amp; Why Conditioning Stops at 2000 m</h3>
+  <p>
+    Because the Gaussian copula stores the full cross-altitude vertical correlation matrix $\mathbf{C}$ across all 44 height levels, conditioning only the four lower-tropospheric levels (500&ndash;2000 m AGL) propagates information well above 2 km into completely <em>unobserved</em> upper-air altitudes. Evaluated on <strong>120 days of El Paso (<code>EPZ</code>) radar vs. co-located NWS radiosondes</strong> (2021&ndash;2023, 00Z, <code>scripts/p3_vad_condition.py</code>):
+  </p>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Unobserved Altitude Band</th>
+          <th>CRPS Improvement over Climate Prior</th>
+          <th>90% Interval Coverage</th>
+          <th>Physical Mechanism</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>2.5 &ndash; 5.0 km AGL</strong></td>
+          <td><strong>+31.3% (~+32%)</strong></td>
+          <td><code>0.93 &ndash; 0.94</code></td>
+          <td>Tight synoptic coupling between 2 km top-of-PBL flow and lower mid-troposphere</td>
+        </tr>
+        <tr>
+          <td><strong>5.0 &ndash; 12.0 km AGL</strong></td>
+          <td><strong>+16%</strong></td>
+          <td><code>0.93 &ndash; 0.94</code></td>
+          <td>Thermal-wind and deep baroclinic trough correlation up to jet core</td>
+        </tr>
+        <tr>
+          <td><strong>12.0 &ndash; 18.0 km AGL</strong></td>
+          <td><strong>+7%</strong></td>
+          <td><code>0.93 &ndash; 0.94</code></td>
+          <td>Residual upper-tropospheric / lower-stratospheric correlation tail</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-warn">
+    <p class="callout-title">Why Four Levels (&le; 2000 m) Is Mandatory &amp; the Distant-Radar Caveat</p>
+    <p>
+      <strong>1. Over-tightening beyond 2000 m:</strong> Feeding every available radar altitude up to 5 km into the diagonal sensor-noise matrix $\mathbf{R} = (3.0)^2 \mathbf{I}$ treats vertically correlated Doppler beam errors as independent measurements, collapsing 90% coverage from <strong>0.93&ndash;0.94 down to 0.49</strong>. Limiting ingestion to the four 500 m-spaced levels up to 2000 m preserves calibrated spread.<br/>
+      <strong>2. Distant-radar displacement:</strong> The <code>EPZ</code> benchmark tested a radar co-located with the balloon release site. A radar ~100 km from the launch pad&mdash;such as Holloman (<code>HDX</code>) for Spaceport America&mdash;samples a different air mass and warrants a larger (currently unmeasured and flagged) <code>sigma_ms</code>. Also recall Confirmed Bugs <strong>B9</strong> (<code>radar._get()</code> bypassing offline/retry controls) and <strong>B10</strong> (offline <code>None</code> elevation crash) from Section 5.1.5.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 5.1.7 Interactive lab: Lead-time & obs router                          -->
+<!-- ====================================================================== -->
+<section id="s5-1-7" class="subsection">
+  <span class="subsection-num">5.1.7</span>
+  <h2>Interactive Lab: Lead-Time Router &amp; Observation Assimilation Sandbox</h2>
+
+  <p>
+    Use the interactive simulator below to sweep forecast lead time alongside launch-day observation age ($\Delta t$), station separation ($d$), elevation offset ($|\Delta z|$), and Day/Night boundary-layer stability. Watch how <code>router.py</code> cosine blends transition across operational modes while <code>obs.py</code> computes effective gain $r$, equivalent observation noise $\sigma_{\text{obs}}/\sigma_{\text{prior}}$, and posterior spread shrinkage $\sqrt{1 - r}$ in real time.
+  </p>
+
+  <figure class="figure-stage">
+    <div class="figure-header">
+      <h3 class="figure-title">Interactive Widget 3 &mdash; Lead-Time Router &amp; Launch-Day Observation Assimilation</h3>
+      <button type="button" class="figure-btn" onclick="openColabLab('lab_04')">Open Colab Lab 4 &nearr;</button>
+    </div>
+
+    <div id="widget-3-router"></div>
+
+    <figcaption class="figure-caption">
+      Explore both regimes of <code>obs.effective_gain()</code>: cross the <code>OWN_STATION_KM = 5.0 km</code> threshold to compare exponential own-pad decay (<code>TAU_H = 6.3 h</code>) against Day/Night cross-station representativeness (<code>REP_TABLE</code>, <code>REP_DZ</code>, <code>AGE_TABLE</code>, and <code>TAU_X</code>).
+    </figcaption>
+  </figure>
+
+  <h3>Suggested Experiments to Try</h3>
+  <ol>
+    <li><strong>Cross the <code>5.0 km</code> own-station boundary:</strong> Set report age to $\Delta t = 1\text{ h}$ and drag station distance $d$ from $2\text{ km}$ (own-pad gain $r = e^{-1/6.3} = 0.853$) across $5.0\text{ km}$ to $45\text{ km}$ (<code>TCS</code> to Spaceport America). Observe the immediate jump in equivalent noise $\sigma_{\text{obs}}/\sigma_{\text{prior}}$ as spatial representativeness error takes over.</li>
+    <li><strong>Compare Day &ldquo;Communicating Room&rdquo; vs. Night Cold-Pool Inversion:</strong> Hold $d = 45\text{ km}$ and $|\Delta z| = 70\text{ m}$ fixed, then toggle between daytime convective mixing ($w_n = 0$, <code>REP_DZ = 1317 m</code>) and nighttime drainage stability ($w_n = 1$, <code>REP_DZ = 919 m</code>). Notice how nighttime reports lose weight much faster once report age exceeds 3 hours (<code>TAU_X = 12 h</code> vs. <code>27 h</code>).</li>
+    <li><strong>Verify the <code>TAU_H = 6.3 h</code> half-life:</strong> Return to $d &lt; 5.0\text{ km}$ and slide $\Delta t$ to $4.37\text{ h}$. Confirm that effective gain hits $r = 0.50$, equivalent sensor noise equals prior spread ($\sigma_{\text{obs}} = \sigma_{\text{prior}}$), and posterior spread shrinks to $\sqrt{0.5} \approx 0.707\,\sigma_{\text{prior}}$.</li>
+    <li><strong>Continue in Colab Lab 4:</strong> Launch <a href="javascript:void(0)" onclick="openColabLab('lab_04')">Notebook 4 (<code>lab_04_assimilation_and_flight_mc.ipynb</code>)</a> to run live METAR parsing, soft Gaussian copula conditioning, <code>_speed_space_update()</code>, Student-$t$ surprise widening, and 6-DOF flight Monte Carlo dispersion rollouts end-to-end.</li>
+  </ol>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <!-- Sticky Right "On This Page" Subsection Rail -->
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-heading">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="figure-btn" onclick="openColabLab('lab_04')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="figure-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Open Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>
