@@ -17,3 +17,6 @@ tempest_weather/assets/
 tempest_weather/assets_*/
 !docs/data/
 !tempest_weather_v2/data/
+
+# New_Plan.md backups (local only; history has bak19-bak149 in a83e8eb)
+New_Plan.bak*.md

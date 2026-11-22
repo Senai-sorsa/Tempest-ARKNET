@@ -1,8 +1,8 @@
 # New_Plan: everything before global mode, in about 2 days
 
-Written 2026-11-10. Sources merged: `Innovative idea review.md` (run list C1-C6, G1-G3 ideas),
-`Limitations to solve.md` (audit defects A1-A9, "what to do first" table), and the open list in
-`docs/HANDOVER_2026-11-10b.md` section 14.4 plus the unticked boxes of `docs/plans/FIVE_DAY_PLAN.md`.
+Written 2026-11-10. Sources merged: `docs/notes/Innovative idea review.md` (run list C1-C6, G1-G3 ideas),
+`docs/notes/Limitations to solve.md` (audit defects A1-A9, "what to do first" table), and the open list in
+`docs/agent/handovers/HANDOVER_2026-11-10b.md` section 14.4 plus the unticked boxes of `docs/plans/FIVE_DAY_PLAN.md`.
 The global track (G0-G6, supercomputer) is not in this plan.
 
 **STOP FIRST (user, 2026-11-12 evening): section 15 comes before everything else in this file.** A code audit found
@@ -359,7 +359,7 @@ Code, run commands and step-by-step instructions for everything not built: `new_
 | MF two-speed Monte Carlo (New_Plan 12.7) | **BLOCKED 2026-11-16, not run.** The pass rule needs a validation rocket flight simulator (apogee, landing distance, 5,000-flight reference) and the `montecarlo.py` / `run_importance` helpers; this repo has neither (grep: no apogee or importance-sampling code outside `new_plan_kit`; `tempest_weather/flight/engine.py` is the acoustic / atmosphere engine) | A cheap point-mass ascent has to be written plus the full-simulator hook; that is a build for the flight-sim project, not a measurement here | Waits for the flight-sim code; new ASK_LATER item not needed (user owns that project) |
 | VS stage 0b (New_Plan 12.3; `b68_vs_stage0b.py`; 393 cases EPZ / MAF 2024-25, 50 members, shipped stack) | **PROCEED 2026-11-16** (not closed). Member / balloon variance per scale, u / v / T: 7->13 heights 0.71 / 0.74 / 1.18; 13->25 0.59 / 0.58 / 1.24; 25->44 (finest) 0.47 / 0.46 / 1.49. No scale holds 80 % in all three | Wind: members hold under half of the real fine-scale variance (0.46-0.47). Temperature: members have 1.2-1.5 x the balloon variance at every scale (the T-rise excess seen in the library bar). So VS has to add wind detail and take temperature detail away | Measurement; stage 2 (VS net) stays open |
 | VS stage 2 (New_Plan 12.3; b69, 2026-11-16) | **KILL.** kNN-conditional leftover (stand-in for the net; train 89,850 balloons / 789 stations, K=100 on 2021) vs the library bar at EPZ, MAF, Denver 2022 (240 cases x 2 seeds): variogram score VS - bar +0.0013 [-0.0004, +0.0028] and +0.0004 [-0.0012, +0.0021]; VS fails Ri<1, shear p99 and CRPS limits (seed 1 also T-rise). Not better than the bar in either seed | Bar ships as the opt-in, VS closed (rule pre-set in b69 header). Stated limits: kNN not a trained net; the tool only runs at 3 places so 'left-out stations' = EPZ / MAF / Denver; 2022 only |
-| 22.V6 GRAM-like stand-in (`b9_gram_compare.py --gramlike`, 2026-11-17; measurement, no kill; EPZ / MAF 2024-25, 800 cases, 100 members; exponential vertical correlation, scale fitted per band to the station balloons, u/v/T independent; Earth-GRAM guide 2.12-2.13 NOT read) | **MEASURED.** Vertical-corr error: tool 0.056, gramlike 0.149 (gramlike - tool +0.093 [+0.070, +0.104], tool better), gaussfull 0.037, bank 0.048. Cross-variable error tool 0.199, gramlike 0.225. gramlike worse than the tool on CRPS u / T and all VS | A GRAM-style parametric structure is far worse than our tool; the only source that beats us on vertical correlation is the idealised full-covariance Gaussian (gaussfull), which real Earth-GRAM does not have. Claim in `Beat Earth-GRAM.md` can say so, labelled stand-in. Real Earth-GRAM via --extra stays the judge (needs the user). Next: 22.V0 |
+| 22.V6 GRAM-like stand-in (`b9_gram_compare.py --gramlike`, 2026-11-17; measurement, no kill; EPZ / MAF 2024-25, 800 cases, 100 members; exponential vertical correlation, scale fitted per band to the station balloons, u/v/T independent; Earth-GRAM guide 2.12-2.13 NOT read) | **MEASURED.** Vertical-corr error: tool 0.056, gramlike 0.149 (gramlike - tool +0.093 [+0.070, +0.104], tool better), gaussfull 0.037, bank 0.048. Cross-variable error tool 0.199, gramlike 0.225. gramlike worse than the tool on CRPS u / T and all VS | A GRAM-style parametric structure is far worse than our tool; the only source that beats us on vertical correlation is the idealised full-covariance Gaussian (gaussfull), which real Earth-GRAM does not have. Claim in `docs/notes/Beat Earth-GRAM.md` can say so, labelled stand-in. Real Earth-GRAM via --extra stays the judge (needs the user). Next: 22.V0 |
 | 22.V0 error split (`b70_v0_split.py`, 2026-11-17; EPZ / MAF 2024-25, 800 cases, one member per case, report only) | **RULE fired: SHUFFLE, MAPS, MEAN hold; NEAR no. My reading (below) differs from the mechanical gate.** Vertical-corr error (+ = too correlated): range map only 0.101 [+0.077], + shuffle 0.053 [+0.036], + shear map 0.068 [+0.058], + lapse map (shipped) 0.067 [+0.056]; ERA5 bank 0.100; tool ensemble mean 0.114. Shipped by band: near <1 km 0.025 [+0.008], mid 0.059 [+0.053], far >5 km 0.078 [+0.064] | The shuffle is what brings the error down (-0.047). The shear map then adds +0.014 (far band 0.061 -> 0.078, correlation too high). The remaining error is over-correlation at mid / far separation, not near pairs (NEAR no, so V4 arm not indicated). The MEAN test is not informative: a 20-member mean is smoother than one member by construction, so it cannot be compared with the one-member error (flaw in my rule, not a finding). SHUFFLE fired because the shuffle step is large, not because it is the cause. Open reading: the shear map costs 0.014 of correlation error; any fix must keep the shear p99 / Ri gain it was adopted for. V1 (balloon templates) not run: gate unclear, left for the next tick to decide with V0's far-band finding |
 | 22.V1 balloon templates (`b71_v1_balloon_templates.py`, 2026-11-17; EPZ / MAF 2024-25, 800 cases, 50 members; in-memory swap of the shuffle ranks to 199 complete balloon profiles per station / month / hour; one seed) | **MISS 2026-11-17.** Vertical-corr error: shipped 0.055, V1a (maps on) 0.061, V1b (maps off) 0.047, gaussfull 0.041. V1a - shipped +0.0063 [-0.0098, +0.0196]; V1b - shipped -0.0072 [-0.0186, +0.0050]; V1b - gaussfull +0.0061 [-0.0060, +0.0182] (tie). Both arms fail error <= 0.045; V1a also fails vs gaussfull; CRPS T +0.41 % / +0.37 % (limit 0.3 %). 12-18 km shear p99 ratio shipped 0.78, V1a 0.87, V1b 0.92; Ri<1 12-18 km 0.062 / 0.087 / 0.103 vs balloons 0.149 (more balloon-like with maps off) | Not killed (V1b 0.047 is under the 0.050 kill line) but no interval excludes 0. Real balloon ranks do not beat ERA5-template ranks with the maps on; with maps off they move the error to 0.047 and bring the 12-18 km shear / Ri closer to the balloons, but CRPS T rises 0.4 %. Same-station balloons, development window, not a blind test. V2 (similarity dates) not run: it needs V1a to have a gain. Next: V5 (copula; plan says run if V1 misses) |
 | 22.V5 balloon-correlation Gaussian copula templates (`b71_v1_balloon_templates.py --copula`, 2026-11-17; EPZ / MAF 2024-25, 800 cases, 50 members; one seed; ranks from 199 draws of a Gaussian copula with the station / month / hour balloons' normal-score correlation, u / v / T) | **MISS 2026-11-17, by one limit.** Vertical-corr error: shipped 0.055, V5a (maps on) 0.044, V5b (maps off) 0.045, gaussfull 0.041. V5a - shipped -0.0107 [-0.0219, +0.0027]; V5a - gaussfull +0.0026 [-0.0089, +0.0155] (tie). Limits met: error <= 0.045, vs gaussfull, 12-18 km shear p99 (0.79 vs 0.78) and Ri<1 (0.100 vs shipped 0.062, balloons 0.149). Failed: CRPS T +0.35 % (V5b +0.33 %), limit 0.3 % | Best result of section 22: error 0.044 with no shear / Ri loss, but the interval against shipped still includes 0 and T CRPS is 0.05 points over the limit. Plan expected the copula to lose shear tails; here it did not (Ri<1 12-18 km moves toward balloons). Replicate on a second seed (rule unchanged: pass needs both seeds) before any ASK_LATER |
@@ -412,7 +412,7 @@ Next session, in order: (1) README Part 3 "RESULTS BLOCK", steps 1-4; (2) full G
 ## 10. Secondary ideas (added 2026-11-11; nothing here has been run)
 
 Where they come from: the results in section 9, the logs, the code, and outside research. The long list
-of 21 ideas with the attacks on each is in `Secondary ideas.md`. All eight are measurement items: a kit
+of 21 ideas with the attacks on each is in `docs/notes/Secondary ideas.md`. All eight are measurement items: a kit
 script in `new_plan_kit/` that works from outside the core, default output bit-identical, log to
 `docs/results/logs/kit_b4_*.log`. Adoption stays with the user (ASK_LATER 22). Rules for all: fit on
 <= 2022, test on 2023-25, never 2026; two seeds; day-block bootstrap; CRPS noise 0.0009; 12 threads at
@@ -480,14 +480,14 @@ measurements already on disk.
 2. S2 full run; S3 and O2 together (same radar files).
 3. O1 and O3 only after S1 and S2 have a verdict (both build on the map). O5 after ASK_LATER 21 is answered.
 
-Looked at and dropped (reasons in `Secondary ideas.md`): radar bias by height, 10 m -> 300 m taper fit
+Looked at and dropped (reasons in `docs/notes/Secondary ideas.md`): radar bias by height, 10 m -> 300 m taper fit
 (data blocked), T-rise and unstable-layer fixes, spread per hour block, run-to-run disagreement,
 physical gust law (already shipped: `MEASURED_GUST_LAW`), persistence centre (that is G1-6).
 
 ### 10.4 Five ideas that change how the AI system works (second set, 2026-11-11; nothing run)
 
 The first set was rejected by the user and is replaced. Attack rounds, the facts behind each idea and
-the reasons the first set was dropped are in `Secondary ideas.md` part 6. All five use data already on
+the reasons the first set was dropped are in `docs/notes/Secondary ideas.md` part 6. All five use data already on
 disk and run on this laptop. Defaults stay bit-identical; a trained model gets a new name. Two
 training seeds; fit and test years as stated per idea; never 2026.
 
@@ -677,8 +677,8 @@ it must beat and a rule that closes it.
 ### 12.1 How the set was made
 
 1. **Everything logged was read first**, so nothing here repeats it: the 208 IL items and groups in
-   `docs/logs/AUTOPILOT.md`, the review (Groups 1-3, C1-C6), `Secondary ideas.md` (21 ideas, both N
-   sets), `Limitations to solve.md`, `docs/plans/GLOBAL_PLAN.md`, `docs/research/FUTURE_OPTIONS.md`.
+   `docs/logs/AUTOPILOT.md`, the review (Groups 1-3, C1-C6), `docs/notes/Secondary ideas.md` (21 ideas, both N
+   sets), `docs/notes/Limitations to solve.md`, `docs/plans/GLOBAL_PLAN.md`, `docs/research/FUTURE_OPTIONS.md`.
    Each idea below names its nearest logged relative and says what differs.
 2. **Outside work was searched** (list in 12.10). Where a search spoke against an idea, the idea was
    dropped or changed (12.9).
@@ -938,7 +938,7 @@ archive (registry.opendata.aws/sondehub-telemetry).
 
 ## 13. Variations of the near misses (added 2026-11-12; nothing here has been run)
 
-Source: `Almost ideas.md` (experiments that failed by a small margin or on one clause, showed a
+Source: `docs/notes/Almost ideas.md` (experiments that failed by a small margin or on one clause, showed a
 measured benefit, and were closed without a follow-up). Each row below is a VARIATION of one of
 them, not a new idea. IDs are AV1 to AV21 ("almost, variation").
 
@@ -1046,7 +1046,7 @@ Steps 1-3, 6 and 8 were extended on 2026-11-12 (user: section 14 where it fits, 
 The rules of each idea are in its own section and are unchanged.
 
 Not variations, so not listed here: the items that already passed but were never built or shipped
-(`Almost ideas.md` part E: A1 persistence law, N1 cross-fit, N2-B, ENSF2 export, G2-2). They wait
+(`docs/notes/Almost ideas.md` part E: A1 persistence law, N1 cross-fit, N2-B, ENSF2 export, G2-2). They wait
 for the user's go, not for a new test.
 
 ## 14. Three architecture ideas for the forecast engine (added 2026-11-12; step 0 measured, nothing trained)
@@ -1532,9 +1532,9 @@ qbo50 across dataset build, scorers and tool; wind direction signs; the IGRA col
 density-altitude formulas; the shuffle cell indexing between export and tool.
 
 
-## 16. Beat Earth-GRAM: five new ideas E1-E5 (added 2026-11-13 from `Beat Earth-GRAM.md`; copied unchanged, nothing run)
+## 16. Beat Earth-GRAM: five new ideas E1-E5 (added 2026-11-13 from `docs/notes/Beat Earth-GRAM.md`; copied unchanged, nothing run)
 
-*Note: "section N" inside this block means the section of `Beat Earth-GRAM.md` (now 16.N here). The gate in New_Plan 15 holds for all of it.*
+*Note: "section N" inside this block means the section of `docs/notes/Beat Earth-GRAM.md` (now 16.N here). The gate in New_Plan 15 holds for all of it.*
 
 Written 2026-11-12 (evening). Nothing here has been run except the comparison kit in section 2, which ran
 before the section 15 gate of `New_Plan.md` was known. **The gate holds for everything below: no trial starts
@@ -1701,12 +1701,12 @@ Ordering methods: Lerch et al. 2020 (npg.copernicus.org/articles/27/349/2020), a
 
 ---
 
-## 17. Experiments from `Useful results.md` (added 2026-11-13 evening; nothing here has been run)
+## 17. Experiments from `docs/notes/Useful results.md` (added 2026-11-13 evening; nothing here has been run)
 
-Source: `Useful results.md` in the repo root (the review of the last 48 hours). Part 3 of that file
+Source: `docs/notes/Useful results.md` in the repo root (the review of the last 48 hours). Part 3 of that file
 gives six new ideas, each with its attack rounds; they are UR1 to UR6 below. Parts 1 and 2 leave
 nine more things that still need a run before they can be adopted or closed; they are UR7 to UR15.
-The attack rounds and the outside sources are in `Useful results.md` and are not repeated here.
+The attack rounds and the outside sources are in `docs/notes/Useful results.md` and are not repeated here.
 
 Rules as in sections 10-14: data on disk only unless the row says otherwise, defaults bit-identical,
 every switch off by default, a trained model gets a new name, never 2026, 21-day blocks, the pass
@@ -1802,7 +1802,7 @@ Two rows change a rule that an earlier verdict used (UR1's cov99 clause, UR13). 
 | Cost | Step 0 30 min CPU; full run 3 h code, 1 h GPU scoring |
 | Note | UR11 (RH station line) runs first; AV16 and AV17 are judged again on top if this passes |
 
-### 17.2 Still open from parts 1 and 2 of `Useful results.md`
+### 17.2 Still open from parts 1 and 2 of `docs/notes/Useful results.md`
 
 | ID | From | What to run | Pass and kill rule (set now) | Cost |
 |---|---|---|---|---|
@@ -1820,7 +1820,7 @@ Already logged elsewhere and unchanged, so not repeated here: AV8, AV9, AV11, AV
 AV17 (section 13), E1, E3, E5 (section 16). E5 (the measured-profile bank as a bar) should run
 before AV15 / AV16.
 
-Recommendations from `Useful results.md` that need the user's word, not a run: drop AV22 and AV23
+Recommendations from `docs/notes/Useful results.md` that need the user's word, not a run: drop AV22 and AV23
 (SIGMA and NEST do the same job in one network); make `--fair-baseline` the default before any
 number is quoted outside (ASK_LATER 27); exports of SIGMA, the world start (AV29) and ENSF2.
 
@@ -1839,7 +1839,7 @@ then AV8). One Mode F evaluation at a time.
 
 ### 17.4 What to change in the shipped system now, and what to hold (added 2026-11-13 evening; nothing here has been changed)
 
-From part 1 of `Useful results.md`. Recommendation only: every row in the first table flips a
+From part 1 of `docs/notes/Useful results.md`. Recommendation only: every row in the first table flips a
 default, so each needs the user's go at the moment it is done (hard rule: flags off by default).
 When done: backup of the old assets, full suite at 16 threads, `scripts/tool_audit.py`,
 `scripts/shipped_check.py`, one line in AUTOPILOT. The golden hashes in `tests/test_flags_off.py`
@@ -1988,7 +1988,7 @@ a defect); `tests/test_flags_off.py` golden values hold only at OMP_NUM_THREADS=
 
 ## 19. Wind (issue B): fourteen ideas that survived attack rounds (added 2026-11-14; nothing here has been run)
 
-Source: `Wind and rule-fix ideas.md` (first list of 30) attacked against the logs below; this section is the result. Rules as in
+Source: `docs/notes/Wind and rule-fix ideas.md` (first list of 30) attacked against the logs below; this section is the result. Rules as in
 sections 10-17: data on disk unless the row says otherwise, defaults bit-identical, every switch off by default, the pass and kill
 rule goes into the header of the verdict script before any run, adoption and exports stay with the user, one Mode F evaluation at
 a time. IDs are WD1-WD14. WD1, WD5 and WD14 are the cheap ones and go first.
@@ -1999,16 +1999,16 @@ a time. IDs are WD1-WD14. WD1, WD5 and WD14 are the cheap ones and go first.
 |---|---|---|
 | The +0.67 m/s climate-mode 10 m speed bias already exists at the "network + range map" stage and does not change through PIT, seasonal, shuffle, shear map or shipped. u sd is +0.52 and v sd +0.87 m/s too wide, P(speed < 5) is -0.073. Shipped u / v cov90 is 0.93-0.97, i.e. over-wide | `kit_b29_ur5_calm_window.log` step 0 and step 1 | "Find the cause of the bias" (old 2) is answered: it is too-wide u / v, not a missing offset. Old 2 merged into WD1 |
 | UR5 was killed on "cov90 moves by more than 0.01", but it moved cov90 toward 0.90: u 0.932 -> 0.871 / 0.933 -> 0.883, v 0.968 -> 0.925 / 0.961 -> 0.920 (distance to 0.90 falls in all four, but u overshoots below 0.88 in seed 0) | same log, step 1 | Rule must be distance to 0.90, plus a spread refit for the u overshoot (WD1) |
-| UR5 fits to ERA5 as truth. ERA5 itself is calm 11.0 % of the time against real 17.3 % | `Useful results.md`, STRAND stage 0 | UR5 fixes the tool to ERA5, which is only part of the way to real. Needs a second anchor (WD2) |
+| UR5 fits to ERA5 as truth. ERA5 itself is calm 11.0 % of the time against real 17.3 % | `docs/notes/Useful results.md`, STRAND stage 0 | UR5 fixes the tool to ERA5, which is only part of the way to real. Needs a second anchor (WD2) |
 | STRAND templates (TPL) were no better than the shipped sequence anywhere; mean linked error SEQ 0.091 against TPL 0.200 at 5 m/s; the regime link reaches 0.036 | `kit_b15_av27_strand_link.log`, b29 | Old 4 (Markov calm kernel) and old 6 (analog whole windows) are the TPL idea again: dropped. Only a longer-window check remains (WD3) |
 | The SWiFT tower check is 131 hours but they are three two-day campaigns (Nov 2013 48 h, May 2014 48 h, Sep 2014 35 h): about 3 independent episodes. The "climate" arm compares a no-weather generator with three specific windy episodes (tower median 12.9 m/s at 200 m) | `data/raw/a2e/ttu_swift_200m/raw_50hz` file dates, `kit_b6_swift_check.log` | The climate-mode "-2 to -4.5 m/s" is partly selection, not a bias. The fair arms are past (-1.9 to -2.5) and ERA5 (-1.1 to -2.8): most of the tool's shortfall is ERA5's own. Shear fits on this tower cannot be fitted on 3 episodes: it is a hold-out, not a training set (WD5, WD6) |
 | Real / ERA5 speed ratio rises with height at the tower: 1.17 (10 m), 1.14 (47), 1.20 (75), 1.22 (116), 1.27 (158), 1.28 (200 m) | b6 numbers (tower median / ERA5 median) | Supports a height-dependent factor, but one site and three episodes: needs the five sodars (WD6) |
 | Site factors from 300 hours are noisy: MAF cell factors 0.82-1.18 for the same cell between hour seeds; O3 online factor gain shrank with data (AV33, 300 days: -0.001 to -0.008, no interval excludes 0); AV10 / AV32 MISS | `kit_b3_il207b_site_shift.log`, `kit_b38_av10_launch_week_il207b.log`, To-do AV33 | Any site factor must shrink its 6 cells to one site number plus a shared hour shape (WD12) |
 | AV9 (upward-only shift) was a fix for the analog referee, not for the tool, and it failed twice: CRPS better but under-prediction ratio 0.85 / 0.73 against the pre-set "at most half" | `kit_b39_av9_analog_up_only.log` | Old 18 (AV9 + refit) dropped: a respread cannot fix the magnitude failure. The tool's own strong-wind error was never measured: WD9 |
 | x1.2 spread at airports hurt LRU +0.024, PEQ +0.019; Student-t helps only ground reports (G2-2) | AV11 KILL, G2-2 | Old 21 (Student-t by lead) dropped |
-| HRRR is no better than ERA5 at the independent USCRN station; its airport edge is contamination. WTK is worse hour by hour (MAE 1.98 vs 1.65). No HRRR archive on disk | `Limitations to solve.md` 5.2 notes, `Secondary ideas.md` | Old 9 (WTK shear anchor), old 14 (HRRR quantile map) and old 22 dropped |
+| HRRR is no better than ERA5 at the independent USCRN station; its airport edge is contamination. WTK is worse hour by hour (MAE 1.98 vs 1.65). No HRRR archive on disk | `docs/notes/Limitations to solve.md` 5.2 notes, `docs/notes/Secondary ideas.md` | Old 9 (WTK shear anchor), old 14 (HRRR quantile map) and old 22 dropped |
 | Terrain guess for a site with no record is SV (section 12.4); dense stations are already in RA (986 stations) and in the SV step 0 (71 stations); representativeness gap is UR3 | New_Plan 12, 17 | Old 15 and old 16 dropped (they repeat SV, UR3, S1, AV8) |
-| ERA5 on disk has pressure levels plus 10 m and 100 m wind only; no model levels (audit B5); `era5_global` is one hour per day | `Limitations to solve.md` B5, B6 | A shear fix may use ERA5's own 10 m, 100 m, blh, ssrd (all on disk in `era5_em`) as inputs, but sodar comparisons need the small ERA5 point pull (already approved) |
+| ERA5 on disk has pressure levels plus 10 m and 100 m wind only; no model levels (audit B5); `era5_global` is one hour per day | `docs/notes/Limitations to solve.md` B5, B6 | A shear fix may use ERA5's own 10 m, 100 m, blh, ssrd (all on disk in `era5_em`) as inputs, but sodar comparisons need the small ERA5 point pull (already approved) |
 | ECC ordering is no better than Schaake (O5); the AR copula / learned range map ideas have no loss to fix | O5, UR5 | Old 27, 29 dropped |
 | The 50 Hz tower (31 GB) is 3 episodes: fine-tuning on it would train on 3 weather situations | ingest log | Old 28 dropped. The processed 10-min file is enough for shape ratios (WD11) |
 
@@ -2197,7 +2197,7 @@ Data needed beyond the disk: the small ERA5 point pull for the sodar sites (alre
 
 ## 20. Verdict-rule fixes to do now (issue C; added 2026-11-14 on the user's request; nothing here has been run)
 
-Source: `fixing final issue.md` issue C and `Wind and rule-fix ideas.md` Part C-1 ("just add"). These items were held back only by rule wording, not by the data. The user asked on 2026-11-14 for them to go into the plan as immediate work, so the rule changes below count as decided. Adoption into the shipped tool and exports still stay with the user (section 17 rules). C-2 items (need more testing) are not in this section.
+Source: `docs/notes/fixing final issue.md` issue C and `docs/notes/Wind and rule-fix ideas.md` Part C-1 ("just add"). These items were held back only by rule wording, not by the data. The user asked on 2026-11-14 for them to go into the plan as immediate work, so the rule changes below count as decided. Adoption into the shipped tool and exports still stay with the user (section 17 rules). C-2 items (need more testing) are not in this section.
 
 ### 20.1 Rule changes (written once, used by every later verdict script)
 
@@ -2215,11 +2215,11 @@ Source: `fixing final issue.md` issue C and `Wind and rule-fix ideas.md` Part C-
 |---|---|---|---|---|
 | 1 | **Shipped-pack identity check** (decides R4) | Load the shipped forecast pack, push 100 test rows through `tempest` and through the evaluation column, demand identical members. Read `scripts/il6_modeF.py:211` and `tempest/export_tool.py:208` first | Members identical: the verdict column is the shipped column. Different: write which one ships into every header (R4) and list which past verdicts need a re-score | About 10 min CPU |
 | 2 | **Write R1-R5** into the kit's shared helper (`new_plan_kit/ur_common.py`) as the default rule text and checks, and into each pending script header | Rules are code, not wording; later scripts cannot restate them | Helper prints R1-R5 results in every verdict; `tests/test_ur_kit.py` has one test per rule | About 1 h |
-| 3 | **UR5 re-score** (same as WD1, `Wind and rule-fix ideas.md` C1-a) | Re-run the kept map and regime link on the same 407 / 332 / 161 cells and both seeds, judged by R2 with a u / v spread refit | WD1 pass rule | About 1.5 h CPU |
+| 3 | **UR5 re-score** (same as WD1, `docs/notes/Wind and rule-fix ideas.md` C1-a) | Re-run the kept map and regime link on the same 407 / 332 / 161 cells and both seeds, judged by R2 with a u / v spread refit | WD1 pass rule | About 1.5 h CPU |
 | 4 | **Re-score SIGMA, NEST and AV30 cov99 under R1** (C1-b) | From the saved evaluation rows (UR7 prints them; no new evaluation). Report cov99 and CRPS by lead beside binned and the climate model | Report only. If cov99 is within 0.005 of 0.99 at every lead and CRPS within 0.2 %, the old MISS reads "PASS under R1"; adoption stays ASK_LATER | About 15 min after UR7 |
 | 5 | **TAILCAL (UR1) on the shipped binned model**, then SIGMA, then NEST (C1-e) | Section 17.1 UR1 as written, with R1 and R2 as the clause text. Starts only after step 1 | UR1 pass rule | About 1 h CPU |
 | 6 | **Pool AV24 / AV26 years** (C1-d) | Accept pooled years for the older-run mix (ASK_LATER 29 answered in this section); AV24's rule unchanged on the pooled rows; the clean word still comes from UR15 (2023-24) | Report: 14 of 16 intervals below 0 stands as PASS (pooled); UR13 on 2023-24 when UR15 rows exist | Report only |
-| 7 | **Record the sample-size misses as passes** (C1-c) | In `To-do-Concise.md` and `Useful results.md`: AV28 -> AV29, O1 -> AV7, AV8 -> AV31 stand as PASS; the first MISS is marked "too few rows" (R3) | Log only | Minutes |
+| 7 | **Record the sample-size misses as passes** (C1-c) | In `To-do-Concise.md` and `docs/notes/Useful results.md`: AV28 -> AV29, O1 -> AV7, AV8 -> AV31 stand as PASS; the first MISS is marked "too few rows" (R3) | Log only | Minutes |
 
 ### 20.3 Not done here (so nobody assumes it was)
 
@@ -2323,7 +2323,7 @@ Already running (leave alone): UR1 member runs (`cpu_ur1_members.sh`, verdict b2
 **V6. A GRAM-like stand-in (do first; 30 min, CPU, no download)**
 - What: add a third stand-in to the kit, `gramlike`. It uses the same station mean and standard deviation per height as gaussfull. Its vertical correlation is built the way Earth-GRAM builds it: exponential / AR(1) in height with a height-dependent scale. Take the scale from guide sections 2.12-2.13 (step 0 = read them), and if they give no number, fit it to the 1991-2020 balloons.
 - Why new: so far we have only compared against the best case of a Gaussian, never against the structure GRAM actually uses.
-- Value: if gramlike scores worse than 0.061, our "loss" on this score is a loss to an idealised stand-in, not to Earth-GRAM. That changes the claim in `Beat Earth-GRAM.md` at no cost. Real Earth-GRAM via `--extra` stays the final judge (needs the user).
+- Value: if gramlike scores worse than 0.061, our "loss" on this score is a loss to an idealised stand-in, not to Earth-GRAM. That changes the claim in `docs/notes/Beat Earth-GRAM.md` at no cost. Real Earth-GRAM via `--extra` stays the final judge (needs the user).
 - Kill: none, it is a measurement. Report it beside gaussfull, with a clear label.
 
 **V0. Find where the 0.061 comes from (gate for V1-V5; about 1.5 h CPU, saved code paths, no download)**
@@ -2853,9 +2853,9 @@ Hybrids looked at and not added:
 
 ## 29. Scrap-together of near misses (2026-11-19, before continuing 26 / 27 / 28.4)
 
-**29.1 What was read.** Section 9 rows since 11-14, `Almost ideas.md`, `Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
+**29.1 What was read.** Section 9 rows since 11-14, `docs/notes/Almost ideas.md`, `docs/notes/Useful results.md` (now with rows 16-25 in 1A), ASK_LATER 31-43, the b79 / b71 docstrings, `kit_b84_combined_copula_stretch.log` (26.2 seed 0), and the UR14 / UR15 logs. Nothing new was trained.
 
-**29.2 Added to the "use anyway" list** (`Useful results.md` 1A rows 16-25): AV34 trust layer, AV35 shear map, AV19 Student-t stack, UR8 (N1 gain is the cross-fitting), UR9 (IL-207b confirmed), UR3 measured gap table, AV13 / AV36 gusts, NOW2 + E3 short-range, DP tower, T3 nugget (MAF only), UR15 (SIGMA on a third period). These are the 28.3 greedy candidates, together with rows 1-15.
+**29.2 Added to the "use anyway" list** (`docs/notes/Useful results.md` 1A rows 16-25): AV34 trust layer, AV35 shear map, AV19 Student-t stack, UR8 (N1 gain is the cross-fitting), UR9 (IL-207b confirmed), UR3 measured gap table, AV13 / AV36 gusts, NOW2 + E3 short-range, DP tower, T3 nugget (MAF only), UR15 (SIGMA on a third period). These are the 28.3 greedy candidates, together with rows 1-15.
 
 **29.3 Biggest flaws, ranked** (tool vs balloons, EPZ / MAF 2024-25, and Mode F):
 1. Shear tails too weak: p99 0.69-0.77 of balloons in every band. AV35 fixes 5-12 and 12-18 km; 0-1 km stays 0.71 with every method tried.
