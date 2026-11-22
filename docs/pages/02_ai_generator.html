@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2. Generative AI Core &mdash; Tempest-ARKNET</title>
+
+  <!-- Named Font Pairing (NO Inter everywhere): Space Grotesk + DM Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="02_ai_generator" data-base="../">
+
+  <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button id="mobile-nav-btn" class="mobile-nav-btn" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../pages/04_metrics.html" class="topbar-link">Metrics Guide</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-outline" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and sections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <main class="site-main">
+      <article class="page-wrap">
+        <header class="page-header">
+          <p class="page-kicker">Core Pipeline &middot; Chapter 2</p>
+          <h1>2. Generative AI Core</h1>
+          <p class="page-lead">Single-step Engression with AdaLN/FiLM noise conditioning, linear climate trend bypass, proper scoring rules, and vertical-wind / gust extensions.</p>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 2.1 Why Engression beats mean forecasts                                -->
+<!-- ====================================================================== -->
+<section id="s2-1" class="doc-section">
+  <span class="sec-num">2.1</span>
+  <h2>Why Engression beats mean forecasts</h2>
+
+  <p>
+    Standard MSE regression predicts the <strong>average of all possible skies</strong>. When a jet stream can sit high or low, averaging two sharp regimes produces a blurred, low-shear profile that never occurs in nature.
+  </p>
+
+  <ul class="struct-list">
+    <li><strong>The MSE blur trap:</strong> If Regime A has a sharp 45 m/s jet streak at 9 km and Regime B has one at 13 km, an MSE model outputs a smeared 28 m/s lump across 9&ndash;13 km, hiding the real wind-shear hazard from 6-DOF flight simulations.</li>
+    <li><strong>Single-step generative regression (Engression):</strong> Rather than running 50+ slow diffusion denoising steps, Engression feeds a random noise draw directly into a deterministic network and trains it with proper scoring rules (CRPS + Energy Score).</li>
+    <li><strong>Sharp, diverse ensemble fans:</strong> Each noise vector produces one physically sharp vertical profile in a single forward pass, letting Tempest-ARKNET generate hundreds of realistic Monte Carlo weather worlds in milliseconds.</li>
+  </ul>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">Bimodal Jet-Streak Intuition: MSE Blur vs. Engression Fan</h3>
+      <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+    </div>
+
+    <svg viewBox="0 0 960 420" width="100%" height="auto" role="img" aria-label="Comparison of blurred MSE mean forecast versus sharp Engression ensemble fan for a bimodal jet streak" style="display:block;background:#111114;border:1px solid #27272a;border-radius:6px;">
+      <!-- Left Plot Frame: MSE Regression -->
+      <rect x="24" y="24" width="444" height="372" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+      <text x="44" y="54" fill="#f87171" font-family="'Space Grotesk', sans-serif" font-size="16" font-weight="700">Standard MSE Regression (Mean)</text>
+      <text x="44" y="76" fill="#a1a1aa" font-family="'DM Sans', sans-serif" font-size="13">Averages both regimes &mdash; blurs peaks &amp; shear</text>
+
+      <!-- Left Axes -->
+      <line x1="88" y1="98" x2="88" y2="334" stroke="#3f3f46" stroke-width="1.5"/>
+      <line x1="88" y1="334" x2="442" y2="334" stroke="#3f3f46" stroke-width="1.5"/>
+      <!-- Horizontal gridlines -->
+      <g stroke="#27272a" stroke-width="1">
+        <line x1="88" y1="126" x2="442" y2="126"/>
+        <line x1="88" y1="178" x2="442" y2="178"/>
+        <line x1="88" y1="230" x2="442" y2="230"/>
+        <line x1="88" y1="282" x2="442" y2="282"/>
+      </g>
+      <g fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="end">
+        <text x="80" y="131">15 km</text>
+        <text x="80" y="183">12 km</text>
+        <text x="80" y="235">9 km</text>
+        <text x="80" y="287">4 km</text>
+        <text x="80" y="338">0 km</text>
+      </g>
+      <text x="265" y="368" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="middle">Wind Speed (m/s)</text>
+
+      <!-- Left True Regimes (dashed gray) -->
+      <path d="M 114 334 C 122 300, 152 260, 382 230 C 224 208, 172 162, 160 102" fill="none" stroke="#71717a" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <path d="M 108 334 C 118 294, 142 226, 388 158 C 264 134, 204 114, 178 102" fill="none" stroke="#71717a" stroke-width="1.6" stroke-dasharray="5 4"/>
+      <!-- Blurred MSE Average (red solid) -->
+      <path d="M 111 334 C 124 296, 164 256, 260 224 C 284 206, 286 178, 262 158 C 218 130, 184 116, 168 102" fill="none" stroke="#f87171" stroke-width="3.2"/>
+
+      <!-- Left labels -->
+      <text x="380" y="148" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13">Regime B</text>
+      <text x="378" y="220" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13">Regime A</text>
+      <text x="284" y="196" fill="#f87171" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">Blurred MSE Mean</text>
+      <text x="284" y="214" fill="#a1a1aa" font-family="'DM Sans', sans-serif" font-size="13">(misses both jets)</text>
+
+      <!-- Right Plot Frame: Engression Ensemble -->
+      <rect x="492" y="24" width="444" height="372" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+      <text x="512" y="54" fill="#38bdf8" font-family="'Space Grotesk', sans-serif" font-size="16" font-weight="700">Engression Ensemble Fan (Sharp)</text>
+      <text x="512" y="76" fill="#a1a1aa" font-family="'DM Sans', sans-serif" font-size="13">Each noise draw yields one crisp, physical sky</text>
+
+      <!-- Right Axes -->
+      <line x1="556" y1="98" x2="556" y2="334" stroke="#3f3f46" stroke-width="1.5"/>
+      <line x1="556" y1="334" x2="910" y2="334" stroke="#3f3f46" stroke-width="1.5"/>
+      <g stroke="#27272a" stroke-width="1">
+        <line x1="556" y1="126" x2="910" y2="126"/>
+        <line x1="556" y1="178" x2="910" y2="178"/>
+        <line x1="556" y1="230" x2="910" y2="230"/>
+        <line x1="556" y1="282" x2="910" y2="282"/>
+      </g>
+      <g fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="end">
+        <text x="548" y="131">15 km</text>
+        <text x="548" y="183">12 km</text>
+        <text x="548" y="235">9 km</text>
+        <text x="548" y="287">4 km</text>
+        <text x="548" y="338">0 km</text>
+      </g>
+      <text x="733" y="368" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="middle">Wind Speed (m/s)</text>
+
+      <!-- Right Ensemble Fan: Cluster A (sky blue) -->
+      <g fill="none" stroke="#38bdf8" stroke-linecap="round">
+        <path d="M 584 334 C 592 298, 622 260, 854 228 C 694 208, 640 162, 628 102" stroke-width="2" opacity="0.9"/>
+        <path d="M 580 334 C 588 302, 614 264, 828 235 C 684 212, 634 166, 622 102" stroke-width="1.4" opacity="0.55"/>
+        <path d="M 588 334 C 597 296, 630 254, 870 222 C 708 202, 648 156, 636 102" stroke-width="1.4" opacity="0.55"/>
+        <path d="M 577 334 C 586 304, 610 266, 806 240 C 676 216, 628 168, 617 102" stroke-width="1.2" opacity="0.4"/>
+      </g>
+      <!-- Right Ensemble Fan: Cluster B (emerald) -->
+      <g fill="none" stroke="#34d399" stroke-linecap="round">
+        <path d="M 576 334 C 586 294, 610 226, 858 158 C 734 134, 672 114, 646 102" stroke-width="2" opacity="0.9"/>
+        <path d="M 572 334 C 582 296, 604 230, 836 164 C 720 138, 664 116, 640 102" stroke-width="1.4" opacity="0.55"/>
+        <path d="M 581 334 C 592 290, 618 220, 878 152 C 746 130, 680 112, 654 102" stroke-width="1.4" opacity="0.55"/>
+        <path d="M 570 334 C 579 298, 600 234, 814 170 C 706 144, 656 120, 634 102" stroke-width="1.2" opacity="0.4"/>
+      </g>
+
+      <!-- Right legend callouts -->
+      <text x="744" y="126" fill="#34d399" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">Cluster B members</text>
+      <text x="744" y="264" fill="#38bdf8" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">Cluster A members</text>
+    </svg>
+
+    <p class="visual-caption">
+      <strong>Physical realism matters for flight safety:</strong> A blurred average underestimates peak shear and structural bending loads. Engression preserves sharp vertical gradients across every individual ensemble member.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 2.2 Noise conditioning & architecture                                  -->
+<!-- ====================================================================== -->
+<section id="s2-2" class="doc-section">
+  <span class="sec-num">2.2</span>
+  <h2>Noise conditioning &amp; architecture</h2>
+
+  <p>
+    Tempest-ARKNET uses a compact 4-block residual MLP (width 512) modeled after modern ML weather ensembles (ECMWF AIFS-CRPS and DeepMind FGN). Two structural choices keep the generator fast, stable, and immune to climate-index memorization.
+  </p>
+
+  <ul class="struct-list">
+    <li><strong>Pre-additive noise ($z_{\varepsilon} \in \mathbb{R}^{32}$):</strong> One 32-dimensional standard normal vector is embedded once and injected into every residual block so every altitude layer shares the same coherent weather draw.</li>
+    <li><strong>AdaLN / FiLM dimmer switches:</strong> Inside each block, the noise embedding outputs per-channel scale ($s_\ell$) and shift ($b_\ell$) parameters that modulate the normalized hidden state &mdash; acting like a bank of dimmer switches that steer the network toward a specific weather realization.</li>
+    <li><strong>Zero-initialized residual blocks:</strong> Every FiLM projection starts at exact zero weights and biases ($s_\ell = 0, b_\ell = 0$), so training begins as a clean, stable LayerNorm MLP and smoothly learns stochastic spread without early divergence.</li>
+    <li><strong>Linear climate trend bypass:</strong> Slow monthly indices (<code>gmst</code>, <code>oni</code>, <code>wwv</code>, <code>qbo</code>) bypass the nonlinear trunk so the network cannot fingerprint and memorize individual historical months, forcing clean extrapolatable trends.</li>
+  </ul>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">Visual Profile Modulation: Noise Bend vs. Linear Climate Shift</h3>
+      <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+    </div>
+
+    <svg viewBox="0 0 960 390" width="100%" height="auto" role="img" aria-label="Visual profile modulation showing how a noise draw bends a wind-speed curve through AdaLN/FiLM while the linear climate bypass shifts the baseline horizontally" style="display:block;background:#111114;border:1px solid #27272a;border-radius:6px;">
+      <defs>
+        <marker id="arr-sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+        </marker>
+        <marker id="arr-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24"/>
+        </marker>
+        <marker id="arr-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399"/>
+        </marker>
+      </defs>
+
+      <!-- PANEL 1: BASELINE PROFILE -->
+      <rect x="20" y="20" width="286" height="350" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+      <text x="38" y="48" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">STEP 1 &middot; SITE &amp; SEASON</text>
+      <text x="38" y="72" fill="#f4f4f5" font-family="'Space Grotesk', sans-serif" font-size="16" font-weight="700">Local Baseline Profile</text>
+
+      <!-- Panel 1 Axes -->
+      <line x1="76" y1="96" x2="76" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <line x1="76" y1="306" x2="284" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <g stroke="#27272a" stroke-width="1">
+        <line x1="76" y1="148" x2="284" y2="148"/>
+        <line x1="76" y1="200" x2="284" y2="200"/>
+        <line x1="76" y1="252" x2="284" y2="252"/>
+      </g>
+      <g fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="end">
+        <text x="68" y="106">18 km</text>
+        <text x="68" y="205">9 km</text>
+        <text x="68" y="308">0 m</text>
+      </g>
+      <text x="180" y="336" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="middle">Wind Speed</text>
+
+      <!-- Smooth baseline wind curve -->
+      <path d="M 108 302 C 120 264, 146 220, 186 184 C 216 156, 204 126, 178 102" fill="none" stroke="#a1a1aa" stroke-width="2.6" stroke-dasharray="6 4"/>
+      <text x="196" y="220" fill="#d4d4d8" font-family="'DM Sans', sans-serif" font-size="13">Mean climatology</text>
+      <text x="180" y="358" fill="#a1a1aa" font-family="'DM Sans', sans-serif" font-size="13" text-anchor="middle">Site, elevation, day, hour</text>
+
+      <!-- Connector 1 -> 2 -->
+      <line x1="308" y1="196" x2="332" y2="196" stroke="#38bdf8" stroke-width="2.2" marker-end="url(#arr-sky)"/>
+
+      <!-- PANEL 2: NOISE DRAW BENDS THE CURVE -->
+      <rect x="336" y="20" width="288" height="350" rx="6" fill="#18181b" stroke="#38bdf8" stroke-width="1.2"/>
+      <text x="354" y="48" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">STEP 2 &middot; NOISE DRAW</text>
+      <text x="354" y="72" fill="#f4f4f5" font-family="'Space Grotesk', sans-serif" font-size="16" font-weight="700">FiLM Bends Wind Shape</text>
+
+      <!-- Panel 2 Axes -->
+      <line x1="382" y1="96" x2="382" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <line x1="382" y1="306" x2="602" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <g stroke="#27272a" stroke-width="1">
+        <line x1="382" y1="148" x2="602" y2="148"/>
+        <line x1="382" y1="200" x2="602" y2="200"/>
+        <line x1="382" y1="252" x2="602" y2="252"/>
+      </g>
+      <text x="492" y="336" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="middle">Wind Speed</text>
+
+      <!-- Ghost baseline -->
+      <path d="M 414 302 C 426 264, 452 220, 492 184 C 522 156, 510 126, 484 102" fill="none" stroke="#52525b" stroke-width="1.8" stroke-dasharray="5 4"/>
+
+      <!-- Alternate noise realization (emerald, softer) -->
+      <path d="M 404 302 C 412 268, 434 234, 444 196 C 454 156, 540 132, 514 102" fill="none" stroke="#34d399" stroke-width="1.8" opacity="0.65"/>
+
+      <!-- Active noise realization (sky blue, sharp jet bend) -->
+      <path d="M 424 302 C 446 268, 516 232, 578 192 C 528 164, 488 130, 474 102" fill="none" stroke="#38bdf8" stroke-width="3"/>
+
+      <!-- Curved bend arrow from baseline to bent jet peak -->
+      <path d="M 498 186 Q 534 186 566 192" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arr-sky)"/>
+      <text x="510" y="256" fill="#38bdf8" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">Noise draw bends</text>
+      <text x="510" y="274" fill="#38bdf8" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">jet &amp; shear shape</text>
+      <text x="480" y="358" fill="#a1a1aa" font-family="'DM Sans', sans-serif" font-size="13" text-anchor="middle">1 noise draw = 1 sharp sky</text>
+
+      <!-- Connector 2 -> 3 -->
+      <line x1="626" y1="196" x2="650" y2="196" stroke="#fbbf24" stroke-width="2.2" marker-end="url(#arr-amber)"/>
+
+      <!-- PANEL 3: LINEAR CLIMATE BYPASS SHIFTS BASELINE -->
+      <rect x="654" y="20" width="286" height="350" rx="6" fill="#18181b" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="672" y="48" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">STEP 3 &middot; CLIMATE BYPASS</text>
+      <text x="672" y="72" fill="#f4f4f5" font-family="'Space Grotesk', sans-serif" font-size="16" font-weight="700">Linear Baseline Shift</text>
+
+      <!-- Panel 3 Axes -->
+      <line x1="700" y1="96" x2="700" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <line x1="700" y1="306" x2="918" y2="306" stroke="#3f3f46" stroke-width="1.4"/>
+      <g stroke="#27272a" stroke-width="1">
+        <line x1="700" y1="148" x2="918" y2="148"/>
+        <line x1="700" y1="200" x2="918" y2="200"/>
+        <line x1="700" y1="252" x2="918" y2="252"/>
+      </g>
+      <text x="809" y="336" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="middle">Wind Speed</text>
+
+      <!-- Pre-shift bent curve (faint sky blue) -->
+      <path d="M 736 302 C 758 268, 822 232, 876 192 C 832 164, 796 130, 782 102" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.65"/>
+
+      <!-- Final shifted curve (emerald solid) -->
+      <path d="M 762 302 C 784 268, 848 232, 902 192 C 858 164, 822 130, 808 102" fill="none" stroke="#34d399" stroke-width="3"/>
+
+      <!-- Clean horizontal amber shift arrows -->
+      <line x1="800" y1="136" x2="824" y2="136" stroke="#fbbf24" stroke-width="2" marker-end="url(#arr-amber)"/>
+      <line x1="864" y1="192" x2="892" y2="192" stroke="#fbbf24" stroke-width="2" marker-end="url(#arr-amber)"/>
+      <line x1="766" y1="264" x2="790" y2="264" stroke="#fbbf24" stroke-width="2" marker-end="url(#arr-amber)"/>
+
+      <text x="716" y="132" fill="#fbbf24" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">El Ni&ntilde;o /</text>
+      <text x="716" y="150" fill="#fbbf24" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600">GMST shift</text>
+      <text x="798" y="358" fill="#34d399" font-family="'DM Sans', sans-serif" font-size="13" font-weight="600" text-anchor="middle">Final coherent profile</text>
+    </svg>
+  </div>
+
+  <div class="eq-box">
+    <span class="eq-tag">Eq. 2.1 &mdash; AdaLN / FiLM Residual Block &amp; Linear Bypass</span>
+    $$h_{\ell+1} = h_\ell + \mathrm{FFN}\!\left(\mathrm{LN}(h_\ell) \odot (1 + s_\ell(z_{\varepsilon})) + b_\ell(z_{\varepsilon})\right), \qquad z_{\varepsilon} \in \mathbb{R}^{32}$$
+    $$\hat{y} = f_{\text{core}}(x_{\text{local}}, z_{\varepsilon}) + \sum_{k \in \mathcal{L}} \beta_k(x_{\text{local}})\, x_k$$
+    <p class="eq-explain">
+      Keeping $\mathcal{L} = \{\text{year/gmst}, \text{oni}, \text{wwv}, \text{qbo30}, \text{qbo50}\}$ in the linear bypass lets the model extrapolate future warming smoothly while blocking month-level memorization.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 2.3 Training losses, gusts & vertical W                                -->
+<!-- ====================================================================== -->
+<section id="s2-3" class="doc-section">
+  <span class="sec-num">2.3</span>
+  <h2>Training losses, gusts &amp; vertical wind (W)</h2>
+
+  <p>
+    Because the network outputs an ensemble of $M$ draws per training step (default $M = 4$), Tempest-ARKNET trains with <strong>strictly proper scoring rules</strong> that reward both accuracy and honest spread, paired with targeted rocket-safety heads for gusts and vertical air motion.
+  </p>
+
+  <ul class="struct-list">
+    <li><strong>Almost-Fair CRPS (<code>crps_alpha = 0.95</code>):</strong> Scores every marginal coordinate using the unbiased spread denominator $M(M-1)$. Pure fair CRPS ($\alpha = 1$) has a degenerate optimum at small $M$; setting $\alpha = 0.95$ eliminates that instability while preserving honest spread.</li>
+    <li><strong>Multivariate Energy Score (<code>es_weight = 0.1</code>):</strong> Scores the full 179-D Euclidean vector jointly, penalizing ensembles whose altitude levels move independently instead of as coherent atmospheric columns.</li>
+    <li><strong>Shear-tail &amp; low-wind rail-exit losses:</strong> Optional targeted proper scores emphasize extreme vertical shear layers above the 90th percentile (<code>shear_tail_q = 0.9</code>) and near-pad vector winds at or below <code>300 m</code> AGL (<code>low_wind_loss</code>) where rail-exit weathercocking is sharpest.</li>
+    <li><strong>Gumbel peak gust excess (10 m):</strong> Airport ASOS observations fit a conditional Gumbel distribution for $G = \max(\text{gust}, \text{wind})$ with location linear in wind speed, harmonics, and station flag, and log-linear scale $\beta = \exp(\phi^\top x)$.</li>
+    <li><strong>Vertical wind $w$ &amp; convective scale $w^*$:</strong> Resolved synoptic vertical velocity is converted from ERA5 pressure velocity via $w = -\omega / (\rho g_0)$, while sub-grid daytime thermals scale with the Deardorff convective velocity $w^*$ inside the mixed boundary layer ($0 &lt; z &lt; z_i$).</li>
+  </ul>
+
+  <div class="eq-box">
+    <span class="eq-tag">Eq. 2.2 &mdash; Almost-Fair CRPS &amp; Multivariate Energy Score</span>
+    $$\mathrm{afCRPS}_\alpha(X, y) = \frac{1}{M}\sum_{i=1}^{M} |X_i - y| - \frac{1 - \varepsilon}{2 M (M - 1)} \sum_{i=1}^{M}\sum_{j=1}^{M} |X_i - X_j|, \qquad \varepsilon = \frac{1 - \alpha}{M}$$
+    $$\mathrm{ES}(X, y) = \frac{1}{M}\sum_{i=1}^{M} \|X_i - y\|_2 - \frac{1}{2 M (M - 1)} \sum_{i=1}^{M}\sum_{j=1}^{M} \|X_i - X_j\|_2$$
+    <p class="eq-explain">
+      The first term pulls ensemble members toward truth; the second term rewards pairwise diversity up to the true uncertainty level, preventing ensemble collapse.
+    </p>
+  </div>
+
+  <div class="eq-box">
+    <span class="eq-tag">Eq. 2.3 &mdash; Synoptic Vertical Wind &amp; Convective Thermal Scale</span>
+    $$w = -\frac{\omega}{\rho\, g_0}, \qquad w^* = \left(\frac{g_0}{T}\,\frac{H}{\rho\, c_p}\, z_i\right)^{1/3}$$
+    $$\sigma_w(z) = \sqrt{1.8}\, w^* \left(\frac{z}{z_i}\right)^{1/3}\left(1 - 0.8\,\frac{z}{z_i}\right) \quad (0 &lt; z &lt; z_i)$$
+    <p class="eq-explain">
+      When upward surface heat flux $H \le 0$ (stable night air), $w^* = 0$ and convective thermals shut off automatically; during desert afternoons, $\sigma_w(z)$ peaks near $z \approx 0.35\, z_i$.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 2.4 Interactive: CRPS & spread-skill lab                               -->
+<!-- ====================================================================== -->
+<section id="s2-4" class="doc-section">
+  <span class="sec-num">2.4</span>
+  <h2>Interactive: CRPS &amp; spread-skill lab</h2>
+
+  <p>
+    Experiment with ensemble bias and spread below to see why CRPS penalizes both overconfident narrow ensembles and overly wide, vague forecasts &mdash; reaching its unique minimum when predicted spread matches real forecast error.
+  </p>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">Live CRPS, Fair-Spread &amp; Spread-Skill Explorer</h3>
+      <button type="button" class="action-btn" onclick="openColabLab('lab_02')">Open Lab 2 in Colab &nearr;</button>
+    </div>
+    <div id="widget-2-crps"></div>
+    <p class="visual-caption">
+      Drag the spread slider below and above the true error standard deviation to observe the asymmetric penalty of overconfidence versus underconfidence.
+    </p>
+  </div>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="action-btn" onclick="openColabLab('lab_02')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="action-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

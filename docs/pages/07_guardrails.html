@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bugs (B1–B14) & Guardrails &mdash; Tempest-ARKNET</title>
+
+  <!-- Named Font Pairing (NO Inter everywhere): Space Grotesk + DM Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script defer src="../assets/site.js"></script>
+  
+</head>
+<body data-page-id="07_guardrails" data-base="../">
+
+  <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button id="mobile-nav-btn" class="mobile-nav-btn" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../pages/04_metrics.html" class="topbar-link">Metrics Guide</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-outline" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and sections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <main class="site-main">
+      <article class="page-wrap">
+        <header class="page-header">
+          <p class="page-kicker">Chapter 07 · Audit & Experiments</p>
+          <h1>Bugs (B1–B14) & Guardrails</h1>
+          <p class="page-lead">All 14 codebase-verified bugs (B1–B14) with exact file/line references, operational guardrails, and the Python 3.12 PEP 701 compatibility note.</p>
+        </header>
+
+        
+<section id="s7-1" class="doc-section">
+  <span class="sec-num">7.1</span>
+  <h2>Confirmed codebase bugs (B1&ndash;B14)</h2>
+  <p>
+    Every entry below was verified line-by-line against <code>senai-sorsa/tempest-arknet</code> at commit <code>d081e1c</code>, pairing each confirmed bug with the operational guardrail required until its patch lands.
+  </p>
+
+  <p class="note-block" style="padding:0.75rem 1rem;margin-bottom:1.25rem;">
+    <strong>By subsystem (14 total):</strong> v2 Toolkit &amp; Flight Sim (6: B2, B6&ndash;B10) &middot; Pure-NumPy Serving (3: B1, B3, B13) &middot; Scoring &amp; Near-Term (3: B4, B5, B14) &middot; Training &amp; Loss (2: B11, B12).
+  </p>
+
+  <div class="stacked-list">
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B1 &middot; SciPy dependency leak &amp; import-time self-check</h3>
+        <span class="stacked-item-meta">tempest_weather/ur5.py:11,125</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> <code>ur5.py:11</code> executes <code>from scipy.stats import norm</code> at module top level and line <code>125</code> runs <code>_selfcheck()</code> unconditionally on import, breaking strict NumPy-only environments without SciPy installed.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Install SciPy in field environments until <code>norm</code> is replaced with a pure-NumPy <code>erfc</code>/<code>erfinv</code> helper and <code>_selfcheck()</code> moves behind a test hook.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B2 &middot; <code>Launch.engine()</code> silently resets <code>_obs=None</code></h3>
+        <span class="stacked-item-meta">tempest_weather_v2/launch.py:1076</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Re-fetching or rebuilding the underlying engine via <code>Launch.engine()</code> sets <code>_obs = None</code> at line <code>1076</code>, silently discarding previously ingested METAR, ASOS, or pad-anemometer observations.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Always ingest live observations (<code>observe_latest()</code>, <code>observe_pad()</code>) <em>after</em> constructing or accessing <code>Launch.engine()</code>, or re-apply observations whenever rebuilding the engine.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B3 &middot; <code>condition_on_observations(soft=True)</code> mutates <code>S</code> in place</h3>
+        <span class="stacked-item-meta">tempest_weather/flight/engine.py:146-155</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Lines <code>146-155</code> (and <code>164</code>) overwrite the ensemble matrix <code>S</code> in place instead of copying it first, corrupting any caller reference held for before-vs-after diagnostic comparisons.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Pass <code>S.copy()</code> explicitly whenever retaining the unconditioned prior ensemble alongside conditioned outputs.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B4 &middot; Inverted post-generation stack order &amp; missing <code>month=mo</code></h3>
+        <span class="stacked-item-meta">tempest/scoring/sonde.py:123-158</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> The radiosonde verification harness applies post-generation calibration stages in an inverted order relative to production serving (<code>tempest_weather/engine.py</code>) and omits <code>month=mo</code> on the seasonal shift call.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Never compare raw <code>sonde.py</code> benchmark numbers against production serving without aligning stage order and passing <code>month=mo</code> explicitly.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B5 &middot; 1000 hPa RH fallback ignores elevated terrain</h3>
+        <span class="stacked-item-meta">tempest/nearterm/ensemble.py:70</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> When 2 m relative humidity (<code>rh2m</code>) is absent from a near-term NWP member, line <code>70</code> falls back to the 1000 hPa pressure level&mdash;which lies underground at high-elevation pads like Spaceport America (~1,400 m ASL, surface pressure ~860 hPa).
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Verify <code>rh2m</code> is present in near-term feeds for high-elevation launch sites, or substitute the lowest pressure level above surface pressure $p_s$.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B6 &middot; In-place attribute mutation breaks reader thread safety</h3>
+        <span class="stacked-item-meta">tempest_weather_v2/readers.py:347-419</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> <code>conditions()</code>, <code>velocity()</code>, <code>rocketpy_inputs()</code>, and <code>to_openrocket_csv()</code> temporarily mutate <code>self._ft</code>, <code>self.reference</code>, <code>self._perm</code>, and <code>self._sign</code> in place inside <code>try/finally</code> blocks, causing race conditions across worker threads.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Use process-based parallelism (<code>multiprocessing</code>) or instantiate one reader per thread rather than sharing a single reader object across concurrent threads.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B7 &middot; <code>atmosphere_metrics()</code> assumes SI units and ASL reference</h3>
+        <span class="stacked-item-meta">tempest_weather_v2/montecarlo.py:210-213</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Lines <code>210-213</code> query <code>atm.air(z0 + 1.0)[2]</code> and <code>atm.wind_many(z0 + np.linspace(10.0, top, 24))</code> using <code>z0 = float(atm.elevation_m)</code> without checking <code>atm.units</code> or <code>atm.reference</code>, silently probing wrong altitudes on US-unit (feet) or AGL readers.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Always construct readers with <code>units="si", reference="asl"</code> before passing them into <code>montecarlo.py</code> attribution routines.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B8 &middot; Silent <code>wind_speed@100</code> &rarr; <code>wind_10m</code> alias</h3>
+        <span class="stacked-item-meta">tempest_weather_v2/names.py:37-38</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> The <code>ALIASES</code> dictionary maps both <code>"wind_speed@10"</code> and <code>"wind_speed@100"</code> to <code>"wind_10m"</code>, causing any query for 100 m rail-exit wind via aliases to silently return the slower 10 m surface wind.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Query the 100 m AGL level directly from <code>launch.atmospheres()</code> (profile level index <code>Z_LEVELS[2] = 100.0 m</code>) rather than using the <code>"wind_speed@100"</code> alias string.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B9 &middot; <code>radar._get()</code> bypasses centralized <code>_net.fetch()</code></h3>
+        <span class="stacked-item-meta">tempest_weather_v2/radar.py:38-40</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> NEXRAD VAD radar retrieval calls a standalone HTTP helper <code>radar._get()</code> instead of <code>_net.fetch()</code>, skipping unified retry backoff, timeout ceilings, and offline cache replay.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Keep NEXRAD VAD opt-in disabled during air-gapped or spotty-cellular field runs, or wrap calls with an explicit outer timeout and fallback.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B10 &middot; Offline <code>None</code> elevation crash &amp; 6-hour-only <code>Launch.stale()</code></h3>
+        <span class="stacked-item-meta">tempest_weather_v2/launch.py:588,613,1128</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Initializing a custom pad offline without cached DEM data returns <code>elevation_m = None</code> and crashes downstream (lines <code>588, 613</code>); separately, <code>Launch.stale()</code> at line <code>1128</code> hardcodes a 6-hour threshold regardless of source cadence.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Pass <code>elevation_m=...</code> explicitly for all custom or offline launch coordinates, and inspect observation timestamps directly rather than relying solely on <code>Launch.stale()</code>.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B11 &middot; <code>FEATURES.index("year")</code> crashes on <code>--features p2</code></h3>
+        <span class="stacked-item-meta">build_wdata.py:52 / s25_models.py:536</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> The 16-feature <code>p2</code> schema replaces raw linear <code>"year"</code> with physical warming and ENSO indices <code>(gmst, oni_pos, oni_neg, oni_lag3)</code>, but both files hardcode <code>FEATURES.index("year")</code> and raise <code>ValueError</code>.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Guard the lookup with <code>if "year" in FEATURES</code> before training or rebuilding data with <code>--features p2</code>.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B12 &middot; Missing $\epsilon$ stabilizer in <code>energy_score</code> Euclidean norm</h3>
+        <span class="stacked-item-meta">tempest/generator/model.py:395-396</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Lines <code>395-396</code> compute <code>.norm(dim=-1)</code> without adding an $\epsilon$ floor inside the square root ($\sqrt{\|d\|^2 + \epsilon}$). Whenever two samples coincide ($d = 0$), the backward gradient $d / \|d\|$ produces <code>NaN</code>.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Replace bare <code>.norm(dim=-1)</code> with <code>torch.sqrt(diff.pow(2).sum(dim=-1) + 1e-8)</code> before running long or mixed-precision training jobs.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B13 &middot; <code>couple()</code> omits <code>support="real"</code> for <code>degC</code> / <code>degF</code></h3>
+        <span class="stacked-item-meta">tempest_weather/api.py:772</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> Unlike <code>describe()</code> (lines <code>755-756</code>), <code>couple()</code> at line <code>772</code> forgets to pass <code>support="real"</code> for Celsius and Fahrenheit temperatures, allowing positive-only distributions to fit warm samples with an unphysical hard lower bound at 0&deg;.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Request temperatures in Kelvin (<code>"K"</code>) when using parametric copula modes in <code>couple()</code>, or stick to default <code>method="whole_sample"</code>.
+      </p>
+    </div>
+
+    <div class="stacked-item">
+      <div class="stacked-item-head">
+        <h3 class="stacked-item-title">B14 &middot; Altitude band-edge inequality mismatch (<code>&lt;</code> vs. <code>&lt;=</code>)</h3>
+        <span class="stacked-item-meta">tempest/scoring/sonde.py:265</span>
+      </div>
+      <p>
+        <strong>Root cause:</strong> <code>sonde.py:265</code> slices vertical evaluation bands using a different strict/inclusive inequality than <code>shear_map.py:27</code>, <code>lapse_map.py:23</code>, and <code>shear_tail.py:58</code>, causing boundary altitude levels to shift between adjacent bands during verification.
+      </p>
+      <p style="margin-bottom:0;">
+        <strong>Guardrail:</strong> Standardize band slicing to half-open intervals $[z_{\text{lo}}, z_{\text{hi}})$ (with inclusive upper cap only on the top band) before comparing band-level skill metrics across scripts.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="s7-2" class="doc-section">
+  <span class="sec-num">7.2</span>
+  <h2>Python 3.12 compatibility note</h2>
+  <ul class="struct-list">
+    <li>
+      <strong>Delayed PEP 701 <code>SyntaxError</code> on Python &le; 3.11:</strong>
+      <code>tempest_weather_v2/__init__.py:12-16</code> lazily imports <code>launch.py</code> inside <code>__getattr__</code>, so top-level imports succeed and the nested double-quoted f-string at <code>launch.py:684</code> only fails when <code>Launch</code>, <code>Window</code>, <code>AtmosphereSet</code>, or <code>Launches</code> is first accessed.
+    </li>
+    <li>
+      <strong>Deployment guardrail:</strong>
+      Target <strong>Python 3.12+</strong> for full <code>tempest_weather_v2</code> support; on Python 3.10/3.11 nodes, swap the inner quotes at <code>launch.py:684</code> to single quotes or extract the expression into a local variable.
+    </li>
+  </ul>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        
+        <button type="button" class="action-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

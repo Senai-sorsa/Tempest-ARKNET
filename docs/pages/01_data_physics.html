@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1. Data & Atmospheric Physics &mdash; Tempest-ARKNET</title>
+
+  <!-- Named Font Pairing (NO Inter everywhere): Space Grotesk + DM Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="01_data_physics" data-base="../">
+
+  <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button id="mobile-nav-btn" class="mobile-nav-btn" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../pages/04_metrics.html" class="topbar-link">Metrics Guide</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-outline" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and sections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <main class="site-main">
+      <article class="page-wrap">
+        <header class="page-header">
+          <p class="page-kicker">Core Pipeline &middot; Chapter 1</p>
+          <h1>1. Data & Atmospheric Physics</h1>
+          <p class="page-lead">How Tempest-ARKNET ingests multi-source atmospheric records onto a 44-level AGL height ladder and derives hydrostatically exact density and sound speed.</p>
+        </header>
+
+        
+<!-- ====================================================================== -->
+<!-- 1.1 Multi-source weather inputs                                        -->
+<!-- ====================================================================== -->
+<section id="s1-1" class="doc-section">
+  <span class="sec-num">1.1</span>
+  <h2>Multi-source weather inputs</h2>
+
+  <p>
+    Tempest-ARKNET separates <strong>what it learns from</strong> (decades of gridded reanalysis and real weather balloons) from <strong>what steers each forecast</strong> (near-term NWP models and slow global climate drivers). Combining these sources lets one pipeline serve both launch-day operations and multi-month mission planning.
+  </p>
+
+  <ul class="struct-list">
+    <li><strong>ERA5 reanalysis (historical backbone):</strong> 40+ years of hourly atmospheric profiles (1980&ndash;2026) merged from 13 Earthmover pressure levels plus 8 CDS boundary-layer levels (975&ndash;750 hPa) to resolve low-level inversions and wind shear.</li>
+    <li><strong>IGRAv2 weather balloons (physical ground truth):</strong> Twice-daily (00Z / 12Z) real radiosonde soundings used for station bias correction and held-out verification, preventing the model from inheriting gridded reanalysis smoothness.</li>
+    <li><strong>Operational NWP forecasts (near-term steering):</strong> Short- and medium-range guidance from <strong>HRRR</strong> (3 km convective scale, 0&ndash;48 h), <strong>GFS</strong> and <strong>GEFS</strong> (0&ndash;16 days), and <strong>ECMWF IFS</strong> when launch is within two weeks.</li>
+    <li><strong>Global climate drivers (seasonal steering):</strong> Slow indices &mdash; <strong>ONI</strong> (El Ni&ntilde;o / La Ni&ntilde;a), <strong>QBO</strong> at 30 &amp; 50 hPa (stratospheric wind phase), and <strong>WWV</strong> (equatorial Pacific warm water volume) &mdash; shift seasonal wind and jet-stream probabilities months ahead.</li>
+  </ul>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Feature Set</th>
+          <th>Count</th>
+          <th>Input Columns</th>
+          <th>Conceptual Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Base (default)</strong></td>
+          <td><code>13</code></td>
+          <td><code>lat, lon, elev_site, elev_grid</code>, cyclical <code>doy_sin/cos</code>, <code>hour_sin/cos</code>, <code>year</code>, <code>oni, wwv, qbo30, qbo50</code></td>
+          <td>Compact baseline; encodes location, terrain, annual/diurnal cycles, linear warming trend (<code>year</code>), and four climate drivers.</td>
+        </tr>
+        <tr>
+          <td><strong>P2 (climate-upgraded)</strong></td>
+          <td><code>16</code></td>
+          <td>Replaces <code>year</code> with <code>gmst</code> (global mean surface temp), adds asymmetric hinges <code>oni_pos</code>, <code>oni_neg</code>, and 3-month lag <code>oni_lag3</code></td>
+          <td>Captures asymmetric El Ni&ntilde;o vs. La Ni&ntilde;a jet shifts and delayed teleconnection response without overfitting calendar years.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note-block">
+    <p class="note-label">Design Principle</p>
+    <p>
+      Cyclical sine/cosine pairs prevent artificial discontinuities at midnight or December 31, while climate drivers are always sampled jointly from historical records when future indices are unknown so physical teleconnections stay intact.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 1.2 The 44-level vertical height ladder                                -->
+<!-- ====================================================================== -->
+<section id="s1-2" class="doc-section">
+  <span class="sec-num">1.2</span>
+  <h2>The 44-level vertical height ladder</h2>
+
+  <p>
+    Every generated weather realization lives on a fixed <strong>44-level height-above-ground (AGL)</strong> ladder from 10 m to 18 km. Rather than spacing levels uniformly, Tempest-ARKNET concentrates 12 levels in the lowest 2 km where rockets are slowest and most sensitive to crosswinds.
+  </p>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">44-Level AGL Altitude Ladder &amp; Ascent Regimes</h3>
+      <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+    </div>
+
+    <svg viewBox="0 0 880 460" width="100%" height="auto" role="img" aria-label="44-level AGL vertical height ladder with rocket ascent silhouette and flight regimes" style="display:block;background:#111114;border:1px solid #27272a;border-radius:6px;">
+      <!-- Subtle zone bands -->
+      <rect x="28" y="24" width="824" height="196" rx="6" fill="#18181b" stroke="#27272a" stroke-width="1"/>
+      <rect x="28" y="228" width="824" height="208" rx="6" fill="#0d1b24" stroke="#1e3a4c" stroke-width="1"/>
+
+      <!-- Zone titles -->
+      <text x="46" y="48" fill="#a1a1aa" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" letter-spacing="0.06em">UPPER-AIR ZONE &mdash; 32 UNIFORM LEVELS (500 m)</text>
+      <text x="46" y="252" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600" letter-spacing="0.06em">BOUNDARY LAYER &mdash; 12 DENSE LEVELS (10 m &ndash; 2 km)</text>
+
+      <!-- Vertical ladder spine -->
+      <line x1="142" y1="68" x2="142" y2="418" stroke="#3f3f46" stroke-width="2"/>
+
+      <!-- Upper-air ticks (y = 70 to 206) -->
+      <g stroke="#52525b" stroke-width="1.4">
+        <line x1="130" y1="70" x2="156" y2="70"/>
+        <line x1="136" y1="87" x2="148" y2="87"/>
+        <line x1="130" y1="104" x2="156" y2="104"/>
+        <line x1="136" y1="121" x2="148" y2="121"/>
+        <line x1="130" y1="138" x2="156" y2="138"/>
+        <line x1="136" y1="155" x2="148" y2="155"/>
+        <line x1="130" y1="172" x2="156" y2="172"/>
+        <line x1="136" y1="189" x2="148" y2="189"/>
+        <line x1="130" y1="206" x2="156" y2="206"/>
+      </g>
+      <!-- Upper-air altitude labels -->
+      <g fill="#d4d4d8" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="end">
+        <text x="122" y="75">18.0 km</text>
+        <text x="122" y="109">14.0 km</text>
+        <text x="122" y="143">10.0 km</text>
+        <text x="122" y="177">6.0 km</text>
+        <text x="122" y="211">2.5 km</text>
+      </g>
+
+      <!-- Boundary-layer dense ticks (12 levels, y = 268 to 418) -->
+      <g stroke="#38bdf8" stroke-width="1.6">
+        <line x1="128" y1="268" x2="158" y2="268"/>
+        <line x1="134" y1="282" x2="152" y2="282"/>
+        <line x1="134" y1="296" x2="152" y2="296"/>
+        <line x1="134" y1="310" x2="152" y2="310"/>
+        <line x1="134" y1="324" x2="152" y2="324"/>
+        <line x1="130" y1="338" x2="156" y2="338"/>
+        <line x1="134" y1="352" x2="152" y2="352"/>
+        <line x1="134" y1="366" x2="152" y2="366"/>
+        <line x1="134" y1="380" x2="152" y2="380"/>
+        <line x1="130" y1="394" x2="156" y2="394"/>
+        <line x1="134" y1="406" x2="152" y2="406"/>
+        <line x1="128" y1="418" x2="160" y2="418"/>
+      </g>
+      <!-- Boundary-layer labels -->
+      <g fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="13" text-anchor="end">
+        <text x="122" y="273">2000 m</text>
+        <text x="122" y="314">1000 m</text>
+        <text x="122" y="343">500 m</text>
+        <text x="122" y="371">200 m</text>
+        <text x="122" y="398">100 m</text>
+        <text x="122" y="423">10 m</text>
+      </g>
+
+      <!-- Horizontal flight regime guide lines -->
+      <line x1="164" y1="138" x2="830" y2="138" stroke="#3f3f46" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="164" y1="268" x2="830" y2="268" stroke="#1e3a4c" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="164" y1="394" x2="830" y2="394" stroke="#1e3a4c" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="164" y1="418" x2="830" y2="418" stroke="#34d399" stroke-width="1.2" stroke-dasharray="3 3"/>
+
+      <!-- Trajectory arc & Rocket silhouette -->
+      <path d="M 270 418 C 270 330, 290 218, 355 112" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-dasharray="6 4"/>
+      <!-- Launch pad & rail -->
+      <line x1="242" y1="418" x2="298" y2="418" stroke="#34d399" stroke-width="2.5"/>
+      <line x1="260" y1="418" x2="260" y2="382" stroke="#71717a" stroke-width="2"/>
+      <!-- Crisp rocket silhouette ascending through boundary layer -->
+      <g transform="translate(274,336) rotate(8)">
+        <!-- Exhaust plume -->
+        <polygon points="-4,34 4,34 0,54" fill="#fbbf24" opacity="0.85"/>
+        <!-- Body -->
+        <rect x="-5.5" y="-14" width="11" height="44" rx="2" fill="#f4f4f5"/>
+        <!-- Nosecone -->
+        <polygon points="-5.5,-14 5.5,-14 0,-30" fill="#38bdf8"/>
+        <!-- Fins -->
+        <polygon points="-5.5,18 -13,32 -5.5,30" fill="#a1a1aa"/>
+        <polygon points="5.5,18 13,32 5.5,30" fill="#a1a1aa"/>
+      </g>
+      <!-- Apogee marker -->
+      <circle cx="355" cy="112" r="5.5" fill="#fbbf24" stroke="#09090b" stroke-width="1.5"/>
+      <text x="368" y="102" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">Apogee</text>
+
+      <!-- Clean regime labels -->
+      <text x="450" y="106" fill="#f4f4f5" font-family="'Space Grotesk', sans-serif" font-size="15" font-weight="600">Jet-Stream &amp; Drogue Drift (9&ndash;18 km)</text>
+      <text x="450" y="180" fill="#f4f4f5" font-family="'Space Grotesk', sans-serif" font-size="15" font-weight="600">Max-Q &amp; Burnout Corridor (2.5&ndash;9 km)</text>
+      <text x="450" y="312" fill="#38bdf8" font-family="'Space Grotesk', sans-serif" font-size="15" font-weight="600">Low-Level Jet &amp; Shear Band (150&ndash;1500 m)</text>
+      <text x="450" y="392" fill="#34d399" font-family="'Space Grotesk', sans-serif" font-size="15" font-weight="600">Rail Exit &amp; Weathercocking (10&ndash;100 m)</text>
+    </svg>
+
+    <p class="visual-caption">
+      <strong>Why non-uniform AGL spacing matters:</strong> Rocket aerodynamic stability is most vulnerable during the first 2 km of flight. Packing 12 of the 44 levels below 2 km resolves pad-level wind shear without wasting model capacity on redundant upper-air levels.
+    </p>
+  </div>
+
+  <ul class="struct-list">
+    <li><strong>Boundary-layer zone (12 dense levels, 10 m &ndash; 2 km):</strong> <code>10, 50, 100, 150, 200, 300, 500, 750, 1000, 1250, 1500, 2000 m</code>. Tight steps near the pad capture rail-exit gusts, nocturnal low-level jets, and weathercocking torque.</li>
+    <li><strong>Upper-air zone (32 uniform levels, 2.5 km &ndash; 18 km):</strong> Fixed <code>500 m</code> spacing through the mid-troposphere, jet-stream core (9&ndash;13 km), and lower stratosphere for high-altitude apogee and drogue-chute drift.</li>
+    <li><strong>Compact state vector ($D = 179$):</strong> Four vertical profiles &mdash; zonal wind <code>u</code>, meridional wind <code>v</code>, temperature <code>T</code>, and moisture <code>RH</code> (or <code>lnd</code>) across 44 levels ($4 \times 44 = 176$) &mdash; plus three surface anchors (<code>t2m</code>, <code>sp</code>, <code>rh2m</code>).</li>
+    <li><strong>Derived analytically (not learned):</strong> Pressure $p(z)$, air density $\rho(z)$, speed of sound $a(z)$, specific humidity $q(z)$, and virtual temperature $T_v(z)$ are computed exactly from the 179-float state via hydrostatic thermodynamics.</li>
+  </ul>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 1.3 Thermodynamics & dewpoint encoding                                 -->
+<!-- ====================================================================== -->
+<section id="s1-3" class="doc-section">
+  <span class="sec-num">1.3</span>
+  <h2>Thermodynamics &amp; dewpoint encoding</h2>
+
+  <p>
+    Tempest-ARKNET never asks the neural network to predict pressure, air density, or speed of sound directly. Instead, the generator predicts temperature, moisture, and surface pressure, and an exact thermodynamic solver derives every hydrostatic quantity aloft.
+  </p>
+
+  <ul class="struct-list">
+    <li><strong>Why <code>log1p(dpd)</code> replaces raw RH:</strong> In dry desert air (like Spaceport America), raw relative humidity slams into the hard <code>0%</code> boundary, creating truncated distributions and unphysical wall pile-ups. Encoding moisture as the log dewpoint depression keeps dry-air variance smooth and unconstrained.</li>
+    <li><strong>Virtual temperature ($T_v$):</strong> Humid air is lighter than dry air because water vapor ($M_w \approx 18$) has lower molar mass than dry air ($M_d \approx 29$). Using $T_v$ accounts for moisture buoyancy cleanly in both pressure and density.</li>
+    <li><strong>Two-pass hypsometric integration:</strong> Computing humidity $q$ requires pressure $p(z)$, while hydrostatic pressure $p(z)$ requires $T_v(q)$. Pass 1 integrates $p$ assuming dry air ($T_v = T$); Pass 2 recomputes $q$ and $T_v$ from that pressure and re-integrates, converging to under <code>0.01%</code> pressure error.</li>
+  </ul>
+
+  <div class="eq-box">
+    <span class="eq-tag">Eq. 1.1 &mdash; Log Dewpoint Depression Moisture Coordinate</span>
+    $$\mathrm{lnd} = \ln\!\left(1 + \max(T - T_d,\, 0)\right)$$
+    <p class="eq-explain">
+      Maps saturated air ($T = T_d$, 100% RH) to $0$ and stretches very dry desert layers smoothly without hard clipping at $0\%$ RH.
+    </p>
+  </div>
+
+  <div class="eq-box">
+    <span class="eq-tag">Eq. 1.2 &mdash; Virtual Temperature &amp; Two-Pass Hypsometric Column</span>
+    $$T_v = T\left(1 + \left(\frac{R_v}{R_d} - 1\right) q\right) \approx T(1 + 0.6078\,q)$$
+    $$\ln p_{k+1} = \ln p_k - \frac{g(\bar{z}_k)\,\Delta z_k}{R_d\,\bar{T}_{v,k}}, \qquad \rho_k = \frac{p_k}{R_d\,T_{v,k}}, \qquad a_k = \sqrt{\gamma R_d\,T_{v,k}}$$
+    <p class="eq-explain">
+      Integrating upward from surface pressure $p_0 = \mathrm{sp}$ with altitude-adjusted gravity $g(\bar{z}_k) = g_0 (R_E / (R_E + \bar{z}_{\text{ASL}}))^2$ guarantees every generated profile is hydrostatically consistent by construction.
+    </p>
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- 1.4 Interactive: Atmosphere & density lab                              -->
+<!-- ====================================================================== -->
+<section id="s1-4" class="doc-section">
+  <span class="sec-num">1.4</span>
+  <h2>Interactive: Atmosphere &amp; density lab</h2>
+
+  <p>
+    Adjust surface temperature, pressure, and moisture below to watch how the two-pass hypsometric solver updates pressure $p(z)$, air density $\rho(z)$, and speed of sound $a(z)$ across all 44 AGL levels in real time.
+  </p>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">Live 44-Level Hypsometric &amp; Dewpoint Explorer</h3>
+      <button type="button" class="action-btn" onclick="openColabLab('lab_01')">Open Lab 1 in Colab &nearr;</button>
+    </div>
+    <div id="widget-1-thermo"></div>
+    <p class="visual-caption">
+      Compare hot, dry desert launch conditions against humid coastal conditions to see how virtual temperature $T_v$ shifts air density and Mach number along the ascent corridor.
+    </p>
+  </div>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="action-btn" onclick="openColabLab('lab_01')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="action-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

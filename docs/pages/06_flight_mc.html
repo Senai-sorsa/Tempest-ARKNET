@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flight-Sim & Monte Carlo &mdash; Tempest-ARKNET</title>
+
+  <!-- Named Font Pairing (NO Inter everywhere): Space Grotesk + DM Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="06_flight_mc" data-base="../">
+
+  <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button id="mobile-nav-btn" class="mobile-nav-btn" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../pages/04_metrics.html" class="topbar-link">Metrics Guide</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-outline" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and sections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <main class="site-main">
+      <article class="page-wrap">
+        <header class="page-header">
+          <p class="page-kicker">Chapter 06 · Launch Day & Flight Sim</p>
+          <h1>Flight-Sim & Monte Carlo</h1>
+          <p class="page-lead">Sub-microsecond 10 m lookup tables with continuous 0 m and 18 km boundaries, MIL-HDBK-1797 Dryden turbulence, and joint drag-vs-drift variance attribution.</p>
+        </header>
+
+        
+<section id="s6-1" class="doc-section">
+  <span class="sec-num">6.1</span>
+  <h2>Profile readers &amp; boundary defaults</h2>
+  <p>
+    Querying non-uniform 44-level altitude grids at 100&ndash;500 Hz quickly bottlenecks a 6-DOF solver. Tempest-ARKNET compiles each ensemble member once into a uniform 10 m <code>float32</code> lookup table with continuous boundaries below 10 m and above 18 km.
+  </p>
+
+  <ul class="struct-list">
+    <li>
+      <strong><code>air="model"</code> (default thermodynamic source):</strong>
+      Uses Tempest-ARKNET&rsquo;s generated temperature, pressure, density, and speed of sound profiles directly rather than substituting a dry 1976 ISA atmosphere (<code>air="isa"</code> remains available for wind-only sensitivity studies).
+    </li>
+    <li>
+      <strong><code>above_top="hold"</code> above 18 km AGL:</strong>
+      <ul class="struct-list" style="margin-top:0.5rem;">
+        <li>
+          <strong>Continuous stratospheric extension:</strong> Holds the 18 km horizontal wind vector constant while integrating $(T, \ln p)$ smoothly up to 86 km through the continuous ISA stratospheric tail.
+        </li>
+        <li>
+          <strong>Alias and alternative modes:</strong> <code>"climatology"</code> aliases <code>"hold"</code> to prevent any step cliff at 18 km; opt-in alternatives are <code>"decay"</code> ($e^{-\Delta z / 5000\text{ m}}$) and <code>"raise"</code> (throws <code>AboveTopError</code>).
+        </li>
+      </ul>
+    </li>
+    <li>
+      <strong><code>below_10m="linear"</code> (default pad-to-10 m bridge):</strong>
+      Interpolates linearly between the 0 m pad node and the 10 m AGL level so rail-exit winds stay smooth without terrain metadata; <code>"loglaw"</code> is available when AERSURFACE roughness $z_0$ is supplied.
+    </li>
+  </ul>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">Rocket Ascent Column: 0 m Pad Through 18 km Model Boundary</h3>
+      <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+    </div>
+    <svg viewBox="0 0 920 430" width="100%" role="img" aria-label="Carbon-Dark vertical ascent diagram showing a rocket rising from 0 m pad through the surface layer, 44-level 10 m LUT grid, and 18 km continuous ISA stratospheric tail" style="display:block;max-width:100%;height:auto;">
+      <rect x="0" y="0" width="920" height="430" rx="6" fill="#111114" stroke="#27272a" stroke-width="1"/>
+      <defs>
+        <marker id="arr-sky-61" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,1 L9,5 L0,9 Z" fill="#38bdf8"/>
+        </marker>
+      </defs>
+
+      <!-- Left Column: Atmospheric Regime Bands (x=76..406) -->
+      <!-- Band 3: Above 18 km (y=24..136) -->
+      <rect x="76" y="24" width="330" height="112" fill="#18181b" stroke="#27272a"/>
+      <text x="92" y="50" fill="#fbbf24" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600">18&ndash;86 km · STRATOSPHERIC TAIL</text>
+      <text x="92" y="76" fill="#f4f4f5" font-family="Space Grotesk, sans-serif" font-size="15" font-weight="600">Constant 18 km wind hold</text>
+      <text x="92" y="100" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Continuous ISA stratospheric tail</text>
+      <text x="92" y="122" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Zero step discontinuity at 18 km</text>
+
+      <!-- 18 km Boundary Line -->
+      <line x1="76" y1="136" x2="888" y2="136" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <text x="66" y="140" text-anchor="end" fill="#fbbf24" font-family="JetBrains Mono, monospace" font-size="13">18 km</text>
+
+      <!-- Band 2: 10 m to 18 km Tempest Grid (y=136..304) -->
+      <rect x="76" y="136" width="330" height="168" fill="#141418" stroke="#38bdf8" stroke-opacity="0.55"/>
+      <text x="92" y="164" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600">10 m&ndash;18 km · 44-LEVEL GRID</text>
+      <text x="92" y="192" fill="#f4f4f5" font-family="Space Grotesk, sans-serif" font-size="15" font-weight="700">Model profile · 10 m LUT</text>
+      <text x="92" y="218" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Uniform float32 table (u, v, w, &rho;, T, p, a)</text>
+      <text x="92" y="244" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Sub-microsecond 6-DOF lookups</text>
+      <text x="92" y="274" fill="#34d399" font-family="DM Sans, sans-serif" font-size="13" font-weight="600">+ 3-axis Dryden turbulence overlay</text>
+
+      <!-- 10 m Boundary Line -->
+      <line x1="76" y1="304" x2="888" y2="304" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="4 4"/>
+      <text x="66" y="308" text-anchor="end" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="13">10 m</text>
+
+      <!-- Band 1: 0 m to 10 m Surface Layer (y=304..382) -->
+      <rect x="76" y="304" width="330" height="78" fill="#18181b" stroke="#27272a"/>
+      <text x="92" y="328" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600">0&ndash;10 m · PAD SURFACE LAYER</text>
+      <text x="92" y="352" fill="#f4f4f5" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Linear pad-to-10 m bridge</text>
+      <text x="92" y="372" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Optional roughness log-law mode</text>
+
+      <!-- Ground Plane (0 m AGL) -->
+      <line x1="76" y1="382" x2="888" y2="382" stroke="#3f3f46" stroke-width="2"/>
+      <text x="66" y="386" text-anchor="end" fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13">0 m</text>
+
+      <!-- Right Visual: Rocket Trajectory Ascending Across All 3 Regimes -->
+      <!-- Launch Rail at x=518, y=382 -->
+      <line x1="512" y1="382" x2="522" y2="348" stroke="#a1a1aa" stroke-width="2.5"/>
+      <rect x="500" y="382" width="28" height="8" rx="2" fill="#3f3f46"/>
+      <text x="514" y="412" text-anchor="middle" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Launch Pad (0 m)</text>
+
+      <!-- Wind Shear Arrows (labels placed cleanly above arrows) -->
+      <text x="434" y="254" fill="#34d399" font-family="JetBrains Mono, monospace" font-size="13">0&ndash;200 m</text>
+      <line x1="434" y1="266" x2="496" y2="266" stroke="#34d399" stroke-width="1.8"/>
+      <polygon points="496,262 504,266 496,270" fill="#34d399"/>
+
+      <text x="434" y="190" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="13">0&ndash;3 km</text>
+      <line x1="434" y1="202" x2="516" y2="202" stroke="#38bdf8" stroke-width="1.8"/>
+      <polygon points="516,198 524,202 516,206" fill="#38bdf8"/>
+
+      <text x="434" y="80" fill="#fbbf24" font-family="JetBrains Mono, monospace" font-size="13">&gt; 18 km</text>
+      <line x1="434" y1="92" x2="512" y2="92" stroke="#fbbf24" stroke-width="1.8" stroke-dasharray="4 3"/>
+      <polygon points="512,88 520,92 512,96" fill="#fbbf24"/>
+
+      <!-- Ascent Trajectory Curve -->
+      <path d="M518,380 C530,326 560,248 606,170 C642,112 686,74 756,56" fill="none" stroke="#38bdf8" stroke-width="2.6" marker-end="url(#arr-sky-61)"/>
+
+      <!-- Rocket Icon along Trajectory near 14 km -->
+      <g transform="translate(614, 156) rotate(36)">
+        <path d="M0,-20 L6,-6 L6,12 L-6,12 L-6,-6 Z" fill="#f4f4f5" stroke="#09090b" stroke-width="1"/>
+        <polygon points="-6,6 -12,15 -6,12" fill="#38bdf8"/>
+        <polygon points="6,6 12,15 6,12" fill="#38bdf8"/>
+        <path d="M-3,12 L0,22 L3,12 Z" fill="#fbbf24"/>
+      </g>
+
+      <!-- Callout Nodes on Trajectory -->
+      <circle cx="534" cy="304" r="4" fill="#34d399" stroke="#09090b" stroke-width="1.5"/>
+      <text x="548" y="296" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Rail exit (10 m)</text>
+
+      <circle cx="627" cy="136" r="4.5" fill="#fbbf24" stroke="#09090b" stroke-width="1.5"/>
+      <text x="642" y="126" fill="#fbbf24" font-family="DM Sans, sans-serif" font-size="14" font-weight="600">18 km boundary</text>
+      <text x="642" y="156" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Smooth ISA stratospheric tail</text>
+
+      <text x="768" y="60" fill="#f4f4f5" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Apogee (&lt; 86 km)</text>
+      <text x="768" y="82" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Zero LUT cliff</text>
+    </svg>
+    <p class="visual-caption">
+      Each ensemble member compiles into a contiguous 10 m <code>float32</code> table so 6-DOF integrators transition cleanly from the 0 m pad through the 44-level grid into the 86 km ISA stratospheric tail.
+    </p>
+  </div>
+</section>
+
+<section id="s6-2" class="doc-section">
+  <span class="sec-num">6.2</span>
+  <h2>Dryden turbulence &amp; variance attribution</h2>
+  <p>
+    Synoptic 44-level profiles capture mesoscale wind shear, not sub-100 m eddies near the rail or Max-Q. Tempest-ARKNET overlays MIL-HDBK-1797 Dryden turbulence and separates atmospheric dispersion from vehicle uncertainty in joint Monte Carlo runs.
+  </p>
+
+  <h3>Euler sub-stepping vs. exact discrete AR(2)</h3>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Mode</th>
+          <th>Discretization Method</th>
+          <th>Behavior &amp; Trade-Off</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>exact_ar=False</code> (default)</td>
+          <td>Exact AR(1) for vertical $w$; explicit Euler sub-stepping (<code>nsub = 8</code> sub-steps per $\Delta z$) with burn-in warmup for transverse $(u, v)$.</td>
+          <td>Supports height-varying length scales $L_u(z), L_w(z)$ with simple explicit updates, but needs pre-$z=0$ burn-in and adds small discretization error when $\Delta z / L_u$ is large.</td>
+        </tr>
+        <tr>
+          <td><code>exact_ar=True</code> (opt-in S1)</td>
+          <td>Exact discrete spatial $\Delta z$ AR(2) state transition for the second-order transverse $(u, v)$ Dryden filter with stationary initialization.</td>
+          <td>Eliminates sub-stepping and burn-in warmup while matching analytical MIL-HDBK-1797 variance and autocorrelation across arbitrary vertical grid steps $\Delta z$.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Separating drag vs. drift variance</h3>
+  <p>
+    Raw ensemble indices ($0, 1, \dots, N-1$) are arbitrary and meaningless in regression. Instead, <code>atmosphere_metrics()</code> summarizes each member into three physical scalars so rank regression and Sobol indices separate aerodynamic drag variance from wind-drift variance:
+  </p>
+
+  <ul class="struct-list">
+    <li>
+      <strong><code>pad_air_density</code> ($\rho_{\text{pad}}$ at $z_0 + 1\text{ m}$):</strong>
+      Captures launch-site air density variations driven by temperature, pressure, and humidity&mdash;the primary atmospheric driver of aerodynamic drag, Max-Q, and apogee altitude dispersion.
+    </li>
+    <li>
+      <strong><code>mean_wind_0_200m</code> (low-level rail &amp; weathercocking shear):</strong>
+      Averages horizontal wind across the first 200 m above the pad where rocket velocity is lowest and aerodynamic weathercocking torque sets the initial flight-path tilt.
+    </li>
+    <li>
+      <strong><code>mean_wind_0_3km</code> (ascent &amp; descent drift column):</strong>
+      Captures bulk boundary-layer and lower-tropospheric transport responsible for horizontal downrange drift during boost and main-chute descent.
+    </li>
+    <li>
+      <strong>Incremental atmospheric variance gain:</strong>
+      <code>explained()</code> fits joint OLS rank regression to report <code>r2_vehicle</code>, <code>r2_all</code>, and <code>atmosphere_gain = max(r2_all - r2_vehicle, 0)</code>, showing immediately whether tightening weather forecasts or tightening motor/mass tolerances yields the larger safety payoff.
+    </li>
+  </ul>
+</section>
+
+<section id="s6-3" class="doc-section">
+  <span class="sec-num">6.3</span>
+  <h2>Interactive: 6-DOF dispersion lab</h2>
+  <p>
+    Adjust vehicle uncertainty, pad air density spread, and Dryden turbulence intensity to inspect how landing footprint ellipses and apogee variance split between vehicle parameters and atmospheric profiles.
+  </p>
+
+  <div class="visual-stage">
+    <div class="visual-header">
+      <h3 class="visual-title">6-DOF Joint Vehicle + Atmosphere Monte Carlo Explorer</h3>
+      <button type="button" class="action-btn" onclick="openColabLab('lab_04')">Open Colab Lab &nearr;</button>
+    </div>
+    <div id="widget-5-mc"></div>
+    <p class="visual-caption">
+      Compare vehicle-only dispersion against coupled Tempest-ARKNET ensembles to separate drag-driven apogee spread from wind-driven landing drift.
+    </p>
+  </div>
+</section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="action-btn" onclick="openColabLab('lab_04')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="action-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

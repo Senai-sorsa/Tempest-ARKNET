@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calibration &amp; Vertical Coherence &mdash; Tempest-ARKNET</title>
+
+  <!-- Named Font Pairing (NO Inter everywhere): Space Grotesk + DM Sans + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../assets/site.css" />
+
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <script defer src="../assets/site.js"></script>
+  <script defer src="../assets/widgets.js"></script>
+</head>
+<body data-page-id="03_calibration" data-base="../">
+
+  <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+  <header class="site-topbar">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button id="mobile-nav-btn" class="mobile-nav-btn" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <a href="../index.html" class="topbar-brand">
+        <span class="topbar-mark">T</span>
+        <span class="topbar-title">Tempest-ARKNET</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <a href="../index.html" class="topbar-link">Overview</a>
+      <a href="../pages/04_metrics.html" class="topbar-link">Metrics Guide</a>
+      <a href="../tests/experiments.html" class="topbar-link">Experiments (60)</a>
+      <button type="button" class="topbar-btn topbar-btn-outline" onclick="openGlossary()">Glossary</button>
+    </div>
+  </header>
+
+  <div class="site-shell">
+    <aside id="site-sidebar" class="site-sidebar" aria-label="Chapters and sections">
+      <nav id="site-sidebar-nav"></nav>
+    </aside>
+
+    <main class="site-main">
+      <article class="page-wrap">
+        <header class="page-header">
+          <p class="page-kicker">Chapter 03 &middot; Balloon Calibration &amp; Spatial Routing</p>
+          <h1>Calibration &amp; Vertical Coherence</h1>
+          <p class="page-lead">How Tempest-ARKNET shifts raw ERA5-trained neural ensembles onto IGRAv2 weather balloon truth, restores physical wind shear via the Schaake Shuffle, and crossfades smoothly across launch-day and climate horizons.</p>
+        </header>
+
+        
+        <section id="s3-1" class="doc-section">
+          <span class="sec-num">3.1</span>
+          <h2>Weather balloon station calibration</h2>
+          <p>
+            Neural ensembles trained on ERA5 inherit reanalysis grid-box smoothing. Before any profile enters a rocket flight simulation, Tempest-ARKNET calibrates both its center and its spread against real IGRAv2 radiosonde weather balloons.
+          </p>
+
+          <ul class="struct-list">
+            <li>
+              <strong>Why ERA5 differs from IGRAv2 balloons:</strong> ERA5 averages across a ~25 km grid cell, smoothing out sharp inversions, terrain channeling, and jet streaks that 00Z/12Z weather balloons measure directly.
+            </li>
+            <li>
+              <strong>The <code>M_CAL = 199</code> quantile grid:</strong> Calibrated ensembles use 199 members spaced on exact 0.5% quantile steps ($0.5\%, 1.0\%, \dots, 99.5\%$), keeping tail extraction and rank reordering exact without rounding jitter.
+            </li>
+            <li>
+              <strong>Additive bias + spread correction:</strong> Station calibration applies a linear bias shift $(a_g + b_g E)$ with moisture-tercile residuals, then maps standardized anomalies across 109 tail-dense quantiles with linear outer-tail extrapolation.
+            </li>
+            <li>
+              <strong>Site elevation shifting:</strong> Because pads rarely match the nearest ERA5 grid elevation, Tempest-ARKNET adjusts surface pressure hydrostatically, decays the temperature lapse offset aloft, and rescales humidity within saturation limits.
+            </li>
+          </ul>
+
+          <div class="eq-box">
+            <span class="eq-tag">Site Elevation Shift (&Delta;z = z_site &minus; z_grid, &Gamma; = 0.0065 K/m)</span>
+            $$p_s' = p_s \exp\!\left(\frac{-g_0\,\Delta z}{R_d\,(t_{2\text{m}} - \Gamma\,\Delta z / 2)}\right), \qquad T'(z) = T(z) - \Gamma\,\Delta z\,e^{-z/1500}, \qquad \mathrm{RH}'(z) = \mathrm{clip}\!\left(\mathrm{RH}(z)\,\frac{e_{s,l}(T)}{e_{s,l}(T')},\,0,\,100\right)$$
+            <p class="eq-explain">
+              Surface pressure adjusts across the full elevation offset $\Delta z$, while the temperature offset decays with a 1.5 km e-folding scale so upper-tropospheric synoptic layers remain anchored to the free atmosphere.
+            </p>
+          </div>
+
+          <div class="visual-stage">
+            <div class="visual-header">
+              <h3 class="visual-title">Calibration Pipeline: Shifting Raw Model Output onto Balloon Truth</h3>
+              <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+            </div>
+            <svg viewBox="0 0 940 400" width="100%" role="img" aria-label="Diagram showing raw ERA5 neural ensemble shifting via bias, spread, and elevation calibration onto IGRAv2 weather balloon truth across 199 quantiles">
+              <rect x="0" y="0" width="940" height="400" rx="6" fill="#111114" stroke="#27272a" stroke-width="1" />
+
+              <!-- Grid lines -->
+              <g stroke="#27272a" stroke-width="1" stroke-dasharray="4 4">
+                <line x1="76" y1="80" x2="896" y2="80" />
+                <line x1="76" y1="150" x2="896" y2="150" />
+                <line x1="76" y1="220" x2="896" y2="220" />
+                <line x1="76" y1="290" x2="896" y2="290" />
+              </g>
+
+              <!-- Axes -->
+              <line x1="76" y1="290" x2="896" y2="290" stroke="#3f3f46" stroke-width="1.5" />
+              <line x1="76" y1="60" x2="76" y2="290" stroke="#3f3f46" stroke-width="1.5" />
+
+              <!-- Axis labels -->
+              <text x="486" y="334" text-anchor="middle" fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13">Wind Speed Anomaly at 1.5 km AGL (m/s)</text>
+              <text x="28" y="175" text-anchor="middle" fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13" transform="rotate(-90 28 175)">Probability Density</text>
+
+              <!-- Tick marks -->
+              <g fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13" text-anchor="middle">
+                <text x="148" y="310">4</text>
+                <text x="284" y="310">8</text>
+                <text x="420" y="310">12</text>
+                <text x="556" y="310">16</text>
+                <text x="692" y="310">20</text>
+                <text x="828" y="310">24</text>
+              </g>
+
+              <!-- Raw model distribution (narrow, biased left/low) -->
+              <path d="M 162 290 C 212 290, 242 96, 292 96 C 342 96, 372 290, 422 290 Z"
+                    fill="rgba(248, 113, 113, 0.16)" stroke="#f87171" stroke-width="2.5" />
+              <line x1="292" y1="76" x2="292" y2="290" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4 3" />
+
+              <!-- IGRAv2 balloon truth distribution (wider, shifted right) -->
+              <path d="M 338 290 C 414 290, 464 134, 556 134 C 648 134, 698 290, 774 290 Z"
+                    fill="rgba(52, 211, 153, 0.14)" stroke="#34d399" stroke-width="2.5" />
+              <line x1="556" y1="114" x2="556" y2="290" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4 3" />
+
+              <!-- Calibrated M_CAL = 199 overlay curve -->
+              <path d="M 346 290 C 418 290, 468 139, 556 139 C 644 139, 694 290, 766 290"
+                    fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="8 4" />
+
+              <!-- M_CAL = 199 quantile tick strip along baseline -->
+              <g stroke="#38bdf8" stroke-width="1.4" opacity="0.85">
+                <line x1="374" y1="285" x2="374" y2="295" />
+                <line x1="411" y1="285" x2="411" y2="295" />
+                <line x1="444" y1="285" x2="444" y2="295" />
+                <line x1="474" y1="285" x2="474" y2="295" />
+                <line x1="502" y1="285" x2="502" y2="295" />
+                <line x1="528" y1="285" x2="528" y2="295" />
+                <line x1="556" y1="283" x2="556" y2="297" />
+                <line x1="584" y1="285" x2="584" y2="295" />
+                <line x1="610" y1="285" x2="610" y2="295" />
+                <line x1="638" y1="285" x2="638" y2="295" />
+                <line x1="668" y1="285" x2="668" y2="295" />
+                <line x1="701" y1="285" x2="701" y2="295" />
+                <line x1="738" y1="285" x2="738" y2="295" />
+              </g>
+
+              <!-- Shift arrow: Bias + Elevation -->
+              <defs>
+                <marker id="arrow-sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+                </marker>
+                <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24" />
+                </marker>
+              </defs>
+              <line x1="302" y1="104" x2="544" y2="104" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow-sky)" />
+              <rect x="330" y="76" width="188" height="24" rx="4" fill="#18181b" stroke="#27272a" />
+              <text x="424" y="93" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono, monospace" font-size="13">1. Bias + Site Shift</text>
+
+              <!-- Spread widening arrows -->
+              <line x1="468" y1="220" x2="398" y2="220" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrow-amber)" />
+              <line x1="644" y1="220" x2="714" y2="220" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrow-amber)" />
+              <rect x="478" y="206" width="156" height="26" rx="4" fill="#18181b" stroke="#27272a" />
+              <text x="556" y="224" text-anchor="middle" fill="#fbbf24" font-family="JetBrains Mono, monospace" font-size="13">2. Spread Q-Map</text>
+
+              <!-- Callout annotations -->
+              <text x="292" y="42" text-anchor="middle" fill="#f87171" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Raw Model Ensemble</text>
+              <text x="292" y="60" text-anchor="middle" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Biased &amp; overconfident</text>
+
+              <text x="720" y="96" text-anchor="middle" fill="#34d399" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">IGRAv2 Balloon Truth</text>
+              <text x="720" y="114" text-anchor="middle" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">00Z/12Z point soundings</text>
+
+              <!-- Legend footer bar -->
+              <rect x="76" y="352" width="820" height="34" rx="4" fill="#18181b" stroke="#27272a" />
+              <circle cx="98" cy="369" r="5" fill="#f87171" />
+              <text x="110" y="374" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Raw ERA5 output</text>
+
+              <circle cx="284" cy="369" r="5" fill="#34d399" />
+              <text x="296" y="374" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">IGRAv2 balloon truth</text>
+
+              <line x1="490" y1="369" x2="518" y2="369" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="6 3" />
+              <text x="528" y="374" fill="#d4d4d8" font-family="DM Sans, sans-serif" font-size="13">Calibrated 199-member grid (0.5% to 99.5%)</text>
+            </svg>
+            <p class="visual-caption">
+              Additive station bias and elevation adjustment recenter the raw distribution, while the 109-knot quantile map widens overconfident tails onto the 199-member ladder.
+            </p>
+          </div>
+        </section>
+
+        <section id="s3-2" class="doc-section">
+          <span class="sec-num">3.2</span>
+          <h2>Restoring wind shear with the Schaake Shuffle</h2>
+          <p>
+            Marginal calibration fixes each altitude level on its own, which creates a hidden hazard for rocket dynamics: it breaks vertical wind coherence. The Schaake Shuffle repairs vertical shear without changing a single calibrated marginal value.
+          </p>
+
+          <ul class="struct-list">
+            <li>
+              <strong>Why independent calibration destroys wind shear:</strong> Quantile mapping stretches each height independently. Member 12 might land at the 90th percentile at 1 km AGL and the 10th percentile at 3 km AGL, inventing unphysical zig-zag kinks across layers.
+            </li>
+            <li>
+              <strong>Historical ERA5 (<code>&lt; 2021</code>) rank templates:</strong> Tempest-ARKNET stores compact <code>199 &times; 179</code> rank templates drawn strictly from pre-2021 ERA5 training profiles so zero validation or test data leaks into calibration.
+            </li>
+            <li>
+              <strong>Rank-matching without altering marginals:</strong> At each height, the 199 calibrated values are sorted and reassigned to match a historical template's rank order, preserving every marginal histogram while restoring vertical shear.
+            </li>
+          </ul>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ensemble Member</th>
+                  <th>Independent Calibrated (1 km / 3 km)</th>
+                  <th>ERA5 &lt; 2021 Template Ranks (1 km / 3 km)</th>
+                  <th>Schaake-Shuffled Output (1 km / 3 km)</th>
+                  <th>Resulting Shear (3 km &minus; 1 km)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Member M1</strong></td>
+                  <td>14 m/s &nbsp;/&nbsp; 10 m/s</td>
+                  <td>Rank 1 (low) &nbsp;/&nbsp; Rank 1 (low)</td>
+                  <td><strong>6 m/s</strong> &nbsp;/&nbsp; <strong>10 m/s</strong></td>
+                  <td>+4 m/s (physical)</td>
+                </tr>
+                <tr>
+                  <td><strong>Member M2</strong></td>
+                  <td>6 m/s &nbsp;/&nbsp; 24 m/s</td>
+                  <td>Rank 2 (mid) &nbsp;/&nbsp; Rank 2 (mid)</td>
+                  <td><strong>10 m/s</strong> &nbsp;/&nbsp; <strong>17 m/s</strong></td>
+                  <td>+7 m/s (physical)</td>
+                </tr>
+                <tr>
+                  <td><strong>Member M3</strong></td>
+                  <td>10 m/s &nbsp;/&nbsp; 17 m/s</td>
+                  <td>Rank 3 (high) &nbsp;/&nbsp; Rank 3 (high)</td>
+                  <td><strong>14 m/s</strong> &nbsp;/&nbsp; <strong>24 m/s</strong></td>
+                  <td>+10 m/s (physical)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="note-block is-win">
+            <p class="note-label">Key Invariant</p>
+            <p>
+              Compare the column sets before and after shuffling: 1 km still contains <code>{6, 10, 14}</code> m/s and 3 km still contains <code>{10, 17, 24}</code> m/s. Single-height CRPS stays unchanged while multi-height Variogram Score and aerodynamic bending-moment realism improve sharply.
+            </p>
+          </div>
+        </section>
+
+        <section id="s3-3" class="doc-section">
+          <span class="sec-num">3.3</span>
+          <h2>Spatial maps &amp; lead-time routing</h2>
+          <p>
+            Launch sites rarely sit next to a radiosonde station, and mission planning spans from six months out to ten minutes before ignition. Tempest-ARKNET combines spatial interpolation with smooth cosine lead-time routing to keep ensembles continuous across both space and time.
+          </p>
+
+          <ul class="struct-list">
+            <li>
+              <strong>Spatial interpolation to new launch sites:</strong> Station bias and spread maps interpolate across the region while the serving engine bilinearly allocates the 199 ensemble members across the four surrounding 0.25&deg; grid cells.
+            </li>
+            <li>
+              <strong>Climate vs. Forecast vs. Launch modes:</strong> The lead-time router automatically picks the strongest data source for the requested horizon:
+              <ul class="sub-bullets">
+                <li><strong>Launch mode (0 to 18 h):</strong> Anchors on live pad/METAR observations, NEXRAD VAD radar, and 3 km CONUS HRRR surface winds.</li>
+                <li><strong>Forecast mode (0.75 to 15 d):</strong> Blends medium-range global NWP (ECMWF IFS / GFS) with SIGMA lead-dependent noise scaling.</li>
+                <li><strong>Climate mode (&gt; 46 d or fallback):</strong> Samples the pure-NumPy Engression generator conditioned on seasonal cycle and climate indices (ONI, QBO, GMST).</li>
+              </ul>
+            </li>
+            <li>
+              <strong>Smooth HRRR &rarr; GFS/IFS &rarr; Climate crossfade:</strong> Rather than hard step switches that cause sudden dispersion jumps as launch day approaches, Tempest-ARKNET blends adjacent regimes with a $C^1$-smooth cosine ramp.
+            </li>
+            <li>
+              <strong><code>UR5</code> wind sequence post-processor:</strong> Enabled by default for climate horizons, it applies a 10 m speed quantile map, spread rescaling, and a 2-regime (calm/windy) Markov chain so multi-hour wind trajectories capture realistic persistence.
+            </li>
+          </ul>
+
+          <div class="eq-box">
+            <span class="eq-tag">Cosine Lead-Time Crossfade</span>
+            $$r(x;\,a, b) = \tfrac{1}{2} - \tfrac{1}{2}\cos\!\left(\pi\,\mathrm{clip}\!\left(\frac{x - a}{b - a},\, 0,\, 1\right)\right)$$
+            <p class="eq-explain">
+              Transitions smoothly from weight $0$ at lead time $a$ to weight $1$ at lead time $b$ with zero derivative at both endpoints, preventing jarring dispersion jumps between HRRR, global GFS/IFS, and climate Engression.
+            </p>
+          </div>
+
+          <div class="visual-stage">
+            <div class="visual-header">
+              <h3 class="visual-title">Lead-Time Routing &amp; Cosine Crossfade Across Forecast Horizons</h3>
+              <button type="button" class="action-btn" onclick="openSvgZoom(this)">Inspect Diagram</button>
+            </div>
+            <svg viewBox="0 0 960 290" width="100%" role="img" aria-label="Cosine crossfade blending weights from Launch HRRR through GFS and ECMWF IFS to Climate Engression">
+              <rect x="0" y="0" width="960" height="290" rx="6" fill="#111114" stroke="#27272a" stroke-width="1" />
+
+              <!-- Grid -->
+              <g stroke="#27272a" stroke-width="1" stroke-dasharray="4 4">
+                <line x1="80" y1="62" x2="910" y2="62" />
+                <line x1="80" y1="132" x2="910" y2="132" />
+                <line x1="80" y1="202" x2="910" y2="202" />
+                <line x1="265" y1="50" x2="265" y2="202" />
+                <line x1="590" y1="50" x2="590" y2="202" />
+              </g>
+
+              <!-- Axes -->
+              <line x1="80" y1="202" x2="910" y2="202" stroke="#3f3f46" stroke-width="1.5" />
+              <line x1="80" y1="50" x2="80" y2="202" stroke="#3f3f46" stroke-width="1.5" />
+
+              <!-- Y labels -->
+              <g fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13" text-anchor="end">
+                <text x="68" y="67">1.0</text>
+                <text x="68" y="137">0.5</text>
+                <text x="68" y="207">0.0</text>
+              </g>
+
+              <!-- X labels -->
+              <g fill="#a1a1aa" font-family="JetBrains Mono, monospace" font-size="13" text-anchor="middle">
+                <text x="112" y="226">T-0 h</text>
+                <text x="265" y="226">18 h</text>
+                <text x="430" y="226">7 d</text>
+                <text x="590" y="226">15 d</text>
+                <text x="748" y="226">35 d</text>
+                <text x="878" y="226">46+ d</text>
+              </g>
+
+              <!-- Launch / HRRR curve (green) -->
+              <path d="M 80 62 L 195 62 C 245 62, 265 202, 325 202" fill="none" stroke="#34d399" stroke-width="2.8" />
+              <text x="165" y="42" text-anchor="middle" fill="#34d399" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Launch (Pad + HRRR)</text>
+
+              <!-- Forecast / GFS-IFS curve (sky blue) -->
+              <path d="M 195 202 C 255 202, 275 62, 325 62 L 560 62 C 635 62, 670 202, 755 202" fill="none" stroke="#38bdf8" stroke-width="2.8" />
+              <text x="450" y="42" text-anchor="middle" fill="#38bdf8" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Forecast (IFS / GFS + SIGMA)</text>
+
+              <!-- Climate / Engression + UR5 curve (amber) -->
+              <path d="M 560 202 C 640 202, 675 62, 755 62 L 910 62" fill="none" stroke="#fbbf24" stroke-width="2.8" />
+              <text x="802" y="42" text-anchor="middle" fill="#fbbf24" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600">Climate (Engression + UR5)</text>
+
+              <!-- Crossfade labels -->
+              <rect x="202" y="118" width="122" height="26" rx="4" fill="#18181b" stroke="#27272a" />
+              <text x="263" y="136" text-anchor="middle" fill="#d4d4d8" font-family="JetBrains Mono, monospace" font-size="13">Cosine Blend</text>
+
+              <rect x="598" y="118" width="122" height="26" rx="4" fill="#18181b" stroke="#27272a" />
+              <text x="659" y="136" text-anchor="middle" fill="#d4d4d8" font-family="JetBrains Mono, monospace" font-size="13">Cosine Blend</text>
+
+              <!-- Footer note -->
+              <text x="495" y="264" text-anchor="middle" fill="#a1a1aa" font-family="DM Sans, sans-serif" font-size="13">Weights sum to 1.0 at every lead time so uncertainty widens smoothly from pad obs to seasonal climate.</text>
+            </svg>
+          </div>
+        </section>
+
+        <section id="s3-4" class="doc-section">
+          <span class="sec-num">3.4</span>
+          <h2>Interactive: Schaake Shuffle lab</h2>
+          <p>
+            Toggle between independently calibrated altitude levels and Schaake-shuffled profiles to see how rank-template matching restores realistic vertical wind shear without disturbing single-height marginal distributions.
+          </p>
+
+          <div class="visual-stage">
+            <div class="visual-header">
+              <h3 class="visual-title">Schaake Shuffle &amp; Vertical Coherence Visualizer</h3>
+            </div>
+            <div id="widget-4-schaake"></div>
+            <p class="visual-caption">
+              Inspect how independent quantile calibration scrambles cross-altitude rank order, and verify that applying historical ERA5 (<code>&lt; 2021</code>) templates locks ensemble members back into physically plausible vertical shear envelopes.
+            </p>
+          </div>
+        </section>
+
+
+        <nav id="chapter-pager" class="chapter-pager" aria-label="Chapter navigation"></nav>
+      </article>
+    </main>
+
+    <aside class="site-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul id="on-this-page-list" class="toc-list"></ul>
+      <div class="toc-actions">
+        <button type="button" class="action-btn" onclick="openColabLab('lab_03')" style="width:100%;justify-content:center;">Open Colab Lab &nearr;</button>
+        <button type="button" class="action-btn" onclick="openGlossary()" style="width:100%;justify-content:center;">Glossary</button>
+      </div>
+    </aside>
+  </div>
+
+</body>
+</html>

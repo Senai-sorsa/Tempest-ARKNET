@@ -41,7 +41,7 @@ Every project document lives under `docs/`, one folder per kind. Start with **`.
 
 **notes/** — [Almost ideas.md](notes/Almost%20ideas.md) · [Beat Earth-GRAM.md](notes/Beat%20Earth-GRAM.md) · [Fixes-Concise.md](notes/Fixes-Concise.md) · [FlightSIM&Validation with Tempest-ARKNET.md](notes/FlightSIM%26Validation%20with%20Tempest-ARKNET.md) · [Improvements-Concise.md](notes/Improvements-Concise.md) · [Innovative idea review.md](notes/Innovative%20idea%20review.md) · [Limitations to solve.md](notes/Limitations%20to%20solve.md) · [Secondary ideas.md](notes/Secondary%20ideas.md) · [Useful results.md](notes/Useful%20results.md) · [Wind and rule-fix ideas.md](notes/Wind%20and%20rule-fix%20ideas.md) · [fixing final issue.md](notes/fixing%20final%20issue.md)
 
-**docs/ root** — [AI_MISTAKES_CHECKLIST.md](AI_MISTAKES_CHECKLIST.md) · [GEMINI_BUGS_2026-11-09.md](GEMINI_BUGS_2026-11-09.md) (both cited by code comments, so not moved) · [index.html](index.html) = the v3 documentation website (GitHub Pages)
+**docs/ root** — [AI_MISTAKES_CHECKLIST.md](AI_MISTAKES_CHECKLIST.md) · [GEMINI_BUGS_2026-11-09.md](GEMINI_BUGS_2026-11-09.md) (both cited by code comments, so not moved) · [index.html](index.html) = the v4 documentation website (GitHub Pages; 7 pages, replaced v3 on 2026-11-22)
 
 Elsewhere (kept next to their code): `README.md`, `configs/README.md`, `scripts/README.md`, `tests/README.md`, `tempest_weather/README.md`, `notebooks/*.md` (Colab notebook guides), `Code-Modifications/handover_scripts/` (old scripts).
 
