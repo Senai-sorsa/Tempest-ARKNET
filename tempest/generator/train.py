@@ -49,7 +49,7 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 low_top_m=300.0,
                 rh_loss_weight=0.0,         # F-19: extra CRPS on relative humidity in per cent (rebuilt from T and the dpd coordinate); only for dpd-target datasets
                 train_rows=0,               # F-29: use a random subset of this many training rows (0 = all); lets the float32-storage comparison fit in GPU memory
-                store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode)
+                store_dtype="float16",      # F-29: "float32" keeps the GPU training rows at full precision (reference mode); "cpu" / "cpu_fp16" keep them in host RAM (float32 / float16) and move each batch to the GPU
                 fill_mask=False,            # review 2026-11-07: heights that build_dataset --fill-top filled (above fill_top_idx) count 0 in the loss; needs a dataset built with --fill-top after 2026-11-07
                 shear_tail_q=0.9,           # shear above this quantile of the training rows (per layer) counts in that term
                 ignore_inputs=[],           # L3: input columns the network must not see (e.g. ["lat", "lon"]); they stay in the data for scoring
@@ -385,20 +385,23 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
     gpu = str(device).startswith("cuda")
     # shortcut: every training row is normalised and copied to the device once (CPU runs keep a float32 copy in
     # RAM; fine for tests, a GPU-less full run would need ~2x the data in RAM)
-    dt = torch.float16 if (gpu and cfg.get("store_dtype", "float16") != "float32") else torch.float32       # F-29: store_dtype = "float32" keeps the training rows at full precision (reference mode)
-    Xc = torch.empty(len(tr_idx), cond.shape[1], dtype=dt, device=device)
-    Xt = torch.empty(len(tr_idx), target.shape[1], dtype=dt, device=device)
+    store_mode = str(cfg.get("store_dtype", "float16"))
+    cpu_store = store_mode in ("cpu", "cpu_fp16")
+    store_dev = "cpu" if cpu_store else device
+    dt = torch.float16 if (store_mode == "cpu_fp16" or (gpu and store_mode != "float32" and not cpu_store)) else torch.float32
+    Xc = torch.empty(len(tr_idx), cond.shape[1], dtype=dt, device=store_dev)
+    Xt = torch.empty(len(tr_idx), target.shape[1], dtype=dt, device=store_dev)
     for i in range(0, len(tr_idx), 1_000_000):
         j = tr_idx[i:i + 1_000_000]
-        Xc[i:i + len(j)] = torch.from_numpy(((cond[j] - cm) / cs).astype(np.float32)).to(device)
-        Xt[i:i + len(j)] = torch.from_numpy(((targets(j) - tm) / ts).astype(np.float32)).to(device)
+        Xc[i:i + len(j)] = torch.from_numpy(((cond[j] - cm) / cs).astype(np.float32)).to(store_dev)
+        Xt[i:i + len(j)] = torch.from_numpy(((targets(j) - tm) / ts).astype(np.float32)).to(store_dev)
     vc = torch.from_numpy(((cond[va_idx] - cm) / cs).astype(np.float32)).to(device)
     vt = torch.from_numpy(((targets(va_idx) - tm) / ts).astype(np.float32)).to(device)
     Xf = vf = None
     if cfg["fill_mask"]:
         if fill_top_idx is None or not n_prof:
             raise ValueError("fill_mask needs a profile dataset built with build_dataset --fill-top (array fill_top_idx); rebuild it")
-        Xf = torch.from_numpy(np.asarray(fill_top_idx[tr_idx], np.int8)).to(device)
+        Xf = torch.from_numpy(np.asarray(fill_top_idx[tr_idx], np.int8)).to(store_dev)
         vf = torch.from_numpy(np.asarray(fill_top_idx[va_idx], np.int8)).to(device)
         log(f"fill_mask: {float((Xf < n_h - 1).any(1).float().mean()):.1%} of training rows have filled heights")
 
@@ -416,7 +419,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             model.load_state_dict(init_ck[k % len(init_ck)]["state"])
         opt = torch.optim.AdamW(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"], fused=gpu or None)
         sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / cfg["steps"])))
-        g = torch.Generator(device).manual_seed(cfg["seed"] + k)  # this member's batch rows
+        g = torch.Generator(store_dev).manual_seed(cfg["seed"] + k)  # this member's batch rows
         mem.append(dict(model=model, opt=opt, sched=sched, g=g, seed=cfg["seed"] + k, best=float("inf"),
                         best_state=None, bad=0, history=[], done=False,
                         ema=copy.deepcopy(model).eval() if cfg["ema_decay"] else None))
@@ -432,7 +435,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         gtr = np.asarray(groups)[tr_idx]
         o = np.argsort(gtr, kind="stable")
         _, st, ct = np.unique(gtr[o], return_index=True, return_counts=True)
-        gperm, gstart, gcnt = (torch.from_numpy(np.asarray(x, np.int64)).to(device) for x in (o, st, ct))
+        gperm, gstart, gcnt = (torch.from_numpy(np.asarray(x, np.int64)).to(store_dev) for x in (o, st, ct))
         log(f"balance_groups: {len(ct)} groups, {ct.min():,} to {ct.max():,} training rows each")
     t0 = time.time()
     for step in range(1, cfg["steps"] + 1):
@@ -442,14 +445,16 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             model = M["model"]
             model.train()
             if gperm is None:
-                idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=device, generator=M["g"])
+                idx = torch.randint(0, len(tr_idx), (cfg["batch"],), device=store_dev, generator=M["g"])
             else:                                    # balance_groups: a uniform group, then a uniform row of it
-                gi = torch.randint(0, len(gcnt), (cfg["batch"],), device=device, generator=M["g"])
-                r = torch.rand(cfg["batch"], device=device, generator=M["g"])
+                gi = torch.randint(0, len(gcnt), (cfg["batch"],), device=store_dev, generator=M["g"])
+                r = torch.rand(cfg["batch"], device=store_dev, generator=M["g"])
                 idx = gperm[gstart[gi] + (r * gcnt[gi]).long().clamp_max(gcnt[gi] - 1)]
-            c, t = Xc[idx].float(), Xt[idx].float()
+            c = Xc[idx].to(device).float()
+            t = Xt[idx].to(device).float()
+            top_b = None if Xf is None else Xf[idx].to(device)
             if getattr(model, "own_loss", False):    # New_Plan 25 archs with their own training objective (flow matching, RML chain, EOF split)
-                loss = model.train_loss(c, t, dict(score=score, phys_std=phys_std, cfg=cfg, top=None if Xf is None else Xf[idx], gpu=gpu))
+                loss = model.train_loss(c, t, dict(score=score, phys_std=phys_std, cfg=cfg, top=top_b, gpu=gpu))
             else:
                 with torch.autocast("cuda" if gpu else "cpu", torch.bfloat16, enabled=gpu):
                     s = model(c, cfg["m_final"] if (cfg["m_final"] and step > cfg["steps"] - cfg["final_steps"]) else cfg["m"])
@@ -458,9 +463,9 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
                         ts_ = teacher(c, cfg["distill_m"]).float()
                     loss = energy_distance(phys_std(s.float()), phys_std(ts_)) / math.sqrt(s.shape[-1])
                     if cfg["distill_data_weight"]:
-                        loss = loss + cfg["distill_data_weight"] * score(s.float(), t, None if Xf is None else Xf[idx])
+                        loss = loss + cfg["distill_data_weight"] * score(s.float(), t, top_b)
                 else:
-                    loss = score(s.float(), t, None if Xf is None else Xf[idx])
+                    loss = score(s.float(), t, top_b)
             if getattr(model, "aux_loss", None) is not None:   # H3: the gate's load-balancing penalty (already weighted by the model)
                 loss = loss + model.aux_loss
             M["opt"].zero_grad(set_to_none=True)

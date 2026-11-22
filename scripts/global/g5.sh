@@ -9,6 +9,7 @@
 # Needs: uv pip install onnx onnxruntime onnxconverter-common
 G=G5; . "$(dirname "$0")/g_common.sh"
 M=${1:-$(ls results/G4/pool_*_s*.pt 2>/dev/null | head -1)}
+[ -z "$M" ] && [ -n "${DRY:-}" ] && M=results/G4/pool_generator_global_s0.pt     # dry run before G4: G4's default name
 [ -n "$M" ] && { [ -f "$M" ] || [ -n "${DRY:-}" ]; } || { echo "no G4 model (run scripts/global/g4.sh first, or pass MODEL)" >&2; exit 1; }
 [ -n "${DRY:-}" ] || $PY -c "import onnx, onnxruntime" || { echo "missing onnx / onnxruntime: uv pip install onnx onnxruntime onnxconverter-common" >&2; exit 1; }
 ONNX=models/global/onnx; B=models/global/bundle

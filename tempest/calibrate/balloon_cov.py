@@ -42,6 +42,7 @@ def _match(st_times, store_times, tol_h=1):
 def pairs(first=1991, last=2025, store=None, igra_dir="data/igra_heights", per_station=1000, seed=0, log=print):
     """-> dict(era (n, 4, 44), obs (n, 4, 44), point (n,), time (n,)) of matched soundings."""
     from tempest.geo import global_store as gs
+    from tempest.geo import holdout
     from tempest.ingest.igra_to_heights import load
     store = store or gs.STORE
     if last > 2025:
@@ -63,6 +64,7 @@ def pairs(first=1991, last=2025, store=None, igra_dir="data/igra_heights", per_s
             continue
         d = load(f)
         i, j = _match(d["time"], times)
+        holdout.check(times=d["time"][i], what=f"IGRA {pts['igra'][p]}")
         if len(i) > per_station:
             keep = np.sort(rng.choice(len(i), per_station, replace=False))
             i, j = i[keep], j[keep]

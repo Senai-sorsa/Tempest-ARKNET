@@ -60,7 +60,7 @@ def heights_gph(lt2, p, gph, tk, rh):
     """Geopotential height (m) on every level: reported where given, else hypsometric between reported ones."""
     z = gph.copy()
     pl = np.flatnonzero(np.isfinite(p) & (p > 0))
-    pl = pl[np.argsort(-p[pl], kind="stable")]   # audit #16: interp and cumsum need pressure descending (IGRA surface / special levels can be out of order)
+    pl = pl[np.argsort(-p[pl], kind="stable")]   # ensure -ln(p) is non-decreasing for np.interp (IGRA surface / special levels can be out of order)
     if len(pl) < 2:
         return z
     lp = np.log(p[pl])
@@ -72,7 +72,7 @@ def heights_gph(lt2, p, gph, tk, rh):
     e = np.nan_to_num(rh[pl] / 100) * 611.2 * np.exp(17.67 * tc / (tc + 243.5))
     tv = t * (1 + 0.61 * EPS * e / p[pl])
     dz = RD / G0 * 0.5 * (tv[1:] + tv[:-1]) * (lp[:-1] - lp[1:])
-    zh = np.concatenate([[0.0], np.cumsum(np.nan_to_num(dz))])  # T is interpolated inside, so NaN only at the ends: zero those steps, the anchor offset absorbs the shift
+    zh = np.concatenate([[0.0], np.cumsum(np.nan_to_num(dz))])  # NaN only at ends: zero those steps, the anchor offset absorbs the shift
     zh[~np.isfinite(t)] = np.nan
     anc = np.isfinite(zh) & np.isfinite(gph[pl])
     if not anc.any():
@@ -175,7 +175,12 @@ def main():
     a = ap.parse_args()
     assert a.last_year <= 2025, "2026 is never used"
     os.makedirs(a.out, exist_ok=True)
-    held = set(np.load(a.points)["held_igra"]) if os.path.exists(a.points) else set()
+    if os.path.exists(a.points):
+        held = set(np.load(a.points)["held_igra"])
+    else:
+        import tomllib
+        from tempest.ingest.fetch_global import HOLDOUT
+        held = set(tomllib.load(open(HOLDOUT, "rb"))["igra"])
     files = sorted(glob.glob(os.path.join(a.raw, "*-data.txt.zip")))
     files = [f for f in files if os.path.basename(f).split("-")[0] not in held]
     print(f"{len(files)} station files -> {a.out} ({len(EXT_HEIGHTS)} heights)", flush=True)

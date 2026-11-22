@@ -523,7 +523,8 @@ def atmosphere_set(lat, lon, when, n=1024, predicted=False, seed=0, elevation=No
     if used == "ai" and "fallback-mode" in quality and why_not and (mode in (None, "recent", "week", "forecast")):
         quality = quality + why_not
     g = A["grid"]
-    p = int(np.argmin((g["lat"] - lat) ** 2 + (g["lon"] - lon) ** 2))      # nearest grid point (reported; the mode P and past paths use the exact position)
+    dlon = (g["lon"] - lon + 180.0) % 360.0 - 180.0
+    p = int(np.argmin((g["lat"] - lat) ** 2 + (dlon * np.cos(np.deg2rad(lat))) ** 2))  # nearest grid point (antimeridian- and latitude-safe)
     pts, wts = _core.bilinear(g["lat"], g["lon"], lat, lon)             # the four points around the query and their bilinear weights (F-6)
     elev_grid = float(g["elev"][p])
     elev = float(np.dot(wts, g["elev"][pts])) if elevation is None else float(elevation)   # the site (bilinear grid elevation unless given); the model runs at each point's elevation, then moves to the site

@@ -130,6 +130,8 @@ def main(argv=None):
         parts.append(dict(cond=cond, target=tgt, year=tt.year.to_numpy().astype(np.int16), fill_top_idx=tops,
                           row_point=idx[p].astype(np.int32), row_time=tt.to_numpy().astype("datetime64[h]"), row_group=grp[p]))
         print(f"{name}: {sum(len(q['year']) for q in parts):,} rows", flush=True)
+    if not parts:
+        raise SystemExit(f"no rows: no store month in {a.first_year}-{a.last_year} gave a sample (check the store, the years and --rows)")
     out = {k: np.concatenate([q[k] for q in parts]) for k in parts[0]}
     ok = np.isfinite(out["target"]).all(1) & np.isfinite(out["cond"]).all(1)
     print(f"dropping {(~ok).sum():,} rows with missing values", flush=True)

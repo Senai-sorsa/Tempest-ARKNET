@@ -147,6 +147,8 @@ class Sampler:
                 if self.cond_names not in (features.BASE_FEATURES, features.P2_FEATURES):              # normalisation is positional: an unknown order or a duplicate gives plausible, wrong output (review 1.7 / 5.5)
                     raise ValueError(f"checkpoint feature list {self.cond_names} is neither the base nor the P2 schema in its exact order")
                 features.set_active(self.cond_names)
+            elif "lat" in self.cond_names and "lon" in self.cond_names:                                # global / loop-3 climate generator with extra static/terrain columns
+                features.set_active(self.cond_names)
 
     @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:

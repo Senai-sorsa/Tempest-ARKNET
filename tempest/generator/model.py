@@ -265,7 +265,8 @@ class Generator(nn.Module):
         with torch.autocast(full.device.type, enabled=False):          # bf16 would round a 290 K climatology to ~1 K
             raw = full[:, self.anom["cols"]].float() * self.anom_sd + self.anom_mu
             k = self.anom_keys
-            d = (raw[:, :1] - k[:, 0]) ** 2 + ((raw[:, 1:2] - k[:, 1]) * torch.cos(torch.deg2rad(raw[:, :1]))) ** 2
+            dlon = torch.remainder(raw[:, 1:2] - k[:, 1] + 180.0, 360.0) - 180.0
+            d = (raw[:, :1] - k[:, 0]) ** 2 + (dlon * torch.cos(torch.deg2rad(raw[:, :1]))) ** 2
             p = d.argmin(1)
             X = anom_basis(raw[:, 2], raw[:, 3], raw[:, 4], raw[:, 5], torch)
             mu = torch.einsum("bk,bkd->bd", X, self.anom_cmu[p])

@@ -162,24 +162,52 @@ def site_shift(phys, dz, shift_mode=None, top_m=1500.0):
 
 
 def bilinear(grid_lat, grid_lon, lat, lon):
-    """The (up to) four grid points around (lat, lon) and their bilinear weights -> (point indices (k,), weights (k,)); a query on a grid point gives that point alone."""
-    ulat, ulon = np.unique(np.round(grid_lat, 4)), np.unique(np.round(grid_lon, 4))
-    index = {(round(float(a), 4), round(float(b), 4)): i for i, (a, b) in enumerate(zip(grid_lat, grid_lon))}
+    """The (up to) four grid points around (lat, lon) and their bilinear weights -> (point indices (k,), weights (k,)); a query on a grid point gives that point alone.
+    Falls back to spherical inverse-distance weights over the 4 nearest points on non-rectangular / scattered global grids (or grids with holdout holes)."""
+    glat, glon = np.asarray(grid_lat, np.float64), np.asarray(grid_lon, np.float64)
+    ulat, ulon = np.unique(np.round(glat, 4)), np.unique(np.round(glon, 4))
+    index = {(round(float(a), 4), round(float(b), 4)): i for i, (a, b) in enumerate(zip(glat, glon))}
 
     def axis(u, x):
+        if len(u) == 1:
+            return (u[0], u[0]), (1.0, 0.0)
         j = int(np.clip(np.searchsorted(u, x, "right"), 1, len(u) - 1))
         f = float(np.clip((x - u[j - 1]) / (u[j] - u[j - 1]), 0.0, 1.0))
         return (u[j - 1], u[j]), (1.0 - f, f)
+
     (la0, la1), (wa0, wa1) = axis(ulat, lat)
-    (lo0, lo1), (wo0, wo1) = axis(ulon, lon)
+    if len(ulon) > 1 and (ulon[-1] - ulon[0]) > 180.0 and (lon < ulon[0] or lon > ulon[-1]):
+        gap = (ulon[0] + 360.0) - ulon[-1]
+        f = float(np.clip(((lon - ulon[-1]) % 360.0) / gap, 0.0, 1.0))
+        (lo0, lo1), (wo0, wo1) = (ulon[-1], ulon[0]), (1.0 - f, f)
+    else:
+        (lo0, lo1), (wo0, wo1) = axis(ulon, lon)
     pts, wts = [], []
+    missing = False
     for la, wa in ((la0, wa0), (la1, wa1)):
         for lo, wo in ((lo0, wo0), (lo1, wo1)):
             if wa * wo > 1e-9:
-                pts.append(index[(round(float(la), 4), round(float(lo), 4))])
+                idx = index.get((round(float(la), 4), round(float(lo), 4)))
+                if idx is None:
+                    missing = True
+                    break
+                pts.append(idx)
                 wts.append(wa * wo)
-    w = np.array(wts)
-    return np.array(pts), w / w.sum()
+        if missing:
+            break
+    if not missing and pts:
+        w = np.array(wts)
+        return np.array(pts), w / w.sum()
+    la_r, lo_r = np.deg2rad(glat), np.deg2rad(glon)
+    qla, qlo = np.deg2rad(float(lat)), np.deg2rad(float(lon))
+    cos_d = np.clip(np.sin(la_r) * np.sin(qla) + np.cos(la_r) * np.cos(qla) * np.cos(lo_r - qlo), -1.0, 1.0)
+    dist = np.arccos(cos_d)
+    k = min(4, len(glat))
+    near = np.argsort(dist)[:k]
+    if dist[near[0]] < 1e-8:
+        return np.array([int(near[0])]), np.array([1.0])
+    w = 1.0 / np.maximum(dist[near], 1e-12)
+    return near.astype(int), w / w.sum()
 
 
 def allocate(weights, blocks, rng):

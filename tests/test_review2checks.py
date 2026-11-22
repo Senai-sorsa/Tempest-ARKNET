@@ -92,10 +92,11 @@ def test_training_runs_with_rh_loss_final_m_and_float32_storage():
         y[:, i * nh + 1:(i + 1) * nh] = rng.normal(0, 0.2, (n, nh - 1))
     y[:, 4 * nh:] = [285.0, 85000.0, 40.0]
     cond = rng.normal(size=(n, 2)).astype(np.float32)
-    cfg = dict(width=16, depth=2, noise_dim=2, batch=256, steps=60, eval_every=30, val_years=1, lr=1e-3, m_final=6, final_steps=20, rh_loss_weight=0.1, store_dtype="float32", linear_features=[])
-    ck = train(cond, y, np.repeat(np.arange(3), n // 3), cfg, device="cpu", log=lambda *_: None,
-               meta=dict(cond_names=["a", "b"], target_names=[f"{v}_{h:g}" for v in PROFILE for h in HEIGHTS] + ["t2m", "sp", "rh2m"], rh_target="dpd"))
-    assert ck["state"] is not None
+    for mode in ("float32", "cpu", "cpu_fp16"):  # cpu / cpu_fp16: host-RAM row store (big global files)
+        cfg = dict(width=16, depth=2, noise_dim=2, batch=256, steps=60, eval_every=30, val_years=1, lr=1e-3, m_final=6, final_steps=20, rh_loss_weight=0.1, store_dtype=mode, linear_features=[])
+        ck = train(cond, y, np.repeat(np.arange(3), n // 3), cfg, device="cpu", log=lambda *_: None,
+                   meta=dict(cond_names=["a", "b"], target_names=[f"{v}_{h:g}" for v in PROFILE for h in HEIGHTS] + ["t2m", "sp", "rh2m"], rh_target="dpd"))
+        assert ck["state"] is not None
 
 
 def test_training_refuses_to_save_when_validation_is_never_finite():
