@@ -79,6 +79,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.last_year > 2025:
         raise SystemExit("G stages never read 2026 (docs/global/README.md holdout rules)")
+    if a.group == "koppen" and not a.koppen:
+        ap.error("--group koppen needs --koppen")
     feat.set_active(feat.P2_FEATURES if a.features == "p2" else feat.BASE_FEATURES)
     names = list(FEATURES) + (STATICS if a.statics else []) + (["ztrop_clim"] if a.ztrop else [])
     feat.set_active(names)
@@ -87,7 +89,7 @@ def main(argv=None):
     if a.points_from:                                                              # G3 unseen-station gate: held vs seen IGRA sites
         src = np.load(a.points_from)
         idx = np.sort(src["held_igra"]) if a.which == "held" else np.unique(src["row_point"])
-        idx, held = (idx if a.which == "held" else idx[pts["igra"][idx] != ""]).astype(int), np.array([], int)
+        idx, held = (idx if a.which == "held" else idx[gp.is_igra(pts["igra"][idx])]).astype(int), np.array([], int)
         if not len(idx):
             raise SystemExit(f"--points-from {a.points_from}: no {a.which} IGRA sites")
     else:
@@ -107,6 +109,8 @@ def main(argv=None):
     gm = indices.gmst_table(a.indices) if a.features == "p2" else None
 
     months = gs.months(a.first_year, a.last_year, a.store)
+    if not len(months) or not len(idx):
+        raise SystemExit(f"no rows: {len(months)} store months in {a.first_year}-{a.last_year}, {len(idx)} points (check --store / years / --box)")
     frac = min(1.0, a.rows / (len(idx) * 30.44 * len(months)))
     rng = np.random.default_rng(a.seed)
     print(f"{len(idx):,} points ({len(held)} IGRA sites held out), {len(months)} months, keep share {frac:.4f}", flush=True)

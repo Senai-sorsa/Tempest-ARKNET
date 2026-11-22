@@ -123,3 +123,55 @@ def test_export_onnx_step_shear():
     raw[:, 1] = 3.0                                                     # first u step
     s = step_shear(raw)
     assert s.shape == (2, NH - 1) and s[0, 0] > 0 and (s[:, 1:] == 0).all()
+
+
+def test_train_balance_groups_with_profile_targets():
+    """review 3: the per-variable diagnostics once shadowed the groups argument (IndexError on every G2-G4 run)."""
+    from tempest.generator.train import train
+    from tempest.profiles.to_heights import HEIGHTS, PROFILE
+    rng = np.random.default_rng(0)
+    nh, n = len(HEIGHTS), 1200
+    y = rng.normal(0, 0.2, (n, 4 * nh + 3)).astype(np.float32)
+    y[:, 4 * nh:] = [285.0, 85000.0, 40.0]
+    cond = rng.normal(size=(n, 2)).astype(np.float32)
+    for mode in ("float32", "cpu"):
+        cfg = dict(width=8, depth=1, noise_dim=2, batch=64, steps=20, eval_every=10, val_years=1, linear_features=[], balance_groups=True, store_dtype=mode)
+        ck = train(cond, y, np.repeat(np.arange(3), n // 3), cfg, device="cpu", log=lambda *_: None, groups=np.arange(n) % 5,
+                   meta=dict(cond_names=["a", "b"], target_names=[f"{v}_{h:g}" for v in PROFILE for h in HEIGHTS] + ["t2m", "sp", "rh2m"]))
+        assert ck["state"] is not None
+
+
+def test_terrain_points_are_not_igra():
+    from tempest.geo import points as gp
+    pts = dict(lat=np.array([10.0, 10.1, 10.2, 40.0, 40.02]), lon=np.array([20.0, 20.1, 20.2, -80.0, -80.02]),
+               igra=np.array(["", "T", "USM00072250", "T", "T"]))
+    assert gp.is_igra(pts["igra"]).tolist() == [False, False, True, False, False]
+    kept = gp.thin(pts, np.arange(5), nside=4)
+    assert 2 in kept and len(set(kept) & {0, 1}) == 1 and len(set(kept) & {3, 4}) == 1   # 'T' points are thinned like lattice points
+    assert gp.igra_holdout(pts, np.arange(5), frac=1.0).tolist() == [2]
+
+
+def test_sampler_activate_keeps_foreign_input_lists():
+    from types import SimpleNamespace
+    from tempest.generator import features
+    from tempest.generator.build_global import STATICS
+    from tempest.generator.sample import Sampler
+    before = list(features.FEATURES)
+    try:
+        features.set_active(features.BASE_FEATURES)
+        Sampler._activate(SimpleNamespace(rh_target="rh", cond_names=list(features.BASE_FEATURES) + [f"x{i}" for i in range(179)]))   # w head
+        assert features.FEATURES == features.BASE_FEATURES
+        Sampler._activate(SimpleNamespace(rh_target="rh", cond_names=["lat", "lon", "lead_days", "hres_u_10"]))                    # mode F net
+        assert features.FEATURES == features.BASE_FEATURES
+        g = list(features.P2_FEATURES) + STATICS + ["ztrop_clim"]
+        Sampler._activate(SimpleNamespace(rh_target="rh", cond_names=g))                                                           # global generator
+        assert features.FEATURES == g
+    finally:
+        features.set_active(before)
+
+
+def test_bilinear_wraps_query_into_0_360_grid():
+    from tempest_weather._core import bilinear
+    lat, lon = np.meshgrid([30.0, 31.0], [0.0, 90.0, 180.0, 259.0, 260.0, 270.0], indexing="ij")
+    i, w = bilinear(lat.ravel(), lon.ravel(), 30.0, -100.0)
+    assert lon.ravel()[i[np.argmax(w)]] == 260.0 and np.isclose(w.max(), 1.0)

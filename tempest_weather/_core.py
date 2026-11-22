@@ -176,6 +176,8 @@ def bilinear(grid_lat, grid_lon, lat, lon):
         return (u[j - 1], u[j]), (1.0 - f, f)
 
     (la0, la1), (wa0, wa1) = axis(ulat, lat)
+    if len(ulon) > 1 and (ulon[-1] - ulon[0]) > 180.0:
+        lon = (float(lon) - ulon[0]) % 360.0 + ulon[0]                                  # query into the grid's own convention (-180..180 or 0..360)
     if len(ulon) > 1 and (ulon[-1] - ulon[0]) > 180.0 and (lon < ulon[0] or lon > ulon[-1]):
         gap = (ulon[0] + 360.0) - ulon[-1]
         f = float(np.clip(((lon - ulon[-1]) % 360.0) / gap, 0.0, 1.0))

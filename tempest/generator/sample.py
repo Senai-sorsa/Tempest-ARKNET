@@ -147,8 +147,11 @@ class Sampler:
                 if self.cond_names not in (features.BASE_FEATURES, features.P2_FEATURES):              # normalisation is positional: an unknown order or a duplicate gives plausible, wrong output (review 1.7 / 5.5)
                     raise ValueError(f"checkpoint feature list {self.cond_names} is neither the base nor the P2 schema in its exact order")
                 features.set_active(self.cond_names)
-            elif "lat" in self.cond_names and "lon" in self.cond_names:                                # global / loop-3 climate generator with extra static/terrain columns
-                features.set_active(self.cond_names)
+            else:                                                                                      # global generator: an exact schema + build_global extras; w head / mode F nets keep their own inputs
+                from tempest.generator.build_global import STATICS
+                base = next((b for b in (features.P2_FEATURES, features.BASE_FEATURES) if self.cond_names[:len(b)] == b), None)
+                if base is not None and set(self.cond_names[len(base):]) <= set(STATICS) | {"ztrop_clim"}:
+                    features.set_active(self.cond_names)
 
     @torch.inference_mode()
     def __call__(self, cond: np.ndarray) -> np.ndarray:

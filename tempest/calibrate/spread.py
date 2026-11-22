@@ -120,7 +120,7 @@ def main():
     pool = (year >= (a.from_year or fy)) & (year <= fy)
     if a.exclude_group:
         pool &= ~np.isin(np.asarray(d["row_group"]), a.exclude_group)
-    rows = np.sort(rng.choice(np.flatnonzero(pool), a.rows, replace=False))
+    rows = np.sort(rng.choice(np.flatnonzero(pool), min(a.rows, int(pool.sum())), replace=False))
     truth = to_physical(np.asarray(d["target"][rows]))
     cond = d["cond"]
     if a.drawn_drivers:

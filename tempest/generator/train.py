@@ -77,8 +77,8 @@ DEFAULTS = dict(noise_dim=32, width=512, depth=4, m=4, crps_alpha=0.95, es_weigh
                 sig_weight=0.0, sig_stride=1,     # GX1: energy score on depth-2 height-path signatures
                 model_kw_extra=None,        # GT2 / s25 archs: extra keyword arguments for the network (e.g. {d = 96} for the token model)
                 s25=None,                   # s25 arch options (flow / rml / har / moe / eof / prior / analog / refine), see s25_models.prepare
-                distill_teacher=None, distill_m=8, distill_data_weight=0.0,
-                balance_groups=False)       # G2 (GLOBAL_PLAN 3.2): draw each batch row from a uniformly chosen group (dataset row_group: box / point / climate zone), then a row inside it; False = plain uniform rows   # MF1: energy distance to this teacher checkpoint's samples
+                distill_teacher=None, distill_m=8, distill_data_weight=0.0,   # MF1: energy distance to this teacher checkpoint's samples
+                balance_groups=False)       # G2 (GLOBAL_PLAN 3.2): draw each batch row from a uniformly chosen group (dataset row_group: box / point / climate zone), then a row inside it; False = plain uniform rows
            # NEST (SIGMA stage 3): 10 hidden widths, one per lead day (cond column lead_days); None = off (model nest)        # L26: conv_c channels > 0 adds the 1-D height-convolution refinement (model conv)        # Gemini idea 3: K learned tanh jumps below jump_top metres (model jump)
 N_PROF = len(HEIGHTS) * len(PROFILE)  # leading target columns that are profile differences (real data only)
 
@@ -370,7 +370,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
             loss = loss + s25_terms(samples, t, s, y)
         return loss
 
-    groups = ([(v, slice(i * len(HEIGHTS), (i + 1) * len(HEIGHTS))) for i, v in enumerate(PROFILE)]
+    diag_groups = ([(v, slice(i * len(HEIGHTS), (i + 1) * len(HEIGHTS))) for i, v in enumerate(PROFILE)]
               + [("sfc", slice(n_prof, None))]) if n_prof else [("all", slice(None))]
 
     def diagnose(model, c, t):  # per-variable CRPS and spread/skill on one validation chunk: shows where the loss comes from
@@ -380,7 +380,7 @@ def train(cond, target, year, cfg=None, out=None, device=None, log=print, meta=N
         rmse = ((s.mean(1) - y) ** 2).mean(0).sqrt()
         bias = (s.mean(1) - y).mean(0)
         return "  ".join(f"{g}: crps {afcrps(s[..., sl], y[..., sl]).item():.4f} ss {(sd[sl].mean() / rmse[sl].mean()).item():.2f}"
-                         f" bias {bias[sl].mean().item():+.3f}" for g, sl in groups)
+                         f" bias {bias[sl].mean().item():+.3f}" for g, sl in diag_groups)
 
     gpu = str(device).startswith("cuda")
     # shortcut: every training row is normalised and copied to the device once (CPU runs keep a float32 copy in

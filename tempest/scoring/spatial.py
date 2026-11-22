@@ -250,7 +250,7 @@ def gate_g2(rows):
         bad = s[(s.cov90_unknown < 0.87) | (s.cov90_unknown > 0.93)]
         why += [f"cov90 {v} {b} {x:.3f}" for v, b, x in zip(bad["var"], bad.band, bad.cov90_unknown)]
         sh = np.nan
-        if t is not None and "q99_model" in t:
+        if t is not None and "q99_model" in t and (t.field == "shear_10m_1km").any():
             row = t[t.field == "shear_10m_1km"].iloc[0]
             sh = row.q99_model / row.q99_truth - 1
             if abs(sh) > 0.12:
@@ -284,7 +284,7 @@ def gate_g4(rows, knndm_crps=None, block_crps=None, block_ci=None, rot_artifact=
         why = [] if s is not None else ["no summary"]
         if s is not None:
             why += [f"CRPSS {v} {b} {x:+.3f}" for v, b, x in zip(s["var"], s.band, s.skill_unknown) if x <= 0]
-        if t is not None and "q999_model" in t:
+        if t is not None and "q999_model" in t and (t.field == "shear_10m_1km").any():
             row = t[t.field == "shear_10m_1km"].iloc[0]
             for q in ("q99", "q999"):
                 e = row[f"{q}_model"] / row[f"{q}_truth"] - 1

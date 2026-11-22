@@ -31,10 +31,16 @@ def cell(lat, lon, nside):
     return b * per + j
 
 
+def is_igra(ids):
+    """True at IGRA stations: fetch_global ids are '' for lattice and 'T' for terrain points."""
+    ids = np.asarray(ids)
+    return (ids != "") & (ids != "T")
+
+
 def thin(pts, idx, nside=32, keep_igra=True):
     """Keep at most one non-IGRA point per cell (the first in store order); IGRA sites are all kept when keep_igra."""
     idx = np.asarray(idx)
-    igra = np.asarray(pts["igra"])[idx] != ""
+    igra = is_igra(np.asarray(pts["igra"])[idx])
     c = cell(np.asarray(pts["lat"])[idx], np.asarray(pts["lon"])[idx], nside)
     first = np.zeros(len(idx), bool)
     _, u = np.unique(np.where(igra, -1, c), return_index=True)
@@ -45,6 +51,6 @@ def thin(pts, idx, nside=32, keep_igra=True):
 def igra_holdout(pts, idx, frac=0.3, seed=0):
     """Random share frac of the IGRA sites among idx (store indices), fixed by seed."""
     idx = np.asarray(idx)
-    sites = idx[np.asarray(pts["igra"])[idx] != ""]
+    sites = idx[is_igra(np.asarray(pts["igra"])[idx])]
     rng = np.random.default_rng(seed)
     return np.sort(rng.choice(sites, int(round(frac * len(sites))), replace=False)) if len(sites) else sites

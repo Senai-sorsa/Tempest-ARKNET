@@ -143,6 +143,10 @@ def gates(paths, w, cond, y, m=100, seed=0, threads=4):
                 continue
             raise
         s[k] = sess.run(None, feed)[0].reshape(n, m, -1)
+        if w.sp_offset is not None:                                               # y holds the full sp; the graph leaves the offset out (as Sampler adds it)
+            from tempest.generator.sample import standard_pressure
+            j, ec = w.sp_offset
+            s[k][..., j] += standard_pressure(np.asarray(cond, np.float64)[:, ec]).astype(np.float32)[:, None]
         cc[k] = np.nanmean(crps_ensemble(s[k], np.asarray(y, np.float32)), 0)          # per column: sp (Pa) would dominate a pooled mean
         res[f"{k}_crps"] = float(np.nanmean(cc[k]))
         res[f"{k}_shear999"] = float(np.nanquantile(step_shear(s[k]), 0.999))

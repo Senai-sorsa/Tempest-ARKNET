@@ -45,6 +45,8 @@ def main():
         sp = d["sp"] * 2.0 + 80000                                        # (time, point)
         bg = bg + below_ground(levels, sp).sum((0, 1))
         nrows += sp.size
+    if not have:
+        sys.exit(f"G0 store check {a.store}: no month files")
     p = np.load(os.path.join(a.store, "points.npz"))
     nhold = int(holdout.locked_mask(p["lat"], p["lon"]).sum())
     lines = [f"G0 store check {a.store}: {len(have)} months ({have[0]}..{have[-1]}), {len(missing)} missing, "
@@ -53,7 +55,7 @@ def main():
     lines += ["  below ground (p > sp) share per level: " + ", ".join(f"{int(l)} {b / nrows:.3f}" for l, b in zip(levels, bg))]
     bad = missing or late or nhold or any(sat.values())
     lines += [("FAIL" if bad else "OK") + (f" missing {missing[:5]}" if missing else "")]
-    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     open(a.out, "w").write("\n".join(lines) + "\n")
     print("\n".join(lines))
     sys.exit(1 if bad else 0)
