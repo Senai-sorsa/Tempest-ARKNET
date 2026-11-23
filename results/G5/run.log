@@ -1,0 +1,1 @@
+2026-11-22 00:26:14 [G5] G5 finished for results/G4/pool_generator_global_s0.pt; bundle in models/global/bundle, sizes in results/G5/bundle.csv; return results/G5 + models/global/onnx/gates.json (docs/global/RESULTS_FORMAT.md)

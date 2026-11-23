@@ -20,3 +20,6 @@ tempest_weather/assets_*/
 
 # New_Plan.md backups (local only; history has bak19-bak149 in a83e8eb)
 New_Plan.bak*.md
+
+# 100 GB cluster bundle: too big for GitHub
+tempest_g_bundle.tar

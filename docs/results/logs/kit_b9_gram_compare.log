@@ -118,3 +118,88 @@ POOLED gaussfull minus tool (day-bootstrap 95 % interval, same reading):
   co-extreme distance to balloons  +0.0015 [-0.0061, +0.0072]  tie
 Notes: balloons 2024-25 are the development window; the tool is balloon-corrected at these two stations and gaussfull is fitted on their 1991-2020 balloons, so neither is a blind test. gaussfull is NOT Earth-GRAM. Depth-dev noise is about 0.03 at 600 cases. Co-extremes rest on about 5 % of the cases, so the balloon value itself is uncertain (its bracket). The 0-1 km balloon shear tail of 2024-25 is inflated by the 2023 sonde change (IL-194).
 
+2026-11-22 18:18 Earth-GRAM comparison kit: 800 cases scored (0 skipped: hour not covered, 0 not in every external file), 100 members per case, sources: tool, gramlike, bank, gaussfull, earthgram_ncep, earthgram_rra
+ACCURACY (paired, mean over cases)      CRPS u    v     T      cov90 u  v     T      cov99 u  v     T
+  tool                                4.399 4.373 1.962    0.883 0.876 0.891    0.976 0.972 0.976 
+  gramlike                            4.530 4.369 2.127    0.878 0.883 0.874    0.972 0.970 0.969 
+  bank                                4.530 4.368 2.082    0.867 0.875 0.862    0.972 0.969 0.964 
+  gaussfull                           4.533 4.392 2.120    0.875 0.877 0.872    0.971 0.966 0.969 
+  earthgram_ncep                      4.595 4.438 2.245    0.820 0.825 0.813    0.929 0.923 0.920 
+  earthgram_rra                       4.603 4.484 2.302    0.839 0.833 0.834    0.941 0.931 0.935 
+COUPLING                                VS u     v      T       VSx      vertical-corr error   cross-variable corr error
+  tool                                1.327  1.131  0.209   0.1861   0.053                 0.207
+  gramlike                            1.395  1.205  0.216   0.1875   0.152                 0.217
+  bank                                1.373  1.135  0.215   0.1850   0.047                 0.209
+  gaussfull                           1.379  1.142  0.215   0.1852   0.039                 0.207
+  earthgram_ncep                      1.405  1.314  0.234   0.1875   0.307                 0.209
+  earthgram_rra                       1.419  1.297  0.246   0.1881   0.295                 0.203
+SHAPE                                   shear p50 ratio per band      shear p99 ratio per band      Ri<1 share per band           co-extremes            depth-dev u v T      hydrostatic gap %
+  balloons                            1.00 1.00 1.00 1.00           1.00 1.00 1.00 1.00           0.738 0.351 0.199 0.149       0.05 [0.00, 0.13]        -     -     -      0.026
+  tool                                1.00 0.88 0.89 0.84           0.70 0.91 0.84 0.91           0.649 0.301 0.210 0.123       0.03 [0.02, 0.03]     0.027 0.026 0.029    0.064
+  gramlike                            1.23 1.48 1.86 0.70           0.69 1.33 1.64 0.71           0.639 0.501 0.552 0.120       0.04 [0.03, 0.04]     0.020 0.031 0.068    0.062
+  bank                                0.81 0.89 0.92 0.78           0.68 0.92 0.88 0.85           0.642 0.283 0.209 0.090       0.05 [0.04, 0.06]     0.059 0.039 0.031    0.067
+  gaussfull                           0.91 0.99 1.07 0.84           0.65 0.84 0.81 0.74           0.598 0.296 0.257 0.090       0.03 [0.02, 0.03]     0.035 0.022 0.025    0.063
+  earthgram_ncep                      0.97 0.94 1.33 0.90           0.56 0.89 1.06 0.88           0.545 0.245 0.343 0.151       0.05 [0.04, 0.06]     0.103 0.092 0.071    0.082
+  earthgram_rra                       1.13 0.98 1.32 0.89           0.58 0.93 1.04 0.87           0.598 0.263 0.337 0.146       0.05 [0.04, 0.05]     0.076 0.091 0.045    0.090
+PAIRED gramlike minus tool (day-block 95 % interval; below 0 = gramlike better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1308 [+0.0643, +0.1961]  (+3.0 % of the tool's score)  tool better
+  crps_v   -0.0038 [-0.0495, +0.0403]  (-0.1 % of the tool's score)  tie
+  crps_T   +0.1658 [+0.1260, +0.2052]  (+8.5 % of the tool's score)  tool better
+  vs_u     +0.0678 [+0.0470, +0.0886]  (+5.1 % of the tool's score)  tool better
+  vs_v     +0.0733 [+0.0586, +0.0880]  (+6.5 % of the tool's score)  tool better
+  vs_T     +0.0076 [+0.0029, +0.0125]  (+3.6 % of the tool's score)  tool better
+  vsx      +0.0014 [+0.0001, +0.0027]  (+0.8 % of the tool's score)  tool better
+POOLED gramlike minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              +0.0991 [+0.0738, +0.1129]  tool better
+  cross-variable corr error        +0.0100 [-0.0096, +0.0306]  tie
+  co-extreme distance to balloons  -0.0082 [-0.0155, +0.0135]  tie
+PAIRED bank minus tool (day-block 95 % interval; below 0 = bank better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1313 [+0.0631, +0.1993]  (+3.0 % of the tool's score)  tool better
+  crps_v   -0.0044 [-0.0444, +0.0385]  (-0.1 % of the tool's score)  tie
+  crps_T   +0.1199 [+0.0827, +0.1550]  (+6.1 % of the tool's score)  tool better
+  vs_u     +0.0463 [+0.0225, +0.0690]  (+3.5 % of the tool's score)  tool better
+  vs_v     +0.0041 [-0.0064, +0.0153]  (+0.4 % of the tool's score)  tie
+  vs_T     +0.0064 [+0.0016, +0.0113]  (+3.1 % of the tool's score)  tool better
+  vsx      -0.0011 [-0.0034, +0.0012]  (-0.6 % of the tool's score)  tie
+POOLED bank minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              -0.0057 [-0.0184, +0.0063]  tie
+  cross-variable corr error        +0.0019 [-0.0213, +0.0218]  tie
+  co-extreme distance to balloons  -0.0195 [-0.0254, +0.0268]  tie
+PAIRED gaussfull minus tool (day-block 95 % interval; below 0 = gaussfull better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1344 [+0.0753, +0.1962]  (+3.1 % of the tool's score)  tool better
+  crps_v   +0.0191 [-0.0249, +0.0641]  (+0.4 % of the tool's score)  tie
+  crps_T   +0.1583 [+0.1175, +0.1982]  (+8.1 % of the tool's score)  tool better
+  vs_u     +0.0523 [+0.0302, +0.0743]  (+3.9 % of the tool's score)  tool better
+  vs_v     +0.0103 [-0.0008, +0.0219]  (+0.9 % of the tool's score)  tie
+  vs_T     +0.0065 [+0.0017, +0.0115]  (+3.1 % of the tool's score)  tool better
+  vsx      -0.0009 [-0.0026, +0.0007]  (-0.5 % of the tool's score)  tie
+POOLED gaussfull minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              -0.0136 [-0.0215, +0.0020]  tie
+  cross-variable corr error        -0.0002 [-0.0174, +0.0206]  tie
+  co-extreme distance to balloons  +0.0032 [-0.0079, +0.0105]  tie
+PAIRED earthgram_ncep minus tool (day-block 95 % interval; below 0 = earthgram_ncep better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.1957 [+0.1290, +0.2661]  (+4.4 % of the tool's score)  tool better
+  crps_v   +0.0656 [+0.0244, +0.1078]  (+1.5 % of the tool's score)  tool better
+  crps_T   +0.2835 [+0.2333, +0.3325]  (+14.5 % of the tool's score)  tool better
+  vs_u     +0.0779 [+0.0563, +0.1002]  (+5.9 % of the tool's score)  tool better
+  vs_v     +0.1823 [+0.1484, +0.2144]  (+16.1 % of the tool's score)  tool better
+  vs_T     +0.0253 [+0.0198, +0.0309]  (+12.1 % of the tool's score)  tool better
+  vsx      +0.0014 [-0.0011, +0.0039]  (+0.7 % of the tool's score)  tie
+POOLED earthgram_ncep minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              +0.2542 [+0.2275, +0.2663]  tool better
+  cross-variable corr error        +0.0021 [-0.0154, +0.0195]  tie
+  co-extreme distance to balloons  -0.0192 [-0.0255, +0.0264]  tie
+PAIRED earthgram_rra minus tool (day-block 95 % interval; below 0 = earthgram_rra better, above 0 = tool better, spans 0 = tie):
+  crps_u   +0.2039 [+0.1276, +0.2795]  (+4.6 % of the tool's score)  tool better
+  crps_v   +0.1112 [+0.0552, +0.1661]  (+2.5 % of the tool's score)  tool better
+  crps_T   +0.3407 [+0.2866, +0.3963]  (+17.4 % of the tool's score)  tool better
+  vs_u     +0.0925 [+0.0677, +0.1183]  (+7.0 % of the tool's score)  tool better
+  vs_v     +0.1659 [+0.1348, +0.1953]  (+14.7 % of the tool's score)  tool better
+  vs_T     +0.0373 [+0.0312, +0.0432]  (+17.9 % of the tool's score)  tool better
+  vsx      +0.0020 [+0.0000, +0.0040]  (+1.1 % of the tool's score)  tool better
+POOLED earthgram_rra minus tool (day-bootstrap 95 % interval, same reading):
+  vertical-corr error              +0.2428 [+0.2146, +0.2557]  tool better
+  cross-variable corr error        -0.0036 [-0.0239, +0.0169]  tie
+  co-extreme distance to balloons  -0.0177 [-0.0239, +0.0242]  tie
+Notes: balloons 2024-25 are the development window; the tool is balloon-corrected at these two stations and gaussfull is fitted on their 1991-2020 balloons, so neither is a blind test. gaussfull is NOT Earth-GRAM. Depth-dev noise is about 0.03 at 600 cases. Co-extremes rest on about 5 % of the cases, so the balloon value itself is uncertain (its bracket). The 0-1 km balloon shear tail of 2024-25 is inflated by the 2023 sonde change (IL-194).
+

@@ -7,7 +7,8 @@ import pytest
 import torch
 
 X4R, BASE = "models/s25/c4wx4r_s0.pt", "models/l3_c4w.pt"
-pytestmark = pytest.mark.skipif(not (os.path.exists(X4R) and os.path.exists(BASE)), reason="X4-R checkpoints not on disk")
+DATA = ("data/train/denver_full_fill_dpd.npz", "data/train/pilot80_l21_all24_dpd.npz")
+pytestmark = pytest.mark.skipif(not all(map(os.path.exists, (X4R, BASE) + DATA)), reason="X4-R checkpoints or their datasets not on disk")
 
 
 def _net(ck, tmp_path, tag):
@@ -23,7 +24,7 @@ def _net(ck, tmp_path, tag):
 def test_x4r_port_matches_torch(tmp_path):
     from tempest.generator.sample import Sampler
     from tempest.generator.train import _load
-    cond = np.concatenate([np.asarray(_load(p)["cond"][:300], np.float32) for p in ("data/train/denver_full_fill_dpd.npz", "data/train/pilot80_l21_all24_dpd.npz")])
+    cond = np.concatenate([np.asarray(_load(p)["cond"][:300], np.float32) for p in DATA])
     ck, base = (torch.load(p, map_location="cpu", weights_only=True) for p in (X4R, BASE))
     net = _net(ck, tmp_path, "x4r")
     off = net.x4r_offset(cond)

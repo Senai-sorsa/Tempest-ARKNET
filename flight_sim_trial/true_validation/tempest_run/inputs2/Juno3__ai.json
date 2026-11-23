@@ -1,0 +1,12 @@
+{
+ "trust": "Climate estimate: typical range for this date, not a forecast",
+ "flags": [],
+ "modes": {
+  "ai": 1.0
+ },
+ "window": "2023-06-23 17:00 MDT",
+ "n": 100,
+ "scenario": "ai",
+ "flight": "Juno3",
+ "truth_ft": 10541.339
+}

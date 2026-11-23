@@ -1,0 +1,25 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; conditioned on 3 measurements (not yet validated) (from ASOS TCS, 47 km from the pad, +78 m in height, 0.0 h old; gain fitted on station pairs, see obs.py). The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)",
+ "flags": [
+  "conditioned-on-3-measurements-not-yet-validated",
+  "observation-from-ASOS TCS"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "past_w",
+ "asos": {
+  "speed_ms": 0.9259991999999998,
+  "from_deg": 190.0,
+  "temp_c": 23.22222222222222,
+  "hours_apart": 1.0,
+  "reports": [
+   "2022-06-24 14:53:00+00:00",
+   "2022-06-24 15:53:00+00:00"
+  ]
+ },
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

@@ -1,0 +1,12 @@
+{
+ "trust": "Climate estimate: typical range for this date, not a forecast",
+ "flags": [],
+ "modes": {
+  "ai": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "ai",
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

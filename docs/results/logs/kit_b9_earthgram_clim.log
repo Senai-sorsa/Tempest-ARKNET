@@ -1,0 +1,74 @@
+2026-11-22 18:01 Real Earth-GRAM 2016 climatology check: 48 station x month x hour groups, 100 members per source; balloon climatology 1991-2020 (median 834 balloons per group).
+Columns are height bands 0-1 km, 1-5 km, 5-12 km, 12-18 km. Means over groups (EPZ and MAF together, then each station).
+
+MEAN BIAS vs balloon climatology (m/s, m/s, K)
+  both stations
+    gram_ncep  u:   -0.06   -0.25   -0.17   +0.10   v:   -0.09   -0.04   +0.00   +0.55   T:   -0.85   -0.16   +0.21   +0.32
+               spd:   -1.52   -0.72   -0.10   +0.05   sos:   -0.50   -0.10   +0.14   +0.22
+    gram_rra   u:   -0.19   -0.25   -0.08   -0.11   v:   -0.27   -0.10   -0.44   -0.15   T:   -0.73   -0.42   +0.21   +0.91
+               spd:   -1.02   -0.42   -0.10   -0.35   sos:   -0.43   -0.25   +0.15   +0.63
+    tool       u:   -0.22   +0.28   +0.46   +1.82   v:   +0.49   +0.41   +0.41   +0.54   T:   +1.31   +1.04   +0.91   +0.76
+               spd:   +0.05   +0.19   +0.57   +1.60   sos:   +0.77   +0.63   +0.59   +0.52
+  USM00072364
+    gram_ncep  u:   -0.28   -0.62   -0.10   +0.36   v:   +0.27   -0.07   -0.05   +0.69   T:   -1.37   -0.34   +0.21   +0.35
+               spd:   -1.31   -0.95   -0.02   +0.27   sos:   -0.81   -0.20   +0.14   +0.25
+    gram_rra   u:   -0.54   -0.62   +0.08   -0.06   v:   -0.08   -0.19   -0.94   -0.71   T:   -1.13   -0.85   +0.21   +1.53
+               spd:   -0.30   -0.35   -0.03   -0.54   sos:   -0.66   -0.51   +0.14   +1.07
+    tool       u:   -0.20   +0.36   +0.67   +1.83   v:   +0.18   +0.61   +0.66   +0.49   T:   +1.16   +0.88   +0.69   +0.70
+               spd:   -0.05   +0.30   +0.68   +1.63   sos:   +0.68   +0.53   +0.45   +0.48
+  USM00072265
+    gram_ncep  u:   +0.16   +0.11   -0.25   -0.15   v:   -0.46   -0.02   +0.06   +0.41   T:   -0.33   +0.01   +0.22   +0.29
+               spd:   -1.74   -0.48   -0.18   -0.16   sos:   -0.19   +0.01   +0.15   +0.20
+    gram_rra   u:   +0.16   +0.11   -0.25   -0.15   v:   -0.46   -0.02   +0.06   +0.41   T:   -0.33   +0.01   +0.22   +0.29
+               spd:   -1.74   -0.48   -0.18   -0.16   sos:   -0.19   +0.01   +0.15   +0.20
+    tool       u:   -0.24   +0.20   +0.25   +1.80   v:   +0.80   +0.21   +0.17   +0.60   T:   +1.46   +1.21   +1.13   +0.82
+               spd:   +0.15   +0.07   +0.46   +1.58   sos:   +0.86   +0.72   +0.73   +0.57
+
+SPREAD RATIO SD / balloon SD (target 1.00) 
+  both stations
+    gram_ncep  u:   +0.73   +0.84   +0.96   +0.98   v:   +0.78   +0.91   +0.96   +0.93   T:   +0.93   +0.91   +0.87   +0.93
+               spd:   +0.77   +0.82   +0.90   +0.95   sos:   +0.93   +0.91   +0.87   +0.93
+    gram_rra   u:   +0.84   +0.92   +0.97   +0.97   v:   +0.88   +0.94   +0.95   +0.92   T:   +1.10   +0.95   +0.94   +0.99
+               spd:   +0.85   +0.87   +0.89   +0.94   sos:   +1.10   +0.95   +0.94   +0.98
+    tool       u:   +0.97   +1.04   +1.07   +1.03   v:   +0.95   +0.98   +0.96   +1.01   T:   +1.04   +1.01   +0.93   +1.02
+               spd:   +0.97   +1.05   +1.01   +1.02   sos:   +1.04   +1.01   +0.93   +1.02
+  USM00072364
+    gram_ncep  u:   +0.73   +0.82   +0.96   +0.97   v:   +0.81   +0.91   +0.96   +0.93   T:   +0.96   +0.90   +0.85   +0.92
+               spd:   +0.71   +0.79   +0.90   +0.95   sos:   +0.96   +0.90   +0.85   +0.92
+    gram_rra   u:   +0.95   +0.98   +0.97   +0.96   v:   +1.00   +0.96   +0.95   +0.90   T:   +1.29   +0.99   +0.99   +1.02
+               spd:   +0.88   +0.89   +0.89   +0.92   sos:   +1.29   +0.99   +0.99   +1.02
+    tool       u:   +0.97   +1.06   +1.08   +1.03   v:   +0.96   +1.00   +0.93   +1.00   T:   +1.04   +1.04   +0.94   +1.03
+               spd:   +0.94   +1.08   +1.01   +1.02   sos:   +1.04   +1.04   +0.94   +1.03
+  USM00072265
+    gram_ncep  u:   +0.74   +0.86   +0.97   +0.99   v:   +0.76   +0.91   +0.96   +0.93   T:   +0.91   +0.92   +0.89   +0.95
+               spd:   +0.82   +0.85   +0.89   +0.95   sos:   +0.91   +0.92   +0.89   +0.95
+    gram_rra   u:   +0.74   +0.86   +0.97   +0.99   v:   +0.76   +0.91   +0.96   +0.93   T:   +0.91   +0.92   +0.89   +0.95
+               spd:   +0.82   +0.85   +0.89   +0.95   sos:   +0.91   +0.92   +0.89   +0.95
+    tool       u:   +0.97   +1.02   +1.06   +1.03   v:   +0.94   +0.96   +0.98   +1.01   T:   +1.04   +0.98   +0.92   +1.01
+               spd:   +1.00   +1.03   +1.01   +1.02   sos:   +1.03   +0.98   +0.92   +1.01
+
+TAILS AND DENSITY (both stations): wind speed q99 ratio to balloons (target 1.00); density mean bias in % (dry balloon density)
+    gram_ncep  q99 speed:   +0.71   +0.77   +0.86   +0.89    density %:   +0.24   +0.02   +0.02   +0.18
+    gram_rra   q99 speed:   +0.80   +0.82   +0.86   +0.88    density %:   +0.23   +0.12   -0.02   +0.05
+    tool       q99 speed:   +0.91   +1.00   +0.97   +1.01    density %:   -0.47   -0.28   +0.00   +0.44
+    spread of the group means (SD over groups of the band mean bias) shows how much of a mean bias is seasonal rather than fixed:
+    gram_ncep  u:   +0.60   +0.69   +1.20   +0.80   v:   +0.85   +0.62   +1.07   +0.73   T:   +1.22   +0.60   +0.34   +0.42
+    tool       u:   +0.69   +1.45   +2.01   +1.94   v:   +0.65   +0.68   +1.15   +0.76   T:   +1.36   +1.09   +1.03   +0.80
+
+MEAN ERROR vs the 2024-25 balloons (member mean minus observed, all b9 cases; the drift since each base period)
+    gram_ncep              u:   -0.11   -0.12   -1.95   -1.99   v:   -0.25   +0.07   -0.25   -0.09   T:   -2.27   -1.00   -0.80   -0.10
+    gram_rra               u:   -0.26   -0.10   -1.86   -2.21   v:   -0.45   -0.01   -0.67   -0.74   T:   -2.13   -1.24   -0.79   +0.50
+    balloon clim 1991-2020 u:   -0.06   +0.14   -1.74   -2.06   v:   -0.16   +0.09   -0.34   -0.60   T:   -1.43   -0.84   -1.01   -0.37
+    (the tool's paired accuracy against these balloons is in kit_b9_gram_compare.log)
+
+SANITY (target 1.00 within MC noise ~0.07 at 100 members):
+  gram_ncep  u: median MC-member SD / GRAM-reported SD per band   0.99  0.99  0.99  1.00
+  gram_ncep  v: median MC-member SD / GRAM-reported SD per band   1.00  0.99  0.99  0.99
+  gram_ncep  T: median MC-member SD / GRAM-reported SD per band   0.99  1.00  0.99  0.99
+  gram_rra   u: median MC-member SD / GRAM-reported SD per band   0.99  0.99  0.99  1.00
+  gram_rra   v: median MC-member SD / GRAM-reported SD per band   1.00  0.99  0.99  0.99
+  gram_rra   T: median MC-member SD / GRAM-reported SD per band   0.99  0.99  1.00  0.99
+Notes: GRAM's NCEP base period is 1997-2015, the RRA El Paso base is 1990-95; the balloons are 1991-2020 and the tool is trained 1991-2020 with trend terms, so a warm 2024-25 shows up as a negative T mean error for every climatology. Balloon density ignores humidity (under 1 % near the ground). GRAM heights are taken as above sea level (the geoid offset there is about 25 m, under one model level near the ground).
+
+RUNTIME per case, 100 members x 44 heights (this machine): tool median 0.49 s over 48 calls (first call 1.7 s, loads assets); Earth-GRAM 1.65 s median over 5 single-process runs (NCEP)
+

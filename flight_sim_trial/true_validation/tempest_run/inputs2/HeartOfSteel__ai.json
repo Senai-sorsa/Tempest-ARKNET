@@ -1,0 +1,14 @@
+{
+ "trust": "Climate estimate: typical range for this date, not a forecast",
+ "flags": [
+  "window-hours-independent"
+ ],
+ "modes": {
+  "ai": 1.0
+ },
+ "window": "uniform between 2017-06-22 09:00 MDT and 2017-06-22 13:55 MDT",
+ "n": 100,
+ "scenario": "ai",
+ "flight": "HeartOfSteel",
+ "truth_ft": 30411.0
+}

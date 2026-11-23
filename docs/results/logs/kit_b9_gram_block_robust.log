@@ -1,0 +1,48 @@
+2026-11-22 18:52 Block-length robustness of the paired CRPS test: 800 cases; blocks: day (527 blocks), week (105 blocks), month (24 blocks). Entry: mean source-minus-tool CRPS in % of the tool's, then the 95 % interval per block length (below 0 = source better; * = interval excludes 0 for every block length).
+
+gram_ncep
+  u    all 0-18 km    +4.6 %  day [ +2.9, +6.3]  week [ +2.2, +7.1]  month [ +2.2, +7.2]  *
+  u    0-1 km         +4.3 %  day [ +2.6, +6.2]  week [ +2.5, +6.2]  month [ +2.0, +6.6]  *
+  u    1-5 km         +2.0 %  day [ -0.1, +3.9]  week [ -0.6, +4.7]  month [ -0.4, +4.5]
+  u    5-12 km        +4.3 %  day [ +2.2, +6.5]  week [ +1.4, +7.2]  month [ +1.4, +7.4]  *
+  u    12-18 km       +6.6 %  day [ +4.1, +9.1]  week [ +2.6,+10.5]  month [ +2.0,+11.4]  *
+  v    all 0-18 km    +1.2 %  day [ +0.1, +2.2]  week [ -0.0, +2.3]  month [ +0.3, +1.9]
+  v    0-1 km         +7.7 %  day [ +5.6, +9.8]  week [ +5.3,+10.3]  month [ +5.3,+10.2]  *
+  v    1-5 km         +0.1 %  day [ -1.2, +1.3]  week [ -1.3, +1.4]  month [ -1.0, +1.1]
+  v    5-12 km        +0.4 %  day [ -1.0, +1.7]  week [ -1.1, +1.9]  month [ -0.8, +1.5]
+  v    12-18 km       +0.7 %  day [ -0.6, +1.9]  week [ -0.8, +2.2]  month [ -0.3, +1.6]
+  T    all 0-18 km   +12.9 %  day [+10.5,+15.1]  week [ +9.3,+16.4]  month [ +8.2,+17.5]  *
+  T    0-1 km        +26.4 %  day [+21.4,+31.5]  week [+18.9,+33.9]  month [+16.3,+36.0]  *
+  T    1-5 km        +14.0 %  day [+10.6,+17.5]  week [ +9.1,+18.9]  month [ +8.4,+19.2]  *
+  T    5-12 km        +6.6 %  day [ +4.1, +9.2]  week [ +2.9,+10.6]  month [ +1.7,+12.1]  *
+  T    12-18 km       +5.4 %  day [ +3.0, +7.9]  week [ +1.2, +9.9]  month [ +1.3, +9.9]  *
+  spd  all 0-18 km    +7.2 %  day [ +5.5, +8.9]  week [ +4.8, +9.6]  month [ +5.2, +9.3]  *
+  spd  0-1 km        +30.1 %  day [+25.8,+34.6]  week [+25.3,+35.1]  month [+25.2,+34.9]  *
+  spd  1-5 km         +3.4 %  day [ +1.4, +5.5]  week [ +0.9, +6.0]  month [ +1.3, +5.5]  *
+  spd  5-12 km        +4.2 %  day [ +2.3, +6.2]  week [ +1.8, +6.7]  month [ +1.9, +6.8]  *
+  spd  12-18 km       +6.8 %  day [ +4.4, +9.1]  week [ +3.1,+10.5]  month [ +2.7,+11.3]  *
+
+gram_rra
+  u    all 0-18 km    +4.9 %  day [ +3.1, +6.7]  week [ +2.3, +7.5]  month [ +2.5, +7.4]  *
+  u    0-1 km         +2.4 %  day [ +0.8, +4.2]  week [ +0.6, +4.3]  month [ +0.2, +4.7]  *
+  u    1-5 km         +1.8 %  day [ -0.3, +3.8]  week [ -0.9, +4.6]  month [ -0.5, +4.2]
+  u    5-12 km        +4.6 %  day [ +2.3, +6.8]  week [ +1.4, +7.6]  month [ +1.7, +7.7]  *
+  u    12-18 km       +8.2 %  day [ +5.5,+10.9]  week [ +3.8,+12.6]  month [ +3.5,+13.2]  *
+  v    all 0-18 km    +2.3 %  day [ +1.0, +3.7]  week [ +0.7, +4.1]  month [ +1.3, +3.4]  *
+  v    0-1 km         +6.7 %  day [ +4.5, +8.8]  week [ +4.3, +9.2]  month [ +4.5, +9.1]  *
+  v    1-5 km         +1.1 %  day [ -0.5, +2.6]  week [ -0.7, +2.9]  month [ -0.3, +2.6]
+  v    5-12 km        +1.7 %  day [ -0.1, +3.5]  week [ -0.5, +4.0]  month [ +0.2, +3.4]
+  v    12-18 km       +2.5 %  day [ +0.9, +4.0]  week [ +0.7, +4.2]  month [ +1.4, +3.6]  *
+  T    all 0-18 km   +15.2 %  day [+12.6,+17.8]  week [+11.4,+19.2]  month [+10.1,+20.2]  *
+  T    0-1 km        +32.1 %  day [+27.1,+37.2]  week [+25.0,+39.1]  month [+23.2,+40.0]  *
+  T    1-5 km        +14.4 %  day [+10.4,+18.3]  week [ +8.8,+19.9]  month [ +8.1,+20.1]  *
+  T    5-12 km        +7.3 %  day [ +4.5,+10.3]  week [ +3.0,+12.2]  month [ +1.6,+14.1]  *
+  T    12-18 km       +9.4 %  day [ +7.1,+11.7]  week [ +5.5,+13.4]  month [ +4.5,+14.9]  *
+  spd  all 0-18 km    +6.5 %  day [ +4.7, +8.3]  week [ +4.0, +9.0]  month [ +4.7, +8.5]  *
+  spd  0-1 km        +18.8 %  day [+14.9,+22.7]  week [+14.6,+23.3]  month [+15.3,+22.0]  *
+  spd  1-5 km         +2.6 %  day [ +0.6, +4.6]  week [ +0.1, +5.2]  month [ +1.0, +4.2]  *
+  spd  5-12 km        +4.2 %  day [ +2.1, +6.3]  week [ +1.4, +6.8]  month [ +1.9, +6.9]  *
+  spd  12-18 km       +8.5 %  day [ +5.9,+11.2]  week [ +4.2,+12.9]  month [ +4.1,+13.3]  *
+
+Notes: the tool is balloon-corrected at these stations (not a blind test). Month blocks leave 24 blocks, so their intervals are themselves rough; a result that holds for day, week and month blocks is not an artefact of day-to-day weather persistence.
+

@@ -1,0 +1,15 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons",
+ "flags": [
+  "past-wind-spread-widened",
+  "window-hours-independent"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "uniform between 2017-06-22 09:00 MDT and 2017-06-22 13:55 MDT",
+ "n": 100,
+ "scenario": "past_s12",
+ "flight": "HeartOfSteel",
+ "truth_ft": 30411.0
+}

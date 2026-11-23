@@ -1,0 +1,74 @@
+
+=== afternoon: 2025-06-24T20:00:00+00:00  (n = 200 sampled atmospheres) ===
+S1 inputs from the sample medians: T 34.0 C, p 85.95 kPa, RH 13 %, wind 2.1 m/s from 194 deg
+               S0 plain ISA S1 scaled+wind   S2 mean   S2 sd     S2 p5    S2 p50    S2 p95
+apogee_agl_m    3562.439104    3710.147729   3717.55   20.20   3684.53   3719.45   3751.24
+max_speed        355.471756     358.020083    358.89    0.39    358.16    358.88    359.47
+max_q_pa       64445.460038    61399.97799  60566.22  402.10  59911.08  60580.38  61249.33
+flight_time_s     56.621107      58.446538     58.05    1.02     56.69     57.83     60.08
+drift_m          741.512511      690.45742    736.43  142.53    517.06    724.03    956.66
+north_m          741.512511     690.450322    717.22  145.16    499.75    697.45    939.16
+east_m                 -0.0      -3.130918     60.43  153.76   -178.54     50.62    314.53
+rho_pad            1.068594       1.004766      0.97    0.01      0.96      0.97      0.99
+T_pad            279.048391     297.441418    306.75    3.29    300.88    307.14    311.68
+max_wind                0.0       2.086689      8.33    3.67      3.69      7.45     15.40
+
+where the conventional runs fall inside the Tempest distribution (percentile): apogee S0 0, S1 34; flight time S0 4, S1 72;  drift S0 54, S1 38
+apogee difference S0 -> S2 median: +157 m (+4.4 %);  S1 -> S2 median: +9 m
+apogee spread across the sampled atmospheres: sd 20 m, p5-p95 3685-3751 m;   drift p5-p95 517-957 m (S0 has 742 m with no wind)
+correlation of S2 apogee with pad air density -0.81, with surface T +0.81;  drift with max wind +0.18
+
+profile sanity (sample median vs the standard day at the same altitude):
+  height AGL  T_med-T_isa (K)   p_med/p_isa   |wind| p50/p95 (m/s)   T p5-p95 (C)
+        10       +27.5           1.004        3.6 /   7.7         27.3   37.6
+       200       +25.9           1.006        4.2 /   8.6         25.5   35.3
+      1000       +22.3           1.015        4.0 /   8.6         17.1   26.6
+      2500       +17.3           1.029        5.2 /  12.3          3.9   10.6
+      4500       +15.1           1.046        6.8 /  16.5        -11.1   -5.5
+      6500       +14.3           1.063        8.3 /  20.7        -24.5  -18.5
+      8500       +12.2           1.081       12.4 /  25.4        -40.0  -32.9
+     10500        +5.4           1.096       15.6 /  32.6        -55.0  -47.3
+     12500        -5.3           1.096       16.4 /  34.0        -65.1  -58.1
+     14500       -12.3           1.081        9.8 /  21.0        -73.8  -64.2
+     16500       -11.6           1.060        5.1 /  11.6        -71.8  -64.2
+     18000        -6.9           1.049        4.8 /   9.7        -67.0  -59.6
+  surface: T2m p5/p50/p95 27.7/34.0/38.5 C; sp p5/p50/p95 85.58/85.95/86.30 kPa; RH2m median 13 %
+  lowest-layer lapse rate (10-50 m): p50 23.9 K/km, p95 52.5 K/km (dry adiabatic 9.8); share of samples with lapse > 9.8 in any of the first 3 layers: 96 %
+  site T2m vs the 10 m level temperature: median +0.41 K (a jump of more than ~2 K is suspicious)
+
+=== morning: 2025-06-24T14:00:00+00:00  (n = 200 sampled atmospheres) ===
+S1 inputs from the sample medians: T 25.2 C, p 86.11 kPa, RH 25 %, wind 0.6 m/s from 158 deg
+               S0 plain ISA S1 scaled+wind   S2 mean   S2 sd     S2 p5    S2 p50    S2 p95
+apogee_agl_m    3562.439104    3635.387419   3689.08   19.38   3657.57   3690.18   3717.55
+max_speed        355.471756     356.780858    358.04    0.37    357.35    358.09    358.56
+max_q_pa       64445.460038   62933.086209  61480.61  386.80  60943.34  61441.52  62157.11
+flight_time_s     56.621107      57.351639     57.73    1.15     56.45     57.56     59.52
+drift_m          741.512511     735.054392    828.86  181.43    569.88    814.10   1151.32
+north_m          741.512511     735.049154    804.20  184.74    540.29    795.31   1139.30
+east_m                 -0.0       2.774946     90.48  176.15   -217.23     84.72    378.35
+rho_pad            1.068594       1.036205      1.00    0.01      0.99      1.00      1.01
+T_pad            279.048391     288.898111    297.90    2.53    293.33    298.32    301.73
+max_wind                0.0       0.639037      9.41    3.89      4.64      8.74     16.79
+
+where the conventional runs fall inside the Tempest distribution (percentile): apogee S0 0, S1 2; flight time S0 8, S1 41;  drift S0 33, S1 31
+apogee difference S0 -> S2 median: +128 m (+3.6 %);  S1 -> S2 median: +55 m
+apogee spread across the sampled atmospheres: sd 19 m, p5-p95 3658-3718 m;   drift p5-p95 570-1151 m (S0 has 742 m with no wind)
+correlation of S2 apogee with pad air density -0.67, with surface T +0.64;  drift with max wind +0.38
+
+profile sanity (sample median vs the standard day at the same altitude):
+  height AGL  T_med-T_isa (K)   p_med/p_isa   |wind| p50/p95 (m/s)   T p5-p95 (C)
+        10       +19.3           1.006        2.7 /   6.3         19.2   29.8
+       200       +19.6           1.008        3.6 /   8.2         19.0   28.6
+      1000       +19.6           1.015        4.6 /  11.2         14.5   23.7
+      2500       +17.0           1.028        6.0 /  13.1          3.4   10.4
+      4500       +15.0           1.045        7.0 /  17.2        -11.6   -5.8
+      6500       +14.4           1.062        8.7 /  21.8        -24.7  -18.5
+      8500       +12.4           1.080       12.6 /  27.4        -40.2  -33.0
+     10500        +5.5           1.095       16.9 /  34.2        -54.9  -47.5
+     12500        -5.4           1.095       16.7 /  32.5        -66.0  -57.9
+     14500       -12.3           1.081        9.6 /  20.3        -73.8  -64.4
+     16500       -11.7           1.060        5.4 /  10.6        -71.9  -64.1
+     18000        -7.4           1.048        6.2 /  12.3        -67.4  -60.0
+  surface: T2m p5/p50/p95 20.2/25.2/28.6 C; sp p5/p50/p95 85.79/86.11/86.54 kPa; RH2m median 25 %
+  lowest-layer lapse rate (10-50 m): p50 -10.9 K/km, p95 21.1 K/km (dry adiabatic 9.8); share of samples with lapse > 9.8 in any of the first 3 layers: 69 %
+  site T2m vs the 10 m level temperature: median -0.31 K (a jump of more than ~2 K is suspicious)

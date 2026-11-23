@@ -1,0 +1,14 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons. The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)",
+ "flags": [
+  "past-wind-spread-widened"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "past_s12",
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

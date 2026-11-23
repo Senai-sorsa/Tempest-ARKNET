@@ -1,0 +1,14 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; ground wind anchored to HRRR 2022-06-24T15:00Z, near-analysis (archive) (weights fitted at airport stations that HRRR assimilates, so optimistic for a remote pad; not validated beyond near-analysis)",
+ "flags": [
+  "ground-wind-anchored-to-HRRR"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "past_hrrr",
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

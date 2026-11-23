@@ -1,0 +1,13 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons",
+ "flags": [],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "elevation_source": "user",
+ "n": 150,
+ "flight": "Prometheus",
+ "scenario": "past",
+ "truth_ft": 12788.714
+}

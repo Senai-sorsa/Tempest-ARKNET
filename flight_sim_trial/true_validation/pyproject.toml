@@ -1,0 +1,76 @@
+[project]
+name = "flight_sim"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Nacho Durante", email = "112489652+juandurante2005@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.4.6",
+    "pandas>=3.0.5",
+    "pint>=0.25.3",
+    "pyarrow>=26.0.0",
+    "r3f>=2.2.1",
+    "scipy>=1.17.1",
+    "tomli-w>=1.0",
+]
+
+[project.scripts]
+flight_sim = "flight_sim.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+    "pylint>=4.0.8",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.16.5",
+]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.pylint.design]
+# The integrator's public functions take the time, state, vehicle,
+# configuration and step
+max-args = 7
+# State and property dataclasses hold one field per physical quantity
+max-attributes = 12
+# Numerical routines carry many intermediate quantities
+max-locals = 20
+
+[tool.pylint."messages control"]
+# Base classes such as UnitChecked work through dataclass hooks alone
+disable = ["too-few-public-methods"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+
+# r3f ships no type stubs or py.typed marker
+[[tool.mypy.overrides]]
+module = "r3f"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=flight_sim --cov-report=term-missing --cov-fail-under=75"
+
+[tool.coverage.run]
+branch = true
+source = ["flight_sim"]
+
+[tool.coverage.report]
+exclude_also = ['if __name__ == "__main__":']

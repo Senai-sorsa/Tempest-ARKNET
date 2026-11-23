@@ -1,0 +1,24 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; conditioned on 3 measurements (not yet validated)",
+ "flags": [
+  "conditioned-on-3-measurements-not-yet-validated"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "past_pin",
+ "asos": {
+  "speed_ms": 0.9259991999999998,
+  "from_deg": 190.0,
+  "temp_c": 23.22222222222222,
+  "hours_apart": 1.0,
+  "reports": [
+   "2022-06-24 14:53:00+00:00",
+   "2022-06-24 15:53:00+00:00"
+  ]
+ },
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

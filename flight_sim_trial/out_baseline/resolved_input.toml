@@ -1,0 +1,92 @@
+name = "Sol Invictus example"
+stop_event = "impact"
+max_time = "300 s"
+initial_time_step = "0.01 s"  # pulled from default
+
+[properties]
+# reynolds_correction = None  # pulled from default
+
+[properties.aero_table]
+type = "flight_sim.utilities.data_loader.aero_table_from_csv"
+filepath = "inputs/aero.csv"
+reference_area = "0.0182414692 m**2"
+reference_length = "6 in"
+reference_point = { value = [0.0, 0.0, 0.0], units = "m" }
+frame = "missile"
+extrapolation = "clamp"
+
+[properties.dry_mass_properties]
+mass = "17 kg"
+cg_location = { value = [-1.0, 0.0, 0.0], units = "m" }
+inertia = { diag = [2.4, 135.0, 135.0], units = "kg*m**2" }
+
+[properties.engine]
+type = "flight_sim.vehicle.engine.SolidEngine.from_eng"
+motor_file_path = "inputs/Loki_M3464LB.eng"
+forward_end_location = { value = [-2.08, 0.0, 0.0], units = "m" }
+nozzle_exit_area = "0 m**2"
+reference_pressure = "101325 Pa"
+ignition_time = "0.0 s"  # pulled from default
+
+[config.truth]
+launch_latitude = "32.99 deg"
+launch_elevation = "4595 ft"
+gravity = { type = "flight_sim.environment.gravity.WGS84Gravity" }
+
+[config.truth.atmosphere]
+type = "flight_sim.environment.atmosphere.StandardAtmosphere1976"
+# launch_temperature = None  # pulled from default
+barometric_pressure = "101325.0 Pa"  # pulled from default
+relative_humidity = 0.0  # pulled from default
+
+[config.truth.wind]
+type = "flight_sim.environment.wind.UniformWind"
+speed = "0 m/s"
+from_azimuth = "0 deg"
+
+[config.truth.launch_rail]
+length = "17 ft"
+friction_coefficient = 0.0
+elevation = "85 deg"
+azimuth = "0 deg"
+
+[config.sim]  # pulled from default
+type = "flight_sim.integration.SimConfiguration"
+relative_tolerance = 1e-06
+position_tolerance = "1e-05 m"
+velocity_tolerance = "1e-05 m / s"
+angular_velocity_tolerance = "1e-06 rad / s"
+orientation_tolerance = 1e-07
+min_time_step = "1e-09 s"
+event_time_tolerance = "1e-09 s"
+max_event_iterations = 100
+
+[[events]]
+type = "flight_sim.events.peak_vertical_velocity"
+
+[[events]]
+ref = "flight_sim.events.APOGEE"
+
+[[events]]
+ref = "flight_sim.events.IMPACT"
+
+[output]
+directory = "."
+units = "metric"
+sample_interval = "0.01 s"
+plots = ["trajectory", "attitude", "aero", "propulsion"]
+formats = ["csv"]  # pulled from default
+channels = ["*"]  # pulled from default
+
+[initial_state]  # pulled from default
+type = "flight_sim.vehicle.rocket_state.RocketState"
+position = { value = [0.0, 0.0, 0.0], units = "m" }
+velocity = { value = [0.0, 0.0, 0.0], units = "m / s" }
+angular_velocity = { value = [0.0, 0.0, 0.0], units = "rad / s" }
+
+[initial_state.orientation]
+type = "flight_sim.utilities.quaternion.Quaternion"
+q_w = 1.0
+q_x = 0.0
+q_y = 0.0
+q_z = 0.0

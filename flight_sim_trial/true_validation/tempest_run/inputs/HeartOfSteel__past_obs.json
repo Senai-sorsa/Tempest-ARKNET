@@ -1,0 +1,27 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; conditioned on 3 measurements (not yet validated)",
+ "flags": [
+  "window-hours-independent",
+  "conditioned-on-3-measurements-not-yet-validated"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "uniform between 2017-06-22 09:00 MDT and 2017-06-22 13:55 MDT",
+ "elevation_source": "user",
+ "n": 150,
+ "flight": "HeartOfSteel",
+ "scenario": "past_obs",
+ "truth_ft": 30411.0,
+ "asos": {
+  "speed_ms": 2.060417974542607,
+  "from_deg": 67.49017802711279,
+  "temp_c": 34.833333333333336,
+  "hours_apart": 1.0,
+  "reports": [
+   "2017-06-22 16:53:00+00:00",
+   "2017-06-22 17:53:00+00:00"
+  ]
+ },
+ "observed_temp_pad_c": 35.340333333333334
+}

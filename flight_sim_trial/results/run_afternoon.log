@@ -1,0 +1,12 @@
+tool: 200 atmospheres in 0.2 s, mode ai, pad 1400.6 m, quality ['nominal']
+S0 {'apogee_asl_m': 4963.0, 'apogee_agl_m': 3562.4, 'max_speed': 355.5, 'max_mach': 1.1, 'max_q_pa': 64445.5, 'flight_time_s': 56.6, 'east_m': -0.0, 'north_m': 741.5, 'drift_m': 741.5, 'max_wind': 0.0, 'max_updraft': 0.0, 'rho_pad': 1.1, 'T_pad': 279.0}
+S1 (T 34.0 C, p 85.95 kPa, RH 13 %, wind 2.1 m/s from 194 deg) {'apogee_asl_m': 5110.7, 'apogee_agl_m': 3710.1, 'max_speed': 358.0, 'max_mach': 1.0, 'max_q_pa': 61400.0, 'flight_time_s': 58.4, 'east_m': -3.1, 'north_m': 690.5, 'drift_m': 690.5, 'max_wind': 2.1, 'max_updraft': 0.0, 'rho_pad': 1.0, 'T_pad': 297.4}
+S2 1/200  apogee 5099 m  drift 883 m  (1 s)
+S2 26/200  apogee 5121 m  drift 746 m  (13 s)
+S2 51/200  apogee 5117 m  drift 841 m  (24 s)
+S2 76/200  apogee 5150 m  drift 592 m  (44 s)
+S2 101/200  apogee 5127 m  drift 481 m  (66 s)
+S2 126/200  apogee 5117 m  drift 642 m  (87 s)
+S2 151/200  apogee 5122 m  drift 848 m  (109 s)
+S2 176/200  apogee 5082 m  drift 822 m  (131 s)
+done 152 s

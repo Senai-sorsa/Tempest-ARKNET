@@ -1,0 +1,26 @@
+{
+ "when": "2025-06-24T14:00:00+00:00",
+ "n": 200,
+ "info": {
+  "mode": "ai",
+  "source": "tempest generator (calibrated)",
+  "quality": "['nominal']",
+  "valid_utc": "2025-06-24 14:00:00",
+  "solar_hour": "6.868666666666667",
+  "grid_point": "120",
+  "spatial_blend": "{'points': [149, 150, 120, 121], 'weights': [0.0352, 0.0048, 0.8448, 0.1152]}",
+  "elevation_m": "1400.556",
+  "grid_elevation_m": "1495.4718017578125",
+  "indices": "observed",
+  "kind": "uncertainty",
+  "model": "generator_80_p2f.pt",
+  "n": "200"
+ },
+ "s1": {
+  "T": 298.32098388671875,
+  "p": 86111.953125,
+  "rh": 24.891178131103516,
+  "wind": 0.6390371751309689,
+  "from_deg": 158.04893337113737
+ }
+}

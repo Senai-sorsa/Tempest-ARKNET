@@ -1,0 +1,30 @@
+name = "Sol Invictus example"
+units = "metric"
+written = 2026-11-08 01:36:59-06:00
+commit = "93cb8c9748ec67729c19b4ef7e78b1c9070a6f4e"
+dirty = false
+source = "C:/Users/Senai/Tempest-ARKNET/flight_sim_trial/out_baseline/resolved_input.toml"
+
+[summary]
+flight_time_s = 56.62110728142614
+apogee_m = 3562.439104262364
+max_speed_m_s = 355.4717556213997
+max_mach = 1.0673171243705017
+max_dynamic_pressure_pa = 64445.46003758492
+
+[diagnostics]
+steps = 336
+rejected_steps = 85
+rkf45_evaluations = 2652
+event_iterations = 21
+min_step_s = 0.00026671217141064154
+max_step_s = 0.5925761979211757
+run_time_s = 0.5843255999498069
+real_time_factor = 96.89992580556088
+load_time_s = 0.06557059998158365
+
+[event_times_s]
+"rail exit" = 0.264418757249684
+"peak vertical velocity" = 2.440700865240328
+apogee = 25.469001788305775
+impact = 56.62110728142614

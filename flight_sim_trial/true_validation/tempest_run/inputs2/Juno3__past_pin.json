@@ -1,0 +1,24 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; conditioned on 3 measurements (not yet validated)",
+ "flags": [
+  "conditioned-on-3-measurements-not-yet-validated"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2023-06-23 17:00 MDT",
+ "n": 100,
+ "scenario": "past_pin",
+ "asos": {
+  "speed_ms": 13.229784866666668,
+  "from_deg": 250.0,
+  "temp_c": 36.601851851851855,
+  "hours_apart": 1.0,
+  "reports": [
+   "2023-06-23 22:53:00+00:00",
+   "2023-06-23 23:53:00+00:00"
+  ]
+ },
+ "flight": "Juno3",
+ "truth_ft": 10541.339
+}

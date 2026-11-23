@@ -1,0 +1,25 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; conditioned on 3 measurements (not yet validated). The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)",
+ "flags": [
+  "window-hours-independent",
+  "conditioned-on-3-measurements-not-yet-validated"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "uniform between 2017-06-22 09:00 MDT and 2017-06-22 13:55 MDT",
+ "n": 100,
+ "scenario": "past_pin",
+ "asos": {
+  "speed_ms": 2.060417974542607,
+  "from_deg": 67.49017802711279,
+  "temp_c": 34.833333333333336,
+  "hours_apart": 1.0,
+  "reports": [
+   "2017-06-22 16:53:00+00:00",
+   "2017-06-22 17:53:00+00:00"
+  ]
+ },
+ "flight": "HeartOfSteel",
+ "truth_ft": 30411.0
+}

@@ -1,0 +1,14 @@
+{
+ "trust": "Past date: ERA5 corrected to balloons; ground wind anchored to HRRR 2022-06-24T15:00Z, near-analysis (archive) (weights fitted at airport stations that HRRR assimilates; at an independent basin station HRRR was no better than ERA5, so expect no gain at a remote pad; not validated beyond near-analysis). The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)",
+ "flags": [
+  "ground-wind-anchored-to-HRRR"
+ ],
+ "modes": {
+  "past": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "past_hrrr",
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

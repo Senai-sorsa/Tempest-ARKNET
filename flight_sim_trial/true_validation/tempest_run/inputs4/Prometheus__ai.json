@@ -1,0 +1,12 @@
+{
+ "trust": "Climate estimate: typical range for this date, not a forecast (an unusual day such as strong wind or a heat wave sits in its tails; for a specific launch use past mode, a forecast or observe_latest); this date is in the past: mode='past' gives that day's ERA5 corrected to balloons (needs the ERA5 store), or observe_latest() / observe_metar() for what was measured. The range is the uncertainty of the atmosphere only, not of the rocket or the flight simulation (in the flight-sim test the vehicle error was 2-4 times the whole atmosphere effect)",
+ "flags": [],
+ "modes": {
+  "ai": 1.0
+ },
+ "window": "2022-06-24 09:17 MDT",
+ "n": 100,
+ "scenario": "ai",
+ "flight": "Prometheus",
+ "truth_ft": 12788.714
+}

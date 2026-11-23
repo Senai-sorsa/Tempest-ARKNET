@@ -1,0 +1,9 @@
+box,stem,lat0,lat1,lon0,lon1
+nmtx,results/G2/lobo_nmtx_sirenstudt_s0_cal2021_fair,31.0,34.0,-108.0,-101.0
+denver,results/G2/lobo_denver_sirenstudt_s0_cal2021_fair,38.0,40.0,-106.0,-104.0
+vandenberg,results/G2/lobo_vandenberg_sirenstudt_s0_cal2021_fair,33.5,35.5,-121.0,-119.0
+canaveral,results/G2/lobo_canaveral_sirenstudt_s0_cal2021_fair,27.5,29.5,-81.5,-79.5
+fairbanks,results/G2/lobo_fairbanks_sirenstudt_s0_cal2021_fair,64.0,66.0,-149.0,-147.0
+saltlake,results/G2/lobo_saltlake_sirenstudt_s0_cal2021_fair,40.0,42.0,-113.0,-111.0
+lamont,results/G2/lobo_lamont_sirenstudt_s0_cal2021_fair,35.5,37.5,-98.5,-96.5
+hilo,results/G2/lobo_hilo_sirenstudt_s0_cal2021_fair,18.5,20.5,-156.0,-154.0
